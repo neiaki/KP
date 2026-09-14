@@ -1,0 +1,118 @@
+export type Locale = "id" | "en";
+
+export const translations = {
+  id: {
+    nav: {
+      brand: "At Cell",
+      home: "Beranda",
+      catalog: "Etalase Stok",
+      tracking: "Lacak Servis",
+      tradeIn: "Estimasi Trade-In",
+      operationalPortal: "Portal Operasional",
+      contact: "Hubungi Kami",
+      adminDashboard: "Dashboard Admin",
+    },
+    hero: {
+      tag: "Gadget Store & Repair Center Terpercaya",
+      title: "Solusi Smartphone Baru, Seken Berkualitas & Servis Profesional",
+      subtitle:
+        "Jaminan garansi fisik per nomor unik IMEI 15-digit, transparansi proses reparasi servis, dan kemudahan tukar tambah handphone lama Anda.",
+      ctaCatalog: "Lihat Stok Tersedia",
+      ctaTracking: "Lacak Status Servis",
+      searchPlaceholder: "Cari tipe HP (mis. iPhone 15, Galaxy S24)...",
+    },
+    badges: {
+      newCondition: "Baru / Segel",
+      secondCondition: "Seken Mulus",
+      warranty: "Garansi Toko",
+      available: "Tersedia",
+      outOfStock: "Habis",
+      imeiVerified: "IMEI Resmi Terverifikasi",
+    },
+    trackingWidget: {
+      title: "Lacak Progres Reparasi Servis",
+      subtitle: "Cek tahapan perbaikan unit Anda secara langsung dan transparan tanpa perlu login.",
+      inputPlaceholder: "Contoh: SRV-20260912-0042",
+      buttonText: "Lacak Sekarang",
+      quickDemo: "Coba nomor tiket contoh:",
+    },
+    features: {
+      f1_title: "Pelacakan Presisi IMEI",
+      f1_desc: "Setiap unit handphone terikat pada nomor unik IMEI 15-digit dengan transparansi riwayat dan garansi.",
+      f2_title: "Meja Kerja Servis Terbuka",
+      f2_desc: "Lacak tahapan pengerjaan reparasi mulai diagnosa, suku cadang, hingga pengetesan akhir secara real-time.",
+      f3_title: "Tukar Tambah Transparan",
+      f3_desc: "Inspeksi grading kondisi fisik akurat dengan potongan harga langsung untuk smartphone impian Anda.",
+      f4_title: "Teknisi Bersertifikat",
+      f4_desc: "Dukungan suku cadang berkualitas dengan garansi pengerjaan hingga 90 hari.",
+    },
+    storeInfo: {
+      title: "Lokasi & Jam Operasional",
+      hoursLabel: "Jam Buka Toko",
+      addressLabel: "Alamat Toko",
+      phoneLabel: "Kontak Telepon / WA",
+      directions: "Buka Petunjuk Arah",
+    },
+    footer: {
+      rights: "Hak Cipta Dilindungi.",
+      poweredBy: "Didukung oleh Next.js & Tailwind CSS",
+    },
+  },
+  en: {
+    nav: {
+      brand: "At Cell",
+      home: "Home",
+      catalog: "Stock Catalog",
+      tracking: "Track Service",
+      tradeIn: "Trade-In Estimator",
+      operationalPortal: "Staff Portal",
+      contact: "Contact Us",
+      adminDashboard: "Admin Dashboard",
+    },
+    hero: {
+      tag: "Trusted Gadget Store & Repair Center",
+      title: "Quality New & Pre-Owned Smartphones with Certified Repair",
+      subtitle:
+        "Guaranteed official store warranty per 15-digit unique IMEI, live repair tracking transparency, and hassle-free smartphone trade-in.",
+      ctaCatalog: "Browse Available Stock",
+      ctaTracking: "Track Repair Status",
+      searchPlaceholder: "Search model (e.g. iPhone 15, Galaxy S24)...",
+    },
+    badges: {
+      newCondition: "Brand New",
+      secondCondition: "Certified Pre-Owned",
+      warranty: "Store Warranty",
+      available: "In Stock",
+      outOfStock: "Sold Out",
+      imeiVerified: "Verified Official IMEI",
+    },
+    trackingWidget: {
+      title: "Track Your Repair Progress",
+      subtitle: "Check live repair milestones and cost breakdown directly without logging in.",
+      inputPlaceholder: "e.g., SRV-20260912-0042",
+      buttonText: "Track Now",
+      quickDemo: "Try demo ticket:",
+    },
+    features: {
+      f1_title: "Precision IMEI Tracking",
+      f1_desc: "Each individual unit is tracked with its 15-digit IMEI for transparent history and warranty.",
+      f2_title: "Transparent Service Desk",
+      f2_desc: "Monitor repair phases in real-time from diagnostics, spare parts, to final quality testing.",
+      f3_title: "Transparent Trade-In",
+      f3_desc: "Objective physical grading inspection providing instant direct deductions for your new device.",
+      f4_title: "Certified Technicians",
+      f4_desc: "Genuine spare parts replacement backed by up to 90 days repair warranty.",
+    },
+    storeInfo: {
+      title: "Location & Store Hours",
+      hoursLabel: "Store Hours",
+      addressLabel: "Physical Address",
+      phoneLabel: "Phone & WhatsApp",
+      directions: "Get Directions",
+    },
+    footer: {
+      rights: "All Rights Reserved.",
+      poweredBy: "Powered by Next.js & Tailwind CSS",
+    },
+  },
+};
