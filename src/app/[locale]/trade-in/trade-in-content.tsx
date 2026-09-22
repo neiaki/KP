@@ -1,70 +1,116 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Locale } from "@/lib/translations";
 import { formatIDR } from "@/lib/utils";
 import { useStore } from "@/context/store-context";
-import { Smartphone, ShieldCheck, Send, BadgeCheck, AlertCircle } from "lucide-react";
+import { Smartphone, ShieldCheck, Send, BadgeCheck, AlertCircle, Upload, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-/* Tabel basis taksiran (rupiah). Bukan harga final, hanya titik awal
-   sebelum cek fisik di konter. Urutan regex penting: yang spesifik dulu. */
-const BASE_TABLE: Array<[RegExp, number]> = [
-  [/iphone\s*17/i, 15000000],
-  [/iphone\s*16/i, 13500000],
-  [/iphone\s*15/i, 12000000],
-  [/iphone\s*14/i, 9500000],
-  [/iphone\s*13/i, 7500000],
-  [/iphone\s*12/i, 5500000],
-  [/iphone\s*11/i, 3500000],
-  [/iphone\s*xs|iphone\s*x\b/i, 2500000],
-  [/s\s*25|galaxy\s*s25/i, 13000000],
-  [/s\s*24|galaxy\s*s24/i, 12500000],
-  [/s\s*23|galaxy\s*s23/i, 8500000],
-  [/s\s*22|galaxy\s*s22/i, 6000000],
-  [/z\s*fold/i, 12000000],
-  [/z\s*flip/i, 8000000],
-  [/galaxy\s*a\s*5|galaxy\s*a\s*7/i, 3000000],
-  [/galaxy\s*a[0-3]/i, 2000000],
-  [/xiaomi\s*14/i, 9000000],
-  [/xiaomi\s*13/i, 7000000],
-  [/redmi\s*note\s*1[3-9]/i, 2200000],
-  [/redmi\s*note/i, 1800000],
-  [/redmi\s*1[2-9]|poco/i, 2000000],
-  [/reno\s*1[1-9]/i, 4000000],
-  [/reno/i, 3000000],
-  [/oppo\s*a/i, 1500000],
-  [/vivo\s*v\s*[3-9]|vivo\s*v[3-9]/i, 3500000],
-  [/vivo\s*v/i, 2500000],
-  [/vivo\s*y/i, 1500000],
-  [/realme/i, 2000000],
-  [/infinix|itel|tecno/i, 1200000],
+/* Tukar tambah saat ini hanya menerima iPhone 11 ke atas. Lineup per seri
+   lengkap dengan basis taksiran (rupiah) tiap varian. Bukan harga final,
+   hanya titik awal sebelum cek fisik di konter. */
+const IPHONE_LINEUP: Array<{
+  series: string;
+  storage: number[];
+  models: Array<{ value: string; base: number }>;
+}> = [
+  {
+    series: "17",
+    storage: [256, 512, 1024],
+    models: [
+      { value: "iPhone 17", base: 15000000 },
+      { value: "iPhone 17 Pro", base: 18000000 },
+      { value: "iPhone 17 Pro Max", base: 20000000 },
+    ],
+  },
+  {
+    series: "16",
+    storage: [128, 256, 512, 1024],
+    models: [
+      { value: "iPhone 16e", base: 9000000 },
+      { value: "iPhone 16", base: 13500000 },
+      { value: "iPhone 16 Plus", base: 14000000 },
+      { value: "iPhone 16 Pro", base: 16000000 },
+      { value: "iPhone 16 Pro Max", base: 17500000 },
+    ],
+  },
+  {
+    series: "15",
+    storage: [128, 256, 512, 1024],
+    models: [
+      { value: "iPhone 15", base: 12000000 },
+      { value: "iPhone 15 Plus", base: 12500000 },
+      { value: "iPhone 15 Pro", base: 14000000 },
+      { value: "iPhone 15 Pro Max", base: 15500000 },
+    ],
+  },
+  {
+    series: "14",
+    storage: [128, 256, 512, 1024],
+    models: [
+      { value: "iPhone 14", base: 9500000 },
+      { value: "iPhone 14 Plus", base: 10000000 },
+      { value: "iPhone 14 Pro", base: 11000000 },
+      { value: "iPhone 14 Pro Max", base: 12000000 },
+    ],
+  },
+  {
+    series: "13",
+    storage: [128, 256, 512, 1024],
+    models: [
+      { value: "iPhone 13 mini", base: 6000000 },
+      { value: "iPhone 13", base: 7500000 },
+      { value: "iPhone 13 Pro", base: 8500000 },
+      { value: "iPhone 13 Pro Max", base: 9500000 },
+    ],
+  },
+  {
+    series: "12",
+    storage: [64, 128, 256, 512],
+    models: [
+      { value: "iPhone 12 mini", base: 4500000 },
+      { value: "iPhone 12", base: 5500000 },
+      { value: "iPhone 12 Pro", base: 6500000 },
+      { value: "iPhone 12 Pro Max", base: 7500000 },
+    ],
+  },
+  {
+    series: "11",
+    storage: [64, 128, 256, 512],
+    models: [
+      { value: "iPhone 11", base: 3500000 },
+      { value: "iPhone 11 Pro", base: 4000000 },
+      { value: "iPhone 11 Pro Max", base: 4500000 },
+    ],
+  },
 ];
 
-function basePrice(model: string): number {
-  for (const [re, price] of BASE_TABLE) {
-    if (re.test(model)) return price;
-  }
-  return 3000000;
-}
+const MAX_PHOTOS = 4;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
-function storageFactor(model: string): number {
-  const m = model.match(/(\d{2,4})\s?gb/i);
-  if (!m) return 1;
-  const gb = Number(m[1]);
+function storageFactor(gb: number): number {
+  if (gb >= 1024) return 1.3;
   if (gb >= 512) return 1.2;
   if (gb >= 256) return 1.1;
   if (gb <= 64) return 0.9;
   return 1;
 }
 
+function storageLabel(gb: number): string {
+  return gb >= 1024 ? `${Math.round(gb / 1024)}TB` : `${gb}GB`;
+}
+
+type Photo = { url: string; name: string };
+
 export function TradeInContent({ locale }: { locale: Locale }) {
   const { storeSettings } = useStore();
   const en = locale === "en";
 
-  const [deviceModel, setDeviceModel] = useState("iPhone 12 128GB");
+  const [deviceModel, setDeviceModel] = useState("iPhone 12");
+  const [storageGb, setStorageGb] = useState(128);
   const [screenCondition, setScreenCondition] = useState<"good" | "minor_scratches" | "cracked">("good");
   const [bodyCondition, setBodyCondition] = useState<"flawless" | "minor_dents" | "heavy_wear">("minor_dents");
   const [batteryHealth, setBatteryHealth] = useState(85);
@@ -72,10 +118,70 @@ export function TradeInContent({ locale }: { locale: Locale }) {
   const [cameraWorks, setCameraWorks] = useState(true);
   const [boxIncluded, setBoxIncluded] = useState(true);
   const [imei, setImei] = useState("");
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [error, setError] = useState("");
 
+  const seriesOf = (model: string) =>
+    IPHONE_LINEUP.find((s) => s.models.some((m) => m.value === model)) ?? IPHONE_LINEUP[1];
+  const activeSeries = seriesOf(deviceModel);
+  const baseOf = (model: string) =>
+    activeSeries.models.find((m) => m.value === model)?.base ?? 3500000;
+
+  // Storage yang tidak tersedia di seri baru dikembalikan ke default seri itu.
+  const changeModel = (model: string) => {
+    setDeviceModel(model);
+    const next = seriesOf(model);
+    if (!next.storage.includes(storageGb)) {
+      setStorageGb(next.storage.includes(128) ? 128 : next.storage[0]);
+    }
+  };
+
+  const addPhotos = (files: FileList | null) => {
+    if (!files) return;
+    const picked = Array.from(files);
+    if (photos.length + picked.length > MAX_PHOTOS) {
+      setError(
+        en
+          ? `Maximum ${MAX_PHOTOS} photos. Remove one first to add another.`
+          : `Maksimal ${MAX_PHOTOS} foto. Hapus satu dulu untuk tambah lagi.`
+      );
+      return;
+    }
+    for (const f of picked) {
+      if (!f.type.startsWith("image/")) {
+        setError(en ? `${f.name} is not an image file.` : `${f.name} bukan file gambar.`);
+        return;
+      }
+      if (f.size > MAX_PHOTO_BYTES) {
+        setError(
+          en
+            ? `${f.name} is over 5MB. Pick a smaller photo.`
+            : `${f.name} lebih dari 5MB. Pilih foto yang lebih kecil.`
+        );
+        return;
+      }
+    }
+    setError("");
+    setPhotos((prev) => [...prev, ...picked.map((f) => ({ url: URL.createObjectURL(f), name: f.name }))]);
+  };
+
+  const removePhoto = (url: string) => {
+    setPhotos((prev) => {
+      const gone = prev.find((p) => p.url === url);
+      if (gone) URL.revokeObjectURL(gone.url);
+      return prev.filter((p) => p.url !== url);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      photos.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const calculateValuation = () => {
-    const base = Math.round(basePrice(deviceModel) * storageFactor(deviceModel));
+    const base = Math.round(baseOf(deviceModel) * storageFactor(storageGb));
 
     let multiplier = 1.0;
     if (screenCondition === "minor_scratches") multiplier -= 0.1;
@@ -93,6 +199,7 @@ export function TradeInContent({ locale }: { locale: Locale }) {
   };
 
   const estimatedValue = calculateValuation();
+  const deviceLabel = `${deviceModel} ${storageLabel(storageGb)}`;
   const grade =
     screenCondition === "good" && bodyCondition === "flawless"
       ? en
@@ -133,11 +240,10 @@ export function TradeInContent({ locale }: { locale: Locale }) {
         : "border-line bg-card text-muted hover:bg-paper hover:text-ink"
     }`;
 
+  const selectClass =
+    "h-10 w-full cursor-pointer rounded-lg border border-line bg-card px-2.5 text-sm font-medium text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent";
+
   const submitViaWa = () => {
-    if (!deviceModel.trim()) {
-      setError(en ? "Type your phone brand and model first." : "Isi merek dan tipe HP dulu.");
-      return;
-    }
     const cleanImei = imei.trim();
     if (cleanImei !== "" && !/^\d{15}$/.test(cleanImei)) {
       setError(
@@ -148,10 +254,17 @@ export function TradeInContent({ locale }: { locale: Locale }) {
     setError("");
     const cleanWa = (storeSettings.whatsapp_number || "6285775398389").replace(/\D/g, "");
     const text = en
-      ? `Hello At Cell, I want to trade in my ${deviceModel.trim()} (estimate ${formatIDR(estimatedValue)}, ${grade}). Which replacement stock is available?`
-      : `Halo At Cell, saya mau tukar tambah ${deviceModel.trim()} (taksiran ${formatIDR(estimatedValue)}, ${grade}). Stok penggantinya apa saja?`;
+      ? `Hello At Cell, I want to trade in my ${deviceLabel} (estimate ${formatIDR(estimatedValue)}, ${grade}). Which replacement stock is available?`
+      : `Halo At Cell, saya mau tukar tambah ${deviceLabel} (taksiran ${formatIDR(estimatedValue)}, ${grade}). Stok penggantinya apa saja?`;
     const withImei = cleanImei !== "" ? `${text}\nIMEI: ${cleanImei}` : text;
-    window.open(`https://wa.me/${cleanWa}?text=${encodeURIComponent(withImei)}`, "_blank");
+    // Link WA tidak bisa membawa file, jadi foto dikirim manual di chat.
+    const withPhotos =
+      photos.length > 0
+        ? en
+          ? `${withImei}\nCondition photos: I will send ${photos.length} photo(s) in this chat.`
+          : `${withImei}\nFoto kondisi: ${photos.length} foto saya kirim di chat ini.`
+        : withImei;
+    window.open(`https://wa.me/${cleanWa}?text=${encodeURIComponent(withPhotos)}`, "_blank");
   };
 
   return (
@@ -176,17 +289,52 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div>
-                  <label htmlFor="tt-model" className="mb-1 block text-xs font-bold text-ink">
-                    {en ? "Brand and model" : "Merek dan tipe HP"}
-                  </label>
-                  <Input
-                    id="tt-model"
-                    value={deviceModel}
-                    onChange={(e) => setDeviceModel(e.target.value)}
-                    placeholder={en ? "e.g. iPhone 12 128GB" : "Contoh: iPhone 12 128GB"}
-                    className="bg-card text-sm font-medium"
-                  />
+                <p className="flex items-start gap-1.5 rounded-lg bg-accent-soft p-2.5 text-left text-[11px] leading-relaxed text-accent-deep">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {en
+                    ? "Trade-in currently accepts iPhone 11 and newer only."
+                    : "Tukar tambah saat ini hanya menerima iPhone 11 ke atas."}
+                </p>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="tt-model" className="mb-1 block text-xs font-bold text-ink">
+                      {en ? "iPhone model" : "Tipe iPhone"}
+                    </label>
+                    <select
+                      id="tt-model"
+                      value={deviceModel}
+                      onChange={(e) => changeModel(e.target.value)}
+                      className={selectClass}
+                    >
+                      {IPHONE_LINEUP.map((s) => (
+                        <optgroup key={s.series} label={`iPhone ${s.series} series`}>
+                          {s.models.map((m) => (
+                            <option key={m.value} value={m.value}>
+                              {m.value}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="tt-storage" className="mb-1 block text-xs font-bold text-ink">
+                      {en ? "Storage" : "Penyimpanan"}
+                    </label>
+                    <select
+                      id="tt-storage"
+                      value={storageGb}
+                      onChange={(e) => setStorageGb(Number(e.target.value))}
+                      className={selectClass}
+                    >
+                      {activeSeries.storage.map((gb) => (
+                        <option key={gb} value={gb}>
+                          {storageLabel(gb)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div>
@@ -267,6 +415,52 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                 </div>
 
                 <div>
+                  <p className="mb-2 text-xs font-bold text-ink" id="tt-photos">
+                    {en ? `Condition photos${photos.length > 0 ? ` (${photos.length}/${MAX_PHOTOS})` : ""}` : `Foto kondisi barang${photos.length > 0 ? ` (${photos.length}/${MAX_PHOTOS})` : ""}`}
+                  </p>
+                  {photos.length > 0 && (
+                    <div className="mb-2 grid grid-cols-4 gap-2" role="group" aria-labelledby="tt-photos">
+                      {photos.map((p) => (
+                        <div key={p.url} className="relative aspect-square overflow-hidden rounded-lg border border-line bg-card">
+                          <img src={p.url} alt={en ? "Condition photo preview" : "Pratinjau foto kondisi"} className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(p.url)}
+                            aria-label={en ? `Remove ${p.name}` : `Hapus ${p.name}`}
+                            className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label
+                    htmlFor="tt-photo-input"
+                    className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-card px-4 py-3 text-xs font-bold text-muted transition-colors hover:border-accent hover:text-accent-deep"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {en ? "Upload photos (max 4, 5MB each)" : "Upload foto (maks 4, tiap 5MB)"}
+                  </label>
+                  <input
+                    id="tt-photo-input"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => {
+                      addPhotos(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    {en
+                      ? "Photos help the counter check go faster. You send them manually in the WhatsApp chat after tapping submit."
+                      : "Foto bikin cek di konter lebih cepat. Foto dikirim manual di chat WhatsApp setelah tombol ajukan ditekan."}
+                  </p>
+                </div>
+
+                <div>
                   <label htmlFor="tt-imei" className="mb-1 block text-xs font-bold text-ink">
                     {en ? "IMEI (optional)" : "IMEI (opsional)"}
                   </label>
@@ -302,7 +496,7 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                     {formatIDR(estimatedValue)}
                   </p>
                   <p className="mt-1 text-[11px] text-muted">
-                    {deviceModel.trim() !== "" ? deviceModel.trim() : en ? "Type your phone first" : "Isi tipe HP dulu"} · {grade}
+                    {deviceLabel} · {grade}
                   </p>
                 </div>
                 {error !== "" && (

@@ -1,7 +1,8 @@
 // Mapper baris DB ke tipe frontend (modul biasa, tanpa "use server",
 // agar boleh mengekspor fungsi sinkron dan dipakai banyak action).
-import type { InventoryUnit, Transaction } from "@/types";
-import { toNumber } from "./_helpers";
+import { storeSettings } from "@/db/schema";
+import type { InventoryUnit, StoreSettings, Transaction } from "@/types";
+import { toISO, toNumber } from "./_helpers";
 
 export type UnitRow = {
   id: number;
@@ -97,5 +98,29 @@ export function mapTransaction(t: TransactionRow): Transaction {
           created_at: trade.created_at,
         }
       : undefined,
+  };
+}
+
+type StoreSettingsRow = typeof storeSettings.$inferSelect;
+
+export function mapStoreSettings(row: StoreSettingsRow): StoreSettings {
+  const hours = row.openingHours ?? {};
+  return {
+    id: row.id,
+    store_name: row.storeName,
+    description_id: row.descriptionId,
+    description_en: row.descriptionEn,
+    address: row.address,
+    latitude: toNumber(row.latitude),
+    longitude: toNumber(row.longitude),
+    maps_url: row.mapsUrl ?? undefined,
+    phone_number: row.phoneNumber,
+    whatsapp_number: row.whatsappNumber ?? undefined,
+    opening_hours: {
+      monday_friday: hours.monday_friday ?? "",
+      saturday_sunday: hours.saturday_sunday ?? "",
+      holidays: hours.holidays,
+    },
+    updated_at: toISO(row.updatedAt),
   };
 }

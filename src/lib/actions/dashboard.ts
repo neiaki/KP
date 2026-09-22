@@ -1,7 +1,17 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { fail, ok, requireRole, toNumber, type ActionResult } from "./_helpers";
+import { desc, eq, gte, notInArray } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { inventoryUnits, products, profiles, serviceTickets, transactions } from "@/db/schema";
+import {
+  backendOffline,
+  fail,
+  ok,
+  requireRole,
+  toISO,
+  toNumber,
+  type ActionResult,
+} from "./_helpers";
 
 export type BusinessSummary = {
   totalRevenue: number;
@@ -20,20 +30,20 @@ function startOfDay(d: Date): Date {
 export async function getBusinessSummary(): Promise<ActionResult<BusinessSummary>> {
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
-  const supabase = await createClient();
+  const db = getDb();
+  if (!db) return backendOffline();
   const since = new Date();
   since.setDate(since.getDate() - 29);
-  const { data: txs, error: txError } = await supabase
-    .from("transactions")
-    .select("final_payment,created_at")
-    .gte("created_at", startOfDay(since).toISOString())
-    .order("created_at", { ascending: true });
-  if (txError) return fail("Gagal memuat ringkasan: " + txError.message);
-  const { count: activeTickets, error: ticketError } = await supabase
-    .from("service_tickets")
-    .select("id", { count: "exact", head: true })
-    .not("repair_status", "in", "(completed,picked_up,cancelled)");
-  if (ticketError) return fail("Gagal memuat tiket aktif: " + ticketError.message);
+  const txs = await db
+    .select({ finalPayment: transactions.finalPayment, createdAt: transactions.createdAt })
+    .from(transactions)
+    .where(gte(transactions.createdAt, startOfDay(since)))
+    .orderBy(transactions.createdAt);
+  // Tiket aktif = status apa pun kecuali selesai/diambil/batal.
+  const activeTickets = await db
+    .select({ id: serviceTickets.id })
+    .from(serviceTickets)
+    .where(notInArray(serviceTickets.repairStatus, ["completed", "picked_up", "cancelled"]));
   const buckets = new Map<string, number>();
   for (let i = 0; i < 30; i++) {
     const d = new Date(since);
@@ -41,16 +51,16 @@ export async function getBusinessSummary(): Promise<ActionResult<BusinessSummary
     buckets.set(d.toISOString().slice(0, 10), 0);
   }
   let totalRevenue = 0;
-  for (const t of txs ?? []) {
-    const day = new Date(t.created_at).toISOString().slice(0, 10);
-    const amount = toNumber(t.final_payment);
+  for (const t of txs) {
+    const day = toISO(t.createdAt).slice(0, 10);
+    const amount = toNumber(t.finalPayment);
     totalRevenue += amount;
     if (buckets.has(day)) buckets.set(day, (buckets.get(day) ?? 0) + amount);
   }
   return ok({
     totalRevenue,
-    transactionCount: txs?.length ?? 0,
-    activeTicketCount: activeTickets ?? 0,
+    transactionCount: txs.length,
+    activeTicketCount: activeTickets.length,
     revenueByDay: [...buckets.entries()].map(([date, revenue]) => ({ date, revenue })),
   });
 }
@@ -69,25 +79,24 @@ export async function getLowStockAlerts(
 ): Promise<ActionResult<LowStockAlert[]>> {
   const guard = await requireRole(["admin", "sales"]);
   if ("error" in guard) return fail(guard.error);
-  const supabase = await createClient();
-  const { data: products, error: pError } = await supabase
-    .from("products")
-    .select("id,brand,model_name")
-    .eq("is_active", true);
-  if (pError) return fail("Gagal memuat produk: " + pError.message);
-  const { data: units, error: uError } = await supabase
-    .from("inventory_units")
-    .select("product_id")
-    .eq("status", "available");
-  if (uError) return fail("Gagal memuat stok: " + uError.message);
+  const db = getDb();
+  if (!db) return backendOffline();
+  const productRows = await db
+    .select({ id: products.id, brand: products.brand, modelName: products.modelName })
+    .from(products)
+    .where(eq(products.isActive, true));
+  const availableUnits = await db
+    .select({ productId: inventoryUnits.productId })
+    .from(inventoryUnits)
+    .where(eq(inventoryUnits.status, "available"));
   const counts = new Map<number, number>();
-  for (const u of units ?? []) counts.set(u.product_id, (counts.get(u.product_id) ?? 0) + 1);
+  for (const u of availableUnits) counts.set(u.productId, (counts.get(u.productId) ?? 0) + 1);
   return ok(
-    (products ?? [])
+    productRows
       .map((p) => ({
         productId: p.id,
         brand: p.brand,
-        modelName: p.model_name,
+        modelName: p.modelName,
         availableCount: counts.get(p.id) ?? 0,
         threshold,
       }))
@@ -107,27 +116,33 @@ export type TechnicianStat = {
 export async function getTechnicianPerformance(): Promise<ActionResult<TechnicianStat[]>> {
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
-  const supabase = await createClient();
-  const { data: techs, error: tError } = await supabase
-    .from("profiles")
-    .select("id,full_name")
-    .eq("role", "technician");
-  if (tError) return fail("Gagal memuat teknisi: " + tError.message);
-  const { data: tickets, error: tkError } = await supabase
-    .from("service_tickets")
-    .select("technician_id,created_at,updated_at")
-    .eq("repair_status", "completed");
-  if (tkError) return fail("Gagal memuat tiket: " + tkError.message);
+  const db = getDb();
+  if (!db) return backendOffline();
+  const techs = await db
+    .select({ id: profiles.id, fullName: profiles.fullName })
+    .from(profiles)
+    .where(eq(profiles.role, "technician"));
+  const done = await db
+    .select({
+      technicianId: serviceTickets.technicianId,
+      createdAt: serviceTickets.createdAt,
+      updatedAt: serviceTickets.updatedAt,
+    })
+    .from(serviceTickets)
+    .where(eq(serviceTickets.repairStatus, "completed"))
+    .orderBy(desc(serviceTickets.updatedAt));
   return ok(
-    (techs ?? []).map((t) => {
-      const done = (tickets ?? []).filter((k) => k.technician_id === t.id);
-      const durations = done.map(
-        (k) => (new Date(k.updated_at).getTime() - new Date(k.created_at).getTime()) / 3_600_000
+    techs.map((t) => {
+      const mine = done.filter((k) => k.technicianId === t.id);
+      const durations = mine.map(
+        (k) =>
+          (new Date(toISO(k.updatedAt)).getTime() - new Date(toISO(k.createdAt)).getTime()) /
+          3_600_000
       );
       return {
         technicianId: t.id,
-        fullName: t.full_name,
-        completedCount: done.length,
+        fullName: t.fullName,
+        completedCount: mine.length,
         avgCompletionHours:
           durations.length > 0
             ? Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10

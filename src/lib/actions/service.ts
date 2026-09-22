@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { serviceTickets, type ServiceTicketRow } from "@/db/schema";
 import {
   createTicketSchema,
   isAllowedTransition,
@@ -12,58 +12,41 @@ import {
   type CreateTicketInput,
   type UpdateTicketInput,
 } from "@/lib/validations";
-import type { Database } from "@/types/database";
 import type { RepairStatus, ServiceTicket } from "@/types";
-import { fail, ok, requireRole, toNumber, type ActionResult } from "./_helpers";
+import {
+  backendOffline,
+  fail,
+  ok,
+  requireRole,
+  toISO,
+  toNumber,
+  type ActionResult,
+} from "./_helpers";
 
-type TicketRow = {
-  id: number;
-  ticket_code: string;
-  customer_id: string | null;
-  technician_id: string | null;
-  customer_name: string;
-  customer_phone: string;
-  device_model: string;
-  device_name: string | null;
-  imei_or_sn: string;
-  issue_notes: string;
-  problem_description: string | null;
-  technician_notes: string | null;
-  repair_status: RepairStatus;
-  photo_urls: string[];
-  sparepart_fee: unknown;
-  labor_fee: unknown;
-  total_fee: unknown;
-  warranty_days: number;
-  cost_breakdown: ServiceTicket["cost_breakdown"];
-  created_at: string;
-  updated_at: string;
-};
-
-function mapTicket(t: TicketRow): ServiceTicket {
+function mapTicket(t: ServiceTicketRow): ServiceTicket {
   return {
     id: t.id,
-    ticket_code: t.ticket_code,
-    customer_id: t.customer_id,
-    technician_id: t.technician_id,
-    customer_name: t.customer_name,
-    customer_phone: t.customer_phone,
-    device_model: t.device_model,
-    device_name: t.device_name ?? t.device_model,
-    imei_or_sn: t.imei_or_sn,
-    imei: t.imei_or_sn,
-    issue_notes: t.issue_notes,
-    problem_description: t.problem_description ?? t.issue_notes,
-    technician_notes: t.technician_notes ?? undefined,
-    repair_status: t.repair_status,
-    photo_urls: t.photo_urls ?? [],
-    sparepart_fee: toNumber(t.sparepart_fee),
-    labor_fee: toNumber(t.labor_fee),
-    total_fee: toNumber(t.total_fee),
-    warranty_days: t.warranty_days,
-    cost_breakdown: t.cost_breakdown ?? [],
-    created_at: t.created_at,
-    updated_at: t.updated_at,
+    ticket_code: t.ticketCode,
+    customer_id: t.customerId,
+    technician_id: t.technicianId,
+    customer_name: t.customerName,
+    customer_phone: t.customerPhone,
+    device_model: t.deviceModel,
+    device_name: t.deviceName ?? t.deviceModel,
+    imei_or_sn: t.imeiOrSn,
+    imei: t.imeiOrSn,
+    issue_notes: t.issueNotes,
+    problem_description: t.problemDescription ?? t.issueNotes,
+    technician_notes: t.technicianNotes ?? undefined,
+    repair_status: t.repairStatus,
+    photo_urls: t.photoUrls ?? [],
+    sparepart_fee: toNumber(t.sparepartFee),
+    labor_fee: toNumber(t.laborFee),
+    total_fee: toNumber(t.totalFee),
+    warranty_days: t.warrantyDays,
+    cost_breakdown: t.costBreakdown ?? [],
+    created_at: toISO(t.createdAt),
+    updated_at: toISO(t.updatedAt),
   };
 }
 
@@ -74,29 +57,28 @@ export async function createTicket(raw: CreateTicketInput): Promise<ActionResult
   const parsed = createTicketSchema.safeParse(raw);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Input tiket tidak valid.");
   const v = parsed.data;
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("service_tickets")
-    .insert({
-      customer_name: v.customerName,
-      customer_phone: v.customerPhone,
-      device_model: v.deviceModel,
-      device_name: v.deviceName ?? v.deviceModel,
-      imei_or_sn: v.imeiOrSn,
-      issue_notes: v.issueNotes,
-      problem_description: v.issueNotes,
-      technician_id:
+  const db = getDb();
+  if (!db) return backendOffline();
+  // ticketCode tidak diisi: biarkan default '' agar trigger SQL membuat
+  // SRV-YYYYMMDD-XXXX secara atomik.
+  const [created] = await db
+    .insert(serviceTickets)
+    .values({
+      customerName: v.customerName,
+      customerPhone: v.customerPhone,
+      deviceModel: v.deviceModel,
+      deviceName: v.deviceName ?? v.deviceModel,
+      imeiOrSn: v.imeiOrSn,
+      issueNotes: v.issueNotes,
+      problemDescription: v.issueNotes,
+      technicianId:
         v.technicianId ?? (guard.profile.role === "technician" ? guard.profile.id : null),
-      photo_urls: v.photoUrls,
-      sparepart_fee: 0,
-      labor_fee: 0,
-      total_fee: 0,
+      photoUrls: v.photoUrls,
     })
-    .select("*")
-    .single();
-  if (error || !data) return fail("Gagal membuat tiket: " + (error?.message ?? "unknown"));
+    .returning();
+  if (!created) return fail("Gagal membuat tiket.");
   revalidatePath("/portal/service");
-  return ok(mapTicket(data as TicketRow));
+  return ok(mapTicket(created));
 }
 
 /**
@@ -109,14 +91,18 @@ export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult
   const parsed = updateTicketSchema.safeParse(raw);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Input update tidak valid.");
   const v = parsed.data;
-  const supabase = await createClient();
-  const { data: current, error: curError } = await supabase
-    .from("service_tickets")
-    .select("repair_status,sparepart_fee,labor_fee")
-    .eq("id", v.ticketId)
-    .single();
-  if (curError || !current) return fail("Tiket tidak ditemukan.");
-  const from = current.repair_status as RepairStatus;
+  const db = getDb();
+  if (!db) return backendOffline();
+  const [current] = await db
+    .select({
+      status: serviceTickets.repairStatus,
+      sparepart: serviceTickets.sparepartFee,
+      labor: serviceTickets.laborFee,
+    })
+    .from(serviceTickets)
+    .where(eq(serviceTickets.id, v.ticketId));
+  if (!current) return fail("Tiket tidak ditemukan.");
+  const from = current.status as RepairStatus;
   if (v.repairStatus !== from && !isAllowedTransition(from, v.repairStatus)) {
     return fail(`Transisi ${from} ke ${v.repairStatus} tidak diizinkan. Ikuti alur reparasi resmi.`);
   }
@@ -127,28 +113,26 @@ export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult
   ) {
     return fail("Peran sales hanya boleh mencatat tiket masuk, bukan biaya/status pengerjaan.");
   }
-  const sparepart = v.sparepartFee ?? toNumber(current.sparepart_fee);
-  const labor = v.laborFee ?? toNumber(current.labor_fee);
-  const patch: Database["public"]["Tables"]["service_tickets"]["Update"] = {
-    repair_status: v.repairStatus,
-    sparepart_fee: sparepart,
-    labor_fee: labor,
-    total_fee: sparepart + labor,
-  };
-  if (v.technicianId !== undefined) patch.technician_id = v.technicianId;
-  if (v.technicianNotes !== undefined) patch.technician_notes = v.technicianNotes;
-  if (v.warrantyDays !== undefined) patch.warranty_days = v.warrantyDays;
-  if (v.costBreakdown !== undefined) patch.cost_breakdown = v.costBreakdown;
-  const { data, error } = await supabase
-    .from("service_tickets")
-    .update(patch)
-    .eq("id", v.ticketId)
-    .select("*")
-    .single();
-  if (error || !data) return fail("Gagal memperbarui tiket: " + (error?.message ?? "unknown"));
+  const sparepart = v.sparepartFee ?? toNumber(current.sparepart);
+  const labor = v.laborFee ?? toNumber(current.labor);
+  const [updated] = await db
+    .update(serviceTickets)
+    .set({
+      repairStatus: v.repairStatus,
+      sparepartFee: String(sparepart),
+      laborFee: String(labor),
+      totalFee: String(sparepart + labor),
+      ...(v.technicianId !== undefined ? { technicianId: v.technicianId } : {}),
+      ...(v.technicianNotes !== undefined ? { technicianNotes: v.technicianNotes } : {}),
+      ...(v.warrantyDays !== undefined ? { warrantyDays: v.warrantyDays } : {}),
+      ...(v.costBreakdown !== undefined ? { costBreakdown: v.costBreakdown } : {}),
+    })
+    .where(eq(serviceTickets.id, v.ticketId))
+    .returning();
+  if (!updated) return fail("Tiket tidak ditemukan.");
   revalidatePath("/portal/service");
   revalidatePath("/portal/dashboard");
-  return ok(mapTicket(data as TicketRow));
+  return ok(mapTicket(updated));
 }
 
 /** Daftar tiket untuk meja kerja (filter status/teknisi opsional). */
@@ -159,23 +143,28 @@ export async function listTickets(opts?: {
 }): Promise<ActionResult<ServiceTicket[]>> {
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
-  const supabase = await createClient();
-  let q = supabase
-    .from("service_tickets")
-    .select("*")
-    .order("updated_at", { ascending: false })
+  const db = getDb();
+  if (!db) return backendOffline();
+  // Pola yang sama seperti inventory: kumpulkan filter yang diisi,
+  // .where(undefined) artinya tanpa filter.
+  const filters = [
+    opts?.status ? eq(serviceTickets.repairStatus, opts.status) : undefined,
+    opts?.technicianId ? eq(serviceTickets.technicianId, opts.technicianId) : undefined,
+  ].filter((c) => c !== undefined);
+  const rows = await db
+    .select()
+    .from(serviceTickets)
+    .where(filters.length > 0 ? and(...filters) : undefined)
+    .orderBy(desc(serviceTickets.updatedAt))
     .limit(opts?.limit ?? 200);
-  if (opts?.status) q = q.eq("repair_status", opts.status);
-  if (opts?.technicianId) q = q.eq("technician_id", opts.technicianId);
-  const { data, error } = await q;
-  if (error) return fail("Gagal memuat tiket: " + error.message);
-  return ok((data as TicketRow[]).map(mapTicket));
+  return ok(rows.map(mapTicket));
 }
 
 /**
  * Pelacakan mandiri TANPA login (halaman /[locale]/tracking).
- * Dieksekusi via service role tapi HANYA kolom aman yang dikembalikan:
- * tanpa customer_id, tanpa foto mentah berlebih. PRD Bab 7 poin 4.
+ * Hanya kolom aman yang dipilih (tanpa customer_id); koneksi Drizzle memang
+ * melewati RLS, jadi pembatasan kolom di sini adalah pengamannya.
+ * PRD Bab 7 poin 4.
  */
 export async function trackTicketPublic(rawCode: string): Promise<
   ActionResult<{
@@ -192,30 +181,32 @@ export async function trackTicketPublic(rawCode: string): Promise<
 > {
   const parsed = ticketCodeSchema.safeParse(rawCode);
   if (!parsed.success) return fail("Format kode tiket salah. Contoh: SRV-20260913-0001.");
-  if (!isSupabaseConfigured()) {
-    return fail("Backend Supabase belum dikonfigurasi. Coba lagi nanti.");
-  }
-  if (!isSupabaseAdminConfigured()) {
-    return fail("Layanan pelacakan belum siap (service key belum diisi).");
-  }
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("service_tickets")
-    .select(
-      "ticket_code,device_model,repair_status,sparepart_fee,labor_fee,total_fee,warranty_days,created_at,updated_at"
-    )
-    .eq("ticket_code", parsed.data.toUpperCase())
-    .single();
-  if (error || !data) return fail("Tiket tidak ditemukan. Periksa lagi kode resinya.");
+  const db = getDb();
+  if (!db) return fail("Backend Supabase belum dikonfigurasi. Coba lagi nanti.");
+  const [t] = await db
+    .select({
+      ticketCode: serviceTickets.ticketCode,
+      deviceModel: serviceTickets.deviceModel,
+      repairStatus: serviceTickets.repairStatus,
+      sparepartFee: serviceTickets.sparepartFee,
+      laborFee: serviceTickets.laborFee,
+      totalFee: serviceTickets.totalFee,
+      warrantyDays: serviceTickets.warrantyDays,
+      createdAt: serviceTickets.createdAt,
+      updatedAt: serviceTickets.updatedAt,
+    })
+    .from(serviceTickets)
+    .where(eq(serviceTickets.ticketCode, parsed.data.toUpperCase()));
+  if (!t) return fail("Tiket tidak ditemukan. Periksa lagi kode resinya.");
   return ok({
-    ticket_code: data.ticket_code,
-    device_model: data.device_model,
-    repair_status: data.repair_status,
-    sparepart_fee: toNumber(data.sparepart_fee),
-    labor_fee: toNumber(data.labor_fee),
-    total_fee: toNumber(data.total_fee),
-    warranty_days: data.warranty_days,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
+    ticket_code: t.ticketCode,
+    device_model: t.deviceModel,
+    repair_status: t.repairStatus,
+    sparepart_fee: toNumber(t.sparepartFee),
+    labor_fee: toNumber(t.laborFee),
+    total_fee: toNumber(t.totalFee),
+    warranty_days: t.warrantyDays,
+    created_at: toISO(t.createdAt),
+    updated_at: toISO(t.updatedAt),
   });
 }

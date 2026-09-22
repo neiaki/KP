@@ -169,7 +169,7 @@ export function PortalSidebar({
           {currentProfile.email || "user@atcell.my.id"}
         </div>
         <Link
-          href="/portal/login"
+          href="/id/login"
           onClick={onClose}
           className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[11px] font-bold text-ink hover:border-accent"
         >
@@ -219,7 +219,7 @@ export function PortalSidebar({
         </Link>
 
         <Link
-          href="/portal/login"
+          href="/id/login"
           onClick={onClose}
           className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-slate-800 hover:text-rose-300"
         >

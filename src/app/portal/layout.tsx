@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Menu, ExternalLink } from "lucide-react";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
 
@@ -11,13 +10,7 @@ export default function PortalLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isLoginPage = pathname === "/portal/login";
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  if (isLoginPage) {
-    return <div className="min-h-[calc(100vh-41px)] bg-slate-900">{children}</div>;
-  }
 
   return (
     <div className="flex min-h-[calc(100vh-41px)] bg-paper">

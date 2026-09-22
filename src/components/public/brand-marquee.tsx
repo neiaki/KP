@@ -2,13 +2,11 @@
 
 import React from "react";
 import { BRANDS, type BrandFilter } from "@/lib/shop";
-import { BrandLogo, brandChipClass } from "@/components/public/brand-mark";
+import { BrandLogo, brandRingClass } from "@/components/public/brand-mark";
 import { Locale } from "@/lib/translations";
 
 /* Strip merek berjalan endless. Logo digandakan 4 set agar setengah trek
-   selalu lebih lebar dari viewport, sehingga translateX(-50%) loop mulus.
-   Setiap logo bisa diklik untuk memfilter etalase, dan berwarna khas brand
-   saat aktif (Samsung biru, Oppo hijau, dst). */
+   selalu lebih lebar dari viewport, sehingga translateX(-50%) loop mulus. */
 export function BrandMarquee({
   locale,
   selected,
@@ -42,13 +40,13 @@ export function BrandMarquee({
                   aria-hidden={copy > 0}
                   tabIndex={copy > 0 ? -1 : 0}
                   aria-pressed={copy === 0 ? active : undefined}
-                  className={`mx-5 flex h-14 w-16 shrink-0 items-center justify-center rounded-full transition-colors [&_img]:h-9 [&_img]:w-auto ${
+                  className={`mx-5 flex h-14 w-16 shrink-0 items-center justify-center rounded-full transition-all ${
                     active
-                      ? `${brandChipClass(b, true)} shadow-sm`
+                      ? `ring-2 ring-offset-2 ring-offset-card ${brandRingClass(b)}`
                       : "opacity-60 hover:opacity-100"
                   }`}
                 >
-                  <BrandLogo brand={b} active={active} />
+                  <BrandLogo brand={b} active={active} colored={active} size="h-9 w-9" />
                 </button>
               );
             })

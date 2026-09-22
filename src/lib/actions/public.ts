@@ -4,7 +4,8 @@ import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { storeSettings } from "@/db/schema";
 import type { StoreSettings, UnitCondition } from "@/types";
-import { backendOffline, fail, ok, toISO, toNumber, type ActionResult } from "./_helpers";
+import { backendOffline, fail, ok, toNumber, type ActionResult } from "./_helpers";
+import { mapStoreSettings } from "./_mappers";
 
 export type PublicStockItem = {
   productId: number;
@@ -77,23 +78,5 @@ export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettin
   if (!db) return backendOffline();
   const [row] = await db.select().from(storeSettings).where(eq(storeSettings.id, 1));
   if (!row) return fail("Pengaturan toko tidak ditemukan.");
-  const hours = row.openingHours ?? {};
-  return ok({
-    id: row.id,
-    store_name: row.storeName,
-    description_id: row.descriptionId,
-    description_en: row.descriptionEn,
-    address: row.address,
-    latitude: toNumber(row.latitude),
-    longitude: toNumber(row.longitude),
-    maps_url: row.mapsUrl ?? undefined,
-    phone_number: row.phoneNumber,
-    whatsapp_number: row.whatsappNumber ?? undefined,
-    opening_hours: {
-      monday_friday: hours.monday_friday ?? "",
-      saturday_sunday: hours.saturday_sunday ?? "",
-      holidays: hours.holidays,
-    },
-    updated_at: toISO(row.updatedAt),
-  });
+  return ok(mapStoreSettings(row));
 }

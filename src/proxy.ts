@@ -14,18 +14,28 @@ export async function proxy(request: NextRequest) {
 
   let response: NextResponse;
   if (isLoginSubdomain) {
-    // If requesting root of login subdomain, rewrite to /portal/login
+    // Subdomain login mengarah ke halaman login publik ber-locale.
+    // /portal/login lama ikut dipetakan ke /id/login agar bookmark tetap jalan.
     if (pathname === "/" || pathname === "") {
-      response = NextResponse.rewrite(new URL("/portal/login", request.url));
+      response = NextResponse.rewrite(new URL("/id/login", request.url));
+    } else if (pathname === "/portal/login" || pathname.startsWith("/portal/login/")) {
+      response = NextResponse.rewrite(
+        new URL(pathname.replace("/portal/login", "/id/login"), request.url)
+      );
     } else if (!pathname.startsWith("/portal")) {
       // If not already prefixed with /portal, rewrite to /portal/...
       response = NextResponse.rewrite(new URL(`/portal${pathname}`, request.url));
     } else {
       response = NextResponse.next();
     }
-  } else if (pathname === "/") {
+  } else if (pathname === "/" || pathname === "") {
     // Root redirect to default locale /id
     return NextResponse.redirect(new URL("/id", request.url));
+  } else if (pathname === "/portal/login" || pathname.startsWith("/portal/login/")) {
+    // URL login lama pindah ke rute publik ber-locale. Query string dipertahankan.
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace("/portal/login", "/id/login");
+    return NextResponse.redirect(url);
   } else {
     response = NextResponse.next();
   }

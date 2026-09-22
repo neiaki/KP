@@ -91,7 +91,7 @@ export function PublicFooter({ locale }: { locale: Locale }) {
                 </a>
               </li>
               <li>
-                <Link href="/portal/login" className={linkClass}>
+                <Link href={`/${locale}/login`} className={linkClass}>
                   {t.nav.operationalPortal}
                 </Link>
               </li>

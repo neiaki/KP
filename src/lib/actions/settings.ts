@@ -1,11 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { storeSettings } from "@/db/schema";
 import { storeSettingsSchema, type StoreSettingsInput } from "@/lib/validations";
 import type { StoreSettings } from "@/types";
-import { fail, ok, requireRole, toNumber, type ActionResult } from "./_helpers";
+import { backendOffline, fail, ok, requireRole, type ActionResult } from "./_helpers";
 import { getPublicStoreSettings } from "./public";
+import { mapStoreSettings } from "./_mappers";
 
 export async function getStoreSettings(): Promise<ActionResult<StoreSettings>> {
   const guard = await requireRole(["admin"]);
@@ -21,37 +24,28 @@ export async function updateStoreSettings(
   if ("error" in guard) return fail(guard.error);
   const parsed = storeSettingsSchema.partial().safeParse(raw);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Input tidak valid.");
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("store_settings")
-    .update({
-      ...parsed.data,
-      latitude: parsed.data.latitude ?? null,
-      longitude: parsed.data.longitude ?? null,
+  const db = getDb();
+  if (!db) return backendOffline();
+  const v = parsed.data;
+  const [updated] = await db
+    .update(storeSettings)
+    .set({
+      ...(v.store_name !== undefined ? { storeName: v.store_name } : {}),
+      ...(v.description_id !== undefined ? { descriptionId: v.description_id } : {}),
+      ...(v.description_en !== undefined ? { descriptionEn: v.description_en } : {}),
+      ...(v.address !== undefined ? { address: v.address } : {}),
+      ...(v.latitude !== undefined ? { latitude: v.latitude === null ? null : String(v.latitude) } : {}),
+      ...(v.longitude !== undefined ? { longitude: v.longitude === null ? null : String(v.longitude) } : {}),
+      ...(v.maps_url !== undefined ? { mapsUrl: v.maps_url || null } : {}),
+      ...(v.phone_number !== undefined ? { phoneNumber: v.phone_number } : {}),
+      ...(v.whatsapp_number !== undefined ? { whatsappNumber: v.whatsapp_number || null } : {}),
+      ...(v.opening_hours !== undefined ? { openingHours: v.opening_hours } : {}),
     })
-    .eq("id", 1)
-    .select("*")
-    .single();
-  if (error || !data) return fail("Gagal menyimpan pengaturan: " + (error?.message ?? "unknown"));
+    .where(eq(storeSettings.id, 1))
+    .returning();
+  if (!updated) return fail("Pengaturan toko tidak ditemukan.");
   revalidatePath("/id", "layout");
   revalidatePath("/en", "layout");
   revalidatePath("/portal/settings");
-  return ok({
-    id: data.id,
-    store_name: data.store_name,
-    description_id: data.description_id,
-    description_en: data.description_en,
-    address: data.address,
-    latitude: toNumber(data.latitude),
-    longitude: toNumber(data.longitude),
-    maps_url: data.maps_url ?? undefined,
-    phone_number: data.phone_number,
-    whatsapp_number: data.whatsapp_number ?? undefined,
-    opening_hours: {
-      monday_friday: data.opening_hours.monday_friday ?? "",
-      saturday_sunday: data.opening_hours.saturday_sunday ?? "",
-      holidays: data.opening_hours.holidays,
-    },
-    updated_at: data.updated_at,
-  });
+  return ok(mapStoreSettings(updated));
 }

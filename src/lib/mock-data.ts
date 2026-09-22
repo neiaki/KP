@@ -156,7 +156,7 @@ export const initialProducts: Product[] = [
   {
     id: 5,
     brand: "Xiaomi",
-    model_name: "Xiaomi 14 12/512GB",
+    model_name: "14 12/512GB",
     specs: "Jade Green, LTPO OLED 6.36\" 120Hz, Leica Summilux Lens, Snapdragon 8 Gen 3",
     default_price: 11999000,
     image_url: "/products/xiaomi-14-1.jpeg",

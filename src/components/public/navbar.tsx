@@ -192,7 +192,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
                 <MessageCircle className="h-4 w-4" /> Chat WA
               </a>
               <Link
-                href="/portal/login"
+                href={`/${locale}/login`}
                 onClick={() => setMobileMenuOpen(false)}
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-line text-xs font-bold text-ink"
               >

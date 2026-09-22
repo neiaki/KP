@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatIDR } from "@/lib/utils";
-import { MessageCircle, ArrowLeftRight, Check, BadgeCheck, CreditCard, ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { MessageCircle, ArrowLeftRight, Check, BadgeCheck, CreditCard, ChevronLeft, ChevronRight, Flame, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/public/brand-mark";
 import { Locale } from "@/lib/translations";
@@ -63,6 +63,12 @@ export function ProductCard({
       onMouseLeave={() => setHovering(false)}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-paper">
+        {gallery.length === 0 && (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted">
+            <Smartphone className="h-10 w-10" strokeWidth={1.25} />
+            <p className="text-[11px] font-bold">{locale === "en" ? "Photo coming soon" : "Foto menyusul"}</p>
+          </div>
+        )}
         {gallery.length > 0 && (
           <img
             key={gallery[current]}

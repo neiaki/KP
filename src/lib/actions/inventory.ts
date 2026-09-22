@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { inventoryUnits, products, type InventoryUnitRow } from "@/db/schema";
 import {
   registerUnitsSchema,
   updateUnitStatusSchema,
@@ -10,13 +12,27 @@ import {
 } from "@/lib/validations";
 import type { InventoryUnit } from "@/types";
 import {
+  backendOffline,
   fail,
-  friendlyDbError,
   ok,
   requireRole,
+  toISO,
+  toNumber,
   type ActionResult,
 } from "./_helpers";
-import { mapUnit, type UnitRow } from "./_mappers";
+
+function mapUnit(u: InventoryUnitRow): InventoryUnit {
+  return {
+    id: u.id,
+    product_id: u.productId,
+    imei: u.imei,
+    condition: u.condition,
+    status: u.status,
+    purchase_cost: toNumber(u.purchaseCost),
+    selling_price: toNumber(u.sellingPrice),
+    created_at: toISO(u.createdAt),
+  };
+}
 
 /** Daftar unit fisik dengan filter opsional (staf saja; purchase_cost internal). */
 export async function listUnits(opts?: {
@@ -26,17 +42,20 @@ export async function listUnits(opts?: {
 }): Promise<ActionResult<InventoryUnit[]>> {
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
-  const supabase = await createClient();
-  let q = supabase
-    .from("inventory_units")
-    .select("*")
-    .order("created_at", { ascending: false })
+  const db = getDb();
+  if (!db) return backendOffline();
+  // Filter disusun dinamis: hanya kondisi yang diisi yang ikut ke WHERE.
+  const filters = [
+    opts?.productId ? eq(inventoryUnits.productId, opts.productId) : undefined,
+    opts?.status ? eq(inventoryUnits.status, opts.status) : undefined,
+  ].filter((f) => f !== undefined);
+  const rows = await db
+    .select()
+    .from(inventoryUnits)
+    .where(filters.length > 0 ? and(...filters) : undefined)
+    .orderBy(desc(inventoryUnits.createdAt))
     .limit(opts?.limit ?? 200);
-  if (opts?.productId) q = q.eq("product_id", opts.productId);
-  if (opts?.status) q = q.eq("status", opts.status);
-  const { data, error } = await q;
-  if (error) return fail("Gagal memuat inventaris: " + error.message);
-  return ok((data as UnitRow[]).map(mapUnit));
+  return ok(rows.map(mapUnit));
 }
 
 /** Unit `available` per produk untuk picker IMEI di POS (anti double-sell di UI). */
@@ -55,31 +74,37 @@ export async function registerUnits(
   const parsed = registerUnitsSchema.safeParse(raw);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Input IMEI tidak valid.");
   const { productId, condition, purchaseCost, sellingPrice, imeis } = parsed.data;
-  const supabase = await createClient();
-  const { data: product } = await supabase
-    .from("products")
-    .select("id,is_active")
-    .eq("id", productId)
-    .single();
-  if (!product || !product.is_active) return fail("Katalog produk tidak aktif.");
-  const { data, error } = await supabase
-    .from("inventory_units")
-    .insert(
-      imeis.map((imei) => ({
-        product_id: productId,
-        imei: imei.trim(),
-        condition,
-        status: "available" as const,
-        purchase_cost: purchaseCost,
-        selling_price: sellingPrice,
-      }))
-    )
-    .select("*");
-  if (error || !data) {
-    return fail(friendlyDbError(error?.code ?? "", "Gagal mendaftarkan unit: " + (error?.message ?? "unknown")));
+  const db = getDb();
+  if (!db) return backendOffline();
+  const [product] = await db
+    .select({ id: products.id, isActive: products.isActive })
+    .from(products)
+    .where(eq(products.id, productId));
+  if (!product || !product.isActive) return fail("Katalog produk tidak aktif.");
+  try {
+    // Satu insert untuk seluruh batch, .returning() kembalikan semua baris baru.
+    const rows = await db
+      .insert(inventoryUnits)
+      .values(
+        imeis.map((imei) => ({
+          productId,
+          imei: imei.trim(),
+          condition,
+          status: "available" as const,
+          purchaseCost: String(purchaseCost),
+          sellingPrice: String(sellingPrice),
+        }))
+      )
+      .returning();
+    revalidatePath("/portal/inventory");
+    return ok(rows.map(mapUnit));
+  } catch (e) {
+    // 23505 = unique violation: ada IMEI yang sudah terdaftar di DB.
+    if ((e as { code?: string }).code === "23505") {
+      return fail("Ada IMEI yang sudah terdaftar di inventaris. Periksa lagi batch-nya.");
+    }
+    return fail("Gagal mendaftarkan unit: " + (e as Error).message);
   }
-  revalidatePath("/portal/inventory");
-  return ok((data as UnitRow[]).map(mapUnit));
 }
 
 /** Mutasi status unit (reserved/in_service/returned/dll). Jual via POS, bukan di sini. */
@@ -93,14 +118,14 @@ export async function updateUnitStatus(
   if (parsed.data.status === "sold") {
     return fail("Status sold hanya boleh lewat transaksi POS agar nota tercatat.");
   }
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("inventory_units")
-    .update({ status: parsed.data.status })
-    .eq("id", parsed.data.unitId)
-    .select("*")
-    .single();
-  if (error || !data) return fail("Gagal mengubah status unit: " + (error?.message ?? "unknown"));
+  const db = getDb();
+  if (!db) return backendOffline();
+  const [updated] = await db
+    .update(inventoryUnits)
+    .set({ status: parsed.data.status })
+    .where(eq(inventoryUnits.id, parsed.data.unitId))
+    .returning();
+  if (!updated) return fail("Unit tidak ditemukan.");
   revalidatePath("/portal/inventory");
-  return ok(mapUnit(data as UnitRow));
+  return ok(mapUnit(updated));
 }

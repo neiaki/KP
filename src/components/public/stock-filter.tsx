@@ -95,7 +95,7 @@ export function StockFilter({
       <div className="mt-2.5 flex items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Brand" : "Merek"}>
           <span className="shrink-0 pl-1 text-[11px] font-bold text-muted">
-            {locale === "en" ? "Brand" : "Brand"}
+            {locale === "en" ? "Brand" : "Merek"}
           </span>
           {BRANDS.map((b) => (
             <button
@@ -103,13 +103,13 @@ export function StockFilter({
               type="button"
               onClick={() => onBrandChange(b)}
               aria-pressed={brand === b}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition-colors ${brandChipClass(b, brand === b)}`}
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-bold transition-colors ${brandChipClass(b, brand === b)}`}
             >
               {b === "all" ? (
                 locale === "en" ? "All" : "Semua"
               ) : (
                 <>
-                  <BrandLogo brand={b} active={brand === b} />
+                  <BrandLogo brand={b} active={brand === b} colored={brand === b} />
                   {b}
                 </>
               )}

@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { desc, eq } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
@@ -14,7 +17,7 @@ import {
   type ActionResult,
 } from "./_helpers";
 
-/** Login portal staf/pelanggan (menggantikan switchRole demo di portal/login). */
+/** Login portal staf/pelanggan (menggantikan switchRole demo di halaman login /id/login). */
 export async function signInWithPassword(
   email: string,
   password: string
@@ -113,10 +116,14 @@ export async function updateStaffRole(
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   if (guard.profile.id === userId) return fail("Tidak bisa mengubah peran akun sendiri.");
-  if (!isSupabaseConfigured()) return backendOffline();
-  const supabase = await createClient();
-  const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);
-  if (error) return fail("Gagal mengubah peran: " + error.message);
+  const db = getDb();
+  if (!db) return backendOffline();
+  const [updated] = await db
+    .update(profiles)
+    .set({ role })
+    .where(eq(profiles.id, userId))
+    .returning({ id: profiles.id });
+  if (!updated) return fail("User tidak ditemukan.");
   revalidatePath("/portal/staff");
   return ok({ userId });
 }
@@ -139,19 +146,25 @@ export async function deactivateStaff(userId: string): Promise<ActionResult<{ us
 export async function listStaff() {
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) return fail("Gagal memuat staf: " + error.message);
+  const db = getDb();
+  if (!db) return backendOffline();
+  const rows = await db
+    .select({
+      id: profiles.id,
+      fullName: profiles.fullName,
+      role: profiles.role,
+      phoneNumber: profiles.phoneNumber,
+      createdAt: profiles.createdAt,
+    })
+    .from(profiles)
+    .orderBy(desc(profiles.createdAt));
   return ok(
-    data.map((p) => ({
+    rows.map((p) => ({
       id: p.id,
-      full_name: p.full_name,
+      full_name: p.fullName,
       role: p.role,
-      phone_number: p.phone_number,
-      created_at: p.created_at,
+      phone_number: p.phoneNumber,
+      created_at: p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
     }))
   );
 }

@@ -1,4 +1,4 @@
-// Core Data Models according to PRD_AtCell(1).md and Database Schema
+// Core Data Models according to docs/PRD-AtCell.md and Database Schema
 
 export type UserRole = "admin" | "sales" | "technician" | "customer";
 

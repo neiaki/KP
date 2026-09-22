@@ -11,8 +11,14 @@ export type BrandFilter = (typeof BRANDS)[number];
 export type ConditionFilter = "all" | "new" | "second";
 export type SortOrder = "newest" | "lowest" | "highest" | "az";
 
-const FALLBACK_IMG =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80";
+/* Host foto generik yang tidak boleh tampil di etalase. Unit second yang
+   belum punya foto asli memakai foto resmi model yang sama, bukan render
+   acak dari internet. */
+const DUMMY_HOSTS = ["images.unsplash.com", "picsum.photos", "placehold.co", "via.placeholder.com"];
+
+function isRealPhoto(src: string | undefined | null): src is string {
+  return !!src && !DUMMY_HOSTS.some((h) => src.includes(h));
+}
 
 export function cleanWaNumber(raw?: string | null) {
   return (raw || "6285775398389").replace(/\D/g, "");
@@ -36,15 +42,15 @@ export function toCardItem(
 ): ProductCardItem {
   const product = products.find((p) => p.id === unit.product_id);
   const price = unit.selling_price;
-  const fallback = product?.image_url || FALLBACK_IMG;
-  const official =
-    product?.official_images && product.official_images.length > 0
-      ? product.official_images
-      : [fallback];
-  const used =
-    product?.second_images && product.second_images.length > 0
-      ? product.second_images
-      : [fallback];
+  const official = (product?.official_images ?? []).filter(isRealPhoto);
+  const officialOrFallback =
+    official.length > 0
+      ? official
+      : isRealPhoto(product?.image_url)
+        ? [product.image_url as string]
+        : [];
+  const secondReal = (product?.second_images ?? []).filter(isRealPhoto);
+  const used = secondReal.length > 0 ? secondReal : officialOrFallback;
   return {
     unitId: unit.id,
     imeiTail: unit.imei.slice(-4),
