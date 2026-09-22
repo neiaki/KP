@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { UserRole } from "@/types";
 import {
@@ -18,6 +18,14 @@ import {
 export function DemoRoleBar() {
   const { currentRole, switchRole, resetToInitialData } = useStore();
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSwitchRole = (role: UserRole, defaultPath: string) => {
+    switchRole(role);
+    if (!pathname.startsWith(defaultPath)) {
+      router.push(defaultPath);
+    }
+  };
 
   const roles: { role: UserRole; label: string; icon: React.ReactNode; defaultPath: string }[] = [
     {
@@ -68,7 +76,7 @@ export function DemoRoleBar() {
             return (
               <button
                 key={item.role}
-                onClick={() => switchRole(item.role)}
+                onClick={() => handleSwitchRole(item.role, item.defaultPath)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
                   isActive
                     ? "bg-indigo-600 text-white shadow-sm font-semibold"
