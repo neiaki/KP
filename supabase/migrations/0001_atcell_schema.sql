@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migrasi 0001 — Skema backend At Cell (referensi: PRD_AtCell(1).md Bab 6-7)
+-- Migrasi 0001 — Skema backend At Cell (referensi: docs/PRD-AtCell.md Bab 6-7)
 -- Cara pakai: buat project baru di https://supabase.com/dashboard,
 -- lalu paste SELURUH file ini ke SQL Editor dan Run. Aman di-run ulang
 -- (idempoten untuk tipe/tabel; RLS policy di-drop dulu bila sudah ada).

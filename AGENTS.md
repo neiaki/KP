@@ -14,7 +14,7 @@ Web toko handphone offline "At Cell" (Paku Jaya, Serpong Utara): etalase publik
 ID/EN + portal operasional staf. **Belum ada backend**: seluruh data berasal dari
 `src/lib/mock-data.ts` yang dimuat ke state via `src/lib/store.ts` dan
 dipersist ke `localStorage`. Jangan mengasumsikan Supabase/API sudah tersambung
-(PRD di `PRD_AtCell(1).md` adalah rencana, bukan kondisi saat ini).
+(PRD di `docs/PRD-AtCell.md` adalah rencana, bukan kondisi saat ini).
 
 ## Perintah
 
