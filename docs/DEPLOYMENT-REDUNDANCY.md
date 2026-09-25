@@ -44,16 +44,22 @@ staging atau tetap tidak memiliki env live.
 
 ## Migrasi database
 
-File canonical untuk Supabase adalah:
+Jalankan seluruh migration Supabase secara berurutan:
 
 ```text
 supabase/migrations/0001_atcell_schema.sql
+supabase/migrations/0002_harden_atcell_schema.sql
+supabase/migrations/0003_lock_legacy_helpers.sql
 ```
 
-File tersebut mencakup tabel, enum, RLS, trigger, view public, bucket Storage,
-grant Data API, dan seed `store_settings`. Jangan menjalankan
-`supabase/drizzle/0000_*.sql` sebagai migration production karena file tersebut
-tidak mencakup RLS, trigger, view, Storage, dan grant.
+`0001` membuat tabel, enum, RLS, trigger, view, bucket Storage, grant Data API,
+dan seed `store_settings`. `0002` menyelaraskan project yang awalnya memakai
+versi `0001` lama dengan helper private, grant minimum, trigger anti-double-sell,
+serta `security_invoker` pada view. `0003` menutup helper legacy di schema
+`public`.
+
+Jangan menjalankan `supabase/drizzle/0000_*.sql` sebagai migration production
+karena file tersebut tidak mencakup RLS, trigger, view, Storage, dan grant.
 
 Setelah migration, pastikan schema `public` dan tabel yang diperlukan sudah
 di-expose melalui Data API. RLS tetap harus aktif dan grant di migration
@@ -156,17 +162,25 @@ Pembuatan resource di Coolify:
 
 Urutan backup yang aman:
 
-1. Ambil dump logis dari Supabase dengan format custom.
+1. Ambil dump logis dari Supabase dengan format custom. Script backup mencakup
+   schema `public` dan `private`; data Auth dan Storage tetap menjadi backup
+   layanan Supabase.
 2. Hitung checksum dump dan simpan ke storage off-site.
 3. Salin dump ke restore target Coolify saat jadwal restore test.
-4. Jalankan `pg_restore --jobs=1`, lalu cek tabel wajib, RLS, trigger, dan view.
-5. Hapus data restore test setelah selesai atau hentikan service agar RAM
+4. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
+   `scripts/restore-target-bootstrap.sql`. Bootstrap membuat role Data API
+   minimal, `auth.users`, `auth.uid()`, dan `auth.role()`.
+5. Isi `auth.users` pada target dengan UUID profil yang ada di dump sebelum
+   restore karena foreign key `profiles.id -> auth.users.id` harus terpenuhi.
+6. Jalankan `pg_restore --jobs=1`, lalu cek tabel wajib, RLS, trigger, dan view.
+7. Hapus data restore test setelah selesai atau hentikan service agar RAM
    kembali ke aplikasi.
 
 Contoh format dump dan restore:
 
 ```bash
 SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" npm run backup:postgres
+psql "$RESTORE_DATABASE_URL" -f scripts/restore-target-bootstrap.sql
 ALLOW_RESTORE=YES RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" npm run restore:postgres
 ```
 

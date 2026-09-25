@@ -6,6 +6,18 @@ const migration = await readFile(
   new URL("../supabase/migrations/0001_atcell_schema.sql", import.meta.url),
   "utf8"
 );
+const hardeningMigration = await readFile(
+  new URL("../supabase/migrations/0002_harden_atcell_schema.sql", import.meta.url),
+  "utf8"
+);
+const helperMigration = await readFile(
+  new URL("../supabase/migrations/0003_lock_legacy_helpers.sql", import.meta.url),
+  "utf8"
+);
+const restoreBootstrap = await readFile(
+  new URL("../scripts/restore-target-bootstrap.sql", import.meta.url),
+  "utf8"
+);
 
 test("migration production At Cell tetap memuat guard data kritis", () => {
   assert.match(migration, /imei\s+text\s+not\s+null\s+unique/);
@@ -24,4 +36,22 @@ test("migration production At Cell tetap memuat guard data kritis", () => {
   assert.ok(migration.includes("SOLD_IS_TERMINAL"));
   assert.doesNotMatch(migration, /grant (?:insert|update|delete)[\s\S]*?to authenticated/);
   assert.doesNotMatch(migration, /auth\.role\(\)/);
+});
+
+test("migration hardening menutup helper legacy dan view publik", () => {
+  assert.match(hardeningMigration, /security_invoker\s*=\s*true/);
+  assert.match(hardeningMigration, /revoke all on public\.v_public_inventory/);
+  assert.match(hardeningMigration, /grant select on public\.store_settings, public\.products to anon, authenticated/);
+  assert.match(hardeningMigration, /trg_validate_ticket_transition/);
+  assert.match(hardeningMigration, /trg_prevent_sold_reactivation/);
+  assert.match(helperMigration, /revoke execute on function public\.get_my_role/);
+  assert.match(helperMigration, /revoke execute on function public\.is_staff/);
+});
+
+test("bootstrap restore target menyediakan kontrak Auth minimal", () => {
+  assert.match(restoreBootstrap, /create role anon nologin/);
+  assert.match(restoreBootstrap, /create role authenticated nologin/);
+  assert.match(restoreBootstrap, /create table if not exists auth\.users/);
+  assert.match(restoreBootstrap, /create or replace function auth\.uid/);
+  assert.match(restoreBootstrap, /create or replace function auth\.role/);
 });

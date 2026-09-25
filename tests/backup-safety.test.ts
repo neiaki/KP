@@ -7,6 +7,8 @@ const restoreScript = await readFile(new URL("../scripts/restore-postgres.sh", i
 
 test("backup script tidak mencetak credential dan membuat checksum", () => {
   assert.match(backupScript, /pg_dump/);
+  assert.match(backupScript, /--schema=public/);
+  assert.match(backupScript, /--schema=private/);
   assert.match(backupScript, /sha256sum/);
   assert.doesNotMatch(backupScript, /echo.*SOURCE_DATABASE_URL|printf.*SOURCE_DATABASE_URL/);
 });

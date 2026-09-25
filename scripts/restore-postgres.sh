@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Restore ke database sementara. Script ini destruktif dan harus diaktifkan
 # secara eksplisit melalui ALLOW_RESTORE=YES.
+# Untuk dump Supabase, jalankan scripts/restore-target-bootstrap.sql lebih dulu.
 set -Eeuo pipefail
 umask 077
 

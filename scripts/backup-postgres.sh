@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Dump logis At Cell tanpa mencetak URL/password database.
+# Backup Auth dan Storage dikelola oleh layanan Supabase secara terpisah.
 set -Eeuo pipefail
 umask 077
 
@@ -26,6 +27,8 @@ pg_dump \
   --format=custom \
   --no-owner \
   --no-acl \
+  --schema=public \
+  --schema=private \
   --file="$temporary_path" \
   "$SOURCE_DATABASE_URL"
 
