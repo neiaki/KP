@@ -156,7 +156,10 @@ export function LiveChatWidget() {
   const cleanWaNumber = (storeSettings.whatsapp_number || "6285775398389").replace(/\D/g, "");
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end print:hidden">
+    <div
+      data-hide-on-login
+      className="fixed bottom-5 right-5 z-50 flex flex-col items-end print:hidden"
+    >
       {/* Expanded Chat Box */}
       {isOpen && (
         <div className="mb-3 w-[360px] sm:w-[390px] h-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">

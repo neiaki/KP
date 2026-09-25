@@ -258,7 +258,7 @@ export function PortalSidebar({
   return (
     <>
       {/* Desktop: static dark chrome */}
-      <aside className="hidden min-h-[calc(100vh-41px)] w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
+      <aside className="hidden min-h-[calc(100dvh-3rem)] w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
         {body}
       </aside>
 

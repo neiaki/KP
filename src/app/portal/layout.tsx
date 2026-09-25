@@ -13,7 +13,7 @@ export default function PortalLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-[calc(100vh-41px)] bg-paper">
+    <div className="flex min-h-[calc(100dvh-3rem)] bg-paper">
       <PortalSidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-card/95 px-4 backdrop-blur lg:hidden">
