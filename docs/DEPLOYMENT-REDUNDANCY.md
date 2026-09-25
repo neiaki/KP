@@ -142,6 +142,18 @@ Supabase production. Coolify, aplikasi, dan restore database berada
 pada failure domain yang sama. Dump asli tetap harus disalin ke object storage
 off-site terenkripsi.
 
+Pembuatan resource di Coolify:
+
+1. Buka project At Cell, pilih environment production, lalu **New Resource →
+   PostgreSQL**.
+2. Beri nama `atcell-restore-local`.
+3. Pilih image PostgreSQL yang sama atau lebih baru dari major version Supabase.
+4. Pilih destination/network Coolify yang sama dengan VPS At Cell.
+5. Batasi CPU 1, RAM 512 MB, dan volume 10 GB.
+6. Matikan public port dan jangan masukkan URL database ini ke aplikasi.
+7. Start resource dan tunggu health check hijau.
+8. Simpan credential internal di Coolify secret manager, bukan di repository.
+
 Urutan backup yang aman:
 
 1. Ambil dump logis dari Supabase dengan format custom.
