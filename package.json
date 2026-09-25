@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "backup:postgres": "bash scripts/backup-postgres.sh",
     "restore:postgres": "bash scripts/restore-postgres.sh",
     "smoke:deployment": "node scripts/smoke-deployment.mjs"
