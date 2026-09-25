@@ -199,7 +199,7 @@ export function LiveChatWidget() {
               onClick={() => setActiveTab("livechat")}
               className={`py-2.5 flex items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
                 activeTab === "livechat"
-                  ? "border-accent text-accent-deep bg-white"
+                  ? "border-accent text-slate-900 bg-white"
                   : "border-transparent text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -241,10 +241,10 @@ export function LiveChatWidget() {
                       {msg.text}
 
                       {msg.actionLink && (
-                        <div className="mt-2.5 pt-2 border-t border-slate-100">
+                        <div className="mt-2.5 pt-2 border-t border-white/25">
                           <a
                             href={msg.actionLink.href}
-                            className="inline-flex items-center gap-1 font-bold text-accent-deep hover:underline text-[11px]"
+                            className="inline-flex items-center gap-1 font-bold text-white hover:underline text-[11px]"
                           >
                             <span>{msg.actionLink.label}</span>
                             <ExternalLink className="w-3 h-3" />
