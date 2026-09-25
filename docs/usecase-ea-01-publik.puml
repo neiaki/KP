@@ -1,0 +1,32 @@
+@startuml UC01-Publik
+' EA - Modul Publik (atcell.my.id)
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+
+actor "Pengunjung (Tamu)" as Tamu
+actor "Pelanggan" as Pelanggan
+
+rectangle "Sistem At Cell : Publik" as Sys {
+  usecase "UC-01\nLihat Profil Toko" as UC01
+  usecase "UC-02\nEtalase Ready Stock" as UC02
+  usecase "UC-03\nGanti Bahasa ID/EN" as UC03
+  usecase "UC-04\nLacak Resi Servis" as UC04
+}
+
+Tamu --> UC01
+Tamu --> UC02
+Tamu --> UC03
+Tamu --> UC04
+Pelanggan --> UC04
+
+note right of Sys
+  UC-02 via v_public_inventory
+  sembunyikan purchase_cost
+  UC-04 tanpa login, by ticket_code
+end note
+@enduml

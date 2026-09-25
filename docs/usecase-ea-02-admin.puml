@@ -1,0 +1,40 @@
+@startuml UC02-Admin
+' EA - Modul Admin / Akses
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+
+actor "Admin / Owner" as Admin
+actor "Sales" as Sales
+actor "Teknisi" as Teknisi
+actor "Pelanggan" as Pelanggan
+
+rectangle "Sistem At Cell : Akses + Admin" as Sys {
+  usecase "UC-05\nLogin + Redirect Peran" as UC05
+  usecase "UC-06\nDashboard Bisnis" as UC06
+  usecase "UC-07\nKelola Master Produk" as UC07
+  usecase "UC-08\nKelola Akun Staf" as UC08
+  usecase "UC-09\nKelola Pengaturan Toko" as UC09
+  usecase "UC-10\nLaporan Teknisi" as UC10
+}
+
+Pelanggan --> UC05
+Sales --> UC05
+Teknisi --> UC05
+Admin --> UC05
+Admin --> UC06
+Admin --> UC07
+Admin --> UC08
+Admin --> UC09
+Admin --> UC10
+
+note right of Sys
+  Precondition UC-06..UC-10 : UC-05 sukses
+  cookie .atcell.my.id + RLS
+  UC-07 eksklusif Admin
+end note
+@enduml
