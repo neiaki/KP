@@ -47,3 +47,6 @@ next-env.d.ts
 # secret lokal Coolify, jangan commit
 /.secrets
 /.secrets.*
+
+# cache index tool AI lokal, jangan commit
+/.serena/
