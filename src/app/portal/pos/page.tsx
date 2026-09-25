@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "@/context/store-context";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { openNotaPrintWindow, buildPosNotaHtml } from "@/lib/print-nota";
-import { PaymentMethod, TradeInRecord, UnitStatus } from "@/types";
+import { uploadPhoto } from "@/lib/actions/storage";
+import { PaymentMethod, Transaction, UnitCondition } from "@/types";
 import {
   ShoppingCart,
   QrCode,
@@ -30,7 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 export default function SalesPosPage() {
-  const { products, inventoryUnits, processSale, storeSettings } = useStore();
+  const { products, inventoryUnits, processSale, storeSettings, isLiveBackend } = useStore();
 
   // Selected physical unit (must be available)
   const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
@@ -55,9 +56,18 @@ export default function SalesPosPage() {
   const [signalWorks, setSignalWorks] = useState(true);
   const [boxIncluded, setBoxIncluded] = useState(true);
   const [customTradeInPrice, setCustomTradeInPrice] = useState(2500000);
+  const [tradeInPhotoUrls, setTradeInPhotoUrls] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  type CompletedInvoice = Transaction & {
+    unitModel: string;
+    unitIMEI: string;
+    unitCondition: UnitCondition;
+  };
 
   // Invoice Receipt Modal after checkout
-  const [completedInvoice, setCompletedInvoice] = useState<any>(null);
+  const [completedInvoice, setCompletedInvoice] = useState<CompletedInvoice | null>(null);
 
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
@@ -83,7 +93,34 @@ export default function SalesPosPage() {
   const tradeInDeduction = hasTradeIn ? customTradeInPrice : 0;
   const finalPayment = Math.max(0, subtotal - tradeInDeduction);
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleTradeInPhotoChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (tradeInPhotoUrls.length >= 10) {
+      setNotice({ type: "error", text: "Maksimal 10 foto untuk satu transaksi trade-in." });
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadPhoto(formData, { bucket: "trade-in-photos" });
+      if (!result.ok) {
+        setNotice({ type: "error", text: result.error });
+        return;
+      }
+      setTradeInPhotoUrls((prev) => [...prev, result.data.url]);
+    } catch {
+      setNotice({ type: "error", text: "Gagal mengunggah foto. Coba lagi." });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUnitId) {
       setNotice({ type: "error", text: "Silakan pilih unit handphone (nomor IMEI) terlebih dahulu!" });
@@ -106,8 +143,9 @@ export default function SalesPosPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      const tx = processSale({
+      const tx = await processSale({
         salesId: "prof-sales-01",
         unitId: selectedUnitId,
         customerName: customerName.trim(),
@@ -129,9 +167,7 @@ export default function SalesPosPage() {
                 notes: "Inspeksi fisik langsung di meja kasir At Cell.",
               },
               offeredPrice: customTradeInPrice,
-              photoUrls: [
-                "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=600&auto=format&fit=crop&q=80",
-              ],
+              photoUrls: tradeInPhotoUrls,
             }
           : undefined,
       });
@@ -139,18 +175,24 @@ export default function SalesPosPage() {
       // Show completed invoice modal
       setCompletedInvoice({
         ...tx,
-        unitModel: `${selectedProduct?.brand} ${selectedProduct?.model_name}`,
-        unitIMEI: selectedUnit?.imei,
-        unitCondition: selectedUnit?.condition,
+        unitModel: `${selectedProduct?.brand ?? "At Cell"} ${selectedProduct?.model_name ?? "Smartphone"}`,
+        unitIMEI: selectedUnit?.imei ?? "",
+        unitCondition: selectedUnit?.condition ?? "new",
       });
 
       // Reset selection
       setSelectedUnitId(null);
       setHasTradeIn(false);
+       setTradeInPhotoUrls([]);
       setCustomerName("");
       setCustomerPhone("");
-    } catch (err: any) {
-      setNotice({ type: "error", text: err.message || "Gagal memproses transaksi!" });
+    } catch (err: unknown) {
+      setNotice({
+        type: "error",
+        text: err instanceof Error ? err.message : "Gagal memproses transaksi!",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -293,7 +335,10 @@ export default function SalesPosPage() {
                 <input
                   type="checkbox"
                   checked={hasTradeIn}
-                  onChange={(e) => setHasTradeIn(e.target.checked)}
+                  onChange={(e) => {
+                    setHasTradeIn(e.target.checked);
+                    if (!e.target.checked) setTradeInPhotoUrls([]);
+                  }}
                   className="rounded text-accent-deep focus:ring-accent h-4 w-4"
                 />
                 <span className="text-xs font-bold text-ink">Aktifkan Trade-In</span>
@@ -329,6 +374,27 @@ export default function SalesPosPage() {
                   </div>
                 </div>
 
+                {isLiveBackend && (
+                  <div className="rounded-xl border border-dashed border-line bg-paper p-3">
+                    <label className="block text-xs font-semibold text-muted mb-1" htmlFor="trade-in-photo">
+                      Foto kondisi unit lama (opsional, maksimal 10 file)
+                    </label>
+                    <input
+                      id="trade-in-photo"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(event) => void handleTradeInPhotoChange(event)}
+                      disabled={uploadingPhoto}
+                      className="block w-full text-xs text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                    />
+                    <p className="mt-1 text-[11px] text-muted">
+                      {uploadingPhoto
+                        ? "Mengunggah foto..."
+                        : `${tradeInPhotoUrls.length} foto siap disimpan`}
+                    </p>
+                  </div>
+                )}
+
                 {/* Grading Options */}
                 <div className="p-3 bg-paper rounded-xl border border-line space-y-3">
                   <div className="text-xs font-bold text-ink flex items-center gap-1.5">
@@ -341,7 +407,7 @@ export default function SalesPosPage() {
                       <span className="text-muted block text-[11px] mb-1">Layar LCD:</span>
                       <select
                         value={screenGrading}
-                        onChange={(e) => setScreenGrading(e.target.value as any)}
+                        onChange={(e) => setScreenGrading(e.target.value as typeof screenGrading)}
                         className="w-full bg-card border border-slate-300 rounded p-1 text-xs"
                       >
                         <option value="good">Mulus Original</option>
@@ -354,7 +420,7 @@ export default function SalesPosPage() {
                       <span className="text-muted block text-[11px] mb-1">Bodi / Bezel:</span>
                       <select
                         value={bodyGrading}
-                        onChange={(e) => setBodyGrading(e.target.value as any)}
+                        onChange={(e) => setBodyGrading(e.target.value as typeof bodyGrading)}
                         className="w-full bg-card border border-slate-300 rounded p-1 text-xs"
                       >
                         <option value="flawless">Mulus Sempurna</option>
@@ -541,11 +607,13 @@ export default function SalesPosPage() {
 
               <Button
                 onClick={handleCheckout}
-                disabled={!selectedUnitId || !customerName.trim()}
+                disabled={isSubmitting || !selectedUnitId || !customerName.trim()}
                 className="w-full py-6 font-bold text-sm bg-accent hover:bg-accent-deep gap-2 shadow-md shadow-accent/20"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>Proses Pembayaran & Cetak Faktur</span>
+                <span>
+                  {isSubmitting ? "Memproses transaksi..." : "Proses Pembayaran & Cetak Faktur"}
+                </span>
               </Button>
             </CardContent>
           </Card>
@@ -567,7 +635,7 @@ export default function SalesPosPage() {
               </div>
               <h3 className="text-xl font-black text-ink">Transaksi Berhasil Diproses!</h3>
               <p className="text-xs text-muted font-mono">
-                No. Faktur: INV-{completedInvoice.id} • {formatDate(completedInvoice.created_at)}
+                No. Faktur: {completedInvoice.invoice_number ?? `INV-${completedInvoice.id}`} • {formatDate(completedInvoice.created_at)}
               </p>
             </div>
 
@@ -594,13 +662,13 @@ export default function SalesPosPage() {
               {completedInvoice.trade_in && (
                 <div className="flex justify-between text-good font-medium">
                   <span>Trade-In ({completedInvoice.trade_in.original_brand_model}):</span>
-                  <span>-{formatIDR(completedInvoice.trade_in_deduction)}</span>
+                  <span>-{formatIDR(completedInvoice.trade_in_deduction ?? 0)}</span>
                 </div>
               )}
               <div className="pt-2 border-t border-line flex justify-between font-bold text-sm">
                 <span>Total Pelunasan ({completedInvoice.payment_method.toUpperCase()}):</span>
                 <span className="text-accent-deep text-base">
-                  {formatIDR(completedInvoice.final_payment)}
+                  {formatIDR(completedInvoice.final_payment ?? 0)}
                 </span>
               </div>
             </div>
@@ -610,12 +678,12 @@ export default function SalesPosPage() {
                 variant="outline"
                 onClick={() =>
                   openNotaPrintWindow(
-                    `Nota INV-${completedInvoice.id}`,
+                    `Nota ${completedInvoice.invoice_number ?? `INV-${completedInvoice.id}`}`,
                     buildPosNotaHtml({
                       storeName: "At Cell",
                       address: storeSettings.address,
                       phone: `${storeSettings.whatsapp_number} / ${storeSettings.phone_number}`,
-                      invoiceNo: `INV-${completedInvoice.id}`,
+                      invoiceNo: completedInvoice.invoice_number ?? `INV-${completedInvoice.id}`,
                       date: formatDate(completedInvoice.created_at),
                       customerName: completedInvoice.customer_name,
                       unitModel: completedInvoice.unitModel,
@@ -623,9 +691,9 @@ export default function SalesPosPage() {
                       warrantyMonths:
                         completedInvoice.items?.[0]?.warranty_duration_months || 12,
                       tradeInModel: completedInvoice.trade_in?.original_brand_model,
-                      tradeInDeduction: completedInvoice.trade_in_deduction,
+                      tradeInDeduction: completedInvoice.trade_in_deduction ?? 0,
                       paymentMethod: completedInvoice.payment_method,
-                      total: completedInvoice.final_payment,
+                      total: completedInvoice.final_payment ?? 0,
                     })
                   )
                 }

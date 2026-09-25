@@ -43,3 +43,7 @@ next-env.d.ts
 
 # eksplorasi mockup lokal, jangan commit
 /design-taste-frontend/
+
+# secret lokal Coolify, jangan commit
+/.secrets
+/.secrets.*

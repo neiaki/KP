@@ -55,7 +55,6 @@ export function LiveChatWidget() {
 
   useEffect(() => {
     if (isOpen) {
-      setUnreadCount(0);
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [isOpen, messages]);
@@ -380,7 +379,10 @@ export function LiveChatWidget() {
 
       {/* Floating Trigger Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen((open) => !open);
+          if (!isOpen) setUnreadCount(0);
+        }}
         className="flex items-center gap-2.5 px-4 py-3 bg-accent hover:bg-accent-deep text-white rounded-full shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer font-bold text-xs ring-4 ring-accent/20"
       >
         <div className="relative">

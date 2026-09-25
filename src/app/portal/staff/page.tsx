@@ -10,14 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function StaffManagementPage() {
-  const { profiles, addStaff } = useStore();
+  const { profiles, addStaff, isLiveBackend } = useStore();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("sales");
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!showAddModal) return;
@@ -28,18 +30,29 @@ export default function StaffManagementPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [showAddModal]);
 
-  const handleAddStaffSubmit = (e: React.FormEvent) => {
+  const handleAddStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) {
       setNotice({ type: "error", text: "Nama dan email wajib diisi!" });
       return;
     }
-    addStaff(name.trim(), role, phone.trim(), email.trim());
-    setShowAddModal(false);
-    setName("");
-    setEmail("");
-    setPhone("");
-    setNotice({ type: "success", text: "Akun staf baru berhasil didaftarkan." });
+    setIsSaving(true);
+    try {
+      await addStaff(name.trim(), role, phone.trim(), email.trim(), password);
+      setShowAddModal(false);
+      setName("");
+      setEmail("");
+      setPhone("");
+      setPassword("");
+      setNotice({ type: "success", text: "Akun staf baru berhasil didaftarkan." });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal membuat akun staf.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const staffList = profiles.filter((p) => p.role !== "customer");
@@ -113,7 +126,9 @@ export default function StaffManagementPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-ink text-sm">{staf.full_name}</h3>
-                  <div className="text-[11px] text-muted font-mono">{staf.email}</div>
+                  <div className="text-[11px] text-muted font-mono">
+                    {staf.email || "Email tidak ditampilkan"}
+                  </div>
                 </div>
               </div>
 
@@ -202,6 +217,19 @@ export default function StaffManagementPage() {
               </div>
 
               <div>
+                <label className="block font-semibold text-muted mb-1">Kata Sandi Awal:</label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimal 8 karakter"
+                  className="text-xs"
+                  required={isLiveBackend}
+                  minLength={isLiveBackend ? 8 : undefined}
+                />
+              </div>
+
+              <div>
                 <label className="block font-semibold text-muted mb-1">Peran Akses (Role):</label>
                 <select
                   value={role}
@@ -218,7 +246,8 @@ export default function StaffManagementPage() {
                 <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
                   Batal
                 </Button>
-                <Button type="submit" className="font-bold">
+                <Button type="submit" disabled={isSaving} className="font-bold">
+                  {isSaving ? "Mengundang..." : "Undang Akun Staf Baru"}
                   Daftarkan Staf
                 </Button>
               </div>

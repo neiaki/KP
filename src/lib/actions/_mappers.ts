@@ -15,14 +15,14 @@ export type UnitRow = {
   created_at: string;
 };
 
-export function mapUnit(u: UnitRow): InventoryUnit {
+export function mapUnit(u: UnitRow, includePurchaseCost = true): InventoryUnit {
   return {
     id: u.id,
     product_id: u.product_id,
     imei: u.imei,
     condition: u.condition,
     status: u.status,
-    purchase_cost: toNumber(u.purchase_cost),
+    purchase_cost: includePurchaseCost ? toNumber(u.purchase_cost) : 0,
     selling_price: toNumber(u.selling_price),
     created_at: u.created_at,
   };
@@ -59,7 +59,7 @@ export type TransactionRow = {
   }>;
 };
 
-export function mapTransaction(t: TransactionRow): Transaction {
+export function mapTransaction(t: TransactionRow, includePurchaseCost = true): Transaction {
   const items = (t.transaction_items ?? []).map((i) => ({
     id: i.id,
     transaction_id: i.transaction_id,
@@ -68,7 +68,9 @@ export function mapTransaction(t: TransactionRow): Transaction {
     unit_price: toNumber(i.unit_price),
     warranty_duration_months: i.warranty_duration_months,
     warranty_period_days: i.warranty_duration_months * 30,
-    unit: i.inventory_units ? mapUnit(i.inventory_units) : undefined,
+    unit: i.inventory_units
+      ? mapUnit(i.inventory_units, includePurchaseCost)
+      : undefined,
   }));
   const trade = t.trade_in_records?.[0];
   return {

@@ -22,14 +22,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export default function CustomerAccountPage() {
-  const { transactions, serviceTickets, products, inventoryUnits, profiles, currentRole, storeSettings } =
-    useStore();
+  const {
+    transactions,
+    serviceTickets,
+    products,
+    inventoryUnits,
+    currentProfile,
+    storeSettings,
+    isLiveBackend,
+  } = useStore();
 
-  const currentProfile = profiles.find((p) => p.role === currentRole) || {
-    full_name: "Anisa Rahmawati",
-    email: "anisa@gmail.com",
-    phone_number: "082199887766",
-  };
+  const displayName = currentProfile?.full_name ?? (isLiveBackend ? "Pelanggan" : "Anisa Rahmawati");
 
   // Find purchased units from transactions
   const purchasedItems = transactions.flatMap((tx) =>
@@ -52,7 +55,7 @@ export default function CustomerAccountPage() {
         purchaseDate: tx.created_at,
         unitId: item.unit_id,
         brandModel: product ? `${product.brand} ${product.model_name}` : "Smartphone Unit",
-        imei: unit?.imei || "358762109845001",
+        imei: unit?.imei ?? "IMEI tidak tersedia",
         condition: unit?.condition || "new",
         price: item.unit_price,
         warrantyMonths: item.warranty_duration_months || 12,
@@ -63,13 +66,16 @@ export default function CustomerAccountPage() {
     })
   );
 
-  // Customer service tickets (matches customer name or demo filter)
-  const myTickets = serviceTickets.filter(
-    (t) =>
-      t.customer_name.toLowerCase().includes("anisa") ||
-      t.customer_phone?.includes("7766") ||
-      serviceTickets.length <= 2 // fallback demo display
-  );
+  // Customer service tickets. Data live sudah difilter oleh customer_id;
+  // fallback nama/telepon hanya berlaku untuk mode demo lokal.
+  const myTickets = isLiveBackend
+    ? serviceTickets.filter((ticket) => ticket.customer_id === currentProfile?.id)
+    : serviceTickets.filter(
+        (ticket) =>
+          ticket.customer_name.toLowerCase().includes("anisa") ||
+          ticket.customer_phone?.includes("7766") ||
+          serviceTickets.length <= 2
+      );
 
   return (
     <div className="space-y-8 pb-12">
@@ -80,7 +86,7 @@ export default function CustomerAccountPage() {
             <span>PORTAL PELANGGAN RESMI</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Selamat Datang, {currentProfile.full_name}
+            Selamat Datang, {displayName}
           </h1>
           <p className="text-xs sm:text-sm text-slate-300">
             Kelola faktur belanja smartphone Anda, pantau masa berlaku garansi IMEI resmi toko, dan lacak status servis.
@@ -97,7 +103,7 @@ export default function CustomerAccountPage() {
                   storeName: "At Cell",
                   address: storeSettings.address,
                   phone: `${storeSettings.whatsapp_number} / ${storeSettings.phone_number}`,
-                  buyerName: currentProfile.full_name,
+                  buyerName: displayName,
                   items: purchasedItems.map((it) => ({
                     brandModel: it.brandModel,
                     imei: it.imei,

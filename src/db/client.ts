@@ -26,8 +26,16 @@ export function getDb(): Db | null {
     client = postgres(process.env.DATABASE_URL as string, {
       // Wajib false untuk Supabase connection pooler (transaction mode).
       prepare: false,
-      // Batasi koneksi agar tidak membanjiri pooler Supabase (gratisan kecil).
-      max: 5,
+      // Vercel dapat membuat banyak instance serverless. Batasi setiap
+      // instance ke satu koneksi; Coolify yang long-lived boleh memakai
+      // pool kecil. Supabase pooler tetap menjadi pembatas utama.
+      max: process.env.VERCEL ? 1 : 5,
+      connect_timeout: 3,
+      connection: {
+        // Health probe tidak boleh menumpuk query lambat di pool kecil.
+        statement_timeout: 2500,
+        lock_timeout: 2000,
+      },
     });
     db = drizzle(client, { schema });
   }

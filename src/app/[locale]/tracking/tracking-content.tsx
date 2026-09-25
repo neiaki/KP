@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { openNotaPrintWindow, buildServiceNotaHtml } from "@/lib/print-nota";
-import { RepairStatus } from "@/types";
+import { trackTicketPublic } from "@/lib/actions/service";
+import { RepairStatus, ServiceTicket } from "@/types";
 import {
   Search,
   Check,
@@ -126,30 +127,85 @@ export function TrackingContent({ locale }: { locale: Locale }) {
   const searchParams = useSearchParams();
   const initialTicket = searchParams.get("ticket") || "";
 
-  const { serviceTickets, storeSettings } = useStore();
+  const { serviceTickets, storeSettings, isLiveBackend } = useStore();
   const [ticketInput, setTicketInput] = useState(initialTicket);
   const [hasSearched, setHasSearched] = useState(initialTicket !== "");
+  const [remoteTicket, setRemoteTicket] = useState<ServiceTicket | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchRequestId = useRef(0);
   const [copied, setCopied] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Hasil pencarian diturunkan saat render (bukan state + effect),
-  // sehingga tidak ada setState di dalam useEffect.
+  // sehingga tidak ada setState sinkron di dalam effect.
   const normalized = hasSearched ? ticketInput.trim().toLowerCase() : "";
-  const activeTicket = normalized
+  const localTicket = normalized
     ? serviceTickets.find((t) => t.ticket_code.toLowerCase() === normalized) || null
     : null;
+  const activeTicket = isLiveBackend ? remoteTicket : localTicket;
 
-  const performSearch = (code: string) => {
-    if (!code.trim()) return;
+  const performSearch = useCallback(async (code: string) => {
+    const normalizedCode = code.trim();
+    if (!normalizedCode) return;
+    const requestId = ++searchRequestId.current;
     setHasSearched(true);
-  };
+    setSearchError(null);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+    if (!isLiveBackend) return;
+
+    try {
+      const result = await trackTicketPublic(normalizedCode);
+      if (requestId !== searchRequestId.current) return;
+      if (!result.ok) {
+        setRemoteTicket(null);
+        setSearchError(result.error);
+        return;
+      }
+
+      const data = result.data;
+      setRemoteTicket({
+      id: 0,
+      ticket_code: data.ticket_code,
+      customer_id: null,
+      customer_name: "",
+      customer_phone: "",
+      technician_id: null,
+      device_model: data.device_model,
+      device_name: data.device_model,
+      imei_or_sn: data.imei_or_sn,
+      imei: data.imei_or_sn,
+      issue_notes: "",
+      repair_status: data.repair_status,
+      photo_urls: [],
+      sparepart_fee: 0,
+      labor_fee: 0,
+      total_fee: 0,
+      warranty_days: data.warranty_days,
+      cost_breakdown: [],
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      });
+    } catch {
+      if (requestId !== searchRequestId.current) return;
+      setRemoteTicket(null);
+      setSearchError("Layanan pelacakan sedang tidak dapat dihubungi. Coba lagi sebentar.");
+    }
+  }, [isLiveBackend]);
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticketInput.trim()) return;
     router.push(`/${locale}/tracking?ticket=${encodeURIComponent(ticketInput.trim())}`);
-    performSearch(ticketInput);
+    await performSearch(ticketInput);
   };
+
+  useEffect(() => {
+    if (!isLiveBackend || !initialTicket.trim()) return;
+    const frame = window.requestAnimationFrame(() => {
+      void performSearch(initialTicket);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialTicket, isLiveBackend, performSearch]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -226,7 +282,7 @@ export function TrackingContent({ locale }: { locale: Locale }) {
             <AlertCircle className="mx-auto h-11 w-11 text-bad" />
             <h2 className="mt-2 text-base font-extrabold text-ink">Kode tidak ketemu</h2>
             <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted">
-              Cek lagi huruf dan angkanya. Kalau tetap tidak ketemu, chat toko via WhatsApp.
+              {searchError || "Cek lagi huruf dan angkanya. Kalau tetap tidak ketemu, chat toko via WhatsApp."}
             </p>
           </div>
         )}
@@ -270,34 +326,38 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                   >
                     {activeTicket.repair_status.replace("_", " ")}
                   </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      activeTicket &&
-                      openNotaPrintWindow(
-                        `Nota ${activeTicket.ticket_code}`,
-                        buildServiceNotaHtml({
-                          ticket: activeTicket,
-                          storeName: "At Cell",
-                          address: storeSettings.address,
-                          phone: `${storeSettings.whatsapp_number} / ${storeSettings.phone_number}`,
-                        })
-                      )
-                    }
-                    className="no-print"
-                  >
-                    <Printer className="h-4 w-4" />
-                    Cetak nota
-                  </Button>
+                  {!isLiveBackend ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        activeTicket &&
+                        openNotaPrintWindow(
+                          `Nota ${activeTicket.ticket_code}`,
+                          buildServiceNotaHtml({
+                            ticket: activeTicket,
+                            storeName: "At Cell",
+                            address: storeSettings.address,
+                            phone: `${storeSettings.whatsapp_number} / ${storeSettings.phone_number}`,
+                          })
+                        )
+                      }
+                      className="no-print"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Cetak nota
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
               <dl className="grid grid-cols-2 gap-4 pt-5 text-xs sm:grid-cols-4">
-                <div>
-                  <dt className="text-muted">Pemilik</dt>
-                  <dd className="mt-0.5 font-bold text-ink">{activeTicket.customer_name}</dd>
-                </div>
+                {!isLiveBackend ? (
+                  <div>
+                    <dt className="text-muted">Pemilik</dt>
+                    <dd className="mt-0.5 font-bold text-ink">{activeTicket.customer_name}</dd>
+                  </div>
+                ) : null}
                 <div>
                   <dt className="text-muted">Masuk</dt>
                   <dd className="mt-0.5 font-bold text-ink">{formatDate(activeTicket.created_at)}</dd>
@@ -315,10 +375,12 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                 </div>
               </dl>
 
-              <div className="mt-4 rounded-lg bg-paper p-3.5 text-xs">
-                <p className="font-bold text-ink">Keluhan awal</p>
-                <p className="mt-0.5 leading-relaxed text-muted">{activeTicket.issue_notes}</p>
-              </div>
+              {!isLiveBackend ? (
+                <div className="mt-4 rounded-lg bg-paper p-3.5 text-xs">
+                  <p className="font-bold text-ink">Keluhan awal</p>
+                  <p className="mt-0.5 leading-relaxed text-muted">{activeTicket.issue_notes}</p>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-xl border border-line bg-card p-5 sm:p-6">
@@ -375,21 +437,29 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-xs">
-                  <div className="flex justify-between border-b border-line py-2">
-                    <span className="text-muted">Sparepart</span>
-                    <span className="font-bold text-ink">{formatIDR(activeTicket.sparepart_fee)}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-line py-2">
-                    <span className="text-muted">Jasa teknisi</span>
-                    <span className="font-bold text-ink">{formatIDR(activeTicket.labor_fee)}</span>
-                  </div>
-                  <div className="flex justify-between rounded-lg bg-paper p-3 text-sm font-extrabold text-ink">
-                    <span>Total</span>
-                    <span className="text-accent-deep">{formatIDR(activeTicket.total_fee)}</span>
-                  </div>
-                  <p className="pt-1 text-[11px] text-muted">
-                    Bayar saat ambil HP di kasir At Cell.
-                  </p>
+                  {!isLiveBackend ? (
+                    <>
+                      <div className="flex justify-between border-b border-line py-2">
+                        <span className="text-muted">Sparepart</span>
+                        <span className="font-bold text-ink">{formatIDR(activeTicket.sparepart_fee)}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-line py-2">
+                        <span className="text-muted">Jasa teknisi</span>
+                        <span className="font-bold text-ink">{formatIDR(activeTicket.labor_fee)}</span>
+                      </div>
+                      <div className="flex justify-between rounded-lg bg-paper p-3 text-sm font-extrabold text-ink">
+                        <span>Total</span>
+                        <span className="text-accent-deep">{formatIDR(activeTicket.total_fee)}</span>
+                      </div>
+                      <p className="pt-1 text-[11px] text-muted">
+                        Bayar saat ambil HP di kasir At Cell.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="rounded-lg bg-paper p-3 leading-relaxed text-muted">
+                      Rincian biaya dapat dikonfirmasi langsung ke kasir At Cell.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -401,7 +471,7 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {activeTicket.photo_urls && activeTicket.photo_urls.length > 0 ? (
+                  {!isLiveBackend && activeTicket.photo_urls && activeTicket.photo_urls.length > 0 ? (
                     <div className="grid grid-cols-2 gap-3">
                       {activeTicket.photo_urls.map((photo, i) => (
                         <button
@@ -427,7 +497,9 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                   ) : (
                     <div className="rounded-xl border border-dashed border-line bg-paper py-8 text-center text-xs text-muted">
                       <Camera className="mx-auto mb-2 h-8 w-8 text-line" />
-                      Belum ada foto untuk nota ini.
+                      {isLiveBackend
+                        ? "Foto servis tidak ditampilkan pada halaman publik."
+                        : "Belum ada foto untuk nota ini."}
                     </div>
                   )}
                   <a

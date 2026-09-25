@@ -19,6 +19,17 @@ export const phoneSchema = z
   .max(16, "Nomor telepon maksimal 16 digit.")
   .regex(/^[0-9+()\-.\s]+$/, "Nomor telepon hanya boleh berisi angka dan +()-.");
 
+export const customerSignUpSchema = z.object({
+  fullName: z.string().trim().min(2, "Nama minimal 2 huruf.").max(120),
+  email: z.string().trim().email("Email tidak valid.").max(254),
+  password: z.string().min(8, "Kata sandi minimal 8 karakter.").max(128),
+  phoneNumber: phoneSchema,
+});
+
+export const staffInviteSchema = customerSignUpSchema.extend({
+  role: z.enum(["admin", "sales", "technician"]),
+});
+
 const rupiah = (label: string) =>
   z.coerce.number().min(0, `${label} tidak boleh negatif.`).max(999_999_999_999, `${label} terlalu besar.`);
 
@@ -127,33 +138,79 @@ export const updateTicketSchema = z.object({
 });
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
 
-// Master produk, eksklusif Admin (FR-D-04).
+// Master produk, eksklusif Admin (FR-D-04). Schema create dan update sengaja
+// dipisah: `.partial()` pada schema yang memiliki default akan mengaktifkan
+// kembali default saat field tidak dikirim, sehingga edit dapat menimpa data.
+const productBrand = z.string().trim().min(2, "Merek minimal 2 huruf.");
+const productModel = z.string().trim().min(2, "Nama model minimal 2 huruf.");
+const productSpecs = z.string().trim();
+const productImage = z.string().trim();
+const productOfficialImages = z.array(z.string()).max(10);
+const productSecondImages = z.array(z.string()).max(10);
+
 export const productSchema = z.object({
-  brand: z.string().trim().min(2, "Merek minimal 2 huruf."),
-  model_name: z.string().trim().min(2, "Nama model minimal 2 huruf."),
-  specs: z.string().trim().default(""),
+  brand: productBrand,
+  model_name: productModel,
+  specs: productSpecs.default(""),
   default_price: rupiah("Harga acuan"),
-  image_url: z.string().trim().default(""),
-  official_images: z.array(z.string()).max(10).default([]),
-  second_images: z.array(z.string()).max(10).default([]),
+  image_url: productImage.default(""),
+  official_images: productOfficialImages.default([]),
+  second_images: productSecondImages.default([]),
   is_active: z.boolean().default(true),
 });
 export type ProductInput = z.infer<typeof productSchema>;
 
+export const productUpdateSchema = z.object({
+  brand: productBrand.optional(),
+  model_name: productModel.optional(),
+  specs: productSpecs.optional(),
+  default_price: rupiah("Harga acuan").optional(),
+  image_url: productImage.optional(),
+  official_images: productOfficialImages.optional(),
+  second_images: productSecondImages.optional(),
+  is_active: z.boolean().optional(),
+});
+export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
+
 // Konten profil publik toko, Admin (FR-D-02).
+const storeName = z.string().trim().min(3, "Nama toko minimal 3 huruf.");
+const storeDescriptionId = z.string().trim().min(10, "Deskripsi ID minimal 10 huruf.");
+const storeDescriptionEn = z.string().trim().min(10, "Deskripsi EN minimal 10 huruf.");
+const storeAddress = z.string().trim().min(5, "Alamat minimal 5 huruf.");
+const storeLatitude = z.coerce.number().min(-90).max(90).nullable().optional();
+const storeLongitude = z.coerce.number().min(-180).max(180).nullable().optional();
+const storeMapsUrl = z.string().trim().url("URL peta tidak valid.").max(500).or(z.literal(""));
+const storePhone = z.string().trim().min(5, "Nomor telepon toko wajib diisi.");
+const storeWhatsapp = z.string().trim().max(16);
+const openingHours = z.record(z.string(), z.string());
+
 export const storeSettingsSchema = z.object({
-  store_name: z.string().trim().min(3, "Nama toko minimal 3 huruf."),
-  description_id: z.string().trim().min(10, "Deskripsi ID minimal 10 huruf."),
-  description_en: z.string().trim().min(10, "Deskripsi EN minimal 10 huruf."),
-  address: z.string().trim().min(5, "Alamat minimal 5 huruf."),
-  latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
-  longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
-  maps_url: z.string().trim().url("URL peta tidak valid.").max(500).or(z.literal("")).optional(),
-  phone_number: z.string().trim().min(5, "Nomor telepon toko wajib diisi."),
-  whatsapp_number: z.string().trim().max(16).optional(),
-  opening_hours: z.record(z.string(), z.string()).default({}),
+  store_name: storeName,
+  description_id: storeDescriptionId,
+  description_en: storeDescriptionEn,
+  address: storeAddress,
+  latitude: storeLatitude,
+  longitude: storeLongitude,
+  maps_url: storeMapsUrl.optional(),
+  phone_number: storePhone,
+  whatsapp_number: storeWhatsapp.optional(),
+  opening_hours: openingHours.default({}),
 });
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>;
+
+export const storeSettingsUpdateSchema = z.object({
+  store_name: storeName.optional(),
+  description_id: storeDescriptionId.optional(),
+  description_en: storeDescriptionEn.optional(),
+  address: storeAddress.optional(),
+  latitude: storeLatitude,
+  longitude: storeLongitude,
+  maps_url: storeMapsUrl.optional(),
+  phone_number: storePhone.optional(),
+  whatsapp_number: storeWhatsapp.optional(),
+  opening_hours: openingHours.optional(),
+});
+export type StoreSettingsUpdateInput = z.infer<typeof storeSettingsUpdateSchema>;
 
 // Upload foto kondisi (trade-in / servis). Validasi ringan di server.
 export const uploadPhotoSchema = z.object({
