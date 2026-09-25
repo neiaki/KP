@@ -253,7 +253,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
           </p>
           <div className="rise mt-10 flex flex-wrap gap-4" style={{ animationDelay: "240ms" }}>
             <a href="#stok">
-              <Button size="lg" className="rounded-full bg-ink px-8 py-4 text-base font-bold text-white hover:bg-neutral-800 dark:bg-white dark:text-ink dark:hover:bg-neutral-200">
+              <Button size="lg" className="rounded-full bg-ink px-8 py-4 text-base font-bold text-white hover:bg-neutral-800 dark:bg-white dark:text-paper dark:hover:bg-neutral-200">
                 {locale === "en" ? "See stock" : "Lihat stok"}
               </Button>
             </a>
