@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
 import { Locale } from "@/lib/translations";
 
@@ -12,10 +12,14 @@ export interface HeroSlide {
   waMessage: string;
 }
 
+const AUTO_ADVANCE_MS = 5000;
+
 /* Carousel hero: panah kiri kanan + dots + keyboard, meniru pola
    galeri ProductCard. Foto TIDAK ditimpa label apa pun, keterangan
    selalu di bawah foto. Bila file foto belum ada, tampil panel
-   pengganti yang jujur, bukan gambar model lain. */
+   pengganti yang jujur, bukan gambar model lain.
+   Selama kursor di dalam kotak gambar, slide bergeser sendiri
+   tiap 5 detik, lalu berhenti begitu kursor pergi. */
 export function HeroCarousel({
   slides,
   locale,
@@ -25,13 +29,35 @@ export function HeroCarousel({
 }) {
   const [active, setActive] = useState(0);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
+  const [hovering, setHovering] = useState(false);
+  // Dinaikkan setiap navigasi manual supaya hitung mundur 5 detik
+  // selalu mulai ulang dari klik terakhir, bukan dari tengah jalan.
+  const [manualTick, setManualTick] = useState(0);
   const total = slides.length;
   const current = total > 0 ? Math.min(active, total - 1) : 0;
 
   const go = useCallback(
-    (dir: 1 | -1) => setActive((a) => (a + dir + total) % total),
+    (dir: 1 | -1) => {
+      setActive((a) => (a + dir + total) % total);
+      setManualTick((t) => t + 1);
+    },
     [total]
   );
+
+  const jump = useCallback((index: number) => {
+    setActive(index);
+    setManualTick((t) => t + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!hovering || total < 2) return;
+    // Hormati prefers-reduced-motion: jangan geser sendiri.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = window.setInterval(() => {
+      setActive((a) => (a + 1) % total);
+    }, AUTO_ADVANCE_MS);
+    return () => window.clearInterval(id);
+  }, [hovering, total, manualTick]);
 
   if (total === 0) return null;
   const slide = slides[current];
@@ -40,8 +66,10 @@ export function HeroCarousel({
     <div
       role="region"
       aria-roledescription="carousel"
-      aria-label={locale === "en" ? "Upcoming iPhones" : "iPhone yang segera hadir"}
+      aria-label={locale === "en" ? "Featured phones" : "HP sorotan toko"}
       tabIndex={0}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
       onKeyDown={(e) => {
         if (e.key === "ArrowLeft") go(-1);
         if (e.key === "ArrowRight") go(1);
@@ -99,7 +127,7 @@ export function HeroCarousel({
               <button
                 key={s.model}
                 type="button"
-                onClick={() => setActive(i)}
+                onClick={() => jump(i)}
                 aria-label={`${locale === "en" ? "Show" : "Tampilkan"} ${s.model}`}
                 aria-pressed={current === i}
                 className="flex h-6 items-center px-1.5"
