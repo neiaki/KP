@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 export function DemoRoleBar() {
-  const { currentRole, switchRole, resetToInitialData } = useStore();
+  const { currentRole, switchRole, resetToInitialData, isLiveBackend } = useStore();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -26,6 +26,8 @@ export function DemoRoleBar() {
       router.push(defaultPath);
     }
   };
+
+  if (isLiveBackend) return null;
 
   const roles: { role: UserRole; label: string; icon: React.ReactNode; defaultPath: string }[] = [
     {

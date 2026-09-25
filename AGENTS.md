@@ -8,13 +8,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# At Cell — Toko HP Serpong (Next.js + Mock Store)
+# At Cell — Toko HP Serpong (Next.js + Supabase/Drizzle)
 
-Web toko handphone offline "At Cell" (Paku Jaya, Serpong Utara): etalase publik
-ID/EN + portal operasional staf. **Belum ada backend**: seluruh data berasal dari
-`src/lib/mock-data.ts` yang dimuat ke state via `src/lib/store.ts` dan
-dipersist ke `localStorage`. Jangan mengasumsikan Supabase/API sudah tersambung
-(PRD di `docs/PRD-AtCell.md` adalah rencana, bukan kondisi saat ini).
+Web toko handphone "At Cell" (Paku Jaya, Serpong Utara): etalase publik
+ID/EN + portal operasional staf. Mode lokal tanpa environment Supabase tetap
+memakai `src/lib/mock-data.ts` dan `localStorage`. Mode production memakai
+Supabase/Drizzle melalui server actions, RLS, dan Auth. Jangan mengasumsikan
+Supabase sudah tersambung hanya karena dependency tersedia; verifikasi env dan
+health endpoint `/api/health/ready` sebelum Production. PRD di
+`docs/PRD-AtCell.md` adalah acuan kebutuhan, sedangkan runbook deployment ada di
+`docs/DEPLOYMENT-REDUNDANCY.md`.
 
 ## Perintah
 

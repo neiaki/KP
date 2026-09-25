@@ -21,6 +21,10 @@ import {
   type ActionResult,
 } from "./_helpers";
 
+type InventoryStatusResult =
+  | { error: string; updated?: never }
+  | { error?: never; updated: InventoryUnitRow };
+
 function mapUnit(u: InventoryUnitRow): InventoryUnit {
   return {
     id: u.id,
@@ -49,13 +53,17 @@ export async function listUnits(opts?: {
     opts?.productId ? eq(inventoryUnits.productId, opts.productId) : undefined,
     opts?.status ? eq(inventoryUnits.status, opts.status) : undefined,
   ].filter((f) => f !== undefined);
-  const rows = await db
-    .select()
-    .from(inventoryUnits)
-    .where(filters.length > 0 ? and(...filters) : undefined)
-    .orderBy(desc(inventoryUnits.createdAt))
-    .limit(opts?.limit ?? 200);
-  return ok(rows.map(mapUnit));
+  try {
+    const rows = await db
+      .select()
+      .from(inventoryUnits)
+      .where(filters.length > 0 ? and(...filters) : undefined)
+      .orderBy(desc(inventoryUnits.createdAt))
+      .limit(opts?.limit ?? 200);
+    return ok(rows.map(mapUnit));
+  } catch {
+    return fail("Gagal memuat unit inventaris. Coba lagi.");
+  }
 }
 
 /** Unit `available` per produk untuk picker IMEI di POS (anti double-sell di UI). */
@@ -76,10 +84,16 @@ export async function registerUnits(
   const { productId, condition, purchaseCost, sellingPrice, imeis } = parsed.data;
   const db = getDb();
   if (!db) return backendOffline();
-  const [product] = await db
-    .select({ id: products.id, isActive: products.isActive })
-    .from(products)
-    .where(eq(products.id, productId));
+  let product: { id: number; isActive: boolean } | undefined;
+  try {
+    const [row] = await db
+      .select({ id: products.id, isActive: products.isActive })
+      .from(products)
+      .where(eq(products.id, productId));
+    product = row;
+  } catch {
+    return fail("Gagal memuat katalog produk. Coba lagi.");
+  }
   if (!product || !product.isActive) return fail("Katalog produk tidak aktif.");
   try {
     // Satu insert untuk seluruh batch, .returning() kembalikan semua baris baru.
@@ -103,7 +117,7 @@ export async function registerUnits(
     if ((e as { code?: string }).code === "23505") {
       return fail("Ada IMEI yang sudah terdaftar di inventaris. Periksa lagi batch-nya.");
     }
-    return fail("Gagal mendaftarkan unit: " + (e as Error).message);
+    return fail("Gagal mendaftarkan unit. Periksa koneksi dan coba lagi.");
   }
 }
 
@@ -120,12 +134,31 @@ export async function updateUnitStatus(
   }
   const db = getDb();
   if (!db) return backendOffline();
-  const [updated] = await db
-    .update(inventoryUnits)
-    .set({ status: parsed.data.status })
-    .where(eq(inventoryUnits.id, parsed.data.unitId))
-    .returning();
-  if (!updated) return fail("Unit tidak ditemukan.");
-  revalidatePath("/portal/inventory");
-  return ok(mapUnit(updated));
+  try {
+    const result = (await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ status: inventoryUnits.status })
+        .from(inventoryUnits)
+        .where(eq(inventoryUnits.id, parsed.data.unitId))
+        .for("update");
+      if (!current) return { error: "Unit tidak ditemukan." } as const;
+      if (current.status === "sold") {
+        return { error: "Unit sudah sold dan tidak dapat dikembalikan menjadi available." } as const;
+      }
+      const [updated] = await tx
+        .update(inventoryUnits)
+        .set({ status: parsed.data.status })
+        .where(eq(inventoryUnits.id, parsed.data.unitId))
+        .returning();
+      if (!updated) return { error: "Unit tidak ditemukan." } as const;
+      return { updated } as const;
+    })) as InventoryStatusResult;
+    if (result.error || !result.updated) {
+      return fail(result.error ?? "Unit tidak ditemukan.");
+    }
+    revalidatePath("/portal/inventory");
+    return ok(mapUnit(result.updated));
+  } catch {
+    return fail("Gagal memperbarui status unit. Coba lagi.");
+  }
 }

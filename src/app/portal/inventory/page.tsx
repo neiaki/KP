@@ -32,6 +32,9 @@ export default function InventoryManagementPage() {
   // Batch IMEI registration modal / drawer state
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<number>(products[0]?.id || 1);
+  const activeProductId = products.some((product) => product.id === selectedProductId)
+    ? selectedProductId
+    : products[0]?.id ?? selectedProductId;
   const [batchCondition, setBatchCondition] = useState<UnitCondition>("new");
   const [purchaseCost, setPurchaseCost] = useState<number>(10000000);
   const [sellingPrice, setSellingPrice] = useState<number>(12000000);
@@ -39,6 +42,7 @@ export default function InventoryManagementPage() {
   const [validationError, setValidationError] = useState("");
 
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!showBatchModal) return;
@@ -49,7 +53,7 @@ export default function InventoryManagementPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showBatchModal]);
 
-  const handleBatchSubmit = (e: React.FormEvent) => {
+  const handleBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError("");
 
@@ -82,10 +86,32 @@ export default function InventoryManagementPage() {
       return;
     }
 
-    addBatchIMEI(selectedProductId, imeis, batchCondition, purchaseCost, sellingPrice);
-    setShowBatchModal(false);
-    setImeiInputText("");
-    setNotice({ type: "success", text: `Berhasil mendaftarkan ${imeis.length} unit fisik IMEI ke inventaris.` });
+    setIsSaving(true);
+    try {
+      await addBatchIMEI(activeProductId, imeis, batchCondition, purchaseCost, sellingPrice);
+      setShowBatchModal(false);
+      setImeiInputText("");
+      setNotice({ type: "success", text: `Berhasil mendaftarkan ${imeis.length} unit fisik IMEI ke inventaris.` });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal menyimpan unit inventaris.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUnitStatusChange = async (unitId: number, status: UnitStatus) => {
+    try {
+      await updateUnitStatus(unitId, status);
+      setNotice({ type: "success", text: "Status unit berhasil diperbarui." });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal memperbarui status unit.",
+      });
+    }
   };
 
   // Filter units
@@ -310,7 +336,7 @@ export default function InventoryManagementPage() {
                           <select
                             value={unit.status}
                             onChange={(e) =>
-                              updateUnitStatus(unit.id, e.target.value as UnitStatus)
+                              void handleUnitStatusChange(unit.id, e.target.value as UnitStatus)
                             }
                             className="bg-paper border border-line rounded px-2 py-1 text-xs font-medium text-muted"
                           >
@@ -366,7 +392,7 @@ export default function InventoryManagementPage() {
                   Pilih Katalog Produk Master:
                 </label>
                 <select
-                  value={selectedProductId}
+                  value={activeProductId}
                   onChange={(e) => setSelectedProductId(Number(e.target.value))}
                   className="w-full bg-paper border border-slate-300 rounded-lg p-2 text-xs font-semibold"
                 >
@@ -442,8 +468,8 @@ export default function InventoryManagementPage() {
                 >
                   Batal
                 </Button>
-                <Button type="submit" className="font-bold">
-                  Simpan ke Inventaris
+                <Button type="submit" disabled={isSaving} className="font-bold">
+                  {isSaving ? "Menyimpan..." : "Simpan ke Inventaris"}
                 </Button>
               </div>
             </form>

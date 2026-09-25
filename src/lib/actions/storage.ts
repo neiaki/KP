@@ -29,13 +29,16 @@ export async function uploadPhoto(
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "File tidak valid.");
   const supabase = await createClient();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${opts.prefix ?? guard.profile.id}/${Date.now()}-${safeName}`;
+  const randomPart = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const path = `${opts.prefix ?? guard.profile.id}/${randomPart}-${safeName}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const { error } = await supabase.storage.from(opts.bucket).upload(path, bytes, {
     contentType: file.type,
     upsert: false,
   });
-  if (error) return fail("Gagal mengunggah foto: " + error.message);
+  if (error) return fail("Gagal mengunggah foto. Coba lagi.");
   const {
     data: { publicUrl },
   } = supabase.storage.from(opts.bucket).getPublicUrl(path);

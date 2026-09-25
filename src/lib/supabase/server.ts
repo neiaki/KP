@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient, parseCookieHeader } from "@supabase/ssr";
 import type { Database } from "@/types/database";
-import { getSupabaseAnonKey, getSupabaseUrl } from "./config";
+import { getSupabaseAnonKey, getSupabaseCookieDomain, getSupabaseUrl } from "./config";
 
 /**
  * Client untuk Server Component / Server Action / Route Handler.
@@ -9,6 +9,7 @@ import { getSupabaseAnonKey, getSupabaseUrl } from "./config";
  */
 export async function createClient() {
   const cookieStore = await cookies();
+  const cookieDomain = getSupabaseCookieDomain();
   return createServerClient<Database>(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       getAll() {
@@ -17,7 +18,11 @@ export async function createClient() {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(
+              name,
+              value,
+              cookieDomain ? { ...options, domain: cookieDomain } : options
+            )
           );
         } catch {
           // Dipanggil dari Server Component (read-only): refresh sesi

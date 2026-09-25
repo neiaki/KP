@@ -8,37 +8,73 @@ import { Wrench, ArrowLeft, CheckCircle2, User, Smartphone, Camera, X } from "lu
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { uploadPhoto } from "@/lib/actions/storage";
 
 export default function NewServiceTicketPage() {
   const router = useRouter();
-  const { createServiceTicket } = useStore();
+  const { createServiceTicket, isLiveBackend } = useStore();
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deviceModel, setDeviceModel] = useState("");
   const [imeiOrSn, setImeiOrSn] = useState("");
   const [issueNotes, setIssueNotes] = useState("");
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (photoUrls.length >= 10) {
+      setNotice({ type: "error", text: "Maksimal 10 foto untuk satu tiket." });
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadPhoto(formData, { bucket: "service-photos" });
+      if (!result.ok) {
+        setNotice({ type: "error", text: result.error });
+        return;
+      }
+      setPhotoUrls((prev) => [...prev, result.data.url]);
+    } catch {
+      setNotice({ type: "error", text: "Gagal mengunggah foto. Coba lagi." });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName || !deviceModel || !issueNotes) {
       setNotice({ type: "error", text: "Mohon lengkapi Nama Pelanggan, Model Handphone, dan Keluhan!" });
       return;
     }
 
-    createServiceTicket({
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      deviceModel: deviceModel.trim(),
-      imeiOrSn: imeiOrSn.trim() || "N/A",
-      issueNotes: issueNotes.trim(),
-      photoUrls: [
-        "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=600&auto=format&fit=crop&q=80",
-      ],
-    });
-
-    router.push("/portal/service");
+    setIsSubmitting(true);
+    try {
+      await createServiceTicket({
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        deviceModel: deviceModel.trim(),
+        imeiOrSn: imeiOrSn.trim() || "N/A",
+        issueNotes: issueNotes.trim(),
+        photoUrls,
+      });
+      router.push("/portal/service");
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal membuat tiket servis.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -160,6 +196,25 @@ export default function NewServiceTicketPage() {
               />
             </div>
 
+            {isLiveBackend && (
+              <div className="rounded-xl border border-dashed border-line bg-paper p-3">
+                <label className="block font-semibold text-muted mb-1" htmlFor="service-photo">
+                  Foto kondisi atau kerusakan (opsional, maksimal 10 file)
+                </label>
+                <input
+                  id="service-photo"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => void handlePhotoChange(event)}
+                  disabled={uploadingPhoto || isSubmitting}
+                  className="block w-full text-xs text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                />
+                <p className="mt-1 text-[11px] text-muted">
+                  {uploadingPhoto ? "Mengunggah foto..." : `${photoUrls.length} foto siap disimpan`}
+                </p>
+              </div>
+            )}
+
             <div className="p-3 bg-accent-soft rounded-xl border border-accent/20 flex items-start gap-2.5 text-[11px] text-accent-deep">
               <CheckCircle2 className="w-4 h-4 text-accent-deep shrink-0 mt-0.5" />
               <span>
@@ -174,8 +229,8 @@ export default function NewServiceTicketPage() {
                   Batal
                 </Button>
               </Link>
-              <Button type="submit" className="font-bold">
-                Terbitkan Tiket Servis
+              <Button type="submit" disabled={isSubmitting || uploadingPhoto} className="font-bold">
+                {isSubmitting ? "Menerbitkan tiket..." : "Terbitkan Tiket Servis"}
               </Button>
             </div>
           </form>

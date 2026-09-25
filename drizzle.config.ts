@@ -1,13 +1,15 @@
 import { defineConfig } from "drizzle-kit";
 
-// Konfigurasi drizzle-kit (CLI migrasi). Cara pakai:
-//   npx drizzle-kit generate          # buat file SQL dari schema.ts (offline, tanpa DB)
-//   export DATABASE_URL="..."         # isi dulu dari dashboard Supabase (Database Settings)
-//   npx drizzle-kit migrate           # terapkan SQL ke DB (butuh koneksi)
-//   npx drizzle-kit studio            # GUI database di browser (butuh koneksi)
-// File SQL hasil generate tersimpan di supabase/drizzle/.
+// Drizzle hanya dipakai untuk membandingkan schema dan menghasilkan artefak
+// referensi. Migration production At Cell yang canonical adalah
+// supabase/migrations/0001_atcell_schema.sql, karena file itu juga berisi
+// RLS, trigger, view, Storage, dan seed. Jangan menjalankan artefak Drizzle
+// ke database production.
+//   npx drizzle-kit generate          # buat artefak referensi (offline, tanpa DB)
+//   npx drizzle-kit studio            # GUI database (hanya untuk database disposable)
+// File hasil generate baru disimpan di supabase/drizzle-generated/.
 export default defineConfig({
-  out: "./supabase/drizzle",
+  out: "./supabase/drizzle-generated",
   schema: "./src/db/schema.ts",
   dialect: "postgresql",
   dbCredentials: {

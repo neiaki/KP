@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "@/context/store-context";
 import { Settings, Save, CheckCircle2, Globe, Clock, MapPin, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 export default function StoreSettingsPage() {
-  const { storeSettings, updateStoreSettings } = useStore();
+  const { storeSettings, updateStoreSettings, isHydrating } = useStore();
 
   const [storeName, setStoreName] = useState(storeSettings.store_name);
   const [descriptionId, setDescriptionId] = useState(storeSettings.description_id);
@@ -24,27 +24,53 @@ export default function StoreSettingsPage() {
   const [holidays, setHolidays] = useState(storeSettings.opening_hours.holidays || "");
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const settingsHydrated = useRef(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateStoreSettings({
-      store_name: storeName,
-      description_id: descriptionId,
-      description_en: descriptionEn,
-      address,
-      latitude: Number(latitude),
-      longitude: Number(longitude),
-      phone_number: phoneNumber,
-      whatsapp_number: whatsappNumber,
-      opening_hours: {
-        monday_friday: monFri,
-        saturday_sunday: satSun,
-        holidays: holidays || undefined,
-      },
+  useEffect(() => {
+    if (isHydrating || settingsHydrated.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      setStoreName(storeSettings.store_name);
+      setDescriptionId(storeSettings.description_id);
+      setDescriptionEn(storeSettings.description_en);
+      setAddress(storeSettings.address);
+      setLatitude(storeSettings.latitude);
+      setLongitude(storeSettings.longitude);
+      setPhoneNumber(storeSettings.phone_number);
+      setWhatsappNumber(storeSettings.whatsapp_number || "");
+      setMonFri(storeSettings.opening_hours.monday_friday);
+      setSatSun(storeSettings.opening_hours.saturday_sunday);
+      setHolidays(storeSettings.opening_hours.holidays || "");
+      settingsHydrated.current = true;
     });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isHydrating, storeSettings]);
 
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaveError(null);
+    try {
+      await updateStoreSettings({
+        store_name: storeName,
+        description_id: descriptionId,
+        description_en: descriptionEn,
+        address,
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        phone_number: phoneNumber,
+        whatsapp_number: whatsappNumber,
+        opening_hours: {
+          monday_friday: monFri,
+          saturday_sunday: satSun,
+          holidays: holidays || undefined,
+        },
+      });
+
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Gagal menyimpan pengaturan toko.");
+    }
   };
 
   return (
@@ -69,6 +95,11 @@ export default function StoreSettingsPage() {
           <div className="flex items-center gap-2 text-xs font-bold text-good bg-good-bg px-3 py-1.5 rounded-lg border border-good/20 rise">
             <CheckCircle2 className="w-4 h-4" />
             <span>Pengaturan Berhasil Disimpan!</span>
+          </div>
+        )}
+        {saveError && (
+          <div role="alert" className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-2 text-xs text-bad">
+            {saveError}
           </div>
         )}
       </div>
@@ -241,7 +272,12 @@ export default function StoreSettingsPage() {
         </Card>
 
         <div className="flex justify-end pt-2">
-          <Button type="submit" size="lg" className="gap-2 font-bold px-8 shadow-md">
+          <Button
+            type="submit"
+            size="lg"
+            disabled={isHydrating}
+            className="gap-2 font-bold px-8 shadow-md"
+          >
             <Save className="w-4 h-4" />
             <span>Simpan Perubahan Toko</span>
           </Button>

@@ -6,11 +6,25 @@ export function getSupabaseUrl(): string {
 }
 
 export function getSupabaseAnonKey(): string {
-  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    ""
+  );
 }
 
 export function getSupabaseServiceRoleKey(): string {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  // Key secret modern diprioritaskan; nama service_role hanya fallback kompatibilitas.
+  return process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+}
+
+/**
+ * Domain cookie opsional untuk sesi lintas subdomain produksi.
+ * Kosongkan di local development agar cookie tetap host-only.
+ */
+export function getSupabaseCookieDomain(): string | undefined {
+  const value = process.env.SUPABASE_COOKIE_DOMAIN?.trim();
+  return value || undefined;
 }
 
 /** True bila kredensial publik tersedia (browser + server boleh pakai). */
