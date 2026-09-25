@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
@@ -13,7 +12,42 @@ import {
   Globe,
   RotateCcw,
   ExternalLink,
+  type LucideIcon,
 } from "lucide-react";
+
+type DemoRole = {
+  role: UserRole;
+  label: string;
+  icon: LucideIcon;
+  defaultPath: string;
+};
+
+const ROLES: DemoRole[] = [
+  {
+    role: "admin",
+    label: "Admin / Owner",
+    icon: ShieldCheck,
+    defaultPath: "/portal/dashboard",
+  },
+  {
+    role: "sales",
+    label: "Sales Kasir",
+    icon: ShoppingBag,
+    defaultPath: "/portal/pos",
+  },
+  {
+    role: "technician",
+    label: "Teknisi",
+    icon: Wrench,
+    defaultPath: "/portal/service",
+  },
+  {
+    role: "customer",
+    label: "Pelanggan",
+    icon: User,
+    defaultPath: "/portal/account",
+  },
+];
 
 export function DemoRoleBar() {
   const { currentRole, switchRole, resetToInitialData, isLiveBackend } = useStore();
@@ -29,114 +63,91 @@ export function DemoRoleBar() {
 
   if (isLiveBackend) return null;
 
-  const roles: { role: UserRole; label: string; icon: React.ReactNode; defaultPath: string }[] = [
-    {
-      role: "admin",
-      label: "Admin / Owner",
-      icon: <ShieldCheck className="w-3.5 h-3.5" />,
-      defaultPath: "/portal/dashboard",
-    },
-    {
-      role: "sales",
-      label: "Sales Kasir",
-      icon: <ShoppingBag className="w-3.5 h-3.5" />,
-      defaultPath: "/portal/pos",
-    },
-    {
-      role: "technician",
-      label: "Teknisi",
-      icon: <Wrench className="w-3.5 h-3.5" />,
-      defaultPath: "/portal/service",
-    },
-    {
-      role: "customer",
-      label: "Pelanggan",
-      icon: <User className="w-3.5 h-3.5" />,
-      defaultPath: "/portal/account",
-    },
-  ];
+  const isPublicPath = pathname.startsWith("/id") || pathname.startsWith("/en");
+  const isPortalPath = pathname.startsWith("/portal");
+  const portalPath = ROLES.find((item) => item.role === currentRole)?.defaultPath ?? "/portal/dashboard";
 
   return (
-    <header className="w-full bg-slate-900 text-slate-200 text-xs border-b border-slate-800 sticky top-0 z-50 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2">
-        {/* Brand & Mode Tag */}
-        <div className="flex items-center gap-2">
-          <span className="font-bold tracking-wider text-amber-400 flex items-center gap-1.5">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            AT CELL
+    <header className="relative z-50 w-full border-b border-line bg-card/95 text-ink backdrop-blur">
+      <div className="no-scrollbar mx-auto flex h-12 max-w-[1600px] items-center gap-2 overflow-x-auto px-3 sm:px-4 lg:px-6">
+        <div className="flex shrink-0 items-center gap-2 pr-1">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[11px] font-extrabold text-white">
+            AT
           </span>
-          <span className="text-slate-400 hidden sm:inline">|</span>
-          <span className="text-slate-300 font-mono text-[11px] hidden md:inline">
-            Role Mode Demo:
-          </span>
+          <span className="hidden text-xs font-extrabold sm:inline">At Cell</span>
+          <span className="hidden text-xs text-muted lg:inline">Mode demo</span>
         </div>
 
-        {/* Role Selectors */}
-        <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-lg border border-slate-700/60 overflow-x-auto">
-          {roles.map((item) => {
+        <div
+          className="flex shrink-0 items-center gap-0.5 rounded-lg border border-line bg-paper p-0.5"
+          aria-label="Pilih peran demo"
+        >
+          {ROLES.map((item) => {
+            const Icon = item.icon;
             const isActive = currentRole === item.role;
             return (
               <button
                 key={item.role}
+                type="button"
                 onClick={() => handleSwitchRole(item.role, item.defaultPath)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                aria-label={item.label}
+                aria-pressed={isActive}
+                title={item.label}
+                className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold transition-colors ${
                   isActive
-                    ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+                    ? "bg-accent text-white"
+                    : "text-muted hover:bg-card hover:text-ink"
                 }`}
               >
-                {item.icon}
-                <span>{item.label}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">{item.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Quick Portal / Public Navigation */}
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 pl-1">
           <Link
             href="/id"
-            className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors ${
-              pathname.startsWith("/id") || pathname.startsWith("/en")
-                ? "bg-emerald-700 text-white font-semibold"
-                : "text-slate-300 hover:text-white hover:bg-slate-800"
+            aria-label="Web Publik"
+            title="Web Publik"
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-colors ${
+              isPublicPath
+                ? "bg-accent-soft text-accent-deep"
+                : "text-muted hover:bg-paper hover:text-ink"
             }`}
           >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Web Publik</span>
+            <Globe className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden md:inline">Web Publik</span>
           </Link>
 
           <Link
-            href={
-              currentRole === "admin"
-                ? "/portal/dashboard"
-                : currentRole === "sales"
-                ? "/portal/pos"
-                : currentRole === "technician"
-                ? "/portal/service"
-                : "/portal/account"
-            }
-            className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors ${
-              pathname.startsWith("/portal")
-                ? "bg-indigo-600 text-white font-semibold"
-                : "text-slate-300 hover:text-white hover:bg-slate-800"
+            href={portalPath}
+            aria-label="Portal Tim"
+            title="Portal Tim"
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-colors ${
+              isPortalPath
+                ? "bg-accent-soft text-accent-deep"
+                : "text-muted hover:bg-paper hover:text-ink"
             }`}
           >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Portal Tim</span>
+            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden md:inline">Portal Tim</span>
           </Link>
 
           <button
+            type="button"
             onClick={() => {
               if (confirm("Reset seluruh data ke kondisi awal demo?")) {
                 resetToInitialData();
                 window.location.reload();
               }
             }}
+            aria-label="Reset ke data awal"
             title="Reset ke data awal"
-            className="p-1 rounded text-slate-400 hover:text-rose-300 hover:bg-slate-800 transition-colors cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-bad-bg hover:text-bad"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

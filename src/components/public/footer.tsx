@@ -22,7 +22,7 @@ export function PublicFooter({ locale }: { locale: Locale }) {
   const headingClass = "text-sm font-extrabold text-white";
 
   return (
-    <footer className="bg-[#0f172b]">
+    <footer data-hide-on-login className="bg-[#0f172b]">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-5">
           <div className="space-y-3">
