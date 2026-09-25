@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/context/store-context";
 import { DemoRoleBar } from "@/components/demo-role-bar";
+import { BackendStatus } from "@/components/backend-status";
 import { ThemeInit } from "@/components/theme-init";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -42,6 +43,7 @@ export default function RootLayout({
         <ThemeInit />
         <StoreProvider>
           <DemoRoleBar />
+          <BackendStatus />
           <main className="flex-1 flex flex-col">{children}</main>
         </StoreProvider>
       </body>

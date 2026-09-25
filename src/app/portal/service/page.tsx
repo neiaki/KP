@@ -45,7 +45,7 @@ export default function TechnicianServicePage() {
     setEditStatus(ticket.repair_status);
     setSparepartFee(ticket.sparepart_fee);
     setLaborFee(ticket.labor_fee);
-    setNotes(ticket.issue_notes);
+    setNotes(ticket.technician_notes ?? "");
   };
 
   useEffect(() => {
@@ -57,32 +57,39 @@ export default function TechnicianServicePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedTicket]);
 
-  const handleSaveTicket = (e: React.FormEvent) => {
+  const handleSaveTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTicket) return;
 
-    updateServiceTicket(selectedTicket.id, {
-      repair_status: editStatus,
-      sparepart_fee: sparepartFee,
-      labor_fee: laborFee,
-      issue_notes: notes,
-    });
+    try {
+      await updateServiceTicket(selectedTicket.id, {
+        repair_status: editStatus,
+        sparepart_fee: sparepartFee,
+        labor_fee: laborFee,
+        technician_notes: notes,
+      });
 
-    // Update active modal copy
-    setSelectedTicket((prev) =>
-      prev
-        ? {
-            ...prev,
-            repair_status: editStatus,
-            sparepart_fee: sparepartFee,
-            labor_fee: laborFee,
-            total_fee: sparepartFee + laborFee,
-            issue_notes: notes,
-          }
-        : null
-    );
+      // Update active modal copy
+      setSelectedTicket((prev) =>
+        prev
+          ? {
+              ...prev,
+              repair_status: editStatus,
+              sparepart_fee: sparepartFee,
+              labor_fee: laborFee,
+              total_fee: sparepartFee + laborFee,
+              technician_notes: notes,
+            }
+          : null
+      );
 
-    setNotice({ type: "success", text: "Tiket servis berhasil diperbarui!" });
+      setNotice({ type: "success", text: "Tiket servis berhasil diperbarui!" });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal memperbarui tiket servis.",
+      });
+    }
   };
 
   const filteredTickets = serviceTickets.filter((t) => {

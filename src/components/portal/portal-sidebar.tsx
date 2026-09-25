@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import {
   LayoutDashboard,
@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { signOut } from "@/lib/actions/auth";
 
 export function PortalSidebar({
   mobileOpen,
@@ -29,7 +30,8 @@ export function PortalSidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
-  const { currentRole, profiles } = useStore();
+  const router = useRouter();
+  const { currentRole, profiles, isLiveBackend } = useStore();
 
   const currentProfile = profiles.find((p) => p.role === currentRole) || {
     full_name: "Staff At Cell",
@@ -114,6 +116,16 @@ export function PortalSidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileOpen, onClose]);
 
+  const handleLogout = async () => {
+    if (isLiveBackend) {
+      await signOut();
+      router.push("/id/login");
+      router.refresh();
+      return;
+    }
+    router.push("/id/login");
+  };
+
   const body = (
     <>
       {/* Brand */}
@@ -166,16 +178,18 @@ export function PortalSidebar({
           {currentProfile.full_name}
         </div>
         <div className="truncate text-[11px] text-slate-400">
-          {currentProfile.email || "user@atcell.my.id"}
+          {currentProfile.email || "Email staff tidak ditampilkan"}
         </div>
-        <Link
-          href="/id/login"
-          onClick={onClose}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[11px] font-bold text-ink hover:border-accent"
-        >
-          <UserCheck className="h-3.5 w-3.5" />
-          Ganti peran demo
-        </Link>
+        {!isLiveBackend && (
+          <Link
+            href="/id/login"
+            onClick={onClose}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[11px] font-bold text-ink hover:border-accent"
+          >
+            <UserCheck className="h-3.5 w-3.5" />
+            Ganti peran demo
+          </Link>
+        )}
       </div>
 
       {/* Navigation List */}
@@ -218,14 +232,25 @@ export function PortalSidebar({
           <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">/id</span>
         </Link>
 
-        <Link
-          href="/id/login"
-          onClick={onClose}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-slate-800 hover:text-rose-300"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          <span>Ganti Akun / Logout</span>
-        </Link>
+        {isLiveBackend ? (
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-rose-400 transition-colors hover:bg-slate-800 hover:text-rose-300"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Logout</span>
+          </button>
+        ) : (
+          <Link
+            href="/id/login"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-slate-800 hover:text-rose-300"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Ganti Akun / Logout</span>
+          </Link>
+        )}
       </div>
     </>
   );

@@ -7,6 +7,7 @@ import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
+import { customerSignUpSchema, staffInviteSchema } from "@/lib/validations";
 import type { UserRole } from "@/types";
 import {
   backendOffline,
@@ -23,9 +24,13 @@ export async function signInWithPassword(
   password: string
 ): Promise<ActionResult<{ role: UserRole; redirectTo: string }>> {
   if (!isSupabaseConfigured()) return backendOffline();
+  const normalizedEmail = email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || password.length < 8) {
+    return fail("Email atau kata sandi tidak valid.");
+  }
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
+    email: normalizedEmail,
     password,
   });
   if (error) return fail("Email atau kata sandi salah.");
@@ -51,20 +56,23 @@ export async function signUpCustomer(input: {
   phoneNumber: string;
 }): Promise<ActionResult<{ userId: string }>> {
   if (!isSupabaseConfigured()) return backendOffline();
+  const parsed = customerSignUpSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Data pendaftaran tidak valid.");
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
-    email: input.email.trim(),
-    password: input.password,
+    email: parsed.data.email,
+    password: parsed.data.password,
     options: {
-      data: { full_name: input.fullName.trim(), phone_number: input.phoneNumber.trim() },
+      data: {
+        full_name: parsed.data.fullName,
+        phone_number: parsed.data.phoneNumber,
+      },
     },
   });
-  if (error || !data.user) return fail(error?.message ?? "Pendaftaran gagal.");
-  // Sinkronkan nama/telepon ke profiles (trigger handle_new_user sudah buatkan barisnya).
-  await supabase
-    .from("profiles")
-    .update({ full_name: input.fullName.trim(), phone_number: input.phoneNumber.trim() })
-    .eq("id", data.user.id);
+  if (error || !data.user) return fail("Pendaftaran gagal. Periksa data dan coba lagi.");
+  // Profil dibuat oleh trigger handle_new_user. Update profil dari client
+  // tidak dilakukan di sini karena RLS sengaja tidak memberi hak update
+  // profil sendiri; metadata Auth sudah membawa full_name awal.
   return ok({ userId: data.user.id });
 }
 
@@ -80,30 +88,35 @@ export async function inviteStaff(input: {
   email: string;
   password: string;
   phoneNumber: string;
-  role: Extract<UserRole, "sales" | "technician" | "customer">;
+  role: Exclude<UserRole, "customer">;
 }): Promise<ActionResult<{ userId: string }>> {
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
+  const parsed = staffInviteSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Data staf tidak valid.");
   if (!isSupabaseAdminConfigured()) {
     return fail("SUPABASE_SERVICE_ROLE_KEY belum diisi, tidak bisa mengundang user.");
   }
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
-    email: input.email.trim(),
-    password: input.password,
+    email: parsed.data.email,
+    password: parsed.data.password,
     email_confirm: true,
-    user_metadata: { full_name: input.fullName.trim(), phone_number: input.phoneNumber.trim() },
+    user_metadata: {
+      full_name: parsed.data.fullName,
+      phone_number: parsed.data.phoneNumber,
+    },
   });
-  if (error || !data.user) return fail(error?.message ?? "Gagal membuat user.");
+  if (error || !data.user) return fail("Gagal membuat user. Periksa email dan coba lagi.");
   const { error: roleError } = await admin
     .from("profiles")
     .update({
-      full_name: input.fullName.trim(),
-      phone_number: input.phoneNumber.trim(),
-      role: input.role,
+      full_name: parsed.data.fullName,
+      phone_number: parsed.data.phoneNumber,
+      role: parsed.data.role,
     })
     .eq("id", data.user.id);
-  if (roleError) return fail("User dibuat, tapi gagal set peran: " + roleError.message);
+  if (roleError) return fail("User dibuat, tetapi peran belum berhasil disimpan. Coba lagi.");
   revalidatePath("/portal/staff");
   return ok({ userId: data.user.id });
 }
@@ -137,7 +150,7 @@ export async function deactivateStaff(userId: string): Promise<ActionResult<{ us
   }
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) return fail("Gagal menonaktifkan: " + error.message);
+  if (error) return fail("Gagal menonaktifkan user. Coba lagi.");
   revalidatePath("/portal/staff");
   return ok({ userId });
 }

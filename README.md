@@ -31,6 +31,40 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Project ini memakai mode dua:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Demo lokal:** tanpa environment Supabase, data portal memakai mock dan
+  `localStorage`.
+- **Production:** Supabase/Drizzle menjadi sumber data bersama. Coolify menjadi
+  primary dan Vercel menjadi standby. Jangan memakai data mock sebagai fallback
+  production.
+
+Runbook lengkap untuk migration, environment, health check, DNS, backup, dan
+rollout ada di [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md).
+
+Health endpoint:
+
+- `GET /api/health/live`
+- `GET /api/health/ready`
+
+Verifikasi lokal:
+
+```bash
+npm test
+npx tsc --noEmit
+npm run lint
+npm run build
+```
+
+Vercel Hobby tidak boleh dipakai untuk deployment bisnis At Cell. Upgrade ke
+Pro atau Enterprise sebelum production.
+
+Backup database production:
+
+```bash
+SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" npm run backup:postgres
+ALLOW_RESTORE=YES RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" npm run restore:postgres
+```
+
+Restore bersifat destruktif dan hanya boleh diarahkan ke database restore
+sementara untuk pengujian, bukan database production.

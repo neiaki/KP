@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function MasterProductsPage() {
-  const { products, inventoryUnits, addProduct, updateProduct, currentRole } = useStore();
+  const { products, inventoryUnits, addProduct, updateProduct } = useStore();
 
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -25,6 +25,7 @@ export default function MasterProductsPage() {
   const [imageUrl, setImageUrl] = useState("");
 
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!showAddModal) return;
@@ -55,38 +56,47 @@ export default function MasterProductsPage() {
     setShowAddModal(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modelName.trim()) {
       setNotice({ type: "error", text: "Nama model handphone wajib diisi!" });
       return;
     }
 
-    if (editingProduct) {
-      updateProduct(editingProduct.id, {
-        brand,
-        model_name: modelName.trim(),
-        specs: specs.trim(),
-        default_price: defaultPrice,
-        image_url:
-          imageUrl.trim() ||
-          "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80",
+    setIsSaving(true);
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, {
+          brand,
+          model_name: modelName.trim(),
+          specs: specs.trim(),
+          default_price: defaultPrice,
+          image_url:
+            imageUrl.trim() ||
+            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80",
+        });
+        setNotice({ type: "success", text: "Master produk berhasil diperbarui." });
+      } else {
+        await addProduct({
+          brand,
+          model_name: modelName.trim(),
+          specs: specs.trim(),
+          default_price: defaultPrice,
+          image_url:
+            imageUrl.trim() ||
+            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80",
+        });
+        setNotice({ type: "success", text: "Master produk baru berhasil ditambahkan." });
+      }
+      setShowAddModal(false);
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal menyimpan produk.",
       });
-      setNotice({ type: "success", text: "Master produk berhasil diperbarui." });
-    } else {
-      addProduct({
-        brand,
-        model_name: modelName.trim(),
-        specs: specs.trim(),
-        default_price: defaultPrice,
-        image_url:
-          imageUrl.trim() ||
-          "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80",
-      });
-      setNotice({ type: "success", text: "Master produk baru berhasil ditambahkan." });
+    } finally {
+      setIsSaving(false);
     }
-
-    setShowAddModal(false);
   };
 
   const filteredProducts = products.filter(
@@ -315,7 +325,8 @@ export default function MasterProductsPage() {
                 <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
                   Batal
                 </Button>
-                <Button type="submit" className="font-bold">
+                <Button type="submit" disabled={isSaving} className="font-bold">
+                  {isSaving ? "Menyimpan..." : editingProduct ? "Simpan Perubahan" : "Tambah Produk"}
                   {editingProduct ? "Simpan Perubahan" : "Tambahkan Model"}
                 </Button>
               </div>

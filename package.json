@@ -2,11 +2,18 @@
   "name": "atcell-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test tests",
+    "backup:postgres": "bash scripts/backup-postgres.sh",
+    "restore:postgres": "bash scripts/restore-postgres.sh",
+    "smoke:deployment": "node scripts/smoke-deployment.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

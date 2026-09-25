@@ -19,15 +19,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { signInWithPassword } from "@/lib/actions/auth";
 
 export function LoginPanel({ locale }: { locale: Locale }) {
   const router = useRouter();
-  const { switchRole } = useStore();
+  const { switchRole, isLiveBackend } = useStore();
 
   const [email, setEmail] = useState("admin@atcell.my.id");
-  const [password, setPassword] = useState("••••••••");
+  const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [mounted, setMounted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const frame = useRef<number>(0);
 
   // Samakan pola ThemeToggle: sinkronisasi pasca-mount lewat rAF agar
@@ -82,14 +85,35 @@ export function LoginPanel({ locale }: { locale: Locale }) {
   ];
 
   const handleDemoSelect = (account: (typeof demoAccounts)[0]) => {
+    if (isLiveBackend) return;
     setSelectedRole(account.role);
     setEmail(account.email);
     switchRole(account.role);
     router.push(account.target);
   };
 
-  const handleManualLogin = (e: React.FormEvent) => {
+  const handleManualLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError(null);
+
+    if (isLiveBackend) {
+      setSubmitting(true);
+      try {
+        const result = await signInWithPassword(email, password);
+        if (!result.ok) {
+          setLoginError(result.error);
+          return;
+        }
+        router.push(result.data.redirectTo);
+        router.refresh();
+      } catch {
+        setLoginError("Login sedang tidak dapat diproses. Coba lagi sebentar.");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     switchRole(selectedRole);
     if (selectedRole === "admin") router.push("/portal/dashboard");
     else if (selectedRole === "sales") router.push("/portal/pos");
@@ -170,45 +194,54 @@ export function LoginPanel({ locale }: { locale: Locale }) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-white">
                 <KeyRound className="w-4 h-4 text-accent-deep" />
-                <span>Pilih Akun Demo untuk Masuk</span>
+                <span>{isLiveBackend ? "Masuk Portal At Cell" : "Pilih Akun Demo untuk Masuk"}</span>
               </CardTitle>
               <CardDescription className="text-xs text-slate-400">
-                1-Klik langsung diarahkan ke modul spesifik masing-masing aktor
+                {isLiveBackend
+                  ? "Gunakan kredensial Supabase yang terdaftar untuk masuk."
+                  : "1-Klik langsung diarahkan ke modul spesifik masing-masing aktor"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {demoAccounts.map((acc) => (
-                  <button
-                    key={acc.role}
-                    type="button"
-                    onClick={() => handleDemoSelect(acc)}
-                    className={`p-3.5 rounded-xl border bg-slate-800/60 text-left transition-all hover:scale-[1.02] cursor-pointer flex flex-col justify-between gap-2 ${acc.color}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      {acc.icon}
-                      <span className="text-[10px] font-mono uppercase bg-slate-950 px-2 py-0.5 rounded text-slate-300">
-                        {acc.role}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white truncate">
-                        {acc.name}
+              {!isLiveBackend && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {demoAccounts.map((acc) => (
+                    <button
+                      key={acc.role}
+                      type="button"
+                      onClick={() => handleDemoSelect(acc)}
+                      className={`p-3.5 rounded-xl border bg-slate-800/60 text-left transition-all hover:scale-[1.02] cursor-pointer flex flex-col justify-between gap-2 ${acc.color}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        {acc.icon}
+                        <span className="text-[10px] font-mono uppercase bg-slate-950 px-2 py-0.5 rounded text-slate-300">
+                          {acc.role}
+                        </span>
                       </div>
-                      <div className="text-[11px] text-slate-400 truncate font-mono">
-                        {acc.email}
+                      <div>
+                        <div className="text-xs font-bold text-white truncate">
+                          {acc.name}
+                        </div>
+                        <div className="text-[11px] text-slate-400 truncate font-mono">
+                          {acc.email}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center text-[11px] text-accent-deep font-semibold gap-1 pt-1 border-t border-slate-700/50">
-                      <span>Masuk Sekarang</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </div>
-                  </button>
-                ))}
-              </div>
+                      <div className="flex items-center text-[11px] text-accent-deep font-semibold gap-1 pt-1 border-t border-slate-700/50">
+                        <span>Masuk Sekarang</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Manual Form Toggle */}
               <form onSubmit={handleManualLogin} className="pt-4 border-t border-slate-800 space-y-3">
+                {loginError && (
+                  <p role="alert" className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-2 text-xs text-bad">
+                    {loginError}
+                  </p>
+                )}
                 <div className="text-xs font-bold text-slate-300">
                   Atau Masuk Manual dengan Kredensial:
                 </div>
@@ -246,9 +279,9 @@ export function LoginPanel({ locale }: { locale: Locale }) {
                     />
                   </div>
                 </div>
-                <Button type="submit" className="w-full text-xs font-bold h-9 gap-2">
+                <Button type="submit" disabled={submitting} className="w-full text-xs font-bold h-9 gap-2">
                   <LogIn className="w-3.5 h-3.5" />
-                  <span>Otorisasi Masuk Portal</span>
+                  <span>{submitting ? "Memproses..." : "Otorisasi Masuk Portal"}</span>
                 </Button>
               </form>
             </CardContent>
