@@ -1,0 +1,70 @@
+flowchart LR
+  Tamu(["Pengunjung"])
+  Pelanggan(["Pelanggan"])
+  Sales(["Sales"])
+  Teknisi(["Teknisi"])
+  Admin(["Admin / Owner"])
+
+  subgraph Publik["Publik - atcell.my.id"]
+    UC01["UC-01<br/>Lihat Profil"]
+    UC02["UC-02<br/>Etalase Stock"]
+    UC03["UC-03<br/>Ganti Bahasa"]
+    UC04["UC-04<br/>Lacak Resi"]
+  end
+
+  subgraph OpsAdmin["Admin"]
+    UC06["UC-06<br/>Dashboard"]
+    UC07["UC-07<br/>Kelola Produk"]
+    UC08["UC-08<br/>Kelola Staf"]
+    UC09["UC-09<br/>Kelola Toko"]
+    UC10["UC-10<br/>Laporan Teknisi"]
+  end
+
+  subgraph OpsSales["Sales / POS"]
+    UC11["UC-11<br/>Registrasi IMEI"]
+    UC12["UC-12<br/>Pantau Status"]
+    UC13["UC-13<br/>POS Checkout"]
+    UC14["UC-14<br/>Trade-In"]
+    UC15["UC-15<br/>Buat Tiket"]
+  end
+
+  subgraph OpsServis["Servis"]
+    UC16["UC-16<br/>Update Servis"]
+    UC17["UC-17<br/>Serah Terima"]
+  end
+
+  subgraph Akun["Pelanggan login"]
+    UC18["UC-18<br/>Riwayat Garansi"]
+    UC05["UC-05<br/>Login + Redirect"]
+  end
+
+  Tamu --> UC01
+  Tamu --> UC02
+  Tamu --> UC03
+  Tamu --> UC04
+  Pelanggan --> UC04
+  Pelanggan --> UC18
+  Pelanggan --> UC05
+  Sales --> UC05
+  Teknisi --> UC05
+  Admin --> UC05
+
+  Admin --> UC06
+  Admin --> UC07
+  Admin --> UC08
+  Admin --> UC09
+  Admin --> UC10
+
+  Sales --> UC11
+  Sales --> UC12
+  Admin --> UC12
+  Sales --> UC13
+  Sales --> UC14
+  Sales --> UC15
+  Teknisi --> UC15
+  Teknisi --> UC16
+  Teknisi --> UC17
+  Sales --> UC17
+
+  UC13 -. extend .-> UC14
+  UC02 -. view via v_public_inventory .-> UC12
