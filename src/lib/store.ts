@@ -318,6 +318,12 @@ export function useAtCellStore() {
           maps_url: newSettings.maps_url,
           phone_number: newSettings.phone_number,
           whatsapp_number: newSettings.whatsapp_number,
+          // Tanpa empat baris ini, kolom sosmed tidak pernah dikirim ke
+          // server action, jadi Admin mengisi form tapi tidak tersimpan.
+          social_facebook: newSettings.social_facebook,
+          social_instagram: newSettings.social_instagram,
+          social_x: newSettings.social_x,
+          social_tiktok: newSettings.social_tiktok,
           opening_hours: newSettings.opening_hours,
         })
       );
