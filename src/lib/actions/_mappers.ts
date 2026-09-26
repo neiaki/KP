@@ -118,6 +118,10 @@ export function mapStoreSettings(row: StoreSettingsRow): StoreSettings {
     maps_url: row.mapsUrl ?? undefined,
     phone_number: row.phoneNumber,
     whatsapp_number: row.whatsappNumber ?? undefined,
+    social_facebook: row.socialFacebook ?? undefined,
+    social_instagram: row.socialInstagram ?? undefined,
+    social_x: row.socialX ?? undefined,
+    social_tiktok: row.socialTiktok ?? undefined,
     opening_hours: {
       monday_friday: hours.monday_friday ?? "",
       saturday_sunday: hours.saturday_sunday ?? "",

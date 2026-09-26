@@ -67,6 +67,11 @@ const emptyStoreSettings: StoreSettings = {
   latitude: 0,
   longitude: 0,
   phone_number: "",
+  // Kosong berarti footer tidak menampilkan ikon platform itu.
+  social_facebook: "",
+  social_instagram: "",
+  social_x: "",
+  social_tiktok: "",
   opening_hours: {
     monday_friday: "",
     saturday_sunday: "",

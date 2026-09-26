@@ -19,6 +19,10 @@ export default function StoreSettingsPage() {
   const [longitude, setLongitude] = useState(storeSettings.longitude);
   const [phoneNumber, setPhoneNumber] = useState(storeSettings.phone_number);
   const [whatsappNumber, setWhatsappNumber] = useState(storeSettings.whatsapp_number || "");
+  const [socialFacebook, setSocialFacebook] = useState(storeSettings.social_facebook || "");
+  const [socialInstagram, setSocialInstagram] = useState(storeSettings.social_instagram || "");
+  const [socialX, setSocialX] = useState(storeSettings.social_x || "");
+  const [socialTiktok, setSocialTiktok] = useState(storeSettings.social_tiktok || "");
   const [monFri, setMonFri] = useState(storeSettings.opening_hours.monday_friday);
   const [satSun, setSatSun] = useState(storeSettings.opening_hours.saturday_sunday);
   const [holidays, setHolidays] = useState(storeSettings.opening_hours.holidays || "");
@@ -38,6 +42,10 @@ export default function StoreSettingsPage() {
       setLongitude(storeSettings.longitude);
       setPhoneNumber(storeSettings.phone_number);
       setWhatsappNumber(storeSettings.whatsapp_number || "");
+      setSocialFacebook(storeSettings.social_facebook || "");
+      setSocialInstagram(storeSettings.social_instagram || "");
+      setSocialX(storeSettings.social_x || "");
+      setSocialTiktok(storeSettings.social_tiktok || "");
       setMonFri(storeSettings.opening_hours.monday_friday);
       setSatSun(storeSettings.opening_hours.saturday_sunday);
       setHolidays(storeSettings.opening_hours.holidays || "");
@@ -59,6 +67,10 @@ export default function StoreSettingsPage() {
         longitude: Number(longitude),
         phone_number: phoneNumber,
         whatsapp_number: whatsappNumber,
+        social_facebook: socialFacebook,
+        social_instagram: socialInstagram,
+        social_x: socialX,
+        social_tiktok: socialTiktok,
         opening_hours: {
           monday_friday: monFri,
           saturday_sunday: satSun,
@@ -268,6 +280,43 @@ export default function StoreSettingsPage() {
                 className="text-xs"
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Sosmed resmi toko */}
+        <Card className="border-line shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Globe className="w-4 h-4 text-accent-deep" />
+              <span>Media Sosial Toko</span>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Isi URL resmi toko. Kolom yang dikosongkan membuat ikon platform
+              itu tidak muncul di footer, jadi tidak ada lagi tautan ke halaman
+              generik. Wajib diawali http:// atau https://.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            {([
+              ["Facebook", socialFacebook, setSocialFacebook, "https://facebook.com/nama-toko"],
+              ["Instagram", socialInstagram, setSocialInstagram, "https://instagram.com/nama-toko"],
+              ["X", socialX, setSocialX, "https://x.com/nama-toko"],
+              ["TikTok", socialTiktok, setSocialTiktok, "https://tiktok.com/@namatoko"],
+            ] as const).map(([label, value, setter, placeholder]) => (
+              <div key={label}>
+                <label className="block font-semibold text-muted mb-1">{label}:</label>
+                <Input
+                  value={value}
+                  onChange={(e) => setter(e.target.value)}
+                  placeholder={placeholder}
+                  className="text-xs font-mono"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  inputMode="url"
+                />
+              </div>
+            ))}
           </CardContent>
         </Card>
 
