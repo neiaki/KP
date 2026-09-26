@@ -197,7 +197,11 @@ export function PortalSidebar({
       </div>
 
       {/* Navigation List */}
-      <nav className="flex-1 space-y-1 px-3 py-2" aria-label="Menu operasional">
+      {/* Nav tidak lagi memakai flex-1 supaya tidak menyisakan celah besar
+          di saat daftar menu pendek. Spacer dipindah ke footer lewat
+          mt-auto, jadi link logout tetap menempel di bawah tanpa membuat
+          sidebar tampak setengah kosong. */}
+      <nav className="space-y-1 px-3 py-2" aria-label="Menu operasional">
         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
           Menu Operasional
         </div>
@@ -224,7 +228,7 @@ export function PortalSidebar({
       </nav>
 
       {/* Footer / Links */}
-      <div className="space-y-2 border-t border-slate-800 p-4">
+      <div className="mt-auto space-y-2 border-t border-slate-800 p-4">
         <Link
           href="/id"
           className="flex items-center justify-between rounded-lg px-3 py-2 text-xs text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
@@ -261,8 +265,13 @@ export function PortalSidebar({
 
   return (
     <>
-      {/* Desktop: static dark chrome */}
-      <aside className="hidden min-h-[calc(100dvh-3rem)] w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
+      {/* Desktop: dark chrome yang menempel di layar.
+          Sebelumnya min-h, sekarang sticky + h dan overflow-y-auto supaya:
+          1. menu tetap terlihat saat halaman panjang (mis. /portal/settings)
+             digulir, dan
+          2. kalau daftar menu bertambah panjang, sidebar-lah yang
+             menggulir, bukan seluruh halaman. */}
+      <aside className="sticky top-0 hidden h-[calc(100dvh-3rem)] w-64 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
         {body}
       </aside>
 
