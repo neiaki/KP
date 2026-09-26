@@ -3,7 +3,12 @@
 import { useEffect } from "react";
 
 /**
- * Menerapkan kelas .dark di <html> dari localStorage atau preferensi OS.
+ * Menerapkan kelas .dark di <html> dari localStorage saja.
+ *
+ * Default selalu mode terang, bukan mengikuti preferensi OS. Aturan proyek
+ * sudah menetapkan mode gelap sebagai pilihan eksplisit lewat kelas .dark di
+ * <html>, jadi system dark mode tidak ikut menentukan tampilan awal.
+ *
  * Dijalankan sebagai effect (bukan <script> inline) agar React 19 tidak
  * melempar console error "script tag while rendering component".
  * <html> dan <body> memakai suppressHydrationWarning sehingga selisih
@@ -13,13 +18,7 @@ export function ThemeInit() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem("atcell-theme");
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      document.documentElement.classList.toggle(
-        "dark",
-        stored === "dark" || (!stored && prefersDark)
-      );
+      document.documentElement.classList.toggle("dark", stored === "dark");
     } catch {
       /* abaikan, tetap mode terang */
     }
