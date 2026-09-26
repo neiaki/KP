@@ -12,8 +12,8 @@ export async function generateMetadata({
   return {
     title: isEn ? "Staff Portal Login" : "Masuk Portal Staf",
     description: isEn
-      ? "Single entry to the At Cell operational portal with role-based demo accounts."
-      : "Pintu masuk tunggal portal operasional At Cell dengan akun demo berbasis peran.",
+      ? "Secure staff portal access for the At Cell operations team."
+      : "Akses portal operasional At Cell yang aman untuk tim toko.",
   };
 }
 
