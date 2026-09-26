@@ -207,7 +207,7 @@ export const serviceTickets = pgTable(
   "service_tickets",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-    // Default string kosong: trigger SQL mengganti dengan SRV-YYYYMMDD-XXXX.
+    // Default string kosong: trigger SQL mengganti dengan SRV-YYYYMMDD-XXXXXXXX.
     ticketCode: text("ticket_code").notNull().unique().default(""),
     customerId: uuid("customer_id").references(() => profiles.id, { onDelete: "set null" }),
     technicianId: uuid("technician_id").references(() => profiles.id, { onDelete: "set null" }),

@@ -80,8 +80,8 @@ export function LiveChatWidget() {
       let reply = "";
       let actionLink: { label: string; href: string } | undefined;
 
-      // Check for ticket code format SRV-
-      const ticketMatch = text.match(/SRV-\d{8}-\d{4}/i);
+      // Cocokkan kode resi: 4 angka (format lama) atau 8 karakter base32.
+      const ticketMatch = text.match(/SRV-\d{8}-(?:\d{4}|[0-9A-HJKMNP-TV-Z]{8})/i);
       if (ticketMatch) {
         const ticketCode = ticketMatch[0].toUpperCase();
         const ticket = serviceTickets.find((t) => t.ticket_code.toUpperCase() === ticketCode);
@@ -270,7 +270,7 @@ export function LiveChatWidget() {
               <div className="p-2 border-t border-slate-200 bg-white flex gap-1.5 overflow-x-auto text-[11px]">
                 <button
                   type="button"
-                  onClick={() => handleSendMessage("Cek status servis tiket SRV-20260912-0042")}
+                  onClick={() => handleSendMessage("Cek status servis tiket SRV-20260912-7K4M2QX9")}
                   className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full shrink-0 transition-colors cursor-pointer"
                 >
                   🔍 Cek Tiket Servis

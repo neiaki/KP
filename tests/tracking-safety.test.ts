@@ -17,3 +17,18 @@ test("tracking publik tidak mengembalikan PII, biaya, atau foto", () => {
   assert.match(publicTracking, /imei_or_sn/);
   assert.match(publicTracking, /repair_status/);
 });
+
+test("tracking publik membatasi kuota per IP dan global", () => {
+  // Guard harus jalan sebelum query database, kalau tidak penjebolan tetap.Database.
+  assert.match(publicTracking, /consumeRateLimit/);
+  assert.match(publicTracking, /track-ip:/);
+  assert.match(publicTracking, /track-global/);
+  assert.match(publicTracking, /TRACKING_PER_IP_LIMIT/);
+  assert.match(publicTracking, /TRACKING_GLOBAL_LIMIT/);
+
+  const rateLimitIndex = publicTracking.indexOf("consumeRateLimit");
+  const queryIndex = publicTracking.indexOf(".from(serviceTickets)");
+  assert.ok(rateLimitIndex > -1, "harus memanggil consumeRateLimit");
+  assert.ok(queryIndex > -1, "harus tetap melakukan query");
+  assert.ok(rateLimitIndex < queryIndex, "rate limit harus dicek sebelum query database");
+});

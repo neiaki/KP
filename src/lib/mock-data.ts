@@ -343,7 +343,7 @@ export const initialTransactions: Transaction[] = [
 export const initialServiceTickets: ServiceTicket[] = [
   {
     id: 1,
-    ticket_code: "SRV-20260912-0042",
+    ticket_code: "SRV-20260912-7K4M2QX9",
     customer_id: "prof-cust-01",
     customer_name: "Anisa Rahmawati",
     customer_phone: "082155667788",
