@@ -44,6 +44,15 @@ COPY --from=builder --chown=node:node /app/.next ./.next
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json ./
 
+# next.config.ts WAJIB ada di image. Tanpa ini `next start` hanya bergantung pada
+# config yang dibekukan di .next/required-server-files.json, sehingga opsi yang
+# dibaca runtime seperti poweredByHeader diam-diam kembali ke default dan
+# X-Powered-By bocor ke klien.
+COPY --from=builder --chown=node:node /app/next.config.ts ./next.config.ts
+# tsconfig.json dibutuhkan Next.js untuk resolve path saat runtime.
+COPY --from=builder --chown=node:node /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=node:node /app/next-env.d.ts ./next-env.d.ts
+
 USER node
 
 EXPOSE 3000
