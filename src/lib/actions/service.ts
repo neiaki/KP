@@ -21,6 +21,7 @@ import {
   fail,
   ok,
   requireRole,
+  setAuditActor,
   toISO,
   toNumber,
   type ActionResult,
@@ -109,6 +110,9 @@ export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult
 
   try {
     const result = (await db.transaction(async (tx) => {
+      // Aktor ditulis ke transaction-local supaya trigger audit tahu siapa yang
+      // mengubah status tiket (NFR-07). Harus di dalam transaction yang sama.
+      await setAuditActor(tx, guard.profile.id);
       // Lock baris sampai update selesai. Dua teknisi tidak dapat membaca
       // status lama lalu menimpa perubahan satu sama lain.
       const [current] = await tx

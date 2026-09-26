@@ -281,6 +281,50 @@ export const serviceTickets = pgTable(
   ]
 );
 
+// --- Audit trail (NFR-07) ---
+// Append-only: dicatat oleh trigger database, bukan oleh kode aplikasi, jadi
+// perubahan lewat SQL manual pun tercatat. actor_id null berarti perubahan
+// tidak berasal dari Server Action, yang layak ditinjau. Tabel ini tidak punya
+// kolom updated_at karena isinya tidak boleh pernah diubah.
+// Lihat supabase/migrations/0007_audit_trail.sql.
+export const unitStatusAudit = pgTable(
+  "unit_status_audit",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    unitId: bigint("unit_id", { mode: "number" })
+      .notNull()
+      .references(() => inventoryUnits.id, { onDelete: "cascade" }),
+    oldStatus: unitStatusEnum("old_status"),
+    newStatus: unitStatusEnum("new_status").notNull(),
+    actorId: uuid("actor_id").references(() => profiles.id, { onDelete: "set null" }),
+    note: text("note").notNull().default(""),
+    createdAt: createdAtCol(),
+  },
+  (t) => [
+    index("unit_status_audit_unit_idx").on(t.unitId, t.createdAt.desc()),
+    index("unit_status_audit_created_idx").on(t.createdAt.desc()),
+  ]
+);
+
+export const serviceTicketAudit = pgTable(
+  "service_ticket_audit",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    ticketId: bigint("ticket_id", { mode: "number" })
+      .notNull()
+      .references(() => serviceTickets.id, { onDelete: "cascade" }),
+    oldStatus: repairStatusEnum("old_status"),
+    newStatus: repairStatusEnum("new_status").notNull(),
+    actorId: uuid("actor_id").references(() => profiles.id, { onDelete: "set null" }),
+    note: text("note").notNull().default(""),
+    createdAt: createdAtCol(),
+  },
+  (t) => [
+    index("service_ticket_audit_ticket_idx").on(t.ticketId, t.createdAt.desc()),
+    index("service_ticket_audit_created_idx").on(t.createdAt.desc()),
+  ]
+);
+
 // --- Relasi antar tabel (hanya dipakai query bertingkat db.query, tidak
 // mengubah struktur DB). Contoh: ambil transaksi beserta item dan unitnya.
 export const profilesRelations = relations(profiles, ({ many }) => ({
