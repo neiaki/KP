@@ -1,5 +1,7 @@
 // Helper bersama Server Action (BUKAN modul action: tanpa "use server"
 // agar boleh mengekspor fungsi sinkron). Hanya dipanggil dari server.
+import { sql } from "drizzle-orm";
+import type { Db } from "@/db/client";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Profile, UserRole } from "@/types";
@@ -8,6 +10,21 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string
 
 export const ok = <T>(data: T): ActionResult<T> => ({ ok: true, data });
 export const fail = <T>(error: string): ActionResult<T> => ({ ok: false, error });
+
+/**
+ * Tandai aktor untuk trigger audit (NFR-07).
+ *
+ * src/db/client.ts memakai koneksi postgres langsung, jadi auth.uid() selalu
+ * NULL di jalur itu dan trigger tidak bisa tahu siapa yang mengubah. Aktor
+ * dikirim lewat set_config transaction-local: nilainya berlaku hanya sampai
+ * transaction selesai, jadi tidak bocor ke connection milik request lain.
+ *
+ * Wajib dipanggil DI DALAM db.transaction, sebelum UPDATE. Dipanggil di luar
+ * transaction, set_config akan langsung kedaluwarsa dan audit mencatat NULL.
+ */
+export async function setAuditActor(tx: Db, actorId: string | null): Promise<void> {
+  await tx.execute(sql`select set_config('atcell.actor_id', ${actorId ?? ""}, true)`);
+}
 
 /** Error standar saat kredensial Supabase belum diisi (UI tetap jalan mode demo). */
 export function backendOffline<T>(): ActionResult<T> {
