@@ -47,8 +47,13 @@ export default function SalesPosPage() {
 
   // Trade-in Toggle & State
   const [hasTradeIn, setHasTradeIn] = useState(false);
-  const [tradeInBrandModel, setTradeInBrandModel] = useState("iPhone 11 64GB");
-  const [tradeInIMEI, setTradeInIMEI] = useState("352345098712399");
+  // Default harus kosong. Nilai lama ("iPhone 11 64GB" dan IMEI contoh) berasal
+  // dari era field bebas ketik: IMEI contoh itu lolos validasi 15 digit dan bisa
+  // ikut tersimpan ke inventaris kalau staf tidak menghapusnya, dan modelnya
+  // tidak ada di daftar dropdown sehingga yang tampil di layar berbeda dari yang
+  // tersimpan.
+  const [tradeInBrandModel, setTradeInBrandModel] = useState("");
+  const [tradeInIMEI, setTradeInIMEI] = useState("");
   const [screenGrading, setScreenGrading] = useState<"good" | "minor_scratches" | "cracked" | "replaced">("good");
   const [bodyGrading, setBodyGrading] = useState<"flawless" | "minor_dents" | "heavy_wear">("minor_dents");
   const [batteryHealth, setBatteryHealth] = useState(82);
@@ -132,6 +137,10 @@ export default function SalesPosPage() {
       return;
     }
 
+    if (hasTradeIn && !tradeInBrandModel) {
+      setNotice({ type: "error", text: "Pilih model handphone lama pada dropdown!" });
+      return;
+    }
     if (hasTradeIn && !/^\d{15}$/.test(tradeInIMEI.trim())) {
       setNotice({ type: "error", text: "Nomor IMEI unit tukar tambah wajib tepat 15 digit angka!" });
       return;
@@ -147,7 +156,8 @@ export default function SalesPosPage() {
     setIsSubmitting(true);
     try {
       const tx = await processSale({
-        salesId: "prof-sales-01",
+        // salesId sengaja tidak dikirim: processSale memakai guard.profile.id
+        // dari sesi, bukan nilai dari browser.
         unitId: selectedUnitId,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
