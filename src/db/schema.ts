@@ -3,6 +3,16 @@
 // kebenaran struktur DB tetap file SQL itu. Bila menambah tabel/kolom:
 // 1) ubah file ini, 2) `npx drizzle-kit generate`, 3) terapkan SQL-nya ke DB.
 // Jangan ubah nilai enum tanpa migrasi (data lama bisa rusak).
+//
+// CATATAN NAMA CHECK: constraint check yang ditulis inline di 0001 tidak diberi
+// nama, jadi Postgres menamainya sendiri dengan pola <tabel>_<kolom>_check.
+// Nama di bawah sengaja mengikuti pola itu supaya cermin Drizzle dan DB
+// memakai nama yang sama. Kalau suatu saat nama constraint di DB diganti
+// manual, sesuaikan juga di sini.
+//
+// ARTEFAK drizzle-generated/ hanya referensi offline (lihat drizzle.config.ts)
+// dan tidak boleh dijalankan ke database production: canonical migration tetap
+// file di supabase/migrations/.
 
 import { relations, sql } from "drizzle-orm";
 import {
@@ -63,11 +73,15 @@ export const paymentMethodEnum = pgEnum("payment_method", [
 ]);
 
 // --- profiles (1:1 dengan auth.users; trigger SQL yang mengisinya) ---
+// email dan username adalah denormalisasi dari auth.users supaya portal bisa
+// login memakai username (lihat supabase/migrations/0005_username_login.sql).
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(),
   fullName: text("full_name").notNull(),
   role: userRoleEnum("role").notNull().default("customer"),
   phoneNumber: text("phone_number").notNull().default(""),
+  email: text("email"),
+  username: text("username").notNull(),
   createdAt: createdAtCol(),
 });
 
@@ -91,7 +105,9 @@ export const storeSettings = pgTable(
       .default({ monday_friday: "09:00 - 21:00", saturday_sunday: "10:00 - 22:00" }),
     updatedAt: updatedAtCol(),
   },
-  (t) => [check("store_settings_singleton", sql`${t.id} = 1`)]
+  (t) => [
+    check("store_settings_id_check", sql`${t.id} = 1`)
+  ]
 );
 
 // --- products (master katalog, eksklusif Admin) ---
@@ -117,6 +133,7 @@ export const products = pgTable(
   },
   (t) => [
     index("products_brand_idx").on(t.brand).where(sql`${t.isActive}`),
+    check("products_default_price_check", sql`${t.defaultPrice} >= 0`),
   ]
 );
 
@@ -136,7 +153,7 @@ export const inventoryUnits = pgTable(
     createdAt: createdAtCol(),
   },
   (t) => [
-    check("inventory_units_imei_15_digits", sql`${t.imei} ~ '^\\d{15}$'`),
+    check("inventory_units_imei_check", sql`${t.imei} ~ '^\\d{15}$'`),
     index("inventory_units_product_status_idx").on(t.productId, t.status),
     index("inventory_units_status_idx").on(t.status),
   ]
@@ -178,37 +195,50 @@ export const transactionItems = pgTable(
     unitPrice: numeric("unit_price").notNull().default("0"),
     warrantyDurationMonths: integer("warranty_duration_months").notNull().default(3),
   },
-  (t) => [index("transaction_items_tx_idx").on(t.transactionId)]
+  (t) => [
+    index("transaction_items_tx_idx").on(t.transactionId),
+    check(
+      "transaction_items_warranty_duration_months_check",
+      sql`${t.warrantyDurationMonths} >= 0`
+    ),
+  ]
 );
 
 // --- trade_in_records (hasil grading unit lama) ---
-export const tradeInRecords = pgTable("trade_in_records", {
-  id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  transactionId: bigint("transaction_id", { mode: "number" }).references(() => transactions.id, {
-    onDelete: "set null",
-  }),
-  resultingUnitId: bigint("resulting_unit_id", { mode: "number" }).references(
-    () => inventoryUnits.id,
-    { onDelete: "set null" }
-  ),
-  originalBrandModel: text("original_brand_model").notNull(),
-  imei: text("imei").notNull(),
-  gradingDetails: jsonb("grading_details")
-    .$type<Record<string, string | number | boolean>>()
-    .notNull()
-    .default(sql`'{}'::jsonb`),
-  photoUrls: jsonb("photo_urls").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-  offeredPrice: numeric("offered_price").notNull().default("0"),
-  createdAt: createdAtCol(),
-});
+export const tradeInRecords = pgTable(
+  "trade_in_records",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    transactionId: bigint("transaction_id", { mode: "number" }).references(
+      () => transactions.id,
+      { onDelete: "set null" }
+    ),
+    resultingUnitId: bigint("resulting_unit_id", { mode: "number" }).references(
+      () => inventoryUnits.id,
+      { onDelete: "set null" }
+    ),
+    originalBrandModel: text("original_brand_model").notNull(),
+    imei: text("imei").notNull(),
+    gradingDetails: jsonb("grading_details")
+      .$type<Record<string, string | number | boolean>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    photoUrls: jsonb("photo_urls").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    offeredPrice: numeric("offered_price").notNull().default("0"),
+    createdAt: createdAtCol(),
+  },
+  (t) => [check("trade_in_records_imei_check", sql`${t.imei} ~ '^\\d{15}$'`)]
+);
 
 // --- service_tickets (tiket reparasi) ---
 export const serviceTickets = pgTable(
   "service_tickets",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-    // Default string kosong: trigger SQL mengganti dengan SRV-YYYYMMDD-XXXX.
-    ticketCode: text("ticket_code").notNull().unique().default(""),
+    // Dikosongkan saat insert: trigger SQL mengisi SRV-YYYYMMDD-XXXX.
+    // Tanpa DEFAULT supaya tetap sama dengan DB; trigger menerima null maupun
+    // string kosong.
+    ticketCode: text("ticket_code").notNull().unique(),
     customerId: uuid("customer_id").references(() => profiles.id, { onDelete: "set null" }),
     technicianId: uuid("technician_id").references(() => profiles.id, { onDelete: "set null" }),
     customerName: text("customer_name").notNull(),
