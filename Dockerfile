@@ -35,6 +35,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
+# Coolify menjalankan health check dengan:
+#   curl -s -X GET -f http://localhost:3000/api/health/ready
+# dan jatuh ke wget kalau curl tidak ada. node:22-bookworm-slim tidak
+# menyediakan keduanya, jadi health check selalu gagal, container ditandai
+# unhealthy lalu dibunuh, dan deploy dianggap gagal meski aplikasinya jalan.
+# Karena itu curl wajib ada di image runtime.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder --chown=node:node /app/public ./public
 # .next sudah berisi output webpack. Folder cache next/image akan ditulis
 # runtime oleh user node, jadi harus writable.
