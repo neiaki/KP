@@ -5,6 +5,7 @@ import { useStore } from "@/context/store-context";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { openNotaPrintWindow, buildPosNotaHtml } from "@/lib/print-nota";
 import { uploadPhoto } from "@/lib/actions/storage";
+import { TRADE_IN_MODELS } from "@/lib/trade-in-models";
 import { PaymentMethod, Transaction, UnitCondition } from "@/types";
 import {
   ShoppingCart,
@@ -349,15 +350,30 @@ export default function SalesPosPage() {
               <CardContent className="space-y-4 pt-2 border-t border-line animate-in fade-in duration-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-muted mb-1">
+                    <label
+                      htmlFor="trade-in-model"
+                      className="block text-xs font-semibold text-muted mb-1"
+                    >
                       Model Handphone Lama Pelanggan
                     </label>
-                    <Input
+                    {/* Daftar model sama dengan halaman trade-in publik, jadi
+                        staff tidak bisa mengetik model yang tidak ada di
+                        lineup dan Calculate Estimate tidak bisa meleset. */}
+                    <select
+                      id="trade-in-model"
                       value={tradeInBrandModel}
                       onChange={(e) => setTradeInBrandModel(e.target.value)}
-                      placeholder="Contoh: iPhone 11 64GB"
-                      className="text-xs"
-                    />
+                      className="flex h-10 w-full rounded-lg border border-line bg-card px-3 py-2 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <option value="" disabled>
+                        Pilih seri iPhone
+                      </option>
+                      {TRADE_IN_MODELS.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
