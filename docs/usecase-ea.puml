@@ -1,0 +1,117 @@
+@startuml AtCell-UseCase-EA
+' Use Case ala Sparx Enterprise Architect - Sistem At Cell
+' Sumber: PRD-AtCell.md
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor black
+  ArrowColor black
+}
+skinparam actor {
+  BackgroundColor white
+  BorderColor black
+}
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor black
+}
+skinparam note {
+  BackgroundColor white
+  BorderColor black
+}
+
+left to right direction
+
+actor "Pengunjung\n(Tamu)" as Tamu
+actor "Pelanggan" as Pelanggan
+actor "Sales" as Sales
+actor "Teknisi" as Teknisi
+actor "Admin / Owner" as Admin
+
+rectangle "Sistem At Cell\natcell.my.id + login.atcell.my.id" as Sys {
+  package "Publik" as P_Publik {
+    usecase "UC-01\nLihat Profil Toko" as UC01
+    usecase "UC-02\nEtalase Ready Stock" as UC02
+    usecase "UC-03\nGanti Bahasa ID/EN" as UC03
+    usecase "UC-04\nLacak Resi Servis" as UC04
+  }
+  package "Akses" as P_Akses {
+    usecase "UC-05\nLogin + Redirect Peran" as UC05
+  }
+  package "Admin" as P_Admin {
+    usecase "UC-06\nDashboard Bisnis" as UC06
+    usecase "UC-07\nKelola Master Produk" as UC07
+    usecase "UC-08\nKelola Akun Staf" as UC08
+    usecase "UC-09\nKelola Pengaturan Toko" as UC09
+    usecase "UC-10\nLaporan Teknisi" as UC10
+  }
+  package "POS & Inventaris" as P_POS {
+    usecase "UC-11\nRegistrasi Batch IMEI" as UC11
+    usecase "UC-12\nPantau Status Unit" as UC12
+    usecase "UC-13\nTransaksi POS" as UC13
+    usecase "UC-14\nProses Trade-In" as UC14
+  }
+  package "Servis & Akun" as P_Srv {
+    usecase "UC-15\nBuat Tiket Servis" as UC15
+    usecase "UC-16\nUpdate Workflow Servis" as UC16
+    usecase "UC-17\nSerah Terima Unit" as UC17
+    usecase "UC-18\nRiwayat Nota & Garansi" as UC18
+  }
+}
+
+' --- Asosiasi Publik ---
+Tamu --> UC01
+Tamu --> UC02
+Tamu --> UC03
+Tamu --> UC04
+Pelanggan --> UC04
+
+' --- Akses (tanpa <<include>> massal, lihat catatan) ---
+Tamu ..> UC05 : browses
+Pelanggan --> UC05
+Sales --> UC05
+Teknisi --> UC05
+Admin --> UC05
+
+' --- Admin ---
+Admin --> UC06
+Admin --> UC07
+Admin --> UC08
+Admin --> UC09
+Admin --> UC10
+
+' --- POS & Inventaris ---
+Sales --> UC11
+Sales --> UC12
+Admin --> UC12
+Sales --> UC13
+Sales --> UC14
+Sales --> UC15
+
+' --- Servis ---
+Teknisi --> UC15
+Teknisi --> UC16
+Teknisi --> UC17
+Sales --> UC17
+
+' --- Pelanggan terdaftar ---
+Pelanggan --> UC18
+
+' --- Relasi standar UML ala EA ---
+UC13 <.. UC14 : <<extend>>
+UC02 ..> UC12 : <<use>>\nvia v_public_inventory
+
+note right of Sys
+  Precondition UC-06..UC-18 : UC-05 sukses
+  (cookie .atcell.my.id + RBAC Supabase RLS)
+  UC-14 dieksekusi atomik dalam UC-13 (RPC)
+  UC-02 hanya SELECT ke view, sembunyikan purchase_cost
+end note
+
+@enduml

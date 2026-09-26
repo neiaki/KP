@@ -1,0 +1,35 @@
+@startuml UC04-Servis
+' EA - Modul Servis & Akun Pelanggan
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+
+actor "Sales" as Sales
+actor "Teknisi" as Teknisi
+actor "Pelanggan" as Pelanggan
+
+rectangle "Sistem At Cell : Servis & Akun" as Sys {
+  usecase "UC-15\nBuat Tiket Servis" as UC15
+  usecase "UC-16\nUpdate Workflow Servis" as UC16
+  usecase "UC-17\nSerah Terima Unit" as UC17
+  usecase "UC-18\nRiwayat Nota & Garansi" as UC18
+}
+
+Sales --> UC15
+Teknisi --> UC15
+Teknisi --> UC16
+Teknisi --> UC17
+Sales --> UC17
+Pelanggan --> UC18
+
+note right of Sys
+  UC-15 : SRV-YYYYMMDD-XXXX via trigger
+  received > diagnosing > waiting_approval
+  > in_progress > completed > picked_up
+  UC-16 : hanya role technician (RLS)
+end note
+@enduml

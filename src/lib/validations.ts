@@ -42,14 +42,34 @@ export const phoneSchema = z
   .max(16, "Nomor telepon maksimal 16 digit.")
   .regex(/^[0-9+()\-.\s]+$/, "Nomor telepon hanya boleh berisi angka dan +()-.");
 
+// Username portal. Aturan ini harus sama dengan check
+// profiles_username_format_check di supabase/migrations/0005_username_login.sql
+// supaya client menolak lebih dulu dan tidak membuang satu round-trip ke DB.
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Username minimal 3 karakter.")
+  .max(32, "Username maksimal 32 karakter.")
+  .regex(
+    /^[a-z0-9._-]+$/,
+    "Username hanya boleh huruf kecil, angka, titik, garis bawah, atau strip."
+  );
+
+export const passwordSchema = z
+  .string()
+  .min(8, "Kata sandi minimal 8 karakter.")
+  .max(128, "Kata sandi maksimal 128 karakter.");
+
 export const customerSignUpSchema = z.object({
   fullName: z.string().trim().min(2, "Nama minimal 2 huruf.").max(120),
   email: z.string().trim().email("Email tidak valid.").max(254),
-  password: z.string().min(8, "Kata sandi minimal 8 karakter.").max(128),
+  password: passwordSchema,
   phoneNumber: phoneSchema,
 });
 
 export const staffInviteSchema = customerSignUpSchema.extend({
+  username: usernameSchema,
   role: z.enum(["admin", "sales", "technician"]),
 });
 

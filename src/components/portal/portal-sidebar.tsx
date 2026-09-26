@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/lib/actions/auth";
 
 export function PortalSidebar({
@@ -143,14 +144,17 @@ export function PortalSidebar({
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Tutup menu navigasi"
-          className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <ThemeToggle variant="onDark" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup menu navigasi"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* User Info & Current Role Badge */}
@@ -258,7 +262,7 @@ export function PortalSidebar({
   return (
     <>
       {/* Desktop: static dark chrome */}
-      <aside className="hidden min-h-[calc(100vh-41px)] w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
+      <aside className="hidden min-h-[calc(100dvh-3rem)] w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
         {body}
       </aside>
 

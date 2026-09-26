@@ -7,25 +7,75 @@ import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { UserRole } from "@/types";
 import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronDown,
+  KeyRound,
+  LogIn,
   ShieldCheck,
   ShoppingBag,
-  Wrench,
   User,
-  LogIn,
-  KeyRound,
-  ArrowRight,
-  Sparkles,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { signInWithPassword } from "@/lib/actions/auth";
+import { signInWithUsername } from "@/lib/actions/auth";
+
+type DemoAccount = {
+  role: UserRole;
+  roleLabel: string;
+  name: string;
+  username: string;
+  target: string;
+  destination: string;
+  icon: LucideIcon;
+};
+
+const DEMO_ACCOUNTS: DemoAccount[] = [
+  {
+    role: "admin",
+    roleLabel: "Admin",
+    name: "Hendra Wijaya",
+    username: "admin",
+    target: "/portal/dashboard",
+    destination: "Dashboard",
+    icon: ShieldCheck,
+  },
+  {
+    role: "sales",
+    roleLabel: "Kasir",
+    name: "Budi Santoso",
+    username: "sales",
+    target: "/portal/pos",
+    destination: "Kasir POS",
+    icon: ShoppingBag,
+  },
+  {
+    role: "technician",
+    roleLabel: "Teknisi",
+    name: "Rian Pratama",
+    username: "teknisi",
+    target: "/portal/service",
+    destination: "Meja servis",
+    icon: Wrench,
+  },
+  {
+    role: "customer",
+    roleLabel: "Pelanggan",
+    name: "Anisa Rahmawati",
+    username: "anisa",
+    target: "/portal/account",
+    destination: "Faktur & garansi",
+    icon: User,
+  },
+];
 
 export function LoginPanel({ locale }: { locale: Locale }) {
   const router = useRouter();
   const { switchRole, isLiveBackend } = useStore();
 
-  const [email, setEmail] = useState(isLiveBackend ? "" : "admin@demo.local");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [mounted, setMounted] = useState(false);
@@ -42,52 +92,10 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     return () => cancelAnimationFrame(frame.current);
   }, []);
 
-  const demoAccounts: {
-    role: UserRole;
-    name: string;
-    email: string;
-    target: string;
-    icon: React.ReactNode;
-    color: string;
-  }[] = [
-    {
-      role: "admin",
-      name: "Hendra Wijaya (Owner)",
-      email: "admin@demo.local",
-      target: "/portal/dashboard",
-      icon: <ShieldCheck className="w-5 h-5 text-accent-deep" />,
-      color: "border-accent/40 hover:border-accent",
-    },
-    {
-      role: "sales",
-      name: "Budi Santoso (Kasir)",
-      email: "sales@demo.local",
-      target: "/portal/pos",
-      icon: <ShoppingBag className="w-5 h-5 text-emerald-400" />,
-      color: "border-amber-500/40 hover:border-amber-400",
-    },
-    {
-      role: "technician",
-      name: "Rian Pratama (Teknisi)",
-      email: "teknisi@demo.local",
-      target: "/portal/service",
-      icon: <Wrench className="w-5 h-5 text-amber-400" />,
-      color: "border-amber-500/40 hover:border-emerald-400",
-    },
-    {
-      role: "customer",
-      name: "Anisa Rahmawati (Pelanggan)",
-      email: "anisa@demo.local",
-      target: "/portal/account",
-      icon: <User className="w-5 h-5 text-sky-400" />,
-      color: "border-sky-500/40 hover:border-sky-400",
-    },
-  ];
-
-  const handleDemoSelect = (account: (typeof demoAccounts)[0]) => {
+  const handleDemoSelect = (account: DemoAccount) => {
     if (isLiveBackend) return;
     setSelectedRole(account.role);
-    setEmail(account.email);
+    setUsername(account.username);
     switchRole(account.role);
     router.push(account.target);
   };
@@ -99,7 +107,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     if (isLiveBackend) {
       setSubmitting(true);
       try {
-        const result = await signInWithPassword(email, password);
+        const result = await signInWithUsername(username, password);
         if (!result.ok) {
           setLoginError(result.error);
           return;
@@ -122,175 +130,220 @@ export function LoginPanel({ locale }: { locale: Locale }) {
   };
 
   // Input email/password rawan diinjeksi DOM oleh ekstensi browser
-  // (password manager, autofill, penerjemah) sebelum React hydrate,
-  // yang memicu "Hydration failed". Tunda render interaktif sampai
-  // client mounted: server dan render awal client sama-sama fallback,
-  // lalu form penuh dirender sebagai update biasa pasca-hydrate.
+  // sebelum React hydrate. Tunda interaktif sampai mount agar server dan
+  // render awal client sama-sama fallback.
   if (!mounted) {
     return (
-      <div className="flex items-center justify-center bg-slate-950 p-4 py-12 text-slate-100">
-        <div className="w-full max-w-4xl" aria-hidden="true">
-          <div className="h-64 rounded-xl bg-slate-900/60 border border-slate-800 animate-pulse" />
+      <div
+        data-page="login"
+        className="flex min-h-[calc(100dvh-4rem)] items-center bg-paper px-4 py-10 text-ink sm:px-6 lg:px-8"
+      >
+        <div
+          className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-xl border border-line bg-card lg:grid-cols-[0.85fr_1.15fr]"
+          aria-hidden="true"
+        >
+          <div className="min-h-64 bg-accent" />
+          <div className="space-y-4 p-6 sm:p-9">
+            <div className="h-7 w-44 animate-pulse rounded-lg bg-paper" />
+            <div className="h-5 w-full max-w-sm animate-pulse rounded-lg bg-paper" />
+            <div className="h-5 w-4/5 animate-pulse rounded-lg bg-paper" />
+            <div className="h-5 w-3/5 animate-pulse rounded-lg bg-paper" />
+          </div>
         </div>
       </div>
     );
   }
 
+  const manualLoginForm = (
+    <form onSubmit={handleManualLogin} className="mt-4 space-y-4">
+      {loginError && (
+        <p
+          role="alert"
+          className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-2.5 text-sm text-bad"
+        >
+          {loginError}
+        </p>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <label htmlFor="login-username" className="block text-xs font-bold text-ink">
+            Username
+          </label>
+          <Input
+            id="login-username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="admin"
+            suppressHydrationWarning
+            className="h-11 bg-paper font-mono text-sm placeholder:text-muted"
+          />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="login-password" className="block text-xs font-bold text-ink">
+            Kata sandi
+          </label>
+          <Input
+            id="login-password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Masukkan kata sandi"
+            suppressHydrationWarning
+            className="h-11 bg-paper text-sm placeholder:text-muted"
+          />
+        </div>
+      </div>
+
+      <Button type="submit" disabled={submitting} className="h-11 w-full gap-2 text-sm">
+        <LogIn className="h-4 w-4" />
+        <span>{submitting ? "Memproses..." : "Masuk ke portal"}</span>
+      </Button>
+    </form>
+  );
+
   return (
-    <div className="flex items-center justify-center bg-slate-950 p-4 py-12 text-slate-100">
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-        {/* Left: Branding & Role Explanation */}
-        <div className="md:col-span-5 space-y-6">
+    <div
+      data-page="login"
+      className="relative isolate flex min-h-[calc(100dvh-4rem)] items-center overflow-hidden bg-[radial-gradient(circle_at_top_left,var(--accent-soft),transparent_42%)] bg-paper px-4 py-8 text-ink sm:px-6 sm:py-12 lg:px-8"
+    >
+      <div className="relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-xl border border-line bg-card lg:grid-cols-[0.85fr_1.15fr]">
+        <section className="bg-accent px-6 py-8 text-white sm:px-9 sm:py-10 lg:px-11 lg:py-12">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-accent text-white flex items-center justify-center font-bold text-2xl shadow-lg">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-lg font-extrabold text-accent">
               AT
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-white">
-                At Cell
-              </h1>
-              <div className="text-xs font-mono text-accent-deep">
-                login.atcell.my.id
-              </div>
+              <div className="text-base font-extrabold">At Cell</div>
+              <div className="font-mono text-xs">Portal staf</div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold text-white">
-              Portal Operasional Terpadu
-            </h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {isLiveBackend
-                ? "Pintu masuk tunggal sistem operasional toko berbasis subdomain dan role-based access control."
-                : "Pintu masuk tunggal sistem operasional toko berbasis subdomain dan role-based access control. Pilih profil demo di samping untuk simulasi instan."}
+          <div className="mt-10 max-w-md sm:mt-14">
+            <h1 className="text-3xl font-extrabold leading-[1.12] tracking-tight sm:text-4xl">
+              Kelola toko dari satu portal.
+            </h1>
+            <p className="mt-4 max-w-[42ch] text-sm font-medium leading-7 sm:text-base">
+              Masuk sesuai peran untuk membuka kasir, servis, inventaris, dan laporan At Cell.
             </p>
           </div>
 
-          {!isLiveBackend && (
-            <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
-              <div className="text-amber-400 font-semibold flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4" />
-                <span>Akses Cepat Pengujian:</span>
-              </div>
-              <p className="text-slate-400 text-[11px] leading-relaxed">
-                Klik salah satu kartu akun demo untuk langsung masuk sesuai peran dengan data preloaded:
+          <div className="mt-9 hidden space-y-5 border-t border-white/25 pt-7 sm:block">
+            <div>
+              <div className="text-sm font-extrabold">Akses sesuai peran</div>
+              <p className="mt-1 text-xs font-medium leading-5">
+                Menu dan data menyesuaikan tanggung jawab staf.
               </p>
-              <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
-                <li><strong className="text-accent-deep">Admin:</strong> Kendali omzet & master produk</li>
-                <li><strong className="text-emerald-300">Sales:</strong> Kasir POS & tukar tambah IMEI</li>
-                <li><strong className="text-amber-300">Teknisi:</strong> Meja reparasi & biaya jasa</li>
-                <li><strong className="text-sky-300">Pelanggan:</strong> Riwayat nota & garansi IMEI</li>
-              </ul>
             </div>
-          )}
-
-          <Link
-            href={`/${locale}`}
-            className="inline-flex items-center gap-2 text-xs text-accent-deep hover:opacity-80 font-medium"
-          >
-            <span>← Kembali ke Halaman Publik atcell.my.id</span>
-          </Link>
-        </div>
-
-        {/* Right: Quick Demo Card Pickers */}
-        <div className="md:col-span-7 space-y-4">
-          <Card className="bg-slate-900 border-slate-800 text-white shadow-2xl">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2 text-white">
-                <KeyRound className="w-4 h-4 text-accent-deep" />
-                <span>{isLiveBackend ? "Masuk Portal At Cell" : "Pilih Akun Demo untuk Masuk"}</span>
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+            <div>
+              <div className="text-sm font-extrabold">
+                {isLiveBackend ? "Akun staf terdaftar" : "Coba tanpa konfigurasi"}
+              </div>
+              <p className="mt-1 text-xs font-medium leading-5">
                 {isLiveBackend
-                  ? "Gunakan kredensial Supabase yang terdaftar untuk masuk."
-                  : "1-Klik langsung diarahkan ke modul spesifik masing-masing aktor"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {!isLiveBackend && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {demoAccounts.map((acc) => (
-                    <button
-                      key={acc.role}
-                      type="button"
-                      onClick={() => handleDemoSelect(acc)}
-                      className={`p-3.5 rounded-xl border bg-slate-800/60 text-left transition-all hover:scale-[1.02] cursor-pointer flex flex-col justify-between gap-2 ${acc.color}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        {acc.icon}
-                        <span className="text-[10px] font-mono uppercase bg-slate-950 px-2 py-0.5 rounded text-slate-300">
-                          {acc.role}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white truncate">
-                          {acc.name}
-                        </div>
-                        <div className="text-[11px] text-slate-400 truncate font-mono">
-                          {acc.email}
-                        </div>
-                      </div>
-                      <div className="flex items-center text-[11px] text-accent-deep font-semibold gap-1 pt-1 border-t border-slate-700/50">
-                        <span>Masuk Sekarang</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+                  ? "Masuk memakai username dan kata sandi yang sudah terdaftar."
+                  : "Pilih akun dan coba alur kerja tanpa mengatur database."}
+              </p>
+            </div>
+            <div>
+              <div className="text-sm font-extrabold">Data tetap terhubung</div>
+              <p className="mt-1 text-xs font-medium leading-5">
+                Kasir, servis, stok, dan laporan berada dalam satu sistem.
+              </p>
+            </div>
+          </div>
 
-              {/* Manual Form Toggle */}
-              <form onSubmit={handleManualLogin} className="pt-4 border-t border-slate-800 space-y-3">
-                {loginError && (
-                  <p role="alert" className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-2 text-xs text-bad">
-                    {loginError}
-                  </p>
-                )}
-                <div className="text-xs font-bold text-slate-300">
-                  Atau Masuk Manual dengan Kredensial:
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>
-                    <label htmlFor="login-email" className="sr-only">
-                      Email
-                    </label>
-                    <Input
-                      id="login-email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Email"
-                      suppressHydrationWarning
-                      className="bg-slate-950 border-slate-700 text-white text-xs h-9"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="login-password" className="sr-only">
-                      Kata sandi
-                    </label>
-                    <Input
-                      id="login-password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Password"
-                      suppressHydrationWarning
-                      className="bg-slate-950 border-slate-700 text-white text-xs h-9"
-                    />
-                  </div>
-                </div>
-                <Button type="submit" disabled={submitting} className="w-full text-xs font-bold h-9 gap-2">
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>{submitting ? "Memproses..." : "Otorisasi Masuk Portal"}</span>
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+          {isLiveBackend ? (
+            <Link
+              href={`/${locale}`}
+              className="mt-9 inline-flex items-center gap-2 border-t border-white/25 pt-5 text-xs font-bold text-white transition-colors hover:bg-white/10 sm:mt-12"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Kembali ke website
+            </Link>
+          ) : null}
+        </section>
+
+        <section className="px-5 py-7 sm:px-9 sm:py-10 lg:px-11 lg:py-12">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-accent-deep">
+                <KeyRound className="h-4 w-4" />
+                <span className="text-sm font-extrabold">
+                  {isLiveBackend ? "Masuk ke portal" : "Pilih akun untuk masuk"}
+                </span>
+              </div>
+              <p className="mt-2 max-w-lg text-sm leading-6 text-muted">
+                {isLiveBackend
+                  ? "Gunakan akun staf yang telah terdaftar."
+                  : "Pilih satu profil dan langsung menuju modul yang tepat."}
+              </p>
+            </div>
+            {!isLiveBackend && (
+              <span className="rounded-full bg-accent-soft px-3 py-1.5 text-[11px] font-extrabold text-accent-deep">
+                Data lokal
+              </span>
+            )}
+          </div>
+
+          {!isLiveBackend ? (
+            <div className="mt-6 grid gap-2.5" aria-label="Akun demo">
+              {DEMO_ACCOUNTS.map((account) => {
+                const Icon = account.icon;
+                return (
+                  <button
+                    key={account.role}
+                    type="button"
+                    onClick={() => handleDemoSelect(account)}
+                    aria-label={`Masuk sebagai ${account.name}, ${account.roleLabel}`}
+                    className="group flex w-full items-center gap-3 rounded-lg border border-line bg-paper px-3 py-3 text-left transition-[transform,border-color,background-color] hover:-translate-y-0.5 hover:border-accent hover:bg-accent-soft/50 active:translate-y-0 sm:px-4"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-deep transition-colors group-hover:bg-card">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span className="truncate text-sm font-extrabold text-ink">
+                          {account.name}
+                        </span>
+                        <span className="text-[11px] font-bold text-accent-deep">
+                          {account.roleLabel}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block truncate font-mono text-xs text-muted">
+                        {account.username}
+                      </span>
+                    </span>
+                    <span className="hidden text-xs font-semibold text-muted xl:block">
+                      {account.destination}
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent-deep" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {isLiveBackend ? (
+            manualLoginForm
+          ) : (
+            <details className="group mt-5 border-t border-line pt-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-sm font-extrabold text-ink [&::-webkit-details-marker]:hidden">
+                {isLiveBackend ? "Masuk dengan username" : "Buka form login"}
+                <ChevronDown className="h-4 w-4 text-muted transition-transform group-open:rotate-180" />
+              </summary>
+              {manualLoginForm}
+            </details>
+          )}
+        </section>
       </div>
     </div>
   );

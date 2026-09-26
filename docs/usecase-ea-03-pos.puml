@@ -1,0 +1,33 @@
+@startuml UC03-POS
+' EA - Modul POS, Inventaris, Trade-In
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+
+actor "Sales" as Sales
+actor "Admin / Owner" as Admin
+
+rectangle "Sistem At Cell : POS & Inventaris" as Sys {
+  usecase "UC-11\nRegistrasi Batch IMEI" as UC11
+  usecase "UC-12\nPantau Status Unit" as UC12
+  usecase "UC-13\nTransaksi POS" as UC13
+  usecase "UC-14\nProses Trade-In" as UC14
+}
+
+Sales --> UC11
+Sales --> UC12
+Admin --> UC12
+Sales --> UC13
+
+UC13 <.. UC14 : <<extend>>
+
+note right of Sys
+  UC-11 : IMEI 15 digit UNIQUE
+  UC-13 : available -> sold (RPC atomik)
+  UC-14 : second + available, foto trade-in-photos
+end note
+@enduml

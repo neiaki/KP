@@ -192,6 +192,20 @@ body {
   scrollbar-width: none;
 }
 
+/* Login fokus pada autentikasi. Promo penjualan, footer, dan live chat
+   tidak perlu tampil di route ini. */
+html:has([data-page="login"]) [data-hide-on-login] {
+  display: none !important;
+}
+
+summary {
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible {

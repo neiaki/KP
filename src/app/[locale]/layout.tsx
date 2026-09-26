@@ -15,7 +15,7 @@ export default async function PublicLayout({
   const locale: Locale = resolvedParams.locale === "en" ? "en" : "id";
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex min-h-[100dvh] flex-col">
       <PublicNavbar locale={locale} />
       <main className="flex-1">{children}</main>
       <PublicFooter locale={locale} />

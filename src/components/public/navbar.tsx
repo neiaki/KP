@@ -4,18 +4,16 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { translations, Locale } from "@/lib/translations";
-import { useStore } from "@/context/store-context";
-import { Search, Menu, X, MessageCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/public/theme-toggle";
+import { Search, Menu, X, LogIn } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function PublicNavbar({ locale }: { locale: Locale }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
   const pathname = usePathname();
   const router = useRouter();
-  const { storeSettings } = useStore();
   const t = translations[locale];
+  const isLoginPath = pathname === `/${locale}/login`;
 
   const getSwitchLocaleHref = (targetLocale: Locale) => {
     const segments = pathname.split("/");
@@ -41,14 +39,12 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
     { href: `/${locale}/tracking`, label: t.nav.tracking },
   ];
 
-  const cleanWa = (storeSettings.whatsapp_number || "6285775398389").replace(
-    /\D/g,
-    ""
-  );
-
   return (
     <>
-      <p className="bg-accent px-4 py-1.5 text-center text-xs font-semibold text-white">
+      <p
+        data-hide-on-login
+        className="bg-accent px-4 py-2 text-center text-[11px] font-semibold leading-4 text-white sm:text-xs"
+      >
         {locale === "en"
           ? "Free tempered glass and case for every new phone, 0% installment up to 12 months"
           : "Gratis tempered glass dan silikon untuk setiap HP baru, cicilan 0% sampai 12 bulan"}
@@ -80,7 +76,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder={t.hero.searchPlaceholder}
-                className="h-10 w-full rounded-lg border border-line bg-paper pl-10 pr-20 text-sm text-ink placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent"
+                className="h-10 w-full rounded-lg border border-line bg-paper pl-10 pr-20 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent"
               />
               <button
                 type="submit"
@@ -122,22 +118,27 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
               </Link>
             </div>
             <ThemeToggle />
-            <a
-              href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
-                "Halo At Cell, saya mau tanya stok HP."
-              )}`}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden h-9 items-center gap-1.5 rounded-lg bg-wa px-3.5 text-[13px] font-bold text-white transition-transform hover:bg-wa-deep active:scale-[0.98] sm:inline-flex"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Chat WA
-            </a>
+            {/* Aksi WhatsApp pindah ke footer dan live chat, jadi slot
+                navbar ini dipakai pintu masuk portal staf. */}
+            {!isLoginPath ? (
+              <Link
+                href={`/${locale}/login`}
+                aria-label={
+                  locale === "en" ? "Sign in to staff portal" : "Masuk ke portal staf"
+                }
+                className="hidden h-9 items-center gap-1.5 rounded-lg bg-accent px-3.5 text-[13px] font-bold text-white transition-colors hover:bg-accent-deep sm:inline-flex"
+              >
+                <LogIn className="h-4 w-4" />
+                {t.nav.signIn}
+              </Link>
+            ) : null}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="rounded-lg p-2 text-ink hover:bg-paper lg:hidden"
               aria-label={mobileMenuOpen ? "Tutup menu" : "Buka menu"}
               aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -156,7 +157,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder={t.hero.searchPlaceholder}
-                className="h-10 w-full rounded-lg border border-line bg-paper pl-10 pr-20 text-sm text-ink placeholder:text-muted/70 focus:border-accent focus:outline-none"
+                className="h-10 w-full rounded-lg border border-line bg-paper pl-10 pr-20 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
               />
               <button
                 type="submit"
@@ -169,7 +170,10 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
         </div>
 
         {mobileMenuOpen && (
-          <div className="border-t border-line bg-card px-4 pb-5 pt-3 lg:hidden">
+          <div
+            id="mobile-navigation"
+            className="border-t border-line bg-card px-4 pb-5 pt-3 lg:hidden"
+          >
             <div className="space-y-1">
               {[{ href: `/${locale}`, label: t.nav.home }, ...links].map((link) => (
                 <Link
@@ -182,23 +186,45 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
                 </Link>
               ))}
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3">
-              <a
-                href={`https://wa.me/${cleanWa}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa text-xs font-bold text-white"
+            <div className="mt-3 flex items-center justify-between gap-4 border-t border-line pt-3">
+              <span className="text-xs font-bold text-muted">
+                {locale === "en" ? "Language" : "Bahasa"}
+              </span>
+              <div
+                className="flex items-center rounded-lg border border-line p-0.5 text-xs font-bold"
+                aria-label={locale === "en" ? "Language" : "Bahasa"}
               >
-                <MessageCircle className="h-4 w-4" /> Chat WA
-              </a>
-              <Link
-                href={`/${locale}/login`}
-                onClick={() => setMobileMenuOpen(false)}
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-line text-xs font-bold text-ink"
-              >
-                Portal staf
-              </Link>
+                <Link
+                  href={getSwitchLocaleHref("id")}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`rounded-md px-3 py-1.5 ${
+                    locale === "id" ? "bg-accent text-white" : "text-muted"
+                  }`}
+                >
+                  ID
+                </Link>
+                <Link
+                  href={getSwitchLocaleHref("en")}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`rounded-md px-3 py-1.5 ${
+                    locale === "en" ? "bg-accent text-white" : "text-muted"
+                  }`}
+                >
+                  EN
+                </Link>
+              </div>
             </div>
+            {!isLoginPath ? (
+              <div className="mt-3">
+                <Link
+                  href={`/${locale}/login`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-accent text-xs font-bold text-white"
+                >
+                  <LogIn className="h-4 w-4" /> {t.nav.signIn}
+                </Link>
+              </div>
+            ) : null}
           </div>
         )}
       </header>
