@@ -57,9 +57,9 @@ USER node
 
 EXPOSE 3000
 
-# Memakai endpoint yang sama dengan health check Coolify, supaya keduanya
-# menilai kondisi yang sama persis.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Healthcheck sengaja tidak didefinisikan di sini. Coolify sudah memasang
+# healthcheck sendiri lewat compose yang ia hasilkan, dan image yang punya
+# HEALTHCHECK akan bentrok dengan itu sehingga container gagal start.
+# Definisi healthcheck ada di docker-compose.coolify.yml.
 
 CMD ["npm", "start"]
