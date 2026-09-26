@@ -80,7 +80,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
               />
               <button
                 type="submit"
-                className="absolute right-1 top-1 h-8 rounded-md bg-accent px-4 text-xs font-bold text-white hover:bg-accent-deep"
+                className="absolute right-0 top-0 h-10 rounded-r-lg rounded-l-md bg-accent px-4 text-xs font-bold text-white hover:bg-accent-deep sm:right-1 sm:top-1 sm:h-8 sm:rounded-md"
               >
                 {locale === "en" ? "Search" : "Cari"}
               </button>
@@ -161,7 +161,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
               />
               <button
                 type="submit"
-                className="absolute right-1 top-1 h-8 rounded-md bg-accent px-3 text-xs font-bold text-white"
+                className="absolute right-0 top-0 h-10 rounded-r-lg rounded-l-md bg-accent px-3 text-xs font-bold text-white sm:right-1 sm:top-1 sm:h-8 sm:rounded-md"
               >
                 {locale === "en" ? "Search" : "Cari"}
               </button>

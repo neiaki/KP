@@ -228,13 +228,18 @@ export default function InventoryManagementPage() {
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Status Filter */}
-          <div className="flex items-center gap-1">
+          {/* flex-wrap + gap-y-1 supaya chip 40px tetap muat di layar HP
+              tanpa saling tindih. */}
+          <div className="flex flex-wrap items-center gap-1 gap-y-1">
             <span className="text-xs font-semibold text-muted mr-1">Status:</span>
             {["all", "available", "sold", "reserved", "in_service"].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
+                /* min-h-10 memberi tinggi sentuh 40px di HP. Di desktop chip
+                   tetap rapat lewat sm:min-h-0, supaya baris filter tidak
+                   terlihat balloon. */
+                className={`min-h-10 rounded px-3 py-2 text-xs font-medium cursor-pointer transition-colors sm:min-h-0 sm:py-1 ${
                   statusFilter === st
                     ? "bg-accent text-white font-semibold"
                     : "bg-paper text-muted hover:bg-line"
@@ -246,13 +251,13 @@ export default function InventoryManagementPage() {
           </div>
 
           {/* Condition Filter */}
-          <div className="flex items-center gap-1 border-l border-line pl-3">
+          <div className="flex flex-wrap items-center gap-1 gap-y-1 border-l-0 pl-0 sm:border-l sm:pl-3">
             <span className="text-xs font-semibold text-muted mr-1">Kondisi:</span>
             {["all", "new", "second"].map((c) => (
               <button
                 key={c}
                 onClick={() => setConditionFilter(c)}
-                className={`px-2 py-1 rounded text-xs font-medium cursor-pointer ${
+                className={`min-h-10 rounded px-3 py-2 text-xs font-medium cursor-pointer sm:min-h-0 sm:py-1 ${
                   conditionFilter === c
                     ? "bg-slate-900 text-white"
                     : "bg-paper text-muted hover:bg-line"

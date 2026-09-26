@@ -81,7 +81,9 @@ export default function NewServiceTicketPage() {
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
       <div className="flex items-center gap-3">
         <Link href="/portal/service">
-          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+          {/* 40px di HP: tombol balik ini kecil dan sering dipakai sambil
+              memegang unit, jari tidak boleh meleset. */}
+          <Button variant="outline" size="sm" className="h-10 w-10 p-0 sm:h-8 sm:w-8">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         </Link>

@@ -123,7 +123,7 @@ export function CatalogContent({ locale }: { locale: Locale }) {
                       )}
                     </div>
                     <div className="flex flex-1 flex-col p-4">
-                      <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-paper">
+                      <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
                         {locale === "en" ? "Sold out" : "Stok habis"}
                       </p>
                       <h3 className="text-[15px] font-extrabold leading-snug text-ink">

@@ -224,7 +224,7 @@ export default function MasterProductsPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleOpenEdit(p)}
-                    className="h-8 gap-1.5 text-xs font-semibold"
+                    className="h-10 gap-1.5 text-xs font-semibold sm:h-8"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                     <span>Edit</span>
