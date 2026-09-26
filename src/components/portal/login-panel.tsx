@@ -25,7 +25,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
   const router = useRouter();
   const { switchRole, isLiveBackend } = useStore();
 
-  const [email, setEmail] = useState("admin@atcell.my.id");
+  const [email, setEmail] = useState(isLiveBackend ? "" : "admin@demo.local");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [mounted, setMounted] = useState(false);
@@ -53,7 +53,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     {
       role: "admin",
       name: "Hendra Wijaya (Owner)",
-      email: "admin@atcell.my.id",
+      email: "admin@demo.local",
       target: "/portal/dashboard",
       icon: <ShieldCheck className="w-5 h-5 text-accent-deep" />,
       color: "border-accent/40 hover:border-accent",
@@ -61,7 +61,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     {
       role: "sales",
       name: "Budi Santoso (Kasir)",
-      email: "sales@atcell.my.id",
+      email: "sales@demo.local",
       target: "/portal/pos",
       icon: <ShoppingBag className="w-5 h-5 text-emerald-400" />,
       color: "border-amber-500/40 hover:border-amber-400",
@@ -69,7 +69,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     {
       role: "technician",
       name: "Rian Pratama (Teknisi)",
-      email: "teknisi@atcell.my.id",
+      email: "teknisi@demo.local",
       target: "/portal/service",
       icon: <Wrench className="w-5 h-5 text-amber-400" />,
       color: "border-amber-500/40 hover:border-emerald-400",
@@ -77,7 +77,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     {
       role: "customer",
       name: "Anisa Rahmawati (Pelanggan)",
-      email: "anisa@gmail.com",
+      email: "anisa@demo.local",
       target: "/portal/account",
       icon: <User className="w-5 h-5 text-sky-400" />,
       color: "border-sky-500/40 hover:border-sky-400",
@@ -160,25 +160,29 @@ export function LoginPanel({ locale }: { locale: Locale }) {
               Portal Operasional Terpadu
             </h2>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Pintu masuk tunggal sistem operasional toko berbasis Subdomain & Role-Based Access Control (RBAC). Pilih profil demo di samping untuk simulasi instan.
+              {isLiveBackend
+                ? "Pintu masuk tunggal sistem operasional toko berbasis subdomain dan role-based access control."
+                : "Pintu masuk tunggal sistem operasional toko berbasis subdomain dan role-based access control. Pilih profil demo di samping untuk simulasi instan."}
             </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
-            <div className="text-amber-400 font-semibold flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4" />
-              <span>Akses Cepat Pengujian:</span>
+          {!isLiveBackend && (
+            <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
+              <div className="text-amber-400 font-semibold flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4" />
+                <span>Akses Cepat Pengujian:</span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Klik salah satu kartu akun demo untuk langsung masuk sesuai peran dengan data preloaded:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+                <li><strong className="text-accent-deep">Admin:</strong> Kendali omzet & master produk</li>
+                <li><strong className="text-emerald-300">Sales:</strong> Kasir POS & tukar tambah IMEI</li>
+                <li><strong className="text-amber-300">Teknisi:</strong> Meja reparasi & biaya jasa</li>
+                <li><strong className="text-sky-300">Pelanggan:</strong> Riwayat nota & garansi IMEI</li>
+              </ul>
             </div>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
-              Klik salah satu kartu akun demo untuk langsung masuk sesuai peran dengan data preloaded:
-            </p>
-            <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
-              <li><strong className="text-accent-deep">Admin:</strong> Kendali omzet & master produk</li>
-              <li><strong className="text-emerald-300">Sales:</strong> Kasir POS & tukar tambah IMEI</li>
-              <li><strong className="text-amber-300">Teknisi:</strong> Meja reparasi & biaya jasa</li>
-              <li><strong className="text-sky-300">Pelanggan:</strong> Riwayat nota & garansi IMEI</li>
-            </ul>
-          </div>
+          )}
 
           <Link
             href={`/${locale}`}

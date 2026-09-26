@@ -55,7 +55,7 @@ flowchart LR
 - **Akses data production:** Server Actions memakai Drizzle/PostgreSQL atau Supabase server client sesuai kebutuhan modul.
 - **Keamanan:** Supabase RLS, verifikasi peran server-side, route guard, validasi Zod, dan policy Storage.
 - **Drizzle:** dipakai sebagai representasi dan artefak referensi schema. Migration production tetap memakai SQL canonical di `supabase/migrations/`.
-- **Deployment:** Coolify menjadi primary, Vercel menjadi standby, dan keduanya memakai Supabase yang sama.
+- **Deployment:** Coolify menjadi primary. Supabase menjadi sumber data production dan restore test lokal hanya berada di Coolify.
 
 ## Teknologi
 
@@ -107,6 +107,8 @@ Untuk menjalankan mode live:
    - `supabase/migrations/0001_atcell_schema.sql`
    - `supabase/migrations/0002_harden_atcell_schema.sql`
    - `supabase/migrations/0003_lock_legacy_helpers.sql`
+   - `supabase/migrations/20260925142137_align_schema_contract.sql`
+   - `supabase/migrations/20260926025406_index_public_foreign_keys.sql`
 3. Isi environment pada `.env.local` atau secret manager platform:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` atau key anon lama
@@ -153,7 +155,7 @@ npm run build
 - `GET /api/health/live` memeriksa proses Next.js.
 - `GET /api/health/ready` memeriksa environment, koneksi PostgreSQL, schema wajib, dan secret server.
 
-Endpoint `/ready` harus menjadi target health check Coolify, Vercel, dan DNS/load balancer. Respons `503` berarti deployment belum siap dan tidak boleh dialihkan ke data mock.
+Endpoint `/ready` harus menjadi target health check Coolify. Respons `503` berarti deployment belum siap dan tidak boleh dialihkan ke data mock.
 
 ## Backup dan Restore
 
@@ -190,14 +192,15 @@ docs/                   PRD, kebutuhan, use case, dan runbook deployment
 
 ## Deployment
 
-Strategi deployment saat ini adalah active-passive:
+Strategi deployment saat ini:
 
-- Coolify VPS sebagai primary.
-- Vercel sebagai standby.
+- Coolify VPS sebagai satu-satunya host aplikasi production.
 - Supabase PostgreSQL, Auth, dan Storage sebagai backend bersama.
+- Coolify PostgreSQL hanya menjadi restore target private.
 - Database production tidak disimpan di container aplikasi.
+- Domain final dan TLS dikonfigurasi setelah deployment dan health check lulus.
 
-Vercel Hobby tidak boleh digunakan untuk traffic bisnis At Cell. Gunakan paket Pro atau Enterprise. Ikuti runbook lengkap di [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md).
+Ikuti runbook lengkap di [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md).
 
 ## Dokumentasi
 
