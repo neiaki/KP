@@ -18,6 +18,7 @@ import {
   fail,
   ok,
   requireRole,
+  setAuditActor,
   toNumber,
   type ActionResult,
 } from "./_helpers";
@@ -48,6 +49,9 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
 
   try {
     txId = await db.transaction(async (tx) => {
+      // Aktor untuk trigger audit (NFR-07). POS mengubah status unit jadi sold,
+      // dan perubahan itu wajib tercatat dengan identitas kasirnya.
+      await setAuditActor(tx, guard.profile.id);
       // Kunci baris unit (FOR UPDATE) agar tidak bisa double-sell.
       const found = await tx
         .select()

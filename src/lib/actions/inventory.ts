@@ -16,6 +16,7 @@ import {
   fail,
   ok,
   requireRole,
+  setAuditActor,
   toISO,
   toNumber,
   type ActionResult,
@@ -136,6 +137,9 @@ export async function updateUnitStatus(
   if (!db) return backendOffline();
   try {
     const result = (await db.transaction(async (tx) => {
+      // Aktor ditulis ke transaction-local supaya trigger audit tahu siapa yang
+      // mengubah status (NFR-07). Harus di dalam transaction yang sama.
+      await setAuditActor(tx, guard.profile.id);
       const [current] = await tx
         .select({ status: inventoryUnits.status })
         .from(inventoryUnits)
