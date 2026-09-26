@@ -1,0 +1,49 @@
+# Semua yang tidak dibutuhkan di dalam image produksi.
+# Makin kecil context build, makin cepat dan makin sedikit RAM terpakai saat build.
+
+# Rahasia tidak boleh masuk image maupun cache layer.
+.env
+.env.*
+!.env.example
+
+# Git dan tooling
+.git
+.gitignore
+.github
+
+# Output build lokal, akan dibangun ulang di dalam image
+.next
+out
+build
+dist
+
+# Dependensi, dipasang ulang di dalam image
+node_modules
+npm-debug.log*
+yarn-error.log*
+
+# Dokumentasi dan aset yang tidak dipakai runtime
+docs
+*.md
+!README.md
+
+# Artefak pengujian dan lint
+coverage
+.vitest
+.playwright-mcp
+tests
+playwright-report
+test-results
+
+# Berkas OS dan editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea
+.vscode
+
+# Backup database lokal, jangan pernah bake ke image
+backups
+*.sql
+*.dump
+*.sql.gz
