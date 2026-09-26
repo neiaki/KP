@@ -54,6 +54,9 @@ type ProfileDbRow = {
   full_name: string;
   role: UserRole;
   phone_number: string;
+  // Wajib ikut dipetakan: halaman /portal/staff menampilkannya sebagai
+  // "@username", dan tanpa ini semua kartu berbunyi "@tanpa username".
+  username: string;
   created_at: string;
 };
 
@@ -102,6 +105,7 @@ function mapProfile(row: ProfileDbRow, email?: string): Profile {
     role: row.role,
     phone_number: row.phone_number,
     email,
+    username: row.username,
     created_at: toISO(row.created_at),
   };
 }
