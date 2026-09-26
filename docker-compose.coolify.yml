@@ -1,0 +1,51 @@
+# Deploy image yang sudah dibangun di GitHub Actions, bukan di VPS.
+#
+# Pakai ini pada resource type "Docker Compose" di Coolify:
+#   New Resource > Docker Compose Empty > paste isi file ini
+# Lalu set domain service ke: https://atcell.my.id:3000
+#
+# Coolify hanya menarik image yang sudah jadi. Tidak ada proses build di VPS,
+# sehingga RAM 2 GB aman dipakai hanya untuk menjalankan aplikasi.
+#
+# Jangan tambahkan blok `build:` di sini. Kalau ada `build:`, Coolify akan
+# membangun image di VPS, dan itu justru penyebab VPS kehabisan memori.
+#
+# Environment variables (Supabase, DATABASE_URL, SERVER_ACTIONS_ALLOWED_ORIGINS,
+# SUPABASE_COOKIE_DOMAIN) diisi lewat Coolify Environment Variables, bukan dari
+# file ini. Nilainya sudah ada di resource yang ada sekarang.
+
+services:
+  web:
+    image: ghcr.io/neiaki/kp:latest
+    restart: unless-stopped
+
+    # Nilai ini harus sama dengan build di GitHub Actions.
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+
+    # next/image menulis cache ke .next/cache, jadi foldernya harus writable
+    # oleh user non-root yang dipakai Dockerfile.
+    volumes:
+      - next-cache:/app/.next/cache
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Jangan set user: root. Dockerfile sudah menentukan USER node.
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+
+volumes:
+  next-cache:

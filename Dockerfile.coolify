@@ -1,0 +1,21 @@
+# Dockerfile untuk Coolify.
+#
+# Coolify (Application dengan build pack Dockerfile) selalu menjalankan proses
+# "build" di VPS. Kalau Dockerfile ini berisi build Next.js, VPS 2 GB akan
+# kehabisan memori setiap deploy, dan itu sudah dua kali membuat VPS berhenti
+# merespons (SSH, dashboard, dan situs ikut mati).
+#
+# Build sebenarnya sudah terjadi di GitHub Actions dan hasilnya di-push ke
+# GHCR. Dockerfile ini cuma menarik image itu, jadi tahap build di VPS
+# package install dan next build tidak pernah dijalankan. Puncak pemakaian RAM
+# sekitar 200-300 MB, bukan 1,5-2 GB.
+#
+# Build pack: Dockerfile
+# Dockerfile location: /Dockerfile.coolify
+#
+# Pin ke tag sha-<commit> supaya image yang ditarik persis sesuai commit yang
+# dipilih, bukan tag latest yang bisa bergerak. Contoh tag yang tersedia:
+#   ghcr.io/neiaki/kp:sha-056838145d9852f59c9ae0eae612c4dba082a665
+FROM ghcr.io/neiaki/kp:latest
+
+# CMD, ENV, EXPOSE, dan USER sudah ada di image, tidak perlu diulang di sini.
