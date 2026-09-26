@@ -28,6 +28,9 @@ export interface Profile {
   role: UserRole;
   phone_number: string;
   email?: string;
+  // Identitas login portal. Wajib ada di mode live (0005), opsional di mode
+  // demo lokal yang masih memakai data dummy.
+  username?: string;
   created_at: string;
 }
 
