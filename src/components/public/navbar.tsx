@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { translations, Locale } from "@/lib/translations";
 import { Search, Menu, X, LogIn } from "lucide-react";
-import { ThemeToggle } from "@/components/public/theme-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function PublicNavbar({ locale }: { locale: Locale }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Menu, ExternalLink } from "lucide-react";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function PortalLayout({
   children,
@@ -34,13 +35,16 @@ export default function PortalLayout({
               At Cell Portal
             </span>
           </span>
-          <Link
-            href="/id"
-            aria-label="Lihat web publik"
-            className="ml-auto rounded-lg p-2 text-muted hover:bg-paper hover:text-ink"
-          >
-            <ExternalLink className="h-5 w-5" />
-          </Link>
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+            <Link
+              href="/id"
+              aria-label="Lihat web publik"
+              className="rounded-lg p-2 text-muted hover:bg-paper hover:text-ink"
+            >
+              <ExternalLink className="h-5 w-5" />
+            </Link>
+          </div>
         </div>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">{children}</div>
