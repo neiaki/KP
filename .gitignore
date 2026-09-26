@@ -53,3 +53,6 @@ next-env.d.ts
 
 # artefak referensi drizzle-kit, di-generate ulang tiap kali perlu
 /supabase/drizzle-generated/
+
+# artefak browser MCP
+.playwright-mcp/
