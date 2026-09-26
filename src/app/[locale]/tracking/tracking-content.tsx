@@ -111,7 +111,7 @@ export function Lightbox({
               type="button"
               onClick={onClose}
               aria-label={locale === "en" ? "Close photo viewer" : "Tutup penampil foto"}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sm font-extrabold text-ink transition-colors hover:bg-line"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sm font-extrabold text-ink transition-colors hover:bg-line dark:text-paper"
             >
               <X className="h-5 w-5" />
             </button>

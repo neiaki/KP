@@ -67,11 +67,13 @@ export async function createTicket(raw: CreateTicketInput): Promise<ActionResult
   const db = getDb();
   if (!db) return backendOffline();
   try {
-    // ticketCode tidak diisi: biarkan default '' agar trigger SQL membuat
+    // ticketCode dikosongkan: kolomnya tidak punya DEFAULT di DB, jadi nilai
+    // kosong dikirim eksplisit dan trigger SQL yang menggantinya dengan
     // SRV-YYYYMMDD-XXXXXXXX secara atomik.
     const [created] = await db
       .insert(serviceTickets)
       .values({
+        ticketCode: "",
         customerName: v.customerName,
         customerPhone: v.customerPhone,
         deviceModel: v.deviceModel,

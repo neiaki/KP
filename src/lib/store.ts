@@ -736,7 +736,8 @@ export function useAtCellStore() {
     role: UserRole,
     phone: string,
     email: string,
-    password?: string
+    password?: string,
+    username?: string
   ): Promise<Profile | undefined> => {
     if (liveBackendEnabled) {
       if (role === "customer") {
@@ -745,9 +746,24 @@ export function useAtCellStore() {
       if (!password || password.length < 8) {
         throw new Error("Kata sandi staf minimal 8 karakter.");
       }
+      // Login portal memakai username, jadi staf wajib punya username eksplisit.
+      // Kalau form tidak mengirimnya, turunkan dari email seperti trigger.
+      const finalUsername = (
+        username ??
+        email
+          .trim()
+          .toLowerCase()
+          .split("@")[0]
+          .replace(/[^a-z0-9._-]/g, "")
+          .slice(0, 32)
+      ).trim();
+      if (finalUsername.length < 3) {
+        throw new Error("Username staf minimal 3 karakter.");
+      }
       const result = await inviteStaffAction({
         fullName: name,
         email,
+        username: finalUsername,
         password,
         phoneNumber: phone,
         role,

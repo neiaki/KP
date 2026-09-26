@@ -7,7 +7,7 @@ import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
-import { customerSignUpSchema, staffInviteSchema } from "@/lib/validations";
+import { customerSignUpSchema, staffInviteSchema, usernameSchema } from "@/lib/validations";
 import type { UserRole } from "@/types";
 import {
   backendOffline,
@@ -18,22 +18,56 @@ import {
   type ActionResult,
 } from "./_helpers";
 
-/** Login portal staf/pelanggan (menggantikan switchRole demo di halaman login /id/login). */
-export async function signInWithPassword(
-  email: string,
+// Username yang sama seperti yang dihitung trigger handle_new_user(): huruf
+// kecil dari bagian email sebelum @, dibersihkan dari karakter yang tidak
+// diizinkan, lalu dipotong 32 karakter.
+function usernameFromEmail(email: string): string {
+  return email
+    .trim()
+    .toLowerCase()
+    .split("@")[0]
+    .replace(/[^a-z0-9._-]/g, "")
+    .slice(0, 32);
+}
+
+/**
+ * Login portal staf/pelanggan memakai username, bukan email.
+ *
+ * Supabase Auth hanya menerima email di signInWithPassword, jadi username
+ * dipetakan ke email lewat service_role (bypass RLS, karena policies hanya
+ * mengizinkan user membaca baris profil sendiri). Pesan gagal sengaja sama
+ * untuk "username tidak ada" dan "password salah" supaya username tidak
+ * bisa dienumerasi.
+ */
+export async function signInWithUsername(
+  username: string,
   password: string
 ): Promise<ActionResult<{ role: UserRole; redirectTo: string }>> {
   if (!isSupabaseConfigured()) return backendOffline();
-  const normalizedEmail = email.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || password.length < 8) {
-    return fail("Email atau kata sandi tidak valid.");
+  if (!isSupabaseAdminConfigured()) {
+    return fail(
+      "SUPABASE_SERVICE_ROLE_KEY belum diisi, login pakai username tidak bisa dicocokkan."
+    );
   }
+  const parsed = usernameSchema.safeParse(username);
+  if (!parsed.success) return fail("Username atau kata sandi tidak valid.");
+  if (password.length < 8) return fail("Username atau kata sandi tidak valid.");
+
+  const admin = createAdminClient();
+  const { data: row, error: lookupError } = await admin
+    .from("profiles")
+    .select("email")
+    .eq("username", parsed.data)
+    .maybeSingle();
+  if (lookupError) return fail("Login sedang tidak dapat diproses. Coba lagi sebentar.");
+  if (!row?.email) return fail("Username atau kata sandi salah.");
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: normalizedEmail,
+    email: row.email,
     password,
   });
-  if (error) return fail("Email atau kata sandi salah.");
+  if (error) return fail("Username atau kata sandi salah.");
   const profile = await getCurrentProfile();
   if (!profile) return fail("Profil user tidak ditemukan di tabel profiles.");
   const redirectTo =
@@ -66,6 +100,10 @@ export async function signUpCustomer(input: {
       data: {
         full_name: parsed.data.fullName,
         phone_number: parsed.data.phoneNumber,
+        // Email tetap identitas login Supabase, tapi portal memakai username.
+        // Ini hanya petunjuk: trigger handle_new_user yang memutuskan kalau
+        // username ini bentrok, lalu memakai fallback per-user.
+        username: usernameFromEmail(parsed.data.email),
       },
     },
   });
@@ -86,6 +124,7 @@ export async function signOut(): Promise<void> {
 export async function inviteStaff(input: {
   fullName: string;
   email: string;
+  username: string;
   password: string;
   phoneNumber: string;
   role: Exclude<UserRole, "customer">;
@@ -105,6 +144,7 @@ export async function inviteStaff(input: {
     user_metadata: {
       full_name: parsed.data.fullName,
       phone_number: parsed.data.phoneNumber,
+      username: parsed.data.username,
     },
   });
   if (error || !data.user) return fail("Gagal membuat user. Periksa email dan coba lagi.");
@@ -114,6 +154,8 @@ export async function inviteStaff(input: {
       full_name: parsed.data.fullName,
       phone_number: parsed.data.phoneNumber,
       role: parsed.data.role,
+      username: parsed.data.username,
+      email: parsed.data.email,
     })
     .eq("id", data.user.id);
   if (roleError) return fail("User dibuat, tetapi peran belum berhasil disimpan. Coba lagi.");
@@ -167,6 +209,7 @@ export async function listStaff() {
       fullName: profiles.fullName,
       role: profiles.role,
       phoneNumber: profiles.phoneNumber,
+      username: profiles.username,
       createdAt: profiles.createdAt,
     })
     .from(profiles)
@@ -177,6 +220,7 @@ export async function listStaff() {
       full_name: p.fullName,
       role: p.role,
       phone_number: p.phoneNumber,
+      username: p.username,
       created_at: p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
     }))
   );

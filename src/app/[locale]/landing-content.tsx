@@ -100,6 +100,54 @@ export function LandingContent({ locale }: { locale: Locale }) {
           ? "Hello At Cell, notify me when the iPhone Duo is ready."
           : "Halo At Cell, kabari saya kalau iPhone Duo sudah ready.",
     },
+    {
+      src: "/products/galaxy-s26.jpg",
+      alt:
+        locale === "en"
+          ? "Samsung Galaxy S26, the newest Samsung flagship"
+          : "Samsung Galaxy S26, flagship terbaru Samsung",
+      model: "Samsung Galaxy S26",
+      fact:
+        locale === "en"
+          ? "Exynos 2600, 6.3 inch AMOLED, 4,300 mAh battery. Unveiled 26 February 2026."
+          : "Exynos 2600, AMOLED 6,3 inci, baterai 4.300 mAh. Lahir 26 Februari 2026.",
+      waMessage:
+        locale === "en"
+          ? "Hello At Cell, is the Samsung Galaxy S26 in stock?"
+          : "Halo At Cell, Samsung Galaxy S26 masih ada?",
+    },
+    {
+      src: "/products/galaxy-z-fold-8.jpg",
+      alt:
+        locale === "en"
+          ? "Samsung Galaxy Z Fold 8, the wider book-style foldable"
+          : "Samsung Galaxy Z Fold 8, lipat buku dengan layar lebih lebar",
+      model: "Samsung Galaxy Z Fold 8",
+      fact:
+        locale === "en"
+          ? "Eighth generation, wider 4:3 body built for movies. Unveiled 22 July 2026."
+          : "Generasi kedelapan dengan tubuh 4:3 yang lebih lebar, untuk nonton. Diperkenalkan 22 Juli 2026.",
+      waMessage:
+        locale === "en"
+          ? "Hello At Cell, notify me when the Galaxy Z Fold 8 arrives."
+          : "Halo At Cell, kabari saya kalau Galaxy Z Fold 8 sudah masuk.",
+    },
+    {
+      src: "/products/galaxy-z-flip-8.jpg",
+      alt:
+        locale === "en"
+          ? "Samsung Galaxy Z Flip 8, the thinnest Galaxy flip"
+          : "Samsung Galaxy Z Flip 8, flip paling tipis di kelasnya",
+      model: "Samsung Galaxy Z Flip 8",
+      fact:
+        locale === "en"
+          ? "Thinnest Galaxy flip yet, with a larger outer screen. Unveiled 22 July 2026."
+          : "Flip tertipis Samsung dengan layar luar lebih besar. Diperkenalkan 22 Juli 2026.",
+      waMessage:
+        locale === "en"
+          ? "Hello At Cell, notify me when the Galaxy Z Flip 8 arrives."
+          : "Halo At Cell, kabari saya kalau Galaxy Z Flip 8 sudah masuk.",
+    },
   ];
 
   const handleTrackSubmit = (e: React.FormEvent) => {
@@ -205,7 +253,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
           </p>
           <div className="rise mt-10 flex flex-wrap gap-4" style={{ animationDelay: "240ms" }}>
             <a href="#stok">
-              <Button size="lg" className="rounded-full bg-ink px-8 py-4 text-base font-bold text-white hover:bg-neutral-800 dark:bg-white dark:text-ink dark:hover:bg-neutral-200">
+              <Button size="lg" className="rounded-full bg-ink px-8 py-4 text-base font-bold text-white hover:bg-neutral-800 dark:bg-white dark:text-paper dark:hover:bg-neutral-200">
                 {locale === "en" ? "See stock" : "Lihat stok"}
               </Button>
             </a>
