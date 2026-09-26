@@ -110,7 +110,7 @@ export function ProductCard({
                   onFocus={() => setActive(i)}
                   aria-label={`Lihat foto ${i + 1} dari ${gallery.length}`}
                   aria-pressed={current === i}
-                  className="flex h-6 items-center px-1.5"
+                  className="flex h-10 items-center px-2 sm:h-6 sm:px-1.5"
                 >
                   <span
                     className={`block h-1.5 rounded-full transition-all ${

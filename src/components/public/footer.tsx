@@ -18,7 +18,9 @@ export function PublicFooter({ locale }: { locale: Locale }) {
     ""
   );
 
-  const linkClass = "text-white/75 hover:text-white";
+  /* py-1 memberi tinggi sentuh ~32px tanpa mengubah jarak antar baris
+     (space-y-2 tetap di ul, jadi daftar tidak melar). */
+  const linkClass = "inline-block py-1 text-white/75 hover:text-white";
   const headingClass = "text-sm font-extrabold text-white";
 
   // Hanya platform yang punya URL resmi dari store_settings. Kalau kolomnya
