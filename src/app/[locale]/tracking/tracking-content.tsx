@@ -144,6 +144,13 @@ export function TrackingContent({ locale }: { locale: Locale }) {
     : null;
   const activeTicket = isLiveBackend ? remoteTicket : localTicket;
 
+  // Di backend live, serviceTickets hanya terisi untuk staf yang sudah login.
+  // Pengunjung anonim akan melihat array kosong, jadi daftar contoh klik-able
+  // tidak boleh bergantung pada data itu.
+  const exampleCodes = serviceTickets
+    .slice(0, 3)
+    .map((item) => item.ticket_code);
+
   const performSearch = useCallback(async (code: string) => {
     const normalizedCode = code.trim();
     if (!normalizedCode) return;
@@ -261,19 +268,30 @@ export function TrackingContent({ locale }: { locale: Locale }) {
           </form>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
             <span>{locale === "en" ? "Examples" : "Contoh"}</span>
-            {serviceTickets.slice(0, 3).map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setTicketInput(item.ticket_code);
-                  router.push(`/${locale}/tracking?ticket=${item.ticket_code}`);
-                  performSearch(item.ticket_code);
-                }}
-                className="rounded-md bg-paper px-2 py-1 font-mono text-accent-deep hover:bg-line"
-              >
-                {item.ticket_code}
-              </button>
-            ))}
+            {exampleCodes.length > 0 ? (
+              exampleCodes.map((code) => (
+                <button
+                  key={code}
+                  onClick={() => {
+                    setTicketInput(code);
+                    router.push(`/${locale}/tracking?ticket=${code}`);
+                    performSearch(code);
+                  }}
+                  className="rounded-md bg-paper px-2 py-1 font-mono text-accent-deep hover:bg-line"
+                >
+                  {code}
+                </button>
+              ))
+            ) : (
+              // Pengunjung anonim tidak punya akses ke serviceTickets, jadi
+              // menampilkan kode yang tidak ada hanya akan membuat mereka
+              // mendapat "kode tidak ketemu". Cukup jelaskan polanya saja.
+              <span className="font-mono text-muted">
+                {locale === "en"
+                  ? "SRV-YYYYMMDD-XXXXXXXX, e.g. SRV-20260912-7K4M2QX9"
+                  : "SRV-YYYYMMDD-XXXXXXXX, contoh SRV-20260912-7K4M2QX9"}
+              </span>
+            )}
           </div>
         </div>
 
