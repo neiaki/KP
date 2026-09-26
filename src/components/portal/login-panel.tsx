@@ -20,13 +20,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { signInWithPassword } from "@/lib/actions/auth";
+import { signInWithUsername } from "@/lib/actions/auth";
 
 type DemoAccount = {
   role: UserRole;
   roleLabel: string;
   name: string;
-  email: string;
+  username: string;
   target: string;
   destination: string;
   icon: LucideIcon;
@@ -37,7 +37,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     role: "admin",
     roleLabel: "Admin",
     name: "Hendra Wijaya",
-    email: "admin@atcell.my.id",
+    username: "admin",
     target: "/portal/dashboard",
     destination: "Dashboard",
     icon: ShieldCheck,
@@ -46,7 +46,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     role: "sales",
     roleLabel: "Kasir",
     name: "Budi Santoso",
-    email: "sales@atcell.my.id",
+    username: "sales",
     target: "/portal/pos",
     destination: "Kasir POS",
     icon: ShoppingBag,
@@ -55,7 +55,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     role: "technician",
     roleLabel: "Teknisi",
     name: "Rian Pratama",
-    email: "teknisi@atcell.my.id",
+    username: "teknisi",
     target: "/portal/service",
     destination: "Meja servis",
     icon: Wrench,
@@ -64,7 +64,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     role: "customer",
     roleLabel: "Pelanggan",
     name: "Anisa Rahmawati",
-    email: "anisa@gmail.com",
+    username: "anisa",
     target: "/portal/account",
     destination: "Faktur & garansi",
     icon: User,
@@ -75,7 +75,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
   const router = useRouter();
   const { switchRole, isLiveBackend } = useStore();
 
-  const [email, setEmail] = useState("admin@atcell.my.id");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [mounted, setMounted] = useState(false);
@@ -95,7 +95,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
   const handleDemoSelect = (account: DemoAccount) => {
     if (isLiveBackend) return;
     setSelectedRole(account.role);
-    setEmail(account.email);
+    setUsername(account.username);
     switchRole(account.role);
     router.push(account.target);
   };
@@ -107,7 +107,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     if (isLiveBackend) {
       setSubmitting(true);
       try {
-        const result = await signInWithPassword(email, password);
+        const result = await signInWithUsername(username, password);
         if (!result.ok) {
           setLoginError(result.error);
           return;
@@ -167,19 +167,22 @@ export function LoginPanel({ locale }: { locale: Locale }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <label htmlFor="login-email" className="block text-xs font-bold text-ink">
-            Email
+          <label htmlFor="login-username" className="block text-xs font-bold text-ink">
+            Username
           </label>
           <Input
-            id="login-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="nama@atcell.my.id"
+            id="login-username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="admin"
             suppressHydrationWarning
-            className="h-11 bg-paper text-sm placeholder:text-muted"
+            className="h-11 bg-paper font-mono text-sm placeholder:text-muted"
           />
         </div>
         <div className="space-y-2">
@@ -246,7 +249,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
               </div>
               <p className="mt-1 text-xs font-medium leading-5">
                 {isLiveBackend
-                  ? "Masuk memakai email dan kata sandi yang sudah terdaftar."
+                  ? "Masuk memakai username dan kata sandi yang sudah terdaftar."
                   : "Pilih akun dan coba alur kerja tanpa mengatur database."}
               </p>
             </div>
@@ -316,7 +319,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
                         </span>
                       </span>
                       <span className="mt-0.5 block truncate font-mono text-xs text-muted">
-                        {account.email}
+                        {account.username}
                       </span>
                     </span>
                     <span className="hidden text-xs font-semibold text-muted xl:block">
@@ -334,7 +337,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
           ) : (
             <details className="group mt-5 border-t border-line pt-4">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-sm font-extrabold text-ink [&::-webkit-details-marker]:hidden">
-                {isLiveBackend ? "Masuk dengan email" : "Buka form login"}
+                {isLiveBackend ? "Masuk dengan username" : "Buka form login"}
                 <ChevronDown className="h-4 w-4 text-muted transition-transform group-open:rotate-180" />
               </summary>
               {manualLoginForm}

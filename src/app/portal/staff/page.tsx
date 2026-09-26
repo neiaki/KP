@@ -15,6 +15,7 @@ export default function StaffManagementPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("sales");
@@ -36,12 +37,24 @@ export default function StaffManagementPage() {
       setNotice({ type: "error", text: "Nama dan email wajib diisi!" });
       return;
     }
+    if (isLiveBackend && !username.trim()) {
+      setNotice({ type: "error", text: "Username wajib diisi untuk login portal." });
+      return;
+    }
     setIsSaving(true);
     try {
-      await addStaff(name.trim(), role, phone.trim(), email.trim(), password);
+      await addStaff(
+        name.trim(),
+        role,
+        phone.trim(),
+        email.trim(),
+        password,
+        username.trim() || undefined
+      );
       setShowAddModal(false);
       setName("");
       setEmail("");
+      setUsername("");
       setPhone("");
       setPassword("");
       setNotice({ type: "success", text: "Akun staf baru berhasil didaftarkan." });
@@ -127,7 +140,7 @@ export default function StaffManagementPage() {
                 <div>
                   <h3 className="font-bold text-ink text-sm">{staf.full_name}</h3>
                   <div className="text-[11px] text-muted font-mono">
-                    {staf.email || "Email tidak ditampilkan"}
+                    @{staf.username || "tanpa username"}
                   </div>
                 </div>
               </div>
@@ -205,6 +218,30 @@ export default function StaffManagementPage() {
                   required
                 />
               </div>
+
+              {isLiveBackend && (
+                <div>
+                  <label className="block font-semibold text-muted mb-1">
+                    Username Login:
+                  </label>
+                  <Input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    placeholder="contoh: gilang"
+                    className="text-xs font-mono"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    minLength={3}
+                    maxLength={32}
+                    pattern="[a-z0-9._\-]{3,32}"
+                    required
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    Dipakai staf untuk masuk portal. Email tetap disimpan sebagai identitas akun.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block font-semibold text-muted mb-1">Nomor WhatsApp / HP:</label>
