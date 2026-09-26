@@ -99,6 +99,12 @@ export const storeSettings = pgTable(
     mapsUrl: text("maps_url"),
     phoneNumber: text("phone_number").notNull().default(""),
     whatsappNumber: text("whatsapp_number"),
+    // URL sosmed opsional. Null berarti platform itu tidak ditampilkan, jadi
+    // tidak ada link placeholder yang mengarah ke domain orang lain.
+    socialFacebook: text("social_facebook"),
+    socialInstagram: text("social_instagram"),
+    socialX: text("social_x"),
+    socialTiktok: text("social_tiktok"),
     openingHours: jsonb("opening_hours")
       .$type<Record<string, string>>()
       .notNull()

@@ -51,6 +51,10 @@ export interface Database {
           maps_url: string | null;
           phone_number: string;
           whatsapp_number: string | null;
+          social_facebook: string | null;
+          social_instagram: string | null;
+          social_x: string | null;
+          social_tiktok: string | null;
           opening_hours: Record<string, string>;
           updated_at: string;
         };
@@ -65,6 +69,10 @@ export interface Database {
           maps_url?: string | null;
           phone_number?: string;
           whatsapp_number?: string | null;
+          social_facebook?: string | null;
+          social_instagram?: string | null;
+          social_x?: string | null;
+          social_tiktok?: string | null;
           opening_hours?: Record<string, string>;
         };
         Update: {
@@ -77,6 +85,10 @@ export interface Database {
           maps_url?: string | null;
           phone_number?: string;
           whatsapp_number?: string | null;
+          social_facebook?: string | null;
+          social_instagram?: string | null;
+          social_x?: string | null;
+          social_tiktok?: string | null;
           opening_hours?: Record<string, string>;
         };
         Relationships: [];

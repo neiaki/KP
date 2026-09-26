@@ -225,6 +225,15 @@ const storeLongitude = z.coerce.number().min(-180).max(180).nullable().optional(
 const storeMapsUrl = z.string().trim().url("URL peta tidak valid.").max(500).or(z.literal(""));
 const storePhone = z.string().trim().min(5, "Nomor telepon toko wajib diisi.");
 const storeWhatsapp = z.string().trim().max(16);
+// Hanya http dan https. Menolak skema lain mencegah form settings dipakai
+// menyuntik javascript: atau data: lewat kolom URL.
+const socialUrl = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((v) => v === "" || /^https?:\/\//.test(v), {
+    message: "URL sosmed harus diawali http:// atau https://",
+  });
 const openingHours = z.record(z.string(), z.string());
 
 export const storeSettingsSchema = z.object({
@@ -237,6 +246,10 @@ export const storeSettingsSchema = z.object({
   maps_url: storeMapsUrl.optional(),
   phone_number: storePhone,
   whatsapp_number: storeWhatsapp.optional(),
+  social_facebook: socialUrl.optional(),
+  social_instagram: socialUrl.optional(),
+  social_x: socialUrl.optional(),
+  social_tiktok: socialUrl.optional(),
   opening_hours: openingHours.default({}),
 });
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>;
@@ -251,6 +264,10 @@ export const storeSettingsUpdateSchema = z.object({
   maps_url: storeMapsUrl.optional(),
   phone_number: storePhone.optional(),
   whatsapp_number: storeWhatsapp.optional(),
+  social_facebook: socialUrl.optional(),
+  social_instagram: socialUrl.optional(),
+  social_x: socialUrl.optional(),
+  social_tiktok: socialUrl.optional(),
   opening_hours: openingHours.optional(),
 });
 export type StoreSettingsUpdateInput = z.infer<typeof storeSettingsUpdateSchema>;

@@ -55,6 +55,12 @@ export const initialStoreSettings: StoreSettings = {
   maps_url: "https://maps.app.goo.gl/8Qbpvqs6FwihDrk7A",
   phone_number: "+62 857-7539-8389",
   whatsapp_number: "6285775398389",
+  // Kosong berarti ikon platform itu tidak muncul di footer. Isi dengan URL
+  // resmi toko lewat portal/settings, bukan dengan URL halaman generik.
+  social_facebook: "",
+  social_instagram: "",
+  social_x: "",
+  social_tiktok: "",
   opening_hours: {
     monday_friday: "09:00 - 21:00 WIB",
     saturday_sunday: "10:00 - 22:00 WIB",
