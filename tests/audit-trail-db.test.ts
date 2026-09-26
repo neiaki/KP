@@ -18,11 +18,34 @@ import postgres from "postgres";
  */
 
 const url = process.env.DATABASE_URL;
-const skip = url ? false : "butuh DATABASE_URL";
+
+// Keberadaan DATABASE_URL tidak menjamin database-nya bisa dihubungi. Tanpa
+// pemeriksaan koneksi, sisa DATABASE_URL milik project lain di shell membuat
+// `npm test` gagal dengan ECONNREFUSED, dan di CI runner mana pun yang punya
+// env itu pipeline merah tanpa ada yang rusak. Karena itu koneksi dicoba sekali
+// dulu, dan semua test dilewati kalau gagal.
+async function canConnect(target: string): Promise<boolean> {
+  const probe = postgres(target, { max: 1, connect_timeout: 5, onnotice: () => {} });
+  try {
+    await probe`select 1`;
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await probe.end({ timeout: 1 }).catch(() => {});
+  }
+}
+
+const reachable = url ? await canConnect(url) : false;
+const skip = !url
+  ? "butuh DATABASE_URL"
+  : reachable
+    ? false
+    : "DATABASE_URL tidak bisa dihubungi";
 
 // max: 1 supaya semua test memakai connection yang sama. Ini yang membuat uji
 // kebocoran di bawah benar-benar menguji connection pool, bukan kebetulan.
-const sql = url ? postgres(url, { max: 1, onnotice: () => {} }) : null;
+const sql = reachable && url ? postgres(url, { max: 1, onnotice: () => {} }) : null;
 
 /**
  * Jalankan `fn` di dalam transaction, lalu batalkan semua perubahannya dengan
