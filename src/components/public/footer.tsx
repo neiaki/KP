@@ -21,6 +21,17 @@ export function PublicFooter({ locale }: { locale: Locale }) {
   const linkClass = "text-white/75 hover:text-white";
   const headingClass = "text-sm font-extrabold text-white";
 
+  // Hanya platform yang punya URL resmi dari store_settings. Kalau kolomnya
+  // kosong, ikonnya tidak muncul sama sekali, bukan tautan ke halaman generik.
+  const socialLinks = [
+    { label: "Facebook", slug: "facebook", href: storeSettings.social_facebook },
+    { label: "Instagram", slug: "instagram", href: storeSettings.social_instagram },
+    { label: "X", slug: "x", href: storeSettings.social_x },
+    { label: "TikTok", slug: "tiktok", href: storeSettings.social_tiktok },
+  ].filter((s): s is { label: string; slug: string; href: string } =>
+    Boolean(s.href && /^https?:\/\//.test(s.href))
+  );
+
   return (
     <footer data-hide-on-login className="bg-[#0f172b]">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -176,14 +187,17 @@ export function PublicFooter({ locale }: { locale: Locale }) {
                 {storeSettings.phone_number}
               </span>
             </div>
-            {/* TODO: ganti href di bawah dengan URL sosmed resmi toko */}
-            <div className="flex items-center gap-2 pt-1" aria-label="Media sosial At Cell">
-              {[
-                { label: "Facebook", slug: "facebook", href: "https://facebook.com/" },
-                { label: "Instagram", slug: "instagram", href: "https://instagram.com/" },
-                { label: "X", slug: "x", href: "https://x.com/" },
-                { label: "TikTok", slug: "tiktok", href: "https://tiktok.com/" },
-              ].map((s) => (
+            <div
+              className="flex items-center gap-2 pt-1"
+              aria-label={
+                locale === "en" ? "Social media" : "Media sosial At Cell"
+              }
+            >
+              {/* URL sosmed datang dari store_settings, diisi Admin lewat
+                  portal/settings. Platform tanpa URL sengaja tidak
+                  dirender, jadi tidak ada lagi tautan ke domain milik orang
+                  lain. WhatsApp selalu tampil karena dipakai operasional. */}
+              {socialLinks.map((s) => (
                 <a
                   key={s.label}
                   href={s.href}

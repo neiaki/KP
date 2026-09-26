@@ -45,6 +45,12 @@ export interface StoreSettings {
   maps_url?: string;
   phone_number: string;
   whatsapp_number?: string;
+  // URL sosmed resmi toko. Kosong berarti platform itu tidak ditampilkan di
+  // footer, jadi tidak pernah ada tautan ke domain orang lain.
+  social_facebook?: string;
+  social_instagram?: string;
+  social_x?: string;
+  social_tiktok?: string;
   opening_hours: {
     monday_friday: string;
     saturday_sunday: string;
