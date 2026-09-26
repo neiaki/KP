@@ -1,16 +1,21 @@
 -- ============================================================================
 -- File gabungan untuk Supabase SQL Editor
 --
--- Isi: seluruh migrasi yang belum pernah dijalankan ke project At Cell,
--- digabung supaya bisa di-paste sekali jalan, bukan enam kali. Urutannya
--- mengikuti ketergantungan antar bagian, bukan hanya nomor file.
+-- Isi: seluruh migrasi At Cell dalam satu file, supaya project baru bisa
+-- di-provision sekali paste, bukan enam kali. Urutannya mengikuti
+-- ketergantungan antar bagian, bukan hanya nomor file.
 --
--- SUDAH DIJALANKAN (jangan diulang):
+-- STATUS untuk project At Cell yang sekarang: SEMUA bagian di bawah ini SUDAH
+-- TERJALAN (diverifikasi 27 Sep 2026), jadi file ini tidak perlu di-paste lagi
+-- ke project itu. Yang membutuhkannya hanya project yang belum ter-provision:
+-- akun Supabase baru, staging terpisah, atau database yang di-reset dari nol.
+--
+-- SUDAH DIJALANKAN SEJAK AWAL (jangan diulang):
 --   0001_atcell_schema.sql        8 tabel, enum, trigger, RLS, view, storage, seed
 --   0002_harden_atcell_schema.sql helper private, view security_invoker, grants
 --   0003_lock_legacy_helpers.sql  revoke helper public
 --
--- DI BAWAH INI YANG BARU, jalankan berurutan:
+-- BAGIAN DI BAWAH INI, berurutan sesuai ketergantungan:
 --   0004_align_schema_contract         FK cascade, index performa, singleton store_settings
 --   20260926025406_index_public_foreign_keys index untuk foreign key yang belum punya index pendahulu
 --   20260926103000_strengthen_ticket_codes kode resi 8 karakter base32, kode lama tetap berlaku
@@ -18,15 +23,20 @@
 --   0007_audit_trail                   audit trail unit + tiket servis (NFR-07), ditulis trigger database
 --   0005_username_login                kolom email + username, trigger profil, login portal pakai username
 --
--- ATURAN: seluruh bagian di bawah idempoten dan tidak menghapus data.
--- SQL Editor membungkus semua Run dalam satu transaction, jadi kalau satu
--- bagian gagal semuanya batal. Jalankan per bagian kalau ingin tahu bagian
--- mana yang bermasalah.
+-- ATURAN: seluruh bagian di bawah idempoten dan tidak menghapus data. Aman
+-- dijalankan berulang. SQL Editor membungkus semua Run dalam satu transaction,
+-- jadi kalau satu bagian gagal semuanya batal. Jalankan per bagian kalau
+-- ingin tahu bagian mana yang bermasalah.
 --
 -- CATATAN untuk bagian audit trail: actor_id hanya terisi kalau Server Action
 -- menulisnya di transaction yang sama dengan UPDATE-nya. Perubahan lewat SQL
 -- Editor manual tercatat dengan actor_id NULL. Itu bukan bug, justru sinyal
 -- perubahan yang perlu ditinjau.
+--
+-- SETELAH DIJALANKAN, cek hasilnya dengan query di bagian paling bawah file ini.
+-- tests/audit-trail-db.test.ts menguji bagian audit trail ini langsung ke
+-- database, tapi hanya jalan kalau DATABASE_URL diisi:
+--   set -a; . ./.env; set +a && npm test
 -- ============================================================================
 
 
