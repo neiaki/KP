@@ -90,7 +90,7 @@ export default function NewServiceTicketPage() {
             Pendaftaran Tiket Servis Masuk
           </h1>
           <p className="text-xs text-muted">
-            Sistem akan menerbitkan kode resi otomatis dengan format SRV-YYYYMMDD-XXXX.
+            Sistem akan menerbitkan kode resi otomatis dengan format SRV-YYYYMMDD-XXXXXXXX (8 karakter).
           </p>
         </div>
       </div>

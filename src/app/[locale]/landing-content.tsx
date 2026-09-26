@@ -324,7 +324,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
                   id="hero-ticket"
                   value={ticketQuery}
                   onChange={(e) => setTicketQuery(e.target.value)}
-                  placeholder="SRV-20260912-0042"
+                  placeholder="SRV-20260912-7K4M2QX9"
                   className="h-10 flex-1 font-mono text-xs uppercase"
                 />
                 <Button type="submit" className="h-10 shrink-0">

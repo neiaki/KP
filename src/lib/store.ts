@@ -32,7 +32,11 @@ import {
   createTicket as createTicketAction,
   updateTicket as updateTicketAction,
 } from "@/lib/actions/service";
-import { isAllowedTransition, registerUnitsSchema } from "@/lib/validations";
+import {
+  generateTicketSuffix,
+  isAllowedTransition,
+  registerUnitsSchema,
+} from "@/lib/validations";
 import { updateStoreSettings as updateStoreSettingsAction } from "@/lib/actions/settings";
 import { inviteStaff as inviteStaffAction } from "@/lib/actions/auth";
 
@@ -639,7 +643,7 @@ export function useAtCellStore() {
     const existingCodes = new Set(serviceTickets.map((ticket) => ticket.ticket_code));
     let ticketCode = "";
     for (let attempt = 0; attempt < 20; attempt++) {
-      const candidate = `SRV-${todayStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const candidate = `SRV-${todayStr}-${generateTicketSuffix()}`;
       if (!existingCodes.has(candidate)) {
         ticketCode = candidate;
         break;

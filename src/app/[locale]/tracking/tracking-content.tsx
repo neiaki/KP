@@ -250,7 +250,7 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                   type="text"
                   value={ticketInput}
                   onChange={(e) => setTicketInput(e.target.value)}
-                  placeholder="SRV-20260912-0042"
+                  placeholder="SRV-20260912-7K4M2QX9"
                   className="h-11 bg-card pl-10 font-mono text-sm uppercase"
                 />
               </div>

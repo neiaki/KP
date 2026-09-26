@@ -7,10 +7,33 @@ export const imeiSchema = z
   .trim()
   .regex(/^\d{15}$/, "Nomor IMEI wajib tepat 15 digit angka.");
 
+// Alfabet base32 tanpa I, L, O, U, sama persis dengan fungsi SQL
+// generate_ticket_code(). Kode 4 digit lama tetap diterima supaya nota yang
+// sudah tercetak tidak ikut invalid.
+const TICKET_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+export const TICKET_CODE_PATTERN = /^SRV-\d{8}-(?:\d{4}|[0-9A-HJKMNP-TV-Z]{8})$/i;
+export const TICKET_CODE_EXAMPLE = "SRV-20260913-7K4M2QX9";
+
+/**
+ * Sufiks 8 karakter untuk mode lokal tanpa Supabase. Di produksi kode ini
+ * dibuat trigger SQL dengan gen_random_bytes(), jadi jangan dipakai di server.
+ */
+export function generateTicketSuffix(): string {
+  let out = "";
+  for (let i = 0; i < 8; i++) {
+    out += TICKET_ALPHABET[Math.floor(Math.random() * TICKET_ALPHABET.length)];
+  }
+  return out;
+}
+
 export const ticketCodeSchema = z
   .string()
   .trim()
-  .regex(/^SRV-\d{8}-\d{4}$/, "Format kode tiket: SRV-YYYYMMDD-XXXX.");
+  .toUpperCase()
+  .regex(
+    TICKET_CODE_PATTERN,
+    `Format kode tiket: SRV-YYYYMMDD-XXXXXXXX, contoh ${TICKET_CODE_EXAMPLE}.`
+  );
 
 export const phoneSchema = z
   .string()

@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { serviceTickets, type ServiceTicketRow } from "@/db/schema";
 import {
+  TICKET_CODE_EXAMPLE,
   createTicketSchema,
   isAllowedTransition,
   ticketCodeSchema,
@@ -12,6 +14,7 @@ import {
   type CreateTicketInput,
   type UpdateTicketInput,
 } from "@/lib/validations";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import type { RepairStatus, ServiceTicket } from "@/types";
 import {
   backendOffline,
@@ -65,7 +68,7 @@ export async function createTicket(raw: CreateTicketInput): Promise<ActionResult
   if (!db) return backendOffline();
   try {
     // ticketCode tidak diisi: biarkan default '' agar trigger SQL membuat
-    // SRV-YYYYMMDD-XXXX secara atomik.
+    // SRV-YYYYMMDD-XXXXXXXX secara atomik.
     const [created] = await db
       .insert(serviceTickets)
       .values({
@@ -218,11 +221,60 @@ type PublicTrackingResult = {
   updated_at: string;
 };
 
+/**
+ * Lacak servis tanpa login. Endpoint ini terbuka untuk publik, jadi kuota
+ * ditegakkan per IP dan juga global. Tanpa ini, siapa pun bisa menyapu seluruh
+ * kode resi satu tanggal hanya dengan menebak.
+ */
+const TRACKING_PER_IP_LIMIT = 10;
+const TRACKING_PER_IP_WINDOW_MS = 60_000;
+/** Lapisan kedua untuk penyerang yang memakai banyak IP berbeda. */
+const TRACKING_GLOBAL_LIMIT = 200;
+const TRACKING_GLOBAL_WINDOW_MS = 60_000;
+
+/**
+ * Pembaca IP pengunjung untuk menjadi kunci rate limit. Traefik di Coolify
+ * selalu menyetel X-Forwarded-For, jadi entri pertama adalah klien asli. Kalau
+ * headernya hilang, semua permintaan digabung ke satu kunci global, yang
+ * membuat batasnya lebih ketat, bukan lebih longgar.
+ */
+async function getTrackingClientId(): Promise<string> {
+  const h = await headers();
+  const forwarded = h.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return h.get("x-real-ip")?.trim() || "unknown";
+}
+
 export async function trackTicketPublic(rawCode: string): Promise<
   ActionResult<PublicTrackingResult>
 > {
+  const clientId = await getTrackingClientId();
+  const perIp = consumeRateLimit(
+    `track-ip:${clientId}`,
+    TRACKING_PER_IP_LIMIT,
+    TRACKING_PER_IP_WINDOW_MS
+  );
+  if (!perIp.allowed) {
+    return fail(
+      `Terlalu banyak percobaan. Coba lagi dalam ${perIp.retryAfterSeconds} detik.`
+    );
+  }
+  const global = consumeRateLimit(
+    "track-global",
+    TRACKING_GLOBAL_LIMIT,
+    TRACKING_GLOBAL_WINDOW_MS
+  );
+  if (!global.allowed) {
+    return fail("Layanan sedang sibuk. Coba lagi sebentar.");
+  }
+
   const parsed = ticketCodeSchema.safeParse(rawCode);
-  if (!parsed.success) return fail("Format kode tiket salah. Contoh: SRV-20260913-0001.");
+  if (!parsed.success) {
+    return fail(`Format kode tiket salah. Contoh: ${TICKET_CODE_EXAMPLE}.`);
+  }
   const db = getDb();
   if (!db) return fail("Backend Supabase belum dikonfigurasi. Coba lagi nanti.");
   let t: PublicTicketRow | undefined;
@@ -238,7 +290,7 @@ export async function trackTicketPublic(rawCode: string): Promise<
         updatedAt: serviceTickets.updatedAt,
       })
       .from(serviceTickets)
-      .where(eq(serviceTickets.ticketCode, parsed.data.toUpperCase()));
+      .where(eq(serviceTickets.ticketCode, parsed.data));
   } catch {
     return fail("Layanan pelacakan sedang tidak dapat dihubungi. Coba lagi sebentar.");
   }
