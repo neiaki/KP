@@ -18,6 +18,8 @@ export interface Database {
           full_name: string;
           role: UserRole;
           phone_number: string;
+          email: string | null;
+          username: string;
           created_at: string;
         };
         Insert: {
@@ -25,11 +27,15 @@ export interface Database {
           full_name: string;
           role?: UserRole;
           phone_number?: string;
+          email?: string | null;
+          username?: string;
         };
         Update: {
           full_name?: string;
           role?: UserRole;
           phone_number?: string;
+          email?: string | null;
+          username?: string;
         };
         Relationships: [];
       };

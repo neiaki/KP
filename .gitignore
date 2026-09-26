@@ -50,3 +50,6 @@ next-env.d.ts
 
 # cache index tool AI lokal, jangan commit
 /.serena/
+
+# artefak referensi drizzle-kit, di-generate ulang tiap kali perlu
+/supabase/drizzle-generated/
