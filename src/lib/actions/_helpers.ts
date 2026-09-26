@@ -65,6 +65,9 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     role: data.role,
     phone_number: data.phone_number,
     email: user.email ?? undefined,
+    // Kolom username ada sejak migrasi 0005. Tanpa ini, kartu staf untuk
+    // pelanggan yang sedang login sendiri berbunyi "@tanpa username".
+    username: data.username,
     created_at: data.created_at,
   };
 }

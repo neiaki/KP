@@ -273,7 +273,7 @@ export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshot>>
   const ticketRows = ticketsResult.data as unknown as ServiceTicketDbRow[];
   const profileRows =
     guard.profile.role === "customer"
-      ? [mapProfile(guard.profile)]
+      ? [guard.profile]
       : (profilesResult.data as unknown as ProfileDbRow[]).map((row) => mapProfile(row));
 
   let settingsResult: Awaited<ReturnType<typeof getPublicStoreSettings>>;
