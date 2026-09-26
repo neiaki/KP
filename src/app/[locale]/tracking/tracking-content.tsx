@@ -431,7 +431,7 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                         <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${isCurrent ? "text-accent-deep" : isDone ? "text-ink" : "text-muted"}`}>
                           {locale === "en" ? step.verbEn : step.verbId}
                           {isCurrent && (
-                            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-extrabold text-accent-deep">
+                            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-extrabold text-accent-deep">
                               Posisi sekarang
                             </span>
                           )}

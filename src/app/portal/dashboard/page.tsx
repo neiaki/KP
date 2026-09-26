@@ -148,7 +148,10 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-2 text-[11px] text-muted mt-1">
               <span className="text-good font-semibold">{completedTickets.length} selesai</span>
               <span>•</span>
-              <Link href="/portal/service" className="text-accent-deep hover:underline inline-flex items-center gap-1">
+              <Link
+                href="/portal/service"
+                className="text-accent-deep hover:underline inline-flex items-center gap-1 py-2 -my-2"
+              >
                 Buka meja servis <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>

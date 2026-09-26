@@ -130,7 +130,7 @@ export function ProductCard({
       <div className="flex flex-1 flex-col p-4">
         {item.tag && (
           <p
-            className={`mb-2 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white ${
+            className={`mb-2 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white ${
               item.tag === "bestseller" ? "bg-accent" : "bg-bad"
             }`}
           >

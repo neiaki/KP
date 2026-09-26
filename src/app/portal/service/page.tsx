@@ -176,7 +176,8 @@ export default function TechnicianServicePage() {
             <button
               key={st.key}
               onClick={() => setStatusFilter(st.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              /* min-h-10 untuk tinggi sentuh 40px di HP, kembali rapat di desktop. */
+              className={`min-h-10 rounded-lg px-3 py-2 text-xs font-semibold cursor-pointer transition-colors sm:min-h-0 sm:py-1.5 ${
                 statusFilter === st.key
                   ? "bg-accent text-white shadow-xs"
                   : "bg-paper text-muted hover:bg-line"

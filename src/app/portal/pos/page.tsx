@@ -342,7 +342,9 @@ export default function SalesPosPage() {
                   Otomatis potong harga & daftarkan unit lama ke inventaris stok seken
                 </CardDescription>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
+              {/* Label inilah target sentuhnya, bukan checkbox 16px di
+                  dalamnya, jadi label yang dapet tinggi 40px di HP. */}
+              <label className="flex min-h-10 items-center gap-2 cursor-pointer sm:min-h-0">
                 <input
                   type="checkbox"
                   checked={hasTradeIn}
