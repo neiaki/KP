@@ -197,10 +197,11 @@ export function PortalSidebar({
       </div>
 
       {/* Navigation List */}
-      {/* Nav tidak lagi memakai flex-1 supaya tidak menyisakan celah besar
-          di saat daftar menu pendek. Spacer dipindah ke footer lewat
-          mt-auto, jadi link logout tetap menempel di bawah tanpa membuat
-          sidebar tampak setengah kosong. */}
+      {/* Spacer ada di footer (mt-auto), bukan di nav (flex-1). Secara visual
+          hasilnya sama: blok Logout tetap menempel di dasar sidebar dan
+          tersisa celah kosong di atasnya kalau daftar menu pendek. Dipindah ke
+          footer supaya saat menu bertambah panjang, footer ikut ter-scroll
+          bersama nav alih-alih tertahan di bawah. */}
       <nav className="space-y-1 px-3 py-2" aria-label="Menu operasional">
         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
           Menu Operasional
