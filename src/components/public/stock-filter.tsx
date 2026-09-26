@@ -128,7 +128,7 @@ export function StockFilter({
                 type="button"
                 onClick={() => onConditionChange(c.key)}
                 aria-pressed={condition === c.key}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                className={`min-h-10 rounded-full px-3 py-2 text-xs font-bold transition-colors sm:min-h-0 sm:py-1.5 ${
                   condition === c.key ? "bg-accent text-white shadow-sm" : "text-muted hover:text-ink"
                 }`}
               >
