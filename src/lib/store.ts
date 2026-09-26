@@ -498,7 +498,13 @@ export function useAtCellStore() {
   };
 
   const executePosSale = async (params: {
-    salesId: string;
+    /**
+     * Hanya dipakai mode lokal (localStorage) yang tidak punya sesi auth.
+     * Di mode live purposefully diabaikan: executeSaleAction memakai
+     * guard.profile.id, jadi penjual selalu akun yang benar-benar login
+     * dan tidak bisa dipalsukan dari browser.
+     */
+    salesId?: string;
     unitId: number;
     customerName: string;
     customerPhone: string;
@@ -593,7 +599,7 @@ export function useAtCellStore() {
 
     const newTransaction: Transaction = {
       id: transactionId,
-      sales_id: params.salesId,
+      sales_id: params.salesId ?? "local-sales",
       customer_id: null,
       customer_name: params.customerName,
       customer_phone: params.customerPhone,
