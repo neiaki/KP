@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/button-link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MessageCircle,
@@ -50,12 +51,10 @@ export function ContactContent({ locale }: { locale: Locale }) {
                     : "Untuk stok, booking, garansi, dan status servis. Dibalas di jam toko."}
                 </p>
               </div>
-              <a href={waLink} target="_blank" rel="noreferrer">
-                <Button variant="wa">
-                  <MessageCircle className="h-4 w-4" />
-                  Chat WhatsApp
-                </Button>
-              </a>
+              <ButtonLink href={waLink} target="_blank" rel="noreferrer" variant="wa">
+                <MessageCircle className="h-4 w-4" />
+                Chat WhatsApp
+              </ButtonLink>
             </CardContent>
           </Card>
           <Card>
@@ -74,12 +73,13 @@ export function ContactContent({ locale }: { locale: Locale }) {
                     : "Untuk hal mendesak seperti jadwal ambil dan status klaim."}
                 </p>
               </div>
-              <a href={`tel:${(storeSettings.phone_number || "").replace(/[^+\d]/g, "")}`}>
-                <Button variant="outline">
-                  <Phone className="h-4 w-4" />
-                  {locale === "en" ? "Call the shop" : "Telepon toko"}
-                </Button>
-              </a>
+              <ButtonLink
+                href={`tel:${(storeSettings.phone_number || "").replace(/[^+\d]/g, "")}`}
+                variant="outline"
+              >
+                <Phone className="h-4 w-4" />
+                {locale === "en" ? "Call the shop" : "Telepon toko"}
+              </ButtonLink>
             </CardContent>
           </Card>
         </div>
@@ -102,17 +102,23 @@ export function ContactContent({ locale }: { locale: Locale }) {
               </p>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <a href={storeSettings.maps_url} target="_blank" rel="noreferrer">
-                <Button variant="outline" size="sm">
-                  {locale === "en" ? "Directions" : "Rute ke toko"}
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </a>
-              <Link href={`/${locale}/customer-service`}>
-                <Button variant="ghost" size="sm">
-                  {locale === "en" ? "Customer service" : "Layanan pelanggan"}
-                </Button>
-              </Link>
+              <ButtonLink
+                href={storeSettings.maps_url}
+                target="_blank"
+                rel="noreferrer"
+                variant="outline"
+                size="sm"
+              >
+                {locale === "en" ? "Directions" : "Rute ke toko"}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </ButtonLink>
+              <ButtonLink
+                href={`/${locale}/customer-service`}
+                variant="ghost"
+                size="sm"
+              >
+                {locale === "en" ? "Customer service" : "Layanan pelanggan"}
+              </ButtonLink>
             </div>
           </div>
           <div className="overflow-hidden rounded-xl border border-line lg:col-span-7">

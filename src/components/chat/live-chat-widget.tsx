@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/button-link";
 
 interface ChatMessage {
   id: string;
@@ -368,17 +369,16 @@ export function LiveChatWidget() {
                 ))}
               </div>
 
-              <a
+              <ButtonLink
                 href={`https://wa.me/${waNumber}`}
                 target="_blank"
                 rel="noreferrer"
-                className="block pt-2"
+                variant="wa"
+                className="w-full py-5 gap-2 shadow-md shadow-wa/20"
               >
-                <Button className="w-full bg-wa hover:bg-wa-deep text-white font-bold py-5 gap-2 shadow-md shadow-wa/20">
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Buka Chat WhatsApp Kosong</span>
-                </Button>
-              </a>
+                <MessageCircle className="w-4 h-4" />
+                <span>Buka Chat WhatsApp Kosong</span>
+              </ButtonLink>
             </div>
           )}
         </div>

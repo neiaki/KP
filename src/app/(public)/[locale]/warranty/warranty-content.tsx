@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/button-link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   ShieldCheck,
@@ -195,17 +196,18 @@ export function WarrantyContent({ locale }: { locale: Locale }) {
           {locale === "en" ? "Last updated: September 2026" : "Terakhir diperbarui: September 2026"}
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
-          <a href={waClaim} target="_blank" rel="noreferrer">
-            <Button variant="wa">
-              <MessageCircle className="h-4 w-4" />
-              {locale === "en" ? "Claim via WhatsApp" : "Klaim via WhatsApp"}
-            </Button>
-          </a>
-          <Link href={`/${locale}/tracking`}>
-            <Button variant="outline">
-              {locale === "en" ? "Track a service claim" : "Lacak klaim servis"}
-            </Button>
-          </Link>
+          <ButtonLink
+            href={waClaim}
+            target="_blank"
+            rel="noreferrer"
+            variant="wa"
+          >
+            <MessageCircle className="h-4 w-4" />
+            {locale === "en" ? "Claim via WhatsApp" : "Klaim via WhatsApp"}
+          </ButtonLink>
+          <ButtonLink href={`/${locale}/tracking`} variant="outline">
+            {locale === "en" ? "Track a service claim" : "Lacak klaim servis"}
+          </ButtonLink>
         </div>
 
         <h2 className="mt-10 text-2xl font-extrabold tracking-tight text-ink">
@@ -332,12 +334,16 @@ export function WarrantyContent({ locale }: { locale: Locale }) {
                 : "Kirim nomor nota dan foto kerusakannya dulu."}
             </p>
           </div>
-          <a href={waClaim} target="_blank" rel="noreferrer" className="shrink-0">
-            <Button variant="wa">
-              <MessageCircle className="h-4 w-4" />
-              {locale === "en" ? "Ask on WhatsApp" : "Tanya via WhatsApp"}
-            </Button>
-          </a>
+          <ButtonLink
+            href={waClaim}
+            target="_blank"
+            rel="noreferrer"
+            variant="wa"
+            className="shrink-0"
+          >
+            <MessageCircle className="h-4 w-4" />
+            {locale === "en" ? "Ask on WhatsApp" : "Tanya via WhatsApp"}
+          </ButtonLink>
         </div>
       </div>
     </div>

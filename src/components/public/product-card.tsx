@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatIDR } from "@/lib/utils";
 import { MessageCircle, ArrowLeftRight, Check, BadgeCheck, CreditCard, ChevronLeft, ChevronRight, Flame, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/button-link";
 import { BrandLogo } from "@/components/public/brand-mark";
 import { Locale } from "@/lib/translations";
 import type { UnitTag } from "@/types";
@@ -186,24 +187,28 @@ export function ProductCard({
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <a
+          <ButtonLink
             href={`https://wa.me/${waNumber}?text=${encodeURIComponent(
               `Halo At Cell, saya mau tanya stok ${item.brand} ${item.modelName} (${item.condition}) seharga ${formatIDR(item.price)}. Masih ada?`
             )}`}
             target="_blank"
             rel="noreferrer"
+            size="sm"
+            variant="wa"
+            className="w-full"
           >
-            <Button size="sm" variant="wa" className="w-full">
-              <MessageCircle className="h-3.5 w-3.5" />
-              Tanya stok
-            </Button>
-          </a>
-          <Link href={`/${locale}/trade-in`} className="w-full">
-            <Button variant="outline" size="sm" className="w-full">
-              <ArrowLeftRight className="h-3.5 w-3.5" />
-              Tukar tambah
-            </Button>
-          </Link>
+            <MessageCircle className="h-3.5 w-3.5" />
+            Tanya stok
+          </ButtonLink>
+          <ButtonLink
+            href={`/${locale}/trade-in`}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+            Tukar tambah
+          </ButtonLink>
         </div>
       </div>
     </article>

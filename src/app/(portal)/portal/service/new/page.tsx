@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { uploadPhoto } from "@/lib/actions/storage";
+import { ButtonLink } from "@/components/button-link";
 
 export default function NewServiceTicketPage() {
   const router = useRouter();
@@ -80,13 +81,17 @@ export default function NewServiceTicketPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
       <div className="flex items-center gap-3">
-        <Link href="/portal/service">
-          {/* 40px di HP: tombol balik ini kecil dan sering dipakai sambil
-              memegang unit, jari tidak boleh meleset. */}
-          <Button variant="outline" size="sm" className="h-10 w-10 p-0 sm:h-8 sm:w-8">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        </Link>
+        {/* 40px di HP: tombol balik ini kecil dan sering dipakai sambil
+            memegang unit, jari tidak boleh meleset. */}
+        <ButtonLink
+          href="/portal/service"
+          variant="outline"
+          size="sm"
+          className="h-10 w-10 p-0 sm:h-8 sm:w-8"
+          aria-label="Kembali ke meja servis"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </ButtonLink>
         <div>
           <h1 className="text-2xl font-black text-ink tracking-tight">
             Pendaftaran Tiket Servis Masuk
@@ -226,11 +231,9 @@ export default function NewServiceTicketPage() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-line">
-              <Link href="/portal/service">
-                <Button type="button" variant="outline">
-                  Batal
-                </Button>
-              </Link>
+              <ButtonLink href="/portal/service" variant="outline">
+                Batal
+              </ButtonLink>
               <Button type="submit" disabled={isSubmitting || uploadingPhoto} className="font-bold">
                 {isSubmitting ? "Menerbitkan tiket..." : "Terbitkan Tiket Servis"}
               </Button>

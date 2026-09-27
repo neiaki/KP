@@ -22,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/button-link";
 
 export default function AdminDashboardPage() {
   const { products, inventoryUnits, transactions, serviceTickets } = useStore();
@@ -73,18 +74,14 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/portal/products">
-            <Button size="sm" className="gap-1.5 text-xs font-semibold">
-              <PlusCircle className="w-4 h-4" />
-              <span>Tambah Master Produk</span>
-            </Button>
-          </Link>
-          <Link href="/portal/pos">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs font-semibold">
-              <CreditCard className="w-4 h-4" />
-              <span>Buka POS Kasir</span>
-            </Button>
-          </Link>
+          <ButtonLink href="/portal/products" size="sm" className="gap-1.5 text-xs font-semibold">
+            <PlusCircle className="w-4 h-4" />
+            <span>Tambah Master Produk</span>
+          </ButtonLink>
+          <ButtonLink href="/portal/pos" variant="outline" size="sm" className="gap-1.5 text-xs font-semibold">
+            <CreditCard className="w-4 h-4" />
+            <span>Buka POS Kasir</span>
+          </ButtonLink>
         </div>
       </div>
 
@@ -244,11 +241,9 @@ export default function AdminDashboardPage() {
                         >
                           Sisa {item.availableCount} Unit
                         </Badge>
-                        <Link href="/portal/inventory">
-                          <Button size="sm" variant="outline" className="text-xs h-8">
-                            + Tambah IMEI
-                          </Button>
-                        </Link>
+                        <ButtonLink href="/portal/inventory" size="sm" variant="outline" className="text-xs h-8">
+                          + Tambah IMEI
+                        </ButtonLink>
                       </div>
                     </div>
                   ))}
@@ -271,11 +266,9 @@ export default function AdminDashboardPage() {
                   Unit dalam tahapan diagnosa, persetujuan, atau pengerjaan
                 </CardDescription>
               </div>
-              <Link href="/portal/service">
-                <Button variant="ghost" size="sm" className="gap-1 text-xs text-accent-deep">
-                  Lihat Semua <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </Link>
+              <ButtonLink href="/portal/service" variant="ghost" size="sm" className="gap-1 text-xs text-accent-deep">
+                Lihat Semua <ArrowRight className="h-3.5 w-3.5" />
+              </ButtonLink>
             </CardHeader>
             <CardContent className="p-0">
               {activeTickets.length === 0 ? (
@@ -308,11 +301,15 @@ export default function AdminDashboardPage() {
                         <Badge variant="warning" className="text-[10px] uppercase font-bold">
                           {ticket.repair_status.replace("_", " ")}
                         </Badge>
-                        <Link href="/portal/service">
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label="Buka meja servis">
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        <ButtonLink
+                          href="/portal/service"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          aria-label="Buka meja servis"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </ButtonLink>
                       </div>
                     </div>
                   ))}
@@ -335,11 +332,9 @@ export default function AdminDashboardPage() {
               Histori invoice penjualan smartphone fisik dan pemotongan tukar tambah
             </CardDescription>
           </div>
-          <Link href="/portal/pos">
-            <Button size="sm" className="text-xs">
-              + Transaksi Baru
-            </Button>
-          </Link>
+          <ButtonLink href="/portal/pos" size="sm" className="text-xs">
+            + Transaksi Baru
+          </ButtonLink>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">

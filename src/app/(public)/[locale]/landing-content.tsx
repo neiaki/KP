@@ -41,6 +41,7 @@ import { BrandLogo, brandChipClass } from "@/components/public/brand-mark";
 import { StockFilter } from "@/components/public/stock-filter";
 import { StoreMap } from "@/components/public/store-map";
 import { BrandMarquee } from "@/components/public/brand-marquee";
+import { ButtonLink } from "@/components/button-link";
 
 const HERO_PHOTO = "/products/iphone-15-pro-1.jpg";
 
@@ -253,17 +254,22 @@ export function LandingContent({ locale }: { locale: Locale }) {
                 : "HP baru dan second dengan IMEI di nota, plus garansi toko."}
           </p>
           <div className="rise mt-10 flex flex-wrap gap-4" style={{ animationDelay: "240ms" }}>
-            <a href="#stok">
-              <Button size="lg" className="bg-ink px-8 py-4 text-base font-bold text-white hover:bg-neutral-800 dark:bg-white dark:text-paper dark:hover:bg-neutral-200">
-                {locale === "en" ? "See stock" : "Lihat stok"}
-              </Button>
-            </a>
-            <Link href={`/${locale}/trade-in`}>
-              <Button size="lg" variant="outline" className="px-8 py-4 text-base font-bold">
-                <ArrowLeftRight className="h-4 w-4" />
-                {locale === "en" ? "Trade in" : "Tukar tambah"}
-              </Button>
-            </Link>
+            <ButtonLink
+              href="#stok"
+              size="lg"
+              className="bg-ink px-8 py-4 text-base font-bold text-paper hover:opacity-90"
+            >
+              {locale === "en" ? "See stock" : "Lihat stok"}
+            </ButtonLink>
+            <ButtonLink
+              href={`/${locale}/trade-in`}
+              size="lg"
+              variant="outline"
+              className="px-8 py-4 text-base font-bold"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              {locale === "en" ? "Trade in" : "Tukar tambah"}
+            </ButtonLink>
           </div>
         </div>
 
@@ -523,18 +529,17 @@ export function LandingContent({ locale }: { locale: Locale }) {
               </p>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <a
+              <ButtonLink
                 href={`https://wa.me/${waNumber}?text=${encodeURIComponent(
                   "Halo At Cell, saya mau tanya stok HP."
                 )}`}
                 target="_blank"
                 rel="noreferrer"
+                variant="wa"
               >
-                <Button variant="wa">
-                  <MessageCircle className="h-4 w-4" />
-                  Chat WhatsApp
-                </Button>
-              </a>
+                <MessageCircle className="h-4 w-4" />
+                Chat WhatsApp
+              </ButtonLink>
             </div>
           </div>
           <div className="overflow-hidden rounded-xl border border-line lg:col-span-7">
