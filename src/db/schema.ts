@@ -243,7 +243,7 @@ export const serviceTickets = pgTable(
   "service_tickets",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-    // Dikosongkan saat insert: trigger SQL mengisi SRV-YYYYMMDD-XXXX.
+    // Dikosongkan saat insert: trigger SQL mengisi SRV-YYYYMMDD-XXXXXXXX.
     // Tanpa DEFAULT supaya tetap sama dengan DB; trigger menerima null maupun
     // string kosong.
     ticketCode: text("ticket_code").notNull().unique(),

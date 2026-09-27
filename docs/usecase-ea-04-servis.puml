@@ -27,9 +27,9 @@ Sales --> UC17
 Pelanggan --> UC18
 
 note right of Sys
-  UC-15 : SRV-YYYYMMDD-XXXX via trigger
+  UC-15 : SRV-YYYYMMDD-XXXXXXXX via trigger
   received > diagnosing > waiting_approval
-  > in_progress > completed > picked_up
+  > in_progress > testing > completed > picked_up
   UC-16 : hanya role technician (RLS)
 end note
 @enduml
