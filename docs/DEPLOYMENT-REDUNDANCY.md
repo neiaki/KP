@@ -255,13 +255,20 @@ etalase membaca view `v_public_inventory` dan tabel produk.
 Setelah deploy, cek dua hal ini:
 
 ```bash
-curl -s https://atcell.my.id/id/catalog | grep -o "[0-9]* unit, harga"
+curl -s https://atcell.my.id/id/catalog | sed -e 's/<[^>]*>//g' | tr -s ' ' | grep -oE "[0-9]+ unit, harga"
 curl -s https://atcell.my.id/id/catalog | grep -c "Redmi Note 13"
 ```
 
+Angka dan kata "unit" dipisah simpul komentar React di dalam HTML, jadi
+bentuknya `7<!-- --> <!-- -->unit, harga termasuk garansi toko`. Pola yang
+mencari HTML mentah tidak akan pernah cocok, dan hasil kosong karena itu
+terlihat seperti kegagalan deploy padahal etalase sedang terisi. Karena itu
+tag dibuang lebih dulu, lalu spasi dirapatkan.
+
 Yang benar: hitungannya bukan 0, dan nama model dari `v_public_inventory`
-muncul di HTML. Kalau hitungannya 0 dan muncul "Tidak ada yang cocok", snapshot
-gagal dibaca. Keadaan itu sah secara kode: pembacaan yang gagal menghasilkan
+muncul di HTML. Kalau perintahnya tidak mengeluarkan apa pun, snapshot gagal
+dibaca, dan kegagalan itu terlihat di halaman sebagai "Tidak ada yang cocok".
+Keadaan itu sah secara kode: pembacaan yang gagal menghasilkan
 tanpa seed, browser mencoba lagi sendiri lewat `loadLiveData`, dan pengunjung
 manusia tetap melihat katalog yang benar setelah sepersekian detik. Yang tidak
 memperoleh kesempatan itu Google dan pratinjau tautan WhatsApp, karena keduanya

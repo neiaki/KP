@@ -249,6 +249,48 @@ test("runbook punya bagian memeriksa etalase di HTML", () => {
   assert.ok(posisiBagian > posisiRilis, "verifikasi etalase harus ada setelah langkah rilis");
 });
 
+test("perhitungan unit di runbook benar-benar mengembalikan angka", async () => {
+  // Angka dan kata "unit" dipisah simpul komentar React, sehingga HTML mentah
+  // tidak pernah cocok dengan pola "unit, harga". Perintah yang pertama ditulis
+  // di runbook begitu: selalu kosong, dan kosong itu terbaca seperti kegagalan
+  // deploy padahal etalase sedang terisi. Jadi perintahnya dijalankan sungguhan
+  // di sini, bukan hanya diperiksa bentuknya.
+  const isi = bagian("### Verifikasi etalase di HTML");
+  const blok = isi.match(/```bash\n([\s\S]*?)```/);
+  assert.ok(blok, "bagian verifikasi etalase harus punya blok bash");
+
+  const perintah = blok[1]
+    .split("\n")
+    .map((baris) => baris.trim())
+    .find((baris) => baris.includes("unit, harga"));
+  assert.ok(perintah, "blok bash harus menghitung unit dengan pola 'unit, harga'");
+
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { execFileSync } = await import("node:child_process");
+
+  const folder = await mkdtemp(join(tmpdir(), "runbook-etalase-"));
+  const contoh = join(folder, "katalog.html");
+  await writeFile(
+    contoh,
+    '<p class="text-muted">7<!-- --> <!-- -->unit, harga termasuk garansi toko</p>\n',
+    "utf8"
+  );
+  try {
+    // Alamat production diganti berkas contoh supaya test tidak menyentuh jaringan.
+    const dijalankan = perintah.replace(/curl -s \S+/, `cat ${contoh}`);
+    const hasil = execFileSync("bash", ["-c", dijalankan], { encoding: "utf8" });
+    assert.equal(
+      hasil.trim(),
+      "7 unit, harga",
+      "perintah runbook harus mengembalikan jumlah unit dari HTML yang sama bentuknya dengan production"
+    );
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("runbook punya aturan satu proses Next.js untuk database yang sama", () => {
   // Gejalanya menyesatkan: halaman publik menggantung sementara health check
   // tetap hijau, sehingga orang menyimpulkan ada bug render, bukan rebutan
