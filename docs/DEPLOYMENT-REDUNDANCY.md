@@ -249,6 +249,21 @@ Bandingkan ukuran dan isi HTML landing sebelum dan sesudah deploy, atau ambil
 digest image yang berjalan lewat Coolify lalu bandingkan dengan digest tag
 `sha-<commit>` di GHCR.
 
+Cara paling langsung adalah label yang dipasang GitHub Actions di image itu.
+Label `org.opencontainers.image.revision` berisi commit yang jadi sumber build,
+jadi di VPS, setelah deploy selesai:
+
+```bash
+docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+  ghcr.io/neiaki/kp:sha-<commit>
+```
+
+Kalau yang muncul bukan commit yang diharapkan, image itu bukan yang kamu kira,
+dan deploy hijau tidak berarti apa-apa. Label yang sama bisa dibaca langsung dari
+GHCR tanpa akses VPS, karena registry menyimpan config image-nya, dan isi tag
+`sha-<commit>` di repository bisa dibandingkan dengan commit yang ada di sana
+sebelum deploy dimulai.
+
 ### Verifikasi etalase di HTML, bukan hanya di browser
 
 Sejak layout area publik membaca snapshot di server, HTML yang sampai ke crawler
