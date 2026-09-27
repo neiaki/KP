@@ -42,7 +42,9 @@ export default function NewServiceTicketPage() {
         setNotice({ type: "error", text: result.error });
         return;
       }
-      setPhotoUrls((prev) => [...prev, result.data.url]);
+      // Yang disimpan ke database adalah path, bukan signed URL. URL-nya
+      // kedaluwarsa sepuluh menit lagi, sedangkan path tidak pernah basi.
+      setPhotoUrls((prev) => [...prev, result.data.path]);
     } catch {
       setNotice({ type: "error", text: "Gagal mengunggah foto. Coba lagi." });
     } finally {
