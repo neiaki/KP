@@ -6,6 +6,7 @@ import { formatIDR, formatDate } from "@/lib/utils";
 import { openNotaPrintWindow, buildPosNotaHtml } from "@/lib/print-nota";
 import { uploadPhoto } from "@/lib/actions/storage";
 import { TRADE_IN_MODELS } from "@/lib/trade-in-models";
+import { UNIT_LABEL_UNKNOWN, unitLabel } from "@/lib/shop";
 import { PaymentMethod, Transaction, UnitCondition } from "@/types";
 import {
   ShoppingCart,
@@ -71,6 +72,8 @@ export default function SalesPosPage() {
 
   type CompletedInvoice = Transaction & {
     unitModel: string;
+    /** False kalau nama modelnya tebakan fallback, bukan dari katalog. */
+    unitModelKnown: boolean;
     unitIMEI: string;
     unitCondition: UnitCondition;
   };
@@ -93,9 +96,13 @@ export default function SalesPosPage() {
   const availableUnits = inventoryUnits.filter((u) => u.status === "available");
 
   const selectedUnit = inventoryUnits.find((u) => u.id === selectedUnitId);
-  const selectedProduct = selectedUnit
-    ? products.find((p) => p.id === selectedUnit.product_id)
-    : null;
+  // Nama unit SELALU lewat unitLabel(). Unit trade-in punya product_id null,
+  // jadi products.find di sini selalu undefined untuk unit itu dan nota
+  // garansi pernah tercetak menamai handset "At Cell Smartphone". Label juga
+  // dicek apakah berasal dari data, supaya nota bisa jujur soal model yang
+  // tidak tercatat alih-alih menampilkan tebakan yang terlihat meyakinkan.
+  const unitModel = selectedUnit ? unitLabel(selectedUnit, products) : UNIT_LABEL_UNKNOWN;
+  const unitModelKnown = unitModel !== UNIT_LABEL_UNKNOWN;
 
   // Calculate totals
   const subtotal = selectedUnit ? selectedUnit.selling_price : 0;
@@ -195,7 +202,8 @@ export default function SalesPosPage() {
       // Show completed invoice modal
       setCompletedInvoice({
         ...tx,
-        unitModel: `${selectedProduct?.brand ?? "At Cell"} ${selectedProduct?.model_name ?? "Smartphone"}`,
+        unitModel,
+        unitModelKnown,
         unitIMEI: selectedUnit?.imei ?? "",
         unitCondition: selectedUnit?.condition ?? "new",
       });
@@ -288,7 +296,7 @@ export default function SalesPosPage() {
               ) : (
                 <div className="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-1">
                   {availableUnits.map((unit) => {
-                    const prod = products.find((p) => p.id === unit.product_id);
+                    const label = unitLabel(unit, products);
                     const isSelected = selectedUnitId === unit.id;
                     return (
                       <div
@@ -311,9 +319,7 @@ export default function SalesPosPage() {
                             {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
                           </div>
                           <div>
-                            <div className="text-xs font-bold text-ink">
-                              {prod?.brand} {prod?.model_name}
-                            </div>
+                            <div className="text-xs font-bold text-ink">{label}</div>
                             <div className="text-[11px] font-mono text-accent-deep mt-0.5">
                               IMEI: <span className="font-bold">{unit.imei}</span>
                             </div>
@@ -724,6 +730,7 @@ export default function SalesPosPage() {
                       date: formatDate(completedInvoice.created_at),
                       customerName: completedInvoice.customer_name,
                       unitModel: completedInvoice.unitModel,
+                      unitModelKnown: completedInvoice.unitModelKnown,
                       imei: completedInvoice.unitIMEI,
                       warrantyMonths:
                         completedInvoice.items?.[0]?.warranty_duration_months || 12,

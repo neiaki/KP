@@ -10,12 +10,12 @@ import {
   createTicketSchema,
   isAllowedTransition,
   ticketCodeSchema,
-  updateTicketSchema,
   type CreateTicketInput,
+  updateTicketSchema,
   type UpdateTicketInput,
 } from "@/lib/validations";
 import { pickClientIp } from "@/lib/client-ip";
-import { consumeRateLimit } from "@/lib/rate-limit";
+import { consumeRateLimit, refundRateLimit } from "@/lib/rate-limit";
 import type { RepairStatus, ServiceTicket } from "@/types";
 import {
   backendOffline,
@@ -231,14 +231,48 @@ type PublicTrackingResult = {
 
 /**
  * Lacak servis tanpa login. Endpoint ini terbuka untuk publik, jadi kuota
- * ditegakkan per IP dan juga global. Tanpa ini, siapa pun bisa menyapu seluruh
- * kode resi satu tanggal hanya dengan menebak.
+ * ditegakkan tiga lapis: per IP, per kode resi, dan satu plafon global.
+ * Tanpa ini, siapa pun bisa menyapu seluruh kode resi satu tanggal hanya
+ * dengan menebak.
  */
 const TRACKING_PER_IP_LIMIT = 10;
 const TRACKING_PER_IP_WINDOW_MS = 60_000;
-/** Lapisan kedua untuk penyerang yang memakai banyak IP berbeda. */
-const TRACKING_GLOBAL_LIMIT = 200;
-const TRACKING_GLOBAL_WINDOW_MS = 60_000;
+/**
+ * Per kode resi, bukan per alamat. Satu kode yang dielabui dari 500 alamat
+ * harus tetap tertahan, dan inilah lapisan yang membuatnya tidak mungkin
+ * hanya karena penyerang punya banyak IP. Nilainya sama dengan batas per IP
+ * karena pemakaian sahnya juga sama: satu orang memanggil kodenya sendiri
+ * beberapa kali dalam seb menit.
+ */
+const TRACKING_PER_CODE_LIMIT = 10;
+const TRACKING_PER_CODE_WINDOW_MS = 60_000;
+/**
+ * Lapisan ketiga: plafon tebakan untuk SELURUH toko, jadi tidak lagi ikut
+ * jumlah alamat yang dipunyai penyerang.
+ *
+ * Bucket ini dipotong sebelum query, lalu dikembalikan lewat refundRateLimit
+ * begitu query mengembalikan hasil. Efek bersihnya: kuota ini hanya menghitung
+ * kode yang SALAH. Pelanggan yang mengetik kode resinya sendiri selalu kena
+ * hasil, jadi kuotanya selalu dikembalikan dan tidak pernah bisa dikunci
+ * oleh penyerang yang menyapu kode lain.
+ *
+ * Bucket global versi lama, 200 permintaan per menit, tidak hilang begitu
+ * saja. Ia tetap ada, hanya bentuknya yang diperbaiki: sekarang jadi 60
+ * tebakan salah per menit untuk seluruh toko, dan tebakan itu tidak bisa
+ * dikalikan jumlah IP.
+ *
+ * Konsekuensinya harus disebut terang: penyerang masih bisa menguras 60
+ * request per menit untuk membuat SEMUA lacak resi gagal selama jendela itu.
+ * Itu harga yang dibayar supaya enumerasi tidak lagi diskalakan dengan IP.
+ * Dipilih sisi mana, dan kenapa: enumerasi dibatasi mutlak, bukan dibuang.
+ * Kalau lapisan ini dibuang saja, penyapu dengan 20 IP langsung mendapat 200
+ * tebakan per menit dan ruang 2^40 jadi soal waktu. Dengan 60 per menit,
+ * ruang 2^40 butuh sekitar 20.000 tahun, dan ruang 4 digit versi lama yang
+ * 10.000 kode butuh sekitar 2,8 jam.
+ */
+const TRACKING_GLOBAL_GUESS_LIMIT = 60;
+const TRACKING_GLOBAL_GUESS_WINDOW_MS = 60_000;
+const TRACKING_GLOBAL_GUESS_KEY = "track-global-guess";
 
 /**
  * Pembaca IP pengunjung untuk menjadi kunci rate limit. Logikanya sama
@@ -264,18 +298,37 @@ export async function trackTicketPublic(rawCode: string): Promise<
       `Terlalu banyak percobaan. Coba lagi dalam ${perIp.retryAfterSeconds} detik.`
     );
   }
-  const global = consumeRateLimit(
-    "track-global",
-    TRACKING_GLOBAL_LIMIT,
-    TRACKING_GLOBAL_WINDOW_MS
-  );
-  if (!global.allowed) {
-    return fail("Layanan sedang sibuk. Coba lagi sebentar.");
-  }
 
+  // Format dicek lebih dulu supaya kunci per-kode memakai kode yang sudah
+  // dinormalisasi: huruf besar dan spasi rapi. Input tetap saja terpotong
+  // kuota per IP di atas, jadi percobaan dengan format salah tidak gratis.
   const parsed = ticketCodeSchema.safeParse(rawCode);
   if (!parsed.success) {
     return fail(`Format kode tiket salah. Contoh: ${TICKET_CODE_EXAMPLE}.`);
+  }
+
+  const perCode = consumeRateLimit(
+    `track-code:${parsed.data}`,
+    TRACKING_PER_CODE_LIMIT,
+    TRACKING_PER_CODE_WINDOW_MS
+  );
+  if (!perCode.allowed) {
+    return fail(
+      `Terlalu banyak percobaan. Coba lagi dalam ${perCode.retryAfterSeconds} detik.`
+    );
+  }
+
+  // Plafon global. Dipotong di sini, sebelum query, supaya batas tebakan
+  // berlaku; dikembalikan di bawah begitu kodenya ternyata terdaftar.
+  const globalGuess = consumeRateLimit(
+    TRACKING_GLOBAL_GUESS_KEY,
+    TRACKING_GLOBAL_GUESS_LIMIT,
+    TRACKING_GLOBAL_GUESS_WINDOW_MS
+  );
+  if (!globalGuess.allowed) {
+    return fail(
+      `Terlalu banyak percobaan. Coba lagi dalam ${globalGuess.retryAfterSeconds} detik.`
+    );
   }
   const db = getDb();
   if (!db) return fail("Backend Supabase belum dikonfigurasi. Coba lagi nanti.");
@@ -294,9 +347,16 @@ export async function trackTicketPublic(rawCode: string): Promise<
       .from(serviceTickets)
       .where(eq(serviceTickets.ticketCode, parsed.data));
   } catch {
+    // Kode tidak bisa dipastikan, jadi jangan refund. Memperlakukan galat
+    // database sebagai "kode terdaftar" akan membuat kuota tebakan bocor.
     return fail("Layanan pelacakan sedang tidak dapat dihubungi. Coba lagi sebentar.");
   }
+  // Miss: kuota global sengaja TIDAK dikembalikan, jadi tebakan salah tetap
+  // terakumulasi dan menyapu ruang kode akhirnya tersendat.
   if (!t) return fail("Tiket tidak ditemukan. Periksa lagi kode resinya.");
+  // Kode ketemu: kembalikan kuota global, jadi permintaan pelanggan yang
+  // benar tidak pernah interfered dengan penyapu kode.
+  refundRateLimit(TRACKING_GLOBAL_GUESS_KEY);
   return ok({
     ticket_code: t.ticketCode,
     device_model: t.deviceModel,
