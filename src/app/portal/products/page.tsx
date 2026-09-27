@@ -10,6 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+// Dipakai kalau produk belum punya foto. Foto stok pihak ketiga tidak pernah
+// dipakai karena modelnya bisa tidak cocok dengan produk yang sedang disimpan.
+// Host diambil dari env, bukan ditulis mati, supaya tidak ikut ke repo kalau
+// project Supabase diganti.
+const PLACEHOLDER_IMAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/products/placeholder.svg`;
+
 export default function MasterProductsPage() {
   const { products, inventoryUnits, addProduct, updateProduct } = useStore();
 
@@ -21,7 +27,9 @@ export default function MasterProductsPage() {
   const [brand, setBrand] = useState("Apple");
   const [modelName, setModelName] = useState("");
   const [specs, setSpecs] = useState("");
-  const [defaultPrice, setDefaultPrice] = useState<number>(10000000);
+  // Mulai dari 0, bukan angka tebakan. Harga acuan tiap model berbeda jauh
+  // dan hanya staf yang tahu, jadi form memaksa diisi.
+  const [defaultPrice, setDefaultPrice] = useState<number>(0);
   const [imageUrl, setImageUrl] = useState("");
 
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -62,6 +70,10 @@ export default function MasterProductsPage() {
       setNotice({ type: "error", text: "Nama model handphone wajib diisi!" });
       return;
     }
+    if (!Number.isFinite(defaultPrice) || defaultPrice <= 0) {
+      setNotice({ type: "error", text: "Harga acuan wajib diisi lebih dari nol." });
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -71,9 +83,7 @@ export default function MasterProductsPage() {
           model_name: modelName.trim(),
           specs: specs.trim(),
           default_price: defaultPrice,
-          image_url:
-            imageUrl.trim() ||
-            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80",
+          image_url: imageUrl.trim() || PLACEHOLDER_IMAGE,
         });
         setNotice({ type: "success", text: "Master produk berhasil diperbarui." });
       } else {
@@ -82,9 +92,7 @@ export default function MasterProductsPage() {
           model_name: modelName.trim(),
           specs: specs.trim(),
           default_price: defaultPrice,
-          image_url:
-            imageUrl.trim() ||
-            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80",
+          image_url: imageUrl.trim() || PLACEHOLDER_IMAGE,
         });
         setNotice({ type: "success", text: "Master produk baru berhasil ditambahkan." });
       }
@@ -186,10 +194,7 @@ export default function MasterProductsPage() {
             >
               <div className="h-44 bg-paper overflow-hidden rounded-t-xl">
                 <img
-                  src={
-                    p.image_url ||
-                    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80"
-                  }
+                  src={p.image_url || PLACEHOLDER_IMAGE}
                   alt={p.model_name}
                   className="w-full h-full object-cover"
                 />
