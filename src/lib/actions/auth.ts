@@ -1,13 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
-import { customerSignUpSchema, staffInviteSchema, usernameSchema } from "@/lib/validations";
+import {
+  customerSignUpSchema,
+  phoneSchema,
+  staffInviteSchema,
+  usernameSchema,
+} from "@/lib/validations";
+import { consumeCredentialAttempt } from "@/lib/rate-limit";
 import type { UserRole } from "@/types";
 import {
   backendOffline,
@@ -31,13 +38,42 @@ function usernameFromEmail(email: string): string {
 }
 
 /**
+ * Pembaca IP untuk menjadi kunci throttle kredensial. Traefik di Coolify
+ * selalu menyetel X-Forwarded-For, jadi entri pertama adalah klien asli.
+ * Kalau headernya hilang, semua permintaan memakai satu kunci, yang membuat
+ * batas lebih ketat dan tidak bisa dipakai untuk melewati limit.
+ */
+async function getCredentialClientId(): Promise<string> {
+  const h = await headers();
+  const forwarded = h.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return h.get("x-real-ip")?.trim() || "unknown";
+}
+
+/**
+ * Potong kuota percobaan kredensial. Pesannya sengaja TIDAK memakai
+ * username, dan pemanggilannya selalu sebelum mencari profil, supaya
+ * "terlalu banyak percobaan" tidak berubah jadi cara menebak username mana
+ * yang terdaftar. Lihat consumeCredentialAttempt di src/lib/rate-limit.ts.
+ */
+async function throttleCredential(identifier: string): Promise<string | null> {
+  const verdict = consumeCredentialAttempt(await getCredentialClientId(), identifier);
+  if (verdict.allowed) return null;
+  return `Terlalu banyak percobaan. Coba lagi dalam ${verdict.retryAfterSeconds} detik.`;
+}
+
+/**
  * Login portal staf/pelanggan memakai username, bukan email.
  *
  * Supabase Auth hanya menerima email di signInWithPassword, jadi username
  * dipetakan ke email lewat service_role (bypass RLS, karena policies hanya
  * mengizinkan user membaca baris profil sendiri). Pesan gagal sengaja sama
  * untuk "username tidak ada" dan "password salah" supaya username tidak
- * bisa dienumerasi.
+ * bisa dienumerasi. Throttle dipotong lebih dulu lagi, di sebelum pencarian
+ * profil, supaya pesan "terlalu banyak percobaan" juga tidak jadi oracle.
  */
 export async function signInWithUsername(
   username: string,
@@ -49,6 +85,12 @@ export async function signInWithUsername(
       "SUPABASE_SERVICE_ROLE_KEY belum diisi, login pakai username tidak bisa dicocokkan."
     );
   }
+  // Throttle dipotong sebelum validasi format dan sebelum query profil, jadi
+  // setiap permintaan yang sampai ke sini memotong satu kuota, apa pun hasilnya.
+  // Kuncinya IP + username, jadi penyerang hanya mengunci dirinya sendiri.
+  const throttled = await throttleCredential(username);
+  if (throttled) return fail(throttled);
+
   const parsed = usernameSchema.safeParse(username);
   if (!parsed.success) return fail("Username atau kata sandi tidak valid.");
   if (password.length < 8) return fail("Username atau kata sandi tidak valid.");
@@ -82,7 +124,14 @@ export async function signInWithUsername(
   return ok({ role: profile.role, redirectTo });
 }
 
-/** Pendaftaran mandiri khusus pelanggan (etalase/akun). Staf dibuat via inviteStaff. */
+/**
+ * Pendaftaran mandiri khusus pelanggan (etalase/akun). Staf dibuat via
+ * inviteStaff.
+ *
+ * Endpoint ini terbuka untuk publik, jadi kuotanya dipotong per IP + email
+ * yang dikirim, sama seperti login. Kalau tidak, siapa pun bisa membuat
+ * account palsu terus-menerus sampai kuota Supabase habis.
+ */
 export async function signUpCustomer(input: {
   fullName: string;
   email: string;
@@ -90,6 +139,8 @@ export async function signUpCustomer(input: {
   phoneNumber: string;
 }): Promise<ActionResult<{ userId: string }>> {
   if (!isSupabaseConfigured()) return backendOffline();
+  const throttled = await throttleCredential(input.email);
+  if (throttled) return fail(throttled);
   const parsed = customerSignUpSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Data pendaftaran tidak valid.");
   const supabase = await createClient();
@@ -161,6 +212,46 @@ export async function inviteStaff(input: {
   if (roleError) return fail("User dibuat, tetapi peran belum berhasil disimpan. Coba lagi.");
   revalidatePath("/portal/staff");
   return ok({ userId: data.user.id });
+}
+
+/**
+ * Pengguna yang sedang masuk mengisi nomor teleponnya sendiri.
+ *
+ * Sebelumnya tidak ada jalur sama sekali untuk mengisi phone_number: form
+ * tambah staf menerima kolom itu, tapi tidak ada aksi maupun form untuk
+ * mengubahnya setelah akun dibuat. Akibatnya semua profil hasil seed DAN semua
+ * staf yang dibuat Admin tanpa nomor tetap kosong selamanya, dan halaman
+ * portal/staff menampilkan "-" yang terbaca seperti bug bukan seperti data yang
+ * belum ada.
+ *
+ * Id profil diambil dari sesi, bukan dari argumen, jadi aksi ini tidak punya
+ * cara untuk menulis baris orang lain meski dipanggil langsung. Peran apa pun
+ * boleh memanggilnya, termasuk pelanggan, karena nomor kontak adalah miliknya
+ * sendiri. Kolomnya boleh dikosongkan lagi: staff lama yang sudah tidak ada di
+ * toko lebih baik kosong daripada menampilkan nomor yang sudah tidak berlaku.
+ */
+export async function updateMyPhoneNumber(
+  raw: string
+): Promise<ActionResult<{ phoneNumber: string }>> {
+  const guard = await requireRole(["admin", "sales", "technician", "customer"]);
+  if ("error" in guard) return fail(guard.error);
+  const parsed = phoneSchema.safeParse(raw);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Nomor telepon tidak valid.");
+  }
+  const db = getDb();
+  if (!db) return backendOffline();
+  const [updated] = await db
+    .update(profiles)
+    .set({ phoneNumber: parsed.data })
+    .where(eq(profiles.id, guard.profile.id))
+    .returning({ phoneNumber: profiles.phoneNumber });
+  if (!updated) return fail("Profil tidak ditemukan.");
+  // Halaman staf membaca phone_number milik orang lain, jadi ikut disegarkan
+  // supaya nomor baru langsung terlihat di sana.
+  revalidatePath("/portal/staff");
+  revalidatePath("/portal/account");
+  return ok({ phoneNumber: updated.phoneNumber });
 }
 
 /** Admin mengubah peran / menonaktifkan staf (nonaktif = hapus user Auth). */
