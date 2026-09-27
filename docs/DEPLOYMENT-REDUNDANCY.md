@@ -207,7 +207,11 @@ Kalau struktur ini diubah, tiga hal ikut berubah:
 2. Pastikan migration canonical sudah tercatat dan diterapkan satu kali.
 3. Tulis tag image di `Dockerfile.coolify` memakai `sha-<commit>` sesuai bagian
    tag image di bawah, lalu commit.
-4. Deploy Coolify production dari branch `main` dan cek `/api/health/ready`.
+4. Deploy Coolify production dari branch `main`, cek `/api/health/ready`, lalu
+   pastikan header `content-security-policy` muncul di `/id`. Header itu hanya
+   ada di image yang sudah memuat `src/lib/csp.ts`, jadi ia penanda image baru
+   benar-benar yang jalan, bukan hanya health check yang hijau. Cara lengkapnya
+   ada di [`docs/CSP.md`](CSP.md).
 5. Jalankan smoke test public, login, role guard, IMEI, POS, service tracking,
    dan upload pada URL production.
 6. Verifikasi RLS, trigger, view, Storage, advisor, dan backup.
