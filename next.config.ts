@@ -80,6 +80,22 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      {
+        // Foto produk dan logo QRIS adalah berkas statis di public/ yang
+        // namanya tidak pernah diubah place-nya: mengganti foto memakai nama
+        // baru, bukan menimpa berkas lama. Tanpa header di bawah, Next
+        // mengirim max-age=0 sehingga tiap kunjungan halaman memaksa browser
+        // conditional GET untuk tiap foto sebelum menampilkannya.
+        // TTL-nya satu hari, bukan immutable, supaya penggantian nama berkas
+        // yang tidak disengaja tidak membuat foto lama bertahan terlalu lama.
+        source: "/:dir(products|payments)/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
     ];
   },
 };

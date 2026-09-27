@@ -35,6 +35,11 @@ export default function CustomerAccountPage() {
     isLiveBackend,
   } = useStore();
 
+  // /portal/account boleh dibuka semua role. Palaunya cuma perlu tahu apakah
+  // yang sedang masuk itu pelanggan supaya Copy-nya tidak menyapa sales sebagai
+  // "Anda".
+  const isCustomer = currentProfile?.role === "customer";
+
   const displayName = currentProfile?.full_name ?? (isLiveBackend ? "Pelanggan" : "Anisa Rahmawati");
 
   const storedPhone = currentProfile?.phone_number || "";
@@ -114,48 +119,53 @@ export default function CustomerAccountPage() {
       );
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Customer Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 sm:p-8 rounded-xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-indigo-300 text-xs font-mono">
-            <span>PORTAL PELANGGAN RESMI</span>
+
+    <div className="space-y-6 pb-12 sm:space-y-8">
+      {/* Header akun.
+          /portal/account terbuka untuk semua role, jadi judul "Portal
+          pelanggan resmi" dan kata "Anda" tidak boleh ditulis mati. Sales dan
+          admin yang membuka halaman ini akan disapa sebagai staf yang
+          memang sedang masuk. */}
+      <div className="flex flex-col gap-5 rounded-xl bg-gradient-to-r from-slate-900 to-indigo-950 p-5 text-white shadow-lg sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div className="min-w-0 space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-indigo-300">
+            <span>{isCustomer ? "Portal Pelanggan Resmi" : "Portal Staf At Cell"}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
             Selamat Datang, {displayName}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-300">
-            Kelola faktur belanja smartphone Anda, pantau masa berlaku garansi IMEI resmi toko, dan lacak status servis.
+          <p className="text-sm text-slate-300">
+            {isCustomer
+              ? "Kelola faktur belanja smartphone Anda, pantau masa berlaku garansi IMEI resmi toko, dan lacak status servis."
+              : "Ringkasan faktur dan garansi unit atas nama pelanggan yang terkait dengan akun Anda."}
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            variant="outline"
-            onClick={() =>
-              openNotaPrintWindow(
-                "Kartu Garansi At Cell",
-                buildWarrantyCardHtml({
-                  storeName: "At Cell",
-                  address: storeSettings.address,
-                  phone: `${storeSettings.whatsapp_number} / ${storeSettings.phone_number}`,
-                  buyerName: displayName,
-                  items: purchasedItems.map((it) => ({
-                    brandModel: it.brandModel,
-                    imei: it.imei,
-                    purchaseDate: it.purchaseDate,
-                    warrantyMonths: it.warrantyMonths,
-                    active: it.isWarrantyActive,
-                  })),
-                })
-              )
-            }
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs gap-2 font-semibold"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Cetak Kartu Garansi</span>
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          onClick={() =>
+            openNotaPrintWindow(
+              "Kartu Garansi At Cell",
+              buildWarrantyCardHtml({
+                storeName: "At Cell",
+                address: storeSettings.address,
+                phone: `${storeSettings.whatsapp_number} / ${storeSettings.phone_number}`,
+                buyerName: displayName,
+                items: purchasedItems.map((it) => ({
+                  brandModel: it.brandModel,
+                  imei: it.imei,
+                  purchaseDate: it.purchaseDate,
+                  warrantyMonths: it.warrantyMonths,
+                  active: it.isWarrantyActive,
+                })),
+              })
+            )
+          }
+          className="w-full gap-2 border-white/20 bg-white/10 text-sm font-semibold text-white hover:bg-white/20 sm:w-auto sm:text-xs"
+        >
+          <Printer className="w-4 h-4" />
+          <span>Cetak Kartu Garansi</span>
+        </Button>
       </div>
 
       {/* Kontak yang bisa dihubungi toko. Sekarang bisa diisi sendiri, dulu
@@ -163,126 +173,136 @@ export default function CustomerAccountPage() {
       <div className="print-area">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Phone className="w-4 h-4 text-accent" />
-              Nomor Kontak Saya
-            </CardTitle>
-            <CardDescription>
-              Dipakai toko saat ada yang perlu dikonfirmasi soal pembelian, tukar
-              tambah, atau servis HP Anda.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              onSubmit={handleSavePhone}
-              className="flex flex-col gap-2 sm:flex-row sm:items-end"
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Phone className="h-4 w-4 text-accent" />
+            Nomor Kontak Saya
+          </CardTitle>
+          <CardDescription className="text-sm">
+            Dipakai toko saat ada yang perlu dikonfirmasi soal pembelian, tukar
+            tambah, atau servis HP Anda.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={handleSavePhone}
+            className="flex flex-col gap-2 sm:flex-row sm:items-end"
+          >
+            <div className="flex-1">
+              <label
+                htmlFor="my-phone"
+                className="mb-1 block text-xs font-semibold text-muted"
+              >
+                Nomor telepon atau WhatsApp
+              </label>
+              <Input
+                id="my-phone"
+                name="my-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneDraft(e.target.value)}
+                placeholder={currentProfile?.phone_number || "Contoh: 0812-3456-7890"}
+                className="font-mono"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={savingPhone || !isLiveBackend}
+              className="w-full text-sm sm:w-auto sm:text-xs"
             >
-              <div className="flex-1">
-                <label htmlFor="my-phone" className="block text-xs font-semibold text-muted mb-1">
-                  Nomor telepon atau WhatsApp
-                </label>
-                <Input
-                  id="my-phone"
-                  type="tel"
-                  inputMode="tel"
-                  value={phoneInput}
-                  onChange={(e) => setPhoneDraft(e.target.value)}
-                  placeholder={currentProfile?.phone_number || "Contoh: 0812-3456-7890"}
-                  className="font-mono"
-                />
-              </div>
-              <Button type="submit" disabled={savingPhone || !isLiveBackend} className="text-xs">
-                {savingPhone ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </form>
-            {phoneError ? (
-              <p className="mt-2 text-xs text-bad">{phoneError}</p>
-            ) : phoneSaved ? (
-              <p className="mt-2 text-xs text-good">Nomor kontak tersimpan.</p>
-            ) : null}
+              {savingPhone ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </form>
+          {phoneError ? (
+            <p className="mt-2 text-xs text-bad">{phoneError}</p>
+          ) : phoneSaved ? (
+            <p className="mt-2 text-xs text-good">Nomor kontak tersimpan.</p>
+          ) : null}
           </CardContent>
         </Card>
       </div>
 
-      {/* 1. Purchased Handphones & Warranty Countdown */}
+      {/* Unit yang dibeli dan status garansinya */}
       <div className="print-area space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-ink flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-good" />
-              <span>Unit Smartphone & Status Garansi IMEI Terikat</span>
-            </h2>
-            <p className="text-xs text-muted">
-              Setiap pembelian di At Cell terikat nomor IMEI 15-digit resmi dengan klaim garansi toko langsung.
-            </p>
-          </div>
+        <div>
+          {/* items-start: judul ini membungkus dua baris di 375px, dan
+              items-center membuat ikon melayang di tengah tinggi baris. */}
+          <h2 className="flex items-start gap-2 text-lg font-bold text-ink">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-good" />
+            <span>Unit Smartphone &amp; Status Garansi IMEI Terikat</span>
+          </h2>
+          <p className="mt-1 text-xs text-muted">
+            Setiap pembelian di At Cell terikat nomor IMEI 15-digit resmi dengan klaim garansi toko langsung.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           {purchasedItems.length === 0 ? (
-            <div className="col-span-full py-12 text-center bg-card rounded-xl border border-dashed border-line text-muted text-xs">
+            <div className="col-span-full rounded-xl border border-dashed border-line bg-card py-12 text-center text-sm text-muted">
               Belum ada riwayat pembelian terdaftar untuk akun ini.
             </div>
           ) : (
             purchasedItems.map((item, idx) => (
               <Card
                 key={idx}
-                className="border-line shadow-sm hover:border-accent transition-colors"
+                className="border-line shadow-sm transition-colors hover:border-accent"
               >
-                <CardHeader className="pb-3 border-b border-line flex flex-row items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono text-muted">
-                      FAKTUR #{item.txId} • {formatDate(item.purchaseDate)}
+                <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 border-b border-line p-4 pb-3 sm:p-6 sm:pb-3">
+                  <div className="min-w-0">
+                    <span className="font-mono text-[11px] text-muted">
+                      Faktur #{item.txId} &middot; {formatDate(item.purchaseDate)}
                     </span>
-                    <CardTitle className="text-base font-bold text-ink mt-1">
+                    <CardTitle className="mt-1 text-base font-bold text-ink">
                       {item.brandModel}
                     </CardTitle>
                   </div>
                   <Badge
                     variant={item.isWarrantyActive ? "success" : "destructive"}
-                    className="text-[10px] uppercase font-bold"
+                    className="shrink-0 text-[10px] font-bold"
                   >
                     {item.isWarrantyActive ? "Garansi Aktif" : "Garansi Berakhir"}
                   </Badge>
                 </CardHeader>
 
-                <CardContent className="p-4 space-y-4 text-xs">
-                  {/* IMEI Box */}
-                  <div className="p-3 bg-paper rounded-xl border border-line flex items-center justify-between font-mono">
-                    <div className="flex items-center gap-2">
-                      <Barcode className="w-4 h-4 text-accent-deep" />
-                      <span className="text-muted">Nomor IMEI Fisik:</span>
-                    </div>
-                    <span className="font-bold text-ink">{item.imei}</span>
+                <CardContent className="space-y-4 p-4 text-sm">
+                  {/* flex-wrap: "Nomor IMEI Fisik" + 15 digit dalam satu baris
+                      justify-between menyisakan sekitar 170px untuk IMEI di
+                      375px, sehingga nomor terpotong di tengah. */}
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-line bg-paper p-3 font-mono">
+                    <span className="flex items-center gap-2 text-muted">
+                      <Barcode className="h-4 w-4 shrink-0 text-accent-deep" />
+                      Nomor IMEI Fisik
+                    </span>
+                    <span className="break-all font-bold text-ink">{item.imei}</span>
                   </div>
 
-                  {/* Warranty Countdown */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-muted">
-                      <span>Masa Garansi Toko:</span>
-                      <span className="font-bold text-ink">{item.warrantyMonths} Bulan</span>
+                  <dl className="space-y-1.5">
+                    <div className="flex flex-wrap justify-between gap-x-3 text-muted">
+                      <dt>Masa garansi toko</dt>
+                      <dd className="font-bold text-ink">{item.warrantyMonths} bulan</dd>
                     </div>
-                    <div className="flex justify-between text-muted">
-                      <span>Berlaku Hingga:</span>
-                      <span className="font-semibold text-ink">
+                    <div className="flex flex-wrap justify-between gap-x-3 text-muted">
+                      <dt>Berlaku hingga</dt>
+                      <dd className="font-semibold text-ink">
                         {formatDate(item.expiryDate.toISOString())}
-                      </span>
+                      </dd>
                     </div>
-                    <div className="flex justify-between text-muted">
-                      <span>Sisa Masa Garansi:</span>
-                      <span
+                    <div className="flex flex-wrap justify-between gap-x-3 text-muted">
+                      <dt>Sisa masa garansi</dt>
+                      <dd
                         className={`font-black ${
                           item.isWarrantyActive ? "text-good" : "text-bad"
                         }`}
                       >
-                        {item.isWarrantyActive ? `${item.remainingDays} Hari Lagi` : "Kedaluwarsa"}
-                      </span>
+                        {item.isWarrantyActive ? `${item.remainingDays} hari lagi` : "Kedaluwarsa"}
+                      </dd>
                     </div>
-                  </div>
+                  </dl>
 
-                  <div className="pt-2 border-t border-line flex justify-between items-center text-muted">
-                    <span>Harga Saat Beli:</span>
-                    <span className="font-bold text-ink text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 border-t border-line pt-2 text-muted">
+                    <span>Harga saat beli</span>
+                    <span className="font-mono text-sm font-bold text-ink">
                       {formatIDR(item.price)}
                     </span>
                   </div>
@@ -293,68 +313,74 @@ export default function CustomerAccountPage() {
         </div>
       </div>
 
-      {/* 2. Customer Repair Tickets */}
-      <div className="space-y-4 pt-4 border-t border-line">
+      {/* Riwayat tiket servis pelanggan */}
+      <div className="space-y-4 border-t border-line pt-4">
         <div>
-          <h2 className="text-lg font-bold text-ink flex items-center gap-2">
-            <Wrench className="w-5 h-5 text-warn" />
+          <h2 className="flex items-start gap-2 text-lg font-bold text-ink">
+            <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-warn" />
             <span>Riwayat Tiket Servis Reparasi</span>
           </h2>
-          <p className="text-xs text-muted">
+          <p className="mt-1 text-xs text-muted">
             Daftar perbaikan unit Anda di Meja Kerja Teknisi At Cell.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {myTickets.map((ticket) => (
-            <Card key={ticket.id} className="border-line shadow-sm">
-              <CardHeader className="pb-3 border-b border-line flex flex-row items-center justify-between">
-                <div>
-                  <span className="font-mono text-xs font-bold text-accent-deep bg-accent-soft px-2 py-0.5 rounded">
-                    {ticket.ticket_code}
-                  </span>
-                  <CardTitle className="text-base font-bold text-ink mt-1">
-                    {ticket.device_model}
-                  </CardTitle>
-                </div>
-                <Badge
-                  variant={
-                    ticket.repair_status === "completed" || ticket.repair_status === "picked_up"
-                      ? "success"
-                      : "warning"
-                  }
-                  className="text-[10px] uppercase font-bold"
-                >
-                  {ticket.repair_status.replace("_", " ")}
-                </Badge>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3 text-xs">
-                <div className="p-2.5 bg-paper rounded-lg text-muted">
-                  <span className="font-bold text-ink block text-[10px] uppercase mb-0.5">
-                    Keluhan:
-                  </span>
-                  {ticket.issue_notes}
-                </div>
-
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-muted">Total Biaya Reparasi:</span>
-                  <span className="font-black text-accent-deep text-sm">
-                    {formatIDR(ticket.total_fee)}
-                  </span>
-                </div>
-
-                <div className="pt-2 border-t border-line">
-                  <Link
-                    href={`/id/tracking?ticket=${ticket.ticket_code}`}
-                    className="w-full inline-flex items-center justify-center gap-1.5 p-2 rounded-lg bg-accent-soft hover:bg-line text-accent-deep font-bold transition-colors"
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+          {myTickets.length === 0 ? (
+            <div className="col-span-full rounded-xl border border-dashed border-line bg-card py-12 text-center text-sm text-muted">
+              Belum ada tiket servis yang tercatat untuk akun ini.
+            </div>
+          ) : (
+            myTickets.map((ticket) => (
+              <Card key={ticket.id} className="border-line shadow-sm">
+                <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 border-b border-line p-4 pb-3 sm:p-6 sm:pb-3">
+                  <div className="min-w-0">
+                    <span className="inline-block break-all rounded bg-accent-soft px-2 py-0.5 font-mono text-xs font-bold text-accent-deep">
+                      {ticket.ticket_code}
+                    </span>
+                    <CardTitle className="mt-1 text-base font-bold text-ink">
+                      {ticket.device_model}
+                    </CardTitle>
+                  </div>
+                  <Badge
+                    variant={
+                      ticket.repair_status === "completed" || ticket.repair_status === "picked_up"
+                        ? "success"
+                        : "warning"
+                    }
+                    className="shrink-0 text-[10px] font-bold"
                   >
-                    <span>Buka Pelacakan Linimasa Publik</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    {ticket.repair_status.replace("_", " ")}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="space-y-3 p-4 text-sm">
+                  <div className="rounded-lg bg-paper p-2.5 text-muted">
+                    <span className="mb-0.5 block text-[11px] font-bold text-ink">
+                      Keluhan
+                    </span>
+                    {ticket.issue_notes}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 py-1">
+                    <span className="text-muted">Total biaya reparasi</span>
+                    <span className="font-mono text-sm font-black text-accent-deep">
+                      {formatIDR(ticket.total_fee)}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-line pt-2">
+                    <Link
+                      href={`/id/tracking?ticket=${ticket.ticket_code}`}
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-accent-soft px-2 font-bold text-accent-deep transition-colors hover:bg-line"
+                    >
+                      <span>Buka pelacakan linimasa publik</span>
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </div>

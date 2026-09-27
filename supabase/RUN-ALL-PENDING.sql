@@ -50,7 +50,7 @@
 
 
 -- ###########################################################################
--- BAGIAN 1 dari 13: 0004_align_schema_contract
+-- BAGIAN 1 dari 14: 0004_align_schema_contract
 -- ###########################################################################
 
 do $$
@@ -156,7 +156,7 @@ on conflict (id) do nothing;
 
 
 -- ###########################################################################
--- BAGIAN 2 dari 13: 20260926025406_index_public_foreign_keys
+-- BAGIAN 2 dari 14: 20260926025406_index_public_foreign_keys
 -- ###########################################################################
 
 create index if not exists service_tickets_customer_id_idx
@@ -176,7 +176,7 @@ create index if not exists transactions_customer_id_idx
 
 
 -- ###########################################################################
--- BAGIAN 3 dari 13: 20260926103000_strengthen_ticket_codes
+-- BAGIAN 3 dari 14: 20260926103000_strengthen_ticket_codes
 -- ###########################################################################
 
 create or replace function public.generate_ticket_code()
@@ -234,7 +234,7 @@ alter table public.service_tickets
 
 
 -- ###########################################################################
--- BAGIAN 4 dari 13: 0006_store_social_urls
+-- BAGIAN 4 dari 14: 0006_store_social_urls
 -- ###########################################################################
 
 alter table public.store_settings add column if not exists social_facebook text;
@@ -281,7 +281,7 @@ end $$;
 
 
 -- ###########################################################################
--- BAGIAN 5 dari 13: 0007_audit_trail
+-- BAGIAN 5 dari 14: 0007_audit_trail
 -- ###########################################################################
 
 create table if not exists public.unit_status_audit (
@@ -452,7 +452,7 @@ grant usage, select on all sequences in schema public to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 6 dari 13: 0005_username_login
+-- BAGIAN 6 dari 14: 0005_username_login
 -- ###########################################################################
 
 alter table public.profiles add column if not exists email text;
@@ -596,7 +596,7 @@ grant all on public.profiles to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 7 dari 13: 20260927130000_product_image_registry
+-- BAGIAN 7 dari 14: 20260927130000_product_image_registry
 -- ###########################################################################
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -677,7 +677,7 @@ create policy product_images_admin_delete
   using ((select private.get_my_role()) = 'admin');
 
 -- ###########################################################################
--- BAGIAN 8 dari 13: 20260927120000_auto_enable_rls_on_new_tables
+-- BAGIAN 8 dari 14: 20260927120000_auto_enable_rls_on_new_tables
 -- ###########################################################################
 CREATE OR REPLACE FUNCTION rls_auto_enable()
 RETURNS EVENT_TRIGGER
@@ -777,7 +777,7 @@ EXECUTE FUNCTION rls_auto_enable();
 
 
 -- ###########################################################################
--- BAGIAN 9 dari 13: 20260927140000_store_owner_and_real_contact
+-- BAGIAN 9 dari 14: 20260927140000_store_owner_and_real_contact
 -- ###########################################################################
 alter table public.store_settings
   add column if not exists owner_name text not null default '';
@@ -797,7 +797,7 @@ where id = 1;
 
 
 -- ###########################################################################
--- BAGIAN 10 dari 13: 20260927150000_revoke_anon_write_on_product_images
+-- BAGIAN 10 dari 14: 20260927150000_revoke_anon_write_on_product_images
 -- ###########################################################################
 
 -- Hak tulis anon di registry gambar produk.
@@ -830,7 +830,7 @@ grant select on public.product_images to anon;
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 11 dari 13: 20260927160000_harden_storage_access
+-- BAGIAN 11 dari 14: 20260927160000_harden_storage_access
 -- ###########################################################################
 
 -- Akses Storage untuk foto pelanggan.
@@ -911,7 +911,7 @@ create policy storage_staff_read on storage.objects
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 12 dari 13: 20260927170000_demo_ticket_for_tracking_example
+-- BAGIAN 12 dari 14: 20260927170000_demo_ticket_for_tracking_example
 -- ###########################################################################
 
 -- Tiket demo untuk kode contoh di halaman lacak servis publik.
@@ -996,7 +996,7 @@ where ticket_code = 'SRV-20260912-7K4M2QX9' and repair_status = 'in_progress';
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 13 dari 13: 20260927180000_nullable_inventory_unit_product
+-- BAGIAN 13 dari 14: 20260927180000_nullable_inventory_unit_product
 -- ###########################################################################
 
 -- inventory_units.product_id jadi nullable, etalase publik tetap jujur.
@@ -1122,4 +1122,112 @@ select p.brand,
 -- lalu grant select ke service_role), dan daftar kolom view ini tidak berubah.
 -- ###########################################################################
 
+-- ###########################################################################
+-- BAGIAN 14 dari 14: 20260927190000_close_browser_role_write_grants
+-- ###########################################################################
+
+-- Menutup hak tulis yang masih bocor, lalu menutup akar masalahnya.
+--
+-- Latar: audit read-only terhadap production menemukan empat sisipan di
+-- lapisan grant. Semuanya sekarang tertahan oleh RLS saja, yaitu satu
+-- lapis di bawah grant, jadi begitu RLS dimatikan atau ada policy permisif
+-- yang keliru ditambahkan, grant itu langsung jadi jalur tulis yang
+-- sebenarnya.
+--
+-- 1. public.product_images adalah satu-satunya tabel di schema public yang
+--    masih memberi hak tulis ke authenticated, yaitu DELETE, INSERT,
+--    REFERENCES, TRIGGER, TRUNCATE, dan UPDATE. 20260927150000 hanya
+--    mencabut untuk anon, jadi authenticated terlewat. Tabel itu sendiri
+--    sudah dikunci RLS dengan policy product_images_staff_write,
+--    product_images_staff_update, dan product_images_admin_delete, jadi
+--    jalur lewat PostgREST memang sudah tertutup. Yang diperbaiki di sini
+--    adalah lapis cadangannya.
+--
+-- 2. Akar masalahnya ada di pg_default_acl. Untuk schema public, Supabase
+--    memasang default privilege anon=arwdDxtm dan authenticated=arwdDxtm
+--    untuk setiap tabel yang dibuat role postgres, jadi setiap tabel yang
+--    dibuat sesudah 0001 mewarisi grant selebar itu. Grant eksplisit yang
+--    diberikan 0001 dan 0002 hanya berlaku untuk tabel yang disebut di
+--    sana, jadi default privilege tidak berubah dan tabel berikutnya tetap
+--    memegang hak tulis penuh. Event trigger ensure_rls dari
+--    20260927120000 mengaktifkan RLS, tapi tidak pernah mencabut grant.
+--    Akibatnya jaring pengaman itu menutup satu lapis saja, dan lapis itu
+--    justru yang paling mudah hilang tanpa disadari.
+--
+-- 3. storage.buckets memberi DELETE, INSERT, REFERENCES, SELECT, TRIGGER,
+--    TRUNCATE, dan UPDATE ke anon dan authenticated. Pengawalnya cuma
+--    RLS aktif dengan nol policy, jadi secara praktis tabel itu sudah
+--    tidak terbaca dan tidak bisa diubah oleh kedua role itu. Yang belum
+--    bersih adalah bentuk grant-nya: mencantumkan UPDATE dan DELETE di
+--    katalog bucket terlihat seperti hak yang memang diberikan, padahal
+--    aplikasi tidak pernah memakainya.
+--
+-- 4. public.rls_auto_enable() masih memegang EXECUTE untuk PUBLIC, jadi
+--    proacl-nya dimulai dengan =X/postgres. Fungsi event trigger itu
+--    tidak mengembalikan apa pun dan tidak bisa dipanggil lewat PostgREST,
+--    jadi dampaknya kecil. Hak yang tidak dibutuhkan tetap tidak perlu
+--    diberikan, dan kalau PUBLIC ditambahkan lagi di kemudian hari,
+--    privilege ini tidak akan ikut hilang.
+--
+-- Semua pernyataan di sini idempoten. Revoke dan grant boleh diulang
+-- tanpa error dan tanpa mengubah keadaan, alter default privileges
+-- menimpa entri yang sama, dan revoke execute pada fungsi yang haknya
+-- sudah dicabut tetap berhasil.
+
+-- 1) Registry gambar produk turun ke SELECT saja untuk kedua role aplikasi.
+-- Pola revoke all lalu grant select ini sama dengan yang dipakai 0002 untuk
+-- products, store_settings, dan tabel lainnya, supaya tabel ini tidak
+-- menyisakan privilege MAINTAIN yang tidak dibutuhkan.
+revoke all on public.product_images from anon, authenticated;
+
+-- SELECT tetap diberikan karena daftar gambar dibaca halaman publik, lewat
+-- policy product_images_public_read yang memang memakai using (true).
+grant select on public.product_images to anon, authenticated;
+
+-- 2) Katalog bucket Storage.
+-- Aplikasi tidak pernah menyentuh storage.buckets lewat PostgREST.
+-- src/lib/actions/storage.ts memakai klien Supabase JS, jadi unggah,
+-- ambil signed URL, dan hapus semua lewat Storage API, bukan lewat tabel
+-- ini. ALLOWED_BUCKETS di berkas itu satu-satunya daftar putih bucket di
+-- sisi aplikasi, dan isinya tiga bucket yang semuanya sudah diatur di
+-- migrasi lain, jadi tidak ada jalur aplikasi yang butuh INSERT, UPDATE,
+-- atau DELETE di sini. Minimum yang jujur karena itu SELECT, dan
+-- privileges di bawahnya sudah ditolak RLS yang aktif dengan nol policy,
+-- jadi keadaan yang dilihat aplikasi tidak berubah sama sekali.
+--
+-- Batas yang harus diketahui sebelum membaca hasil migrasi ini: grant
+-- tulis di storage.buckets diberikan oleh supabase_storage_admin, yang
+-- juga pemilik tabel itu, dan REVOKE hanya bisa mencabut hak yang diberikan
+-- oleh role yang sedang berjalan. Role postgres tidak anggota
+-- supabase_storage_admin, jadi revoke di sini hanya menghapus grant milik
+-- postgres sendiri. Diam-diam diuji pada production yang sekarang: lewat
+-- role authenticated, select dari storage.buckets tetap mengembalikan 0
+-- baris dan update tetap menyentuh 0 baris, bukan error permission
+-- denied. Yang benar-benar menutup jalannya tetap RLS dengan nol policy.
+-- Baris revoke tetap ditulis supaya grant milik postgres ikut bersih, dan
+-- supaya project yang owners storage.buckets-nya postgres benar-benar
+-- menutup hak tulisnya.
+revoke all on storage.buckets from anon, authenticated;
+grant select on storage.buckets to anon, authenticated;
+
+-- 3) Fungsi event trigger tidak perlu bisa dipanggil role mana pun. Dia
+-- dijalankan oleh event trigger ensure_rls, bukan oleh pemanggil, jadi
+-- mencabut EXECUTE untuk public, anon, dan authenticated tidak mengganggu
+-- jaring pengaman RLS yang sekarang sudah terpasang.
+revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+
+-- 4) Akar masalahnya ditutup supaya tabel berikutnya tidak diam-diam
+-- mewarisi grant selebar itu lagi. Tanpa dua baris di bawah, setiap tabel
+-- baru di schema public akan kembali memegang authenticated=arwdDxtm, lalu
+-- hanya tertahan oleh policy yang harus orang ingat menulis sendiri.
+-- Tabel yang sudah ada tidak ikut terpengaruh: alter default privileges
+-- hanya berlaku untuk objek yang dibuat setelah perintah ini dijalankan,
+-- jadi grant eksplisit dari 0001 dan 0002 tetap utuh.
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+
+-- Tabel baru tetap harus terbaca lewat Data API, jadi SELECT diberikan
+-- lagi setelah dicabut. Migrasi berikutnya yang butuh hak tulis pada
+-- tabel baru wajib menyebut role-nya eksplisit, dan itu jadi terlihat
+-- di diff.
+alter default privileges in schema public grant select on tables to anon, authenticated;
 -- ###########################################################################

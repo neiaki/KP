@@ -1,0 +1,99 @@
+name: Laporan bug
+description: Ada yang tidak berjalan atau tidak sesuai di aplikasi At Cell
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Aplikasi ini berjalan di production, jadi laporan yang jelas mempercepat
+        penanganan. Isi setiap field dengan ringkas, tidak perlu cerita panjang.
+
+  - type: warning
+    attributes:
+      title: Jangan tempel secret atau data pelanggan
+      body: |
+        Jangan pernah menempelkan `.env.local`, connection string database,
+        password, `SUPABASE_SECRET_KEY` atau service role key, `GITHUB_TOKEN`,
+        private key WireGuard, nomor telepon pelanggan, atau foto pelanggan ke
+        issue. Isi laporan dengan uraian, bukan salinan data.
+
+  - type: textarea
+    id: apa-yang-terjadi
+    attributes:
+      label: Apa yang terjadi
+      description: Satu atau dua kalimat ringkas.
+      placeholder: Mengetik IMEI 16 digit di form registrasi inventaris tidak ditolak, padahal harus ditolak.
+    validations:
+      required: true
+
+  - type: textarea
+    id: langkah-reproduksi
+    attributes:
+      label: Langkah mereproduksi
+      description: Urutan langkah yang bisa diulang orang lain.
+      placeholder: |
+        1. Masuk sebagai sales
+        2. Buka /portal/inventory
+        3. Isi kolom IMEI dengan 1234567890123456 lalu submit
+    validations:
+      required: true
+
+  - type: textarea
+    id: hasil-yang-diharapkan
+    attributes:
+      label: Hasil yang diharapkan
+      description: Apa yang seharusnya terjadi menurut Anda atau menurut aturan aplikasi.
+    validations:
+      required: true
+
+  - type: textarea
+    id: hasil-yang-terlihat
+    attributes:
+      label: Hasil yang sebenarnya
+      description: Pesan error, status respons, atau perilaku yang membuat Anda menyimpulkan ini bug. Tulis pesan apa adanya, bukan parafrase.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area yang terdampak
+      options:
+        - Situs publik (landing, katalog, info layanan)
+        - Portal POS
+        - Portal inventaris
+        - Portal servis
+        - Trade-in
+        - Tracking tiket servis
+        - Deployment dan image
+    validations:
+      required: true
+
+  - type: dropdown
+    id: peran
+    attributes:
+      label: Peran yang dipakai
+      options:
+        - admin
+        - sales
+        - technician
+        - customer
+        - Pengunjung tanpa login
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser dan perangkat
+      placeholder: Firefox 141 / Windows 11, atau Safari 18 / iPhone 15
+    validations:
+      required: false
+
+  - type: textarea
+    id: catatan
+    attributes:
+      label: Catatan tambahan
+      description: Screenshot atau langkah lain yang membantu. Jangan berisi data pelanggan atau secret.
+    validations:
+      required: false

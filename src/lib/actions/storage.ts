@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { uploadPhotoSchema } from "@/lib/validations";
+import { buildPhotoObjectKey, uploadPhotoSchema } from "@/lib/validations";
 import { fail, ok, requireRole, type ActionResult } from "./_helpers";
 
 const ALLOWED_BUCKETS = [
@@ -47,7 +47,7 @@ function perluTandaTangan(bucket: Bucket): boolean {
  */
 export async function uploadPhoto(
   formData: FormData,
-  opts: { bucket: Bucket; prefix?: string }
+  opts: { bucket: Bucket }
 ): Promise<ActionResult<{ url: string; path: string }>> {
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
@@ -62,12 +62,16 @@ export async function uploadPhoto(
   });
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "File tidak valid.");
   const supabase = await createClient();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const randomPart =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const path = `${opts.prefix ?? guard.profile.id}/${randomPart}-${safeName}`;
+  // Tidak ada opsi prefix lagi. Satu-satunya folder yang mungkin adalah id
+  // staf dari requireRole, jadi file tidak bisa ditulis ke folder staf lain.
+  // buildPhotoObjectKey tetap memeriksanya, jadi penjaganya tidak hilang
+  // diam-diam kalau bentuk id profil berubah di kemudian hari.
+  const path = buildPhotoObjectKey(guard.profile.id, randomPart, file.name);
+  if (!path) return fail("Folder foto tidak valid.");
   const bytes = new Uint8Array(await file.arrayBuffer());
   const { error } = await supabase.storage.from(opts.bucket).upload(path, bytes, {
     contentType: file.type,

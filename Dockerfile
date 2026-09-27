@@ -19,6 +19,16 @@ COPY package.json package-lock.json ./
 # Node 22 masih butuh legacy-peer-deps untuk Next 16 + React 19.
 RUN npm ci --legacy-peer-deps
 
+# ---------- prod-deps ----------
+# deps di atas wajib lengkap: builder memakai node_modules yang sama untuk
+# `next build`, yang butuh typescript dan @tailwindcss/postcss. Tapi image
+# runtime tidak boleh membawa toolchain dev, jadi install kedua yang hanya
+# memuat dependency runtime dipakai khusus oleh tahap runner. Tanpa ini
+# drizzle-kit, typescript, eslint, dan tailwindcss ikut terpasang di produksi.
+FROM base AS prod-deps
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps --omit=dev
+
 # ---------- builder ----------
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
@@ -49,9 +59,11 @@ COPY --from=builder --chown=node:node /app/public ./public
 # .next sudah berisi output webpack. Folder cache next/image akan ditulis
 # runtime oleh user node, jadi harus writable.
 COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 # Disalin penuh supaya `npm start` berperilaku sama persis dengan build lokal.
 # next.config tidak memakai `output: standalone`, jadi node_modules wajib ada.
-COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+# Sumbernya prod-deps, bukan deps, supaya image runtime hanya memuat
+# dependency runtime dan toolchain dev tidak ikut terpasang.
 COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json ./
 
 # next.config.ts WAJIB ada di image. Tanpa ini `next start` hanya bergantung pada
@@ -67,9 +79,9 @@ USER node
 
 EXPOSE 3000
 
-# Healthcheck sengaja tidak didefinisikan di sini. Coolify sudah memasang
-# healthcheck sendiri lewat compose yang ia hasilkan, dan image yang punya
+# Healthcheck sengaja tidak didefinisikan di sini. Coolify memasang healthcheck
+# sendiri untuk aplikasi yang dibuild dari Dockerfile, dan image yang punya
 # HEALTHCHECK akan bentrok dengan itu sehingga container gagal start.
-# Definisi healthcheck ada di docker-compose.coolify.yml.
+# Target dan jadwalnya diatur di resource Coolify, bukan di file ini.
 
 CMD ["npm", "start"]

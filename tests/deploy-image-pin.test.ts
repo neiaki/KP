@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 
 /*
  * Dockerfile.coolify menarik image hasil build GitHub Actions. Semula tag-nya
@@ -145,5 +146,100 @@ test("parser tidak tertipu baris FROM yang hanya contoh di komentar", () => {
   assert.equal(
     tagDariFrom(palsu),
     "sha-862e1899308ed2bf885409aa23aabfde130f8764",
+  );
+});
+
+/** Nama image yang sedang dideploy, ditulis penuh supaya penjaga ini punya sasaran. */
+const IMAGE_PRODUKSI = "ghcr.io/neiaki/kp";
+
+/** Tag apa pun yang menempel pada nama itu, dibaca sampai spasi atau tanda kutip. */
+const POLA_TAG_PRODUKSI = new RegExp(
+  IMAGE_PRODUKSI.replace(/\//g, "\\/") + ":([^\\s\"'`,)\\]]+)",
+  "g"
+);
+
+/**
+ * Berkas yang mungkin bisa menyebut image deploy.
+ *
+ * Cukup yang punya arti operasional: Dockerfile, compose, YAML, JSON, dan apa
+ * pun di dalam docs/ atau scripts/ karena di sanalah runbook ditulis. Berkas
+ * .ts tidak pernah mendeklarasikan image, dan package-lock.json hanya
+ * mengulang dependency yang sudah dijaga lockfile-nya.
+ */
+function bisaMenyebutImage(path: string): boolean {
+  if (path === "package-lock.json") return false;
+  const nama = path.split("/").pop() ?? "";
+  return (
+    nama.startsWith("Dockerfile") ||
+    nama.startsWith("docker-compose") ||
+    path.endsWith(".yml") ||
+    path.endsWith(".yaml") ||
+    path.endsWith(".json") ||
+    path.startsWith("docs/") ||
+    path.startsWith("scripts/")
+  );
+}
+
+/**
+ * Semua berkas ter-track, atau dari disk kalau git tidak ada.
+ *
+ * Jalur disk sengaja ikut menyapu berkas untrack: yang dicari adalah image
+ * produksi, dan image yang tidak ter-track tetap salah kalau ditulis.
+ */
+async function daftarBerkas(): Promise<string[]> {
+  try {
+    const keluar = execFileSync("git", ["ls-files"], {
+      cwd: new URL("../", repo("x")),
+      encoding: "utf8",
+    });
+    return keluar.split("\n").filter(Boolean);
+  } catch {
+    const akar = new URL("../", repo("x"));
+    const semua: string[] = [];
+    for (const prefix of ["", "docs/", "scripts/"]) {
+      let isi: string[];
+      try {
+        isi = await readdir(new URL(prefix, akar));
+      } catch {
+        continue;
+      }
+      for (const nama of isi) {
+        if (nama.startsWith(".")) continue;
+        semua.push(prefix + nama);
+      }
+    }
+    return semua;
+  }
+}
+
+const calonGambar = (await daftarBerkas()).filter(bisaMenyebutImage);
+
+test("tidak ada berkas mana pun yang menyebut image produksi dengan tag latest", async () => {
+  const pelanggaran: string[] = [];
+  for (const path of calonGambar) {
+    let isi: string;
+    try {
+      isi = await readFile(repo(`../${path}`), "utf8");
+    } catch {
+      continue;
+    }
+    isi.split("\n").forEach((baris, nomor) => {
+      for (const cocok of baris.matchAll(POLA_TAG_PRODUKSI)) {
+        // Digest dilepas lebih dulu supaya tag sha yang ikut menarik latest
+        // tidak salah dibaca sebagai latest.
+        const tag = cocok[1].split("@")[0];
+        if (tag === "latest" || tag.startsWith("latest:")) {
+          pelanggaran.push(`${path}:${nomor + 1}`);
+        }
+      }
+    });
+  }
+  assert.deepEqual(
+    pelanggaran,
+    [],
+    "tag latest memakai cache base image lokal VPS sehingga deploy hijau\n" +
+      "padahal image lama yang jalan. Pakai tag sha-<commit> seperti di\n" +
+      "Dockerfile.coolify. Berkas dan baris yang harus diperbaiki:\n" +
+      pelanggaran.map((p) => `  ${p}`).join("\n")
   );
 });

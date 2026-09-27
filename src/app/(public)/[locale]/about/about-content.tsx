@@ -118,7 +118,7 @@ export function AboutContent({
             </p>
             <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
               {locale === "en"
-                ? "Live count from the shop etalase. Prices already include store warranty."
+                ? "Live count from the shop display. Prices already include store warranty."
                 : "Hitungan live dari etalase toko. Harga sudah termasuk garansi toko."}
             </p>
             <ButtonLink

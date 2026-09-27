@@ -102,6 +102,7 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20260927160000_harden_storage_access.sql` | Bucket foto pelanggan jadi privat, `storage_public_read` hanya untuk katalog, batas ukuran dan tipe MIME |
 | `20260927170000_demo_ticket_for_tracking_example.sql` | Tiket contoh supaya kode contoh di halaman lacak benar-benar berfungsi |
 | `20260927180000_nullable_inventory_unit_product.sql` | `inventory_units.product_id` jadi nullable untuk unit trade-in, etalase publik hanya menampilkan unit berkatalog, plus catatan perbaikan baris lama |
+| `20260927190000_close_browser_role_write_grants.sql` | Menutup hak tulis `authenticated` di `product_images` dan hak tulis `anon`/`authenticated` di `storage.buckets`, mencabut `EXECUTE` publik dari `rls_auto_enable()`, dan revoke default privilege tabel di schema `public` supaya tabel baru tidak lagi mewarisi grant tulis |
 
 Setiap migrasi baru wajib ditambah ke tabel ini. `tests/deployment-runbook.test.ts`
 memeriksa dua arah: berkas yang sudah di-commit tapi belum disebut akan
@@ -120,6 +121,29 @@ katalog unit yang baru terjual, sehingga tukar S9 dengan S24 terdaftar dan
 tampil di etalase sebagai S24. Migrasi ini sengaja tidak memperbaiki data
 lama; cara mengenali dan memperbaiki baris yang sudah salah ada di catatan
 di dalam berkasnya, dan harus dijalankan operator setelah datanya dicek.
+
+`20260927190000` menutup lapisan grant yang sebelumnya hanya ditutup RLS.
+`20260927150000` mencabut hak tulis untuk `anon`, tapi `authenticated` masih
+memegang DELETE, INSERT, REFERENCES, TRIGGER, TRUNCATE, dan UPDATE di
+`product_images`. Migrasi ini menurunkan keduanya ke `SELECT` saja,
+mencabut `EXECUTE` untuk `PUBLIC` dari fungsi `rls_auto_enable()`, dan
+menjalankan `alter default privileges in schema public` supaya tabel yang
+dibuat setelahnya tidak lagi mewarisi `arwdDxtm` dari Supabase. Jalankan
+setelah `20260927180000`, tidak boleh dilewati: tanpa baris
+`alter default privileges`, setiap tabel berikutnya akan diam-diam mendapat
+hak tulis penuh lagi dan hanya tertahan oleh policy yang harus orang ingat
+menulis sendiri.
+
+Satu hal yang perlu diketahui operator soal bagian `storage.buckets` di
+migrasi itu. Grant tulis di sana diberikan oleh role `supabase_storage_admin`
+yang juga pemilik tabelnya, sedangkan `REVOKE` hanya bisa mencabut hak yang
+diberikan oleh role yang sedang berjalan, dan role `postgres` bukan anggota
+`supabase_storage_admin`. Jadi `revoke` di sana hanya menghapus grant milik
+`postgres`. Pengawal yang benar-benar bekerja tetap RLS dengan nol policy:
+`select count(*) from storage.buckets` sebagai `authenticated` mengembalikan
+0 baris, dan `update` menyentuh 0 baris, bukan error. Jangan dibaca sebagai
+grant sudah tertutup, dan jangan dihapus hanya karena terlihat tidak
+berpengaruh.
 
 Cara menjalankan:
 

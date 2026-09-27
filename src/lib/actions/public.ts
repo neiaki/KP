@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
@@ -15,8 +16,54 @@ import type {
   UnitCondition,
 } from "@/types";
 import { attemptWithRetry, pesanError } from "@/lib/retry";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { pickClientIp } from "@/lib/client-ip";
 import { backendOffline, fail, ok, toISO, toNumber, type ActionResult } from "./_helpers";
 import { mapStoreSettings } from "./_mappers";
+
+/**
+ * Batas baca etalase publik per IP, untuk getPublicInventory,
+ * getPublicSnapshot, dan getPublicImageUrls.
+ *
+ * Ketiganya action `use server` tanpa login, jadi tanpa kuota siapa pun bisa
+ * menyapu seluruh katalog. Nilainya sengaja jauh di atas pemakaian nyata:
+ * satu render halaman publik memakai sekitar 4 token (snapshot di layout,
+ * peta gambar di generateMetadata dan di komponen JSON-LD, dan satu token
+ * lagi untuk getPublicInventory yang dipanggil di dalam snapshot), dan
+ * etalase ini cuma 12 halaman x 2 locale. Satu crawl penuh memakai sekitar
+ * 96 token, jadi 600/menit memberi ruang 6x lipatan, cukup untuk Googlebot
+ * maupun satu kantor yang banyak orangnya browsing lewat satu IP,
+ * sementara penyapu tetap terikat di 600 permintaan per menit.
+ */
+const PUBLIK_PER_IP_LIMIT = 600;
+const PUBLIK_PER_IP_WINDOW_MS = 60_000;
+
+/**
+ * Pembaca IP pengunjung untuk menjadi kunci rate limit. Logikanya sama
+ * dengan yang dipakai login dan tracking, di src/lib/client-ip.ts, supaya
+ * keduanya tidak bisa berbeda. Kalau headernya hilang, semua permintaan
+ * digabung ke satu kunci global, yang membuat batasnya lebih ketat, bukan
+ * lebih longgar.
+ */
+async function getPublicClientId(): Promise<string> {
+  return pickClientIp(await headers());
+}
+
+/**
+ * Potong satu kuota baca publik. Kembalikan null kalau boleh lewat, atau
+ * pesan penolakan kalau sudah habis. Kuncinya sengaja satu bucket untuk
+ * ketiga action, supaya menyapu ketiganya bergantian tidak menambah kuota.
+ */
+async function consumePublicQuota(): Promise<string | null> {
+  const clientId = await getPublicClientId();
+  const hasil = consumeRateLimit(
+    `publik-ip:${clientId}`,
+    PUBLIK_PER_IP_LIMIT,
+    PUBLIK_PER_IP_WINDOW_MS
+  );
+  if (hasil.allowed) return null;
+  return `Terlalu banyak permintaan. Coba lagi dalam ${hasil.retryAfterSeconds} detik.`;
+}
 
 export type PublicStockItem = {
   unitId: number;
@@ -59,6 +106,11 @@ export async function getPublicInventory(opts?: {
   condition?: UnitCondition;
   limit?: number;
 }): Promise<ActionResult<PublicStockItem[]>> {
+  // Action tanpa login, jadi kuota dipotong sebelum query apa pun. getDb()
+  // tidak disebut dulu supaya permintaan yang sudah habis kuota tidak sampai
+  // ke database.
+  const kuota = await consumePublicQuota();
+  if (kuota) return fail(kuota);
   const db = getDb();
   if (!db) return backendOffline();
   const brand = opts?.brand?.trim() || null;
@@ -138,6 +190,9 @@ export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettin
  * cadangan, jadi lebih baik peta kosong daripada halaman depan tidak termuat.
  */
 export async function getPublicImageUrls(): Promise<Record<string, string>> {
+  // Kuota habis diperlakukan sama dengan kegagalan biasa di bawah: peta
+  // kosong, bukan halaman depan yang tidak termuat.
+  if (await consumePublicQuota()) return {};
   const db = getDb();
   if (!db) return {};
   try {
@@ -243,6 +298,10 @@ async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
  * daripada diturunkan ke status gagal.
  */
 export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>> {
+  // Kuota dipotong sebelum snapshot, tapi bacaSnapshot di bawah memanggil
+  // getPublicInventory yang memotong satu token lagi dari bucket yang sama.
+  const kuota = await consumePublicQuota();
+  if (kuota) return fail(kuota);
   const db = getDb();
   if (!db) return backendOffline();
   const hasil = await attemptWithRetry(() => bacaSnapshot(db));

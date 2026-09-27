@@ -134,7 +134,7 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
   } catch (e) {
     const err = e as Error & { code?: string };
     if (err.message === "UNIT_NOT_AVAILABLE") {
-      return fail("Unit sudah tidak available (terjual/dipesan). Pilih IMEI lain.");
+      return fail("Unit sudah tidak tersedia (terjual/dipesan). Pilih IMEI lain.");
     }
     if (err.code === "23505") {
       return fail("IMEI unit trade-in sudah terdaftar di inventaris.");
@@ -242,7 +242,7 @@ export async function getTransactionDetail(
   return ok(mapTransaction(data as unknown as TransactionRow));
 }
 
-/** Riwayat transaksi untuk laporan (batas 500 terakhir, filter tanggal opsional). */
+/** Riwayat transaksi untuk laporan (maksimal 200 terakhir, filter tanggal opsional). */
 export async function listTransactions(opts?: {
   from?: string;
   to?: string;
@@ -255,7 +255,7 @@ export async function listTransactions(opts?: {
     .from("transactions")
     .select(TX_SELECT)
     .order("created_at", { ascending: false })
-    .limit(opts?.limit ?? 200);
+    .limit(Math.min(Math.max(opts?.limit ?? 200, 1), 200));
   if (opts?.from) q = q.gte("created_at", opts.from);
   if (opts?.to) q = q.lte("created_at", opts.to);
   const { data, error } = await q;
