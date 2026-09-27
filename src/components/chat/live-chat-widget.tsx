@@ -9,15 +9,8 @@ import {
   MessageCircle,
   X,
   Send,
-  Sparkles,
-  Smartphone,
-  Wrench,
-  ArrowLeftRight,
   ExternalLink,
   Bot,
-  User,
-  Clock,
-  CheckCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +29,7 @@ interface ChatMessage {
 }
 
 export function LiveChatWidget() {
-  const { storeSettings, serviceTickets, products, inventoryUnits } = useStore();
+  const { storeSettings, serviceTickets, inventoryUnits } = useStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"livechat" | "whatsapp">("livechat");
@@ -182,7 +175,7 @@ export function LiveChatWidget() {
                     ONLINE
                   </Badge>
                 </div>
-                <div className="text-[11px] text-muted">
+                <div className="text-[11px] text-paper/70">
                   Live Chat & WhatsApp Business Resmi
                 </div>
               </div>
@@ -190,7 +183,7 @@ export function LiveChatWidget() {
 
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1.5 text-muted hover:text-paper rounded-lg hover:bg-accent-soft transition-colors cursor-pointer"
+              className="p-1.5 text-paper/70 hover:text-paper rounded-lg hover:bg-paper/10 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -213,7 +206,7 @@ export function LiveChatWidget() {
               onClick={() => setActiveTab("whatsapp")}
               className={`py-2.5 flex items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
                 activeTab === "whatsapp"
-                  ? "border-wa text-wa-deep bg-card"
+                  ? "border-wa text-ink bg-card"
                   : "border-transparent text-muted hover:text-ink"
               }`}
             >
@@ -331,12 +324,12 @@ export function LiveChatWidget() {
             <div className="flex-1 p-4 overflow-y-auto bg-paper/50 space-y-4 text-xs">
               <div className="p-4 bg-card rounded-xl border border-line shadow-xs space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-wa/15 text-wa-deep flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-full bg-wa/15 text-wa flex items-center justify-center font-bold">
                     WA
                   </div>
                   <div>
                     <h4 className="font-bold text-ink text-sm">Official WhatsApp Business</h4>
-                    <div className="text-[11px] text-wa-deep font-mono font-semibold">
+                    <div className="text-[11px] text-ink font-mono font-semibold">
                       +{waNumber} ({storeSettings.owner_name || "Admin At Cell"})
                     </div>
                   </div>
@@ -358,7 +351,7 @@ export function LiveChatWidget() {
                     rel="noreferrer"
                     className="block p-3 bg-card rounded-xl border border-line hover:border-wa hover:bg-wa/5 transition-all group"
                   >
-                    <div className="font-bold text-ink group-hover:text-wa-deep flex items-center justify-between">
+                    <div className="font-bold text-ink group-hover:text-accent-deep flex items-center justify-between">
                       <span>{t.title}</span>
                       <ExternalLink className="w-3 h-3 text-muted group-hover:text-wa" />
                     </div>
@@ -395,7 +388,7 @@ export function LiveChatWidget() {
         <div className="relative">
           <MessageCircle className="w-5 h-5" />
           {unreadCount > 0 && !isOpen && (
-            <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-warn text-white rounded-full text-[9px] font-black flex items-center justify-center">
+            <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-warn text-paper rounded-full text-[9px] font-black flex items-center justify-center">
               1
             </span>
           )}

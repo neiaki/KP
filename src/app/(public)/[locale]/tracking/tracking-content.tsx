@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonLink } from "@/components/button-link";
+import { cleanWaNumber } from "@/lib/wa";
 
 const WORKFLOW_STEPS: { key: RepairStatus; verbId: string; verbEn: string; descId: string; descEn: string }[] = [
   { key: "received", verbId: "HP diterima di konter", verbEn: "Received at the counter", descId: "HP sudah kami terima dan dapat antrean teknisi.", descEn: "Your phone is checked in and queued." },
@@ -534,8 +535,10 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                     </div>
                   )}
                   <ButtonLink
-                    href={`https://wa.me/${storeSettings.whatsapp_number?.replace(/\D/g, "")}?text=${encodeURIComponent(
-                      `Halo At Cell, saya mau tanya progres servis ${activeTicket.ticket_code} (${activeTicket.device_model}).`
+                    href={`https://wa.me/${cleanWaNumber(storeSettings.whatsapp_number)}?text=${encodeURIComponent(
+                      locale === "en"
+                        ? `Hi At Cell, I would like to ask about the repair progress for ticket ${activeTicket.ticket_code} (${activeTicket.device_model}).`
+                        : `Halo At Cell, saya mau tanya progres servis ${activeTicket.ticket_code} (${activeTicket.device_model}).`
                     )}`}
                     target="_blank"
                     rel="noreferrer"

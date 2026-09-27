@@ -14,6 +14,7 @@ import {
   type CreateTicketInput,
   type UpdateTicketInput,
 } from "@/lib/validations";
+import { pickClientIp } from "@/lib/client-ip";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import type { RepairStatus, ServiceTicket } from "@/types";
 import {
@@ -240,19 +241,13 @@ const TRACKING_GLOBAL_LIMIT = 200;
 const TRACKING_GLOBAL_WINDOW_MS = 60_000;
 
 /**
- * Pembaca IP pengunjung untuk menjadi kunci rate limit. Traefik di Coolify
- * selalu menyetel X-Forwarded-For, jadi entri pertama adalah klien asli. Kalau
- * headernya hilang, semua permintaan digabung ke satu kunci global, yang
- * membuat batasnya lebih ketat, bukan lebih longgar.
+ * Pembaca IP pengunjung untuk menjadi kunci rate limit. Logikanya sama
+ * dengan yang dipakai login, di src/lib/client-ip.ts, supaya keduanya tidak
+ * bisa berbeda. Kalau headernya hilang, semua permintaan digabung ke satu
+ * kunci global, yang membuat batasnya lebih ketat, bukan lebih longgar.
  */
 async function getTrackingClientId(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return h.get("x-real-ip")?.trim() || "unknown";
+  return pickClientIp(await headers());
 }
 
 export async function trackTicketPublic(rawCode: string): Promise<

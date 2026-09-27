@@ -50,7 +50,12 @@ if command -v pg_restore >/dev/null 2>&1; then
 fi
 
 mv -- "$temporary_path" "$dump_path"
-sha256sum "$dump_path" > "${dump_path}.sha256"
+# Checksum ditulis dari dalam BACKUP_DIR dan dengan nama relatif, bukan path
+# absolut. sha256sum mencatat argumen yang diberikan apa adanya, jadi dump yang
+# lalu disalin ke storage off-site tidak akan bisa dicek dengan
+# "sha256sum -c", karena baris checksumnya menunjuk ke /home/ubuntu/... yang
+# tidak ada di mesin tujuan.
+(cd "$BACKUP_DIR" && sha256sum "$dump_name" > "${dump_name}.sha256")
 chmod 600 "${dump_path}.sha256"
 
 printf 'Backup selesai: %s (%s bytes)\n' "$dump_name" "$(stat -c '%s' "$dump_path")"

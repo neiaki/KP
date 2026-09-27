@@ -106,14 +106,39 @@ test("rincian biaya ditolak kalau tidak bisa dicetak sebagai nota", () => {
   assert.equal(updateTicketSchema.safeParse({ ...baseInput, costBreakdown: tooMany }).success, false);
 });
 
-test("foto progres repairs harus berupa URL dan maksimal sepuluh", () => {
+test("foto progres repairs menerima path Storage, maximal sepuluh", () => {
+  // Bucket foto pelanggan sengaja privat, jadi yang disimpan ke database
+  // adalah path Storage, bukan URL. URL penuh tetap diterima supaya baris
+  // lama dan mode mock lokal tidak ikut rusak.
+  const path = "service-photos/2026/09/27/abc123.jpg";
   const url = "https://atcell.co.id/storage/v1/object/public/service-photos/a.jpg";
+  assert.equal(updateTicketSchema.safeParse({ ...baseInput, photoUrls: [path] }).success, true);
   assert.equal(updateTicketSchema.safeParse({ ...baseInput, photoUrls: [url] }).success, true);
-  assert.equal(updateTicketSchema.safeParse({ ...baseInput, photoUrls: ["bukan-url"] }).success, false);
+
+  // Yang ditolak adalah yang bisa keluar dari folder stafnya sendiri atau
+  // tidak mungkin menjadi kunci Storage sama sekali.
+  assert.equal(
+    updateTicketSchema.safeParse({ ...baseInput, photoUrls: ["../product-images/x.jpg"] }).success,
+    false,
+    "path yang naik ke folder induk harus ditolak"
+  );
+  assert.equal(
+    updateTicketSchema.safeParse({ ...baseInput, photoUrls: ["a/../../b.jpg"] }).success,
+    false,
+    "path yang naik ke folder induk di tengah juga harus ditolak"
+  );
+  assert.equal(
+    updateTicketSchema.safeParse({ ...baseInput, photoUrls: ["ada spasi.jpg"] }).success,
+    false,
+    "karakter di luar allowlist harus ditolak"
+  );
+  assert.equal(updateTicketSchema.safeParse({ ...baseInput, photoUrls: ["   "] }).success, false);
+  assert.equal(updateTicketSchema.safeParse({ ...baseInput, photoUrls: [""] }).success, false);
+
   assert.equal(
     updateTicketSchema.safeParse({
       ...baseInput,
-      photoUrls: Array.from({ length: 11 }, (_, i) => `${url}${i}`),
+      photoUrls: Array.from({ length: 11 }, (_, i) => `${path}${i}`),
     }).success,
     false
   );

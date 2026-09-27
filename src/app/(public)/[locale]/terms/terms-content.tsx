@@ -1,11 +1,9 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { cleanWaNumber } from "@/lib/wa";
-import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/button-link";
 import { MessageCircle } from "lucide-react";
 

@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
-import { translations, Locale } from "@/lib/translations";
+import { Locale } from "@/lib/translations";
 import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
 import { cleanWaNumber } from "@/lib/wa";
 import {
-  BRANDS,
   toCardItem,
   filterItems,
   sortItems,
@@ -16,7 +15,6 @@ import {
   type SortOrder,
 } from "@/lib/shop";
 import {
-  Smartphone,
   Wrench,
   ShieldCheck,
   ArrowRight,
@@ -26,7 +24,6 @@ import {
   CreditCard,
   Store,
   BadgeCheck,
-  Star,
   ExternalLink,
   ReceiptText,
   ClipboardCheck,
@@ -37,7 +34,6 @@ import { ProductCard } from "@/components/public/product-card";
 import { Reveal } from "@/components/public/reveal";
 import { ReviewsSection } from "@/components/public/reviews-section";
 import { HeroCarousel, type HeroSlide } from "@/components/public/hero-carousel";
-import { BrandLogo, brandChipClass } from "@/components/public/brand-mark";
 import { StockFilter } from "@/components/public/stock-filter";
 import { StoreMap } from "@/components/public/store-map";
 import { BrandMarquee } from "@/components/public/brand-marquee";
@@ -60,7 +56,6 @@ export function LandingContent({
 }) {
   const router = useRouter();
   const { storeSettings, products, inventoryUnits } = useStore();
-  const t = translations[locale];
 
   const [ticketQuery, setTicketQuery] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
