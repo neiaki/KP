@@ -157,7 +157,7 @@ export function TermsContent({ locale }: { locale: Locale }) {
         <div className="mt-6 space-y-6">
           {sections.map((s) => (
             <section key={s.title} className="rounded-xl border border-line bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-extrabold tracking-tight text-ink">{s.title}</h2>
+              <h2 className="text-xl font-extrabold tracking-tight text-ink">{s.title}</h2>
               <div className="mt-2 space-y-2">
                 {s.body.map((p) => (
                   <p key={p.slice(0, 24)} className="text-[13px] leading-relaxed text-muted">

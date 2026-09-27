@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
+import { cleanWaNumber } from "@/lib/wa";
+import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
 import {
   MessageCircle,
   X,
@@ -153,7 +155,7 @@ export function LiveChatWidget() {
     },
   ];
 
-  const cleanWaNumber = (storeSettings.whatsapp_number || "6285775398389").replace(/\D/g, "");
+  const waNumber = cleanWaNumber(storeSettings.whatsapp_number);
 
   return (
     <div
@@ -162,24 +164,24 @@ export function LiveChatWidget() {
     >
       {/* Expanded Chat Box */}
       {isOpen && (
-        <div className="mb-3 w-[360px] sm:w-[390px] h-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+        <div className="mb-3 w-[360px] sm:w-[390px] h-[520px] bg-card rounded-2xl shadow-2xl border border-line flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
           {/* Header */}
-          <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
+          <div className="bg-ink text-paper p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="w-10 h-10 rounded-xl bg-accent text-white flex items-center justify-center font-bold text-base shadow-md">
                   AT
                 </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-good border-2 border-ink" />
               </div>
               <div>
-                <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                <div className="font-bold text-sm text-paper flex items-center gap-1.5">
                   <span>At Cell Customer Care</span>
                   <Badge variant="success" className="text-[9px] py-0 px-1 font-mono">
                     ONLINE
                   </Badge>
                 </div>
-                <div className="text-[11px] text-slate-400">
+                <div className="text-[11px] text-muted">
                   Live Chat & WhatsApp Business Resmi
                 </div>
               </div>
@@ -187,20 +189,20 @@ export function LiveChatWidget() {
 
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 text-muted hover:text-paper rounded-lg hover:bg-accent-soft transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Mode Switcher Tabs */}
-          <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50 text-xs font-bold">
+          <div className="grid grid-cols-2 border-b border-line bg-paper text-xs font-bold">
             <button
               onClick={() => setActiveTab("livechat")}
               className={`py-2.5 flex items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
                 activeTab === "livechat"
-                  ? "border-accent text-slate-900 bg-white"
-                  : "border-transparent text-slate-500 hover:text-slate-900"
+                  ? "border-accent text-ink bg-card"
+                  : "border-transparent text-muted hover:text-ink"
               }`}
             >
               <Bot className="w-3.5 h-3.5" />
@@ -210,18 +212,18 @@ export function LiveChatWidget() {
               onClick={() => setActiveTab("whatsapp")}
               className={`py-2.5 flex items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
                 activeTab === "whatsapp"
-                  ? "border-emerald-600 text-emerald-700 bg-white"
-                  : "border-transparent text-slate-500 hover:text-slate-900"
+                  ? "border-wa text-wa-deep bg-card"
+                  : "border-transparent text-muted hover:text-ink"
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+              <span className="w-2 h-2 rounded-full bg-wa inline-block" />
               <span>WhatsApp Business</span>
             </button>
           </div>
 
           {/* TAB 1: LIVE CHAT */}
           {activeTab === "livechat" && (
-            <div className="flex-1 flex flex-col justify-between overflow-hidden bg-slate-50/50">
+            <div className="flex-1 flex flex-col justify-between overflow-hidden bg-paper/50">
               {/* Messages Area */}
               <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
                 {messages.map((msg) => (
@@ -235,7 +237,7 @@ export function LiveChatWidget() {
                       className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed shadow-xs ${
                         msg.sender === "user"
                           ? "bg-accent text-white rounded-br-none"
-                          : "bg-white text-slate-800 border border-slate-200 rounded-bl-none"
+                          : "bg-card text-ink border border-line rounded-bl-none"
                       }`}
                     >
                       {msg.text}
@@ -252,14 +254,14 @@ export function LiveChatWidget() {
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 px-1">
+                    <span className="text-[10px] text-muted mt-1 px-1">
                       {msg.timestamp}
                     </span>
                   </div>
                 ))}
 
                 {isTyping && (
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-white p-2.5 rounded-xl border border-slate-200 w-fit">
+                  <div className="flex items-center gap-1.5 text-xs text-muted bg-card p-2.5 rounded-xl border border-line w-fit">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" />
                     <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce [animation-delay:0.2s]" />
                     <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce [animation-delay:0.4s]" />
@@ -270,32 +272,34 @@ export function LiveChatWidget() {
               </div>
 
               {/* Quick Prompt Chips */}
-              <div className="p-2 border-t border-slate-200 bg-white flex gap-1.5 overflow-x-auto text-[11px]">
+              <div className="p-2 border-t border-line bg-card flex gap-1.5 overflow-x-auto text-[11px]">
                 <button
                   type="button"
-                  onClick={() => handleSendMessage("Cek status servis tiket SRV-20260912-7K4M2QX9")}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full shrink-0 transition-colors cursor-pointer"
+                  onClick={() =>
+                    handleSendMessage(`Cek status servis tiket ${TICKET_CODE_EXAMPLE}`)
+                  }
+                  className="px-2.5 py-1 bg-paper hover:bg-line text-ink rounded-full shrink-0 transition-colors cursor-pointer"
                 >
                   🔍 Cek Tiket Servis
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSendMessage("Apakah ada stok iPhone ready?")}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full shrink-0 transition-colors cursor-pointer"
+                  className="px-2.5 py-1 bg-paper hover:bg-line text-ink rounded-full shrink-0 transition-colors cursor-pointer"
                 >
                   📱 Cek Stok iPhone
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSendMessage("Bagaimana cara tukar tambah smartphone lama?")}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full shrink-0 transition-colors cursor-pointer"
+                  className="px-2.5 py-1 bg-paper hover:bg-line text-ink rounded-full shrink-0 transition-colors cursor-pointer"
                 >
                   🔄 Cara Tukar Tambah
                 </button>
               </div>
 
               {/* Input Form */}
-              <div className="p-2.5 border-t border-slate-200 bg-white">
+              <div className="p-2.5 border-t border-line bg-card">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -323,41 +327,41 @@ export function LiveChatWidget() {
 
           {/* TAB 2: WHATSAPP BUSINESS */}
           {activeTab === "whatsapp" && (
-            <div className="flex-1 p-4 overflow-y-auto bg-emerald-50/30 space-y-4 text-xs">
-              <div className="p-4 bg-white rounded-xl border border-emerald-200 shadow-xs space-y-2">
+            <div className="flex-1 p-4 overflow-y-auto bg-paper/50 space-y-4 text-xs">
+              <div className="p-4 bg-card rounded-xl border border-line shadow-xs space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-full bg-wa/15 text-wa-deep flex items-center justify-center font-bold">
                     WA
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Official WhatsApp Business</h4>
-                    <div className="text-[11px] text-emerald-700 font-mono font-semibold">
-                      +{cleanWaNumber} (At Cell Admin)
+                    <h4 className="font-bold text-ink text-sm">Official WhatsApp Business</h4>
+                    <div className="text-[11px] text-wa-deep font-mono font-semibold">
+                      +{waNumber} ({storeSettings.owner_name || "Admin At Cell"})
                     </div>
                   </div>
                 </div>
-                <p className="text-slate-600 text-[11px] leading-relaxed">
+                <p className="text-muted text-[11px] leading-relaxed">
                   Hubungi tim staf operasional kami secara langsung di WhatsApp untuk negosiasi trade-in, booking jadwal servis prioritas, atau pemesanan unit baru.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <span className="font-bold text-slate-700 block text-xs">
+                <span className="font-bold text-ink block text-xs">
                   Pilih Topik Chat Cepat:
                 </span>
                 {whatsappTemplates.map((t, i) => (
                   <a
                     key={i}
-                    href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(t.msg)}`}
+                    href={`https://wa.me/${waNumber}?text=${encodeURIComponent(t.msg)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="block p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all group"
+                    className="block p-3 bg-card rounded-xl border border-line hover:border-wa hover:bg-wa/5 transition-all group"
                   >
-                    <div className="font-bold text-slate-900 group-hover:text-emerald-700 flex items-center justify-between">
+                    <div className="font-bold text-ink group-hover:text-wa-deep flex items-center justify-between">
                       <span>{t.title}</span>
-                      <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-emerald-600" />
+                      <ExternalLink className="w-3 h-3 text-muted group-hover:text-wa" />
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-1 italic line-clamp-1">
+                    <p className="text-[11px] text-muted mt-1 italic line-clamp-1">
                       &ldquo;{t.msg}&rdquo;
                     </p>
                   </a>
@@ -365,12 +369,12 @@ export function LiveChatWidget() {
               </div>
 
               <a
-                href={`https://wa.me/${cleanWaNumber}`}
+                href={`https://wa.me/${waNumber}`}
                 target="_blank"
                 rel="noreferrer"
                 className="block pt-2"
               >
-                <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-5 gap-2 shadow-md shadow-emerald-600/20">
+                <Button className="w-full bg-wa hover:bg-wa-deep text-white font-bold py-5 gap-2 shadow-md shadow-wa/20">
                   <MessageCircle className="w-4 h-4" />
                   <span>Buka Chat WhatsApp Kosong</span>
                 </Button>
@@ -391,7 +395,7 @@ export function LiveChatWidget() {
         <div className="relative">
           <MessageCircle className="w-5 h-5" />
           {unreadCount > 0 && !isOpen && (
-            <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-amber-400 text-slate-950 rounded-full text-[9px] font-black flex items-center justify-center">
+            <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-warn text-white rounded-full text-[9px] font-black flex items-center justify-center">
               1
             </span>
           )}

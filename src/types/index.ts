@@ -45,6 +45,9 @@ export interface StoreSettings {
   maps_url?: string;
   phone_number: string;
   whatsapp_number?: string;
+  // Nama orang yang jawab WhatsApp. Tampil di widget live chat supaya
+  // pelanggan tahu bukan chatbot yang membalas.
+  owner_name?: string;
   // URL sosmed resmi toko. Kosong berarti platform itu tidak ditampilkan di
   // footer, jadi tidak pernah ada tautan ke domain orang lain.
   social_facebook?: string;

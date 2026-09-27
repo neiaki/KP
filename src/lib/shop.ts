@@ -20,10 +20,6 @@ function isRealPhoto(src: string | undefined | null): src is string {
   return !!src && !DUMMY_HOSTS.some((h) => src.includes(h));
 }
 
-export function cleanWaNumber(raw?: string | null) {
-  return (raw || "6285775398389").replace(/\D/g, "");
-}
-
 /* Rp8.499.000 menjadi Rp8,5 jt untuk headline yang ringkas */
 export function shortIDR(n: number) {
   if (!Number.isFinite(n)) return formatIDR(0);

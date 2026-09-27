@@ -1,3 +1,5 @@
+import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
+
 export type Locale = "id" | "en";
 
 export const translations = {
@@ -33,7 +35,7 @@ export const translations = {
     trackingWidget: {
       title: "Lacak Progres Reparasi Servis",
       subtitle: "Cek tahapan perbaikan unit Anda secara langsung dan transparan tanpa perlu login.",
-      inputPlaceholder: "Contoh: SRV-20260912-7K4M2QX9",
+      inputPlaceholder: `Contoh: ${TICKET_CODE_EXAMPLE}`,
       buttonText: "Lacak Sekarang",
       quickDemo: "Coba nomor tiket contoh:",
     },
@@ -91,7 +93,7 @@ export const translations = {
     trackingWidget: {
       title: "Track Your Repair Progress",
       subtitle: "Check live repair milestones and cost breakdown directly without logging in.",
-      inputPlaceholder: "e.g., SRV-20260912-7K4M2QX9",
+      inputPlaceholder: `e.g., ${TICKET_CODE_EXAMPLE}`,
       buttonText: "Track Now",
       quickDemo: "Try demo ticket:",
     },

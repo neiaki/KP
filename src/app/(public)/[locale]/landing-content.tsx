@@ -5,15 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { translations, Locale } from "@/lib/translations";
+import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
 import {
   BRANDS,
   toCardItem,
   filterItems,
   sortItems,
   shortIDR,
-  cleanWaNumber,
   type SortOrder,
 } from "@/lib/shop";
+import { cleanWaNumber } from "@/lib/wa";
 import {
   Smartphone,
   Wrench,
@@ -253,12 +254,12 @@ export function LandingContent({ locale }: { locale: Locale }) {
           </p>
           <div className="rise mt-10 flex flex-wrap gap-4" style={{ animationDelay: "240ms" }}>
             <a href="#stok">
-              <Button size="lg" className="rounded-full bg-ink px-8 py-4 text-base font-bold text-white hover:bg-neutral-800 dark:bg-white dark:text-paper dark:hover:bg-neutral-200">
+              <Button size="lg" className="bg-ink px-8 py-4 text-base font-bold text-white hover:bg-neutral-800 dark:bg-white dark:text-paper dark:hover:bg-neutral-200">
                 {locale === "en" ? "See stock" : "Lihat stok"}
               </Button>
             </a>
             <Link href={`/${locale}/trade-in`}>
-              <Button size="lg" variant="outline" className="rounded-full px-8 py-4 text-base font-bold">
+              <Button size="lg" variant="outline" className="px-8 py-4 text-base font-bold">
                 <ArrowLeftRight className="h-4 w-4" />
                 {locale === "en" ? "Trade in" : "Tukar tambah"}
               </Button>
@@ -372,7 +373,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
                   id="hero-ticket"
                   value={ticketQuery}
                   onChange={(e) => setTicketQuery(e.target.value)}
-                  placeholder="SRV-20260912-7K4M2QX9"
+                  placeholder={TICKET_CODE_EXAMPLE}
                   className="h-10 flex-1 font-mono text-xs uppercase"
                 />
                 <Button type="submit" className="h-10 shrink-0">

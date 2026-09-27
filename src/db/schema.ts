@@ -99,6 +99,8 @@ export const storeSettings = pgTable(
     mapsUrl: text("maps_url"),
     phoneNumber: text("phone_number").notNull().default(""),
     whatsappNumber: text("whatsapp_number"),
+    // Nama pemilik toko, tampil di ajakan WhatsApp.
+    ownerName: text("owner_name").notNull().default(""),
     // URL sosmed opsional. Null berarti platform itu tidak ditampilkan, jadi
     // tidak ada link placeholder yang mengarah ke domain orang lain.
     socialFacebook: text("social_facebook"),

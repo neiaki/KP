@@ -13,8 +13,10 @@ export default async function TrackingPage({
   return (
     <Suspense
       fallback={
-        <div className="py-20 text-center text-slate-500">
-          Memuat data pelacakan servis...
+        <div className="py-20 text-center text-muted">
+          {locale === "en"
+            ? "Loading service tracking data..."
+            : "Memuat data pelacakan servis..."}
         </div>
       }
     >

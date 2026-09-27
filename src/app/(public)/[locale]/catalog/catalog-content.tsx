@@ -12,9 +12,9 @@ import {
   toCardItem,
   filterItems,
   sortItems,
-  cleanWaNumber,
   type SortOrder,
 } from "@/lib/shop";
+import { cleanWaNumber } from "@/lib/wa";
 
 export function CatalogContent({ locale }: { locale: Locale }) {
   const { products, inventoryUnits, storeSettings } = useStore();

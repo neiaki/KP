@@ -7,6 +7,7 @@ import { Locale } from "@/lib/translations";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { openNotaPrintWindow, buildServiceNotaHtml } from "@/lib/print-nota";
 import { trackTicketPublic } from "@/lib/actions/service";
+import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
 import { RepairStatus, ServiceTicket } from "@/types";
 import {
   Search,
@@ -224,6 +225,13 @@ export function TrackingContent({ locale }: { locale: Locale }) {
     ? WORKFLOW_STEPS.findIndex((s) => s.key === activeTicket.repair_status)
     : -1;
 
+  /* Label status diambil dari langkah yang sama dengan linimasa, bukan dari
+     nilai enum. Nilai enum bocor ke teks pengguna sebagai "waiting
+     approval", yang membingungkan pelanggan yang membaca halaman ini dalam
+     bahasa Indonesia. "cancelled" tidak punya langkah, jadi tetap pakai
+     nilai enum-nya sebagai cadangan. */
+  const activeStep = currentStepIndex >= 0 ? WORKFLOW_STEPS[currentStepIndex] : null;
+
   const imeiDisplay = activeTicket
     ? activeTicket.imei_or_sn
       ? activeTicket.imei_or_sn.slice(-4)
@@ -257,7 +265,7 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                   type="text"
                   value={ticketInput}
                   onChange={(e) => setTicketInput(e.target.value)}
-                  placeholder="SRV-20260912-7K4M2QX9"
+                  placeholder={TICKET_CODE_EXAMPLE}
                   className="h-11 bg-card pl-10 font-mono text-sm uppercase"
                 />
               </div>
@@ -288,8 +296,8 @@ export function TrackingContent({ locale }: { locale: Locale }) {
               // mendapat "kode tidak ketemu". Cukup jelaskan polanya saja.
               <span className="font-mono text-muted">
                 {locale === "en"
-                  ? "SRV-YYYYMMDD-XXXXXXXX, e.g. SRV-20260912-7K4M2QX9"
-                  : "SRV-YYYYMMDD-XXXXXXXX, contoh SRV-20260912-7K4M2QX9"}
+                  ? `SRV-YYYYMMDD-XXXXXXXX, e.g. ${TICKET_CODE_EXAMPLE}`
+                  : `SRV-YYYYMMDD-XXXXXXXX, contoh ${TICKET_CODE_EXAMPLE}`}
               </span>
             )}
           </div>
@@ -342,7 +350,11 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                           : "warning"
                     }
                   >
-                    {activeTicket.repair_status.replace("_", " ")}
+                    {activeStep
+                      ? locale === "en"
+                        ? activeStep.verbEn
+                        : activeStep.verbId
+                      : activeTicket.repair_status.replace(/_/g, " ")}
                   </Badge>
                   {!isLiveBackend ? (
                     <Button

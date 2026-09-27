@@ -2,8 +2,11 @@ import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { cleanWaNumber } from "@/lib/wa";
 
-const WA_NUMBER = "6285775398389";
+// Halaman error tidak punya akses ke store, jadi memakai nomor cadangan yang
+// sama dengan komponen lain lewat satu fungsi.
+const WA_NUMBER = cleanWaNumber();
 
 type ErrorStateProps = {
   code: string;

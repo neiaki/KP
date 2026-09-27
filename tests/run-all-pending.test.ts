@@ -4,9 +4,10 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * supabase/RUN-ALL-PENDING.sql menggabungkan enam migrasi supaya project baru
- * cukup di-paste sekali lewat SQL Editor. File itu dibangun dengan skrip di luar
- * repo, jadi tidak ada yang menahan isinya tetap sama dengan migrasi aslinya.
+ * supabase/RUN-ALL-PENDING.sql menggabungkan dua belas migrasi supaya project
+ * baru cukup di-paste sekali lewat SQL Editor. File itu dibangun dengan skrip di
+ * luar repo, jadi tidak ada yang menahan isinya tetap sama dengan migrasi
+ * aslinya.
  *
  * Risiko nyata yang sudah pernah terjadi: proses penggabungan memotong badan
  * migrasi 0006 di separator yang salah, jadi alter table-nya hilang tanpa error
@@ -33,6 +34,30 @@ const SECTIONS: { label: string; source: string }[] = [
   { label: "0006_store_social_urls", source: "0006_store_social_urls.sql" },
   { label: "0007_audit_trail", source: "0007_audit_trail.sql" },
   { label: "0005_username_login", source: "0005_username_login.sql" },
+  {
+    label: "20260927130000_product_image_registry",
+    source: "20260927130000_product_image_registry.sql",
+  },
+  {
+    label: "20260927120000_auto_enable_rls_on_new_tables",
+    source: "20260927120000_auto_enable_rls_on_new_tables.sql",
+  },
+  {
+    label: "20260927140000_store_owner_and_real_contact",
+    source: "20260927140000_store_owner_and_real_contact.sql",
+  },
+  {
+    label: "20260927150000_revoke_anon_write_on_product_images",
+    source: "20260927150000_revoke_anon_write_on_product_images.sql",
+  },
+  {
+    label: "20260927160000_harden_storage_access",
+    source: "20260927160000_harden_storage_access.sql",
+  },
+  {
+    label: "20260927170000_demo_ticket_for_tracking_example",
+    source: "20260927170000_demo_ticket_for_tracking_example.sql",
+  },
 ];
 
 /** Migrasi yang sudah ada sebelum file gabungan dibuat, jadi tidak ada di dalamnya. */
@@ -45,9 +70,20 @@ const ALREADY_PROVISIONED = ["0001", "0002", "0003"];
  *
  * Blok komentar di awal badan sengaja tidak dibandingkan: saat digabung,
  * pembatas bagian di dalam migrasi jadi berlebihan karena penanda
- * `-- BAGIAN n dari 6` sudah melakukan hal yang sama. Yang wajib identik
+ * `-- BAGIAN n dari 12` sudah melakukan hal yang sama. Yang wajib identik
  * adalah setiap baris SQL-nya, dan itu yang dicek di sini.
  */
+/**
+ * Buang baris kosong dan baris komentar di awal. Dipakai kedua sisi
+ * perbandingan supaya blok penjelasan di kepala tiap bagian tidak ikut
+ * dibandingkan. Isi dari baris SQL pertama ke bawah yang wajib identik.
+ */
+function dropLeadingComments(body: string[]): string[] {
+  const start = body.findIndex((l) => l.trim() !== "" && !l.trim().startsWith("--"));
+  assert.ok(start !== -1, "setiap migrasi harus punya setidaknya satu pernyataan SQL");
+  return body.slice(start);
+}
+
 function migrationBody(source: string): string {
   const lines = source.split("\n");
   const isBanner = (l: string) => /^-- ={10,}$/.test(l.trim());
@@ -57,9 +93,7 @@ function migrationBody(source: string): string {
       ? lines
       : lines.slice(lines.findIndex((l, i) => i > openIdx && isBanner(l)) + 1);
 
-  const sqlStart = body.findIndex((l) => l.trim() !== "" && !l.trim().startsWith("--"));
-  assert.ok(sqlStart !== -1, "setiap migrasi harus punya setidaknya satu pernyataan SQL");
-  return normalize(body.slice(sqlStart).join("\n"));
+  return normalize(dropLeadingComments(body).join("\n"));
 }
 
 /** Sama persis dengan potongannya di file gabungan. */
@@ -75,7 +109,7 @@ function sectionBody(label: string): string {
   assert.ok(openIdx !== -1, `bagian ${label} tidak punya penanda pembuka`);
   const closeIdx = lines.findIndex((l, i) => i > openIdx && isFence(l));
   assert.ok(closeIdx !== -1, `bagian ${label} tidak punya penanda penutup`);
-  return normalize(lines.slice(openIdx + 1, closeIdx).join("\n"));
+  return normalize(dropLeadingComments(lines.slice(openIdx + 1, closeIdx)).join("\n"));
 }
 
 /** Rentang baris yang dipegang sebuah bagian: [awal, akhir). */
