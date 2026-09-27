@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { formatIDR, formatDate } from "@/lib/utils";
-import { RepairStatus, ServiceTicket } from "@/types";
+import { RepairStatus, ServiceCostItem, ServiceTicket } from "@/types";
+import { uploadPhoto } from "@/lib/actions/storage";
 import {
   Wrench,
   Plus,
@@ -41,12 +42,94 @@ export default function TechnicianServicePage() {
   const [laborFee, setLaborFee] = useState<number>(100000);
   const [notes, setNotes] = useState("");
 
+  // service_tickets.cost_breakdown sudah divalidasi (src/lib/validations.ts)
+  // dan sudah dicetak di nota servis (src/lib/print-nota.ts), tapi tidak
+  // pernah ada UI yang mengisinya. Semua faktura servis yang tercetak selama
+  // ini karena itu hanya menunjukkan satu baris total.
+  const [costItems, setCostItems] = useState<ServiceCostItem[]>([]);
+  // Foto masuk sudah ada sejak intake; PRD menjanjikan bukti sebelum/sesudah,
+  // jadi foto progres ditambahkan dari meja kerja, bukan hanya diantar.
+  const [progressPhotos, setProgressPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const MAX_COST_ITEMS = 50;
+  const MAX_PHOTOS = 10;
+
+  /**
+   * Rincian harus sama dengan yang ditagihkan, jadi begitu ada baris
+   * biaya, aggregate sparepart dan labor dihitung ulang dari baris itu.
+   * Daftar kosong tidak mengubah apa pun, supaya tiket lama yang biayanya
+   * sudah diisi tapi rinciannya belum ada tidak jadi nol hanya karena
+   * statusnya diperbarui.
+   */
+  const syncFeesFromItems = (items: ServiceCostItem[]) => {
+    if (items.length === 0) return;
+    setSparepartFee(
+      items.filter((i) => i.type === "sparepart").reduce((t, i) => t + i.cost, 0)
+    );
+    setLaborFee(
+      items.filter((i) => i.type === "labor").reduce((t, i) => t + i.cost, 0)
+    );
+  };
+
+  const addCostItem = (type: ServiceCostItem["type"]) => {
+    if (costItems.length >= MAX_COST_ITEMS) {
+      setNotice({ type: "error", text: `Maksimal ${MAX_COST_ITEMS} baris biaya per tiket.` });
+      return;
+    }
+    const next: ServiceCostItem[] = [
+      ...costItems,
+      { id: crypto.randomUUID(), name: "", cost: 0, type },
+    ];
+    setCostItems(next);
+    syncFeesFromItems(next);
+  };
+
+  const updateCostItem = (id: string, patch: Partial<ServiceCostItem>) => {
+    const next = costItems.map((item) => (item.id === id ? { ...item, ...patch } : item));
+    setCostItems(next);
+    syncFeesFromItems(next);
+  };
+
+  const removeCostItem = (id: string) => {
+    const next = costItems.filter((item) => item.id !== id);
+    setCostItems(next);
+    syncFeesFromItems(next);
+  };
+
+  const handleProgressPhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (progressPhotos.length >= MAX_PHOTOS) {
+      setNotice({ type: "error", text: `Maksimal ${MAX_PHOTOS} foto untuk satu tiket.` });
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadPhoto(formData, { bucket: "service-photos" });
+      if (!result.ok) {
+        setNotice({ type: "error", text: result.error });
+        return;
+      }
+      setProgressPhotos((prev) => [...prev, result.data.url]);
+    } catch {
+      setNotice({ type: "error", text: "Gagal mengunggah foto. Coba lagi." });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleOpenTicketModal = (ticket: ServiceTicket) => {
     setSelectedTicket(ticket);
     setEditStatus(ticket.repair_status);
     setSparepartFee(ticket.sparepart_fee);
     setLaborFee(ticket.labor_fee);
     setNotes(ticket.technician_notes ?? "");
+    setCostItems(ticket.cost_breakdown ?? []);
+    setProgressPhotos(ticket.photo_urls ?? []);
   };
 
   useEffect(() => {
@@ -62,12 +145,32 @@ export default function TechnicianServicePage() {
     e.preventDefault();
     if (!selectedTicket) return;
 
+    // Baris biaya yang belum diisi namanya akan ditolak costItemSchema, jadi
+    // dicegah di sini dengan pesan yang menunjuk baris bermasalahnya.
+    const badItem = costItems.find((item) => item.name.trim().length < 2);
+    if (badItem) {
+      setNotice({ type: "error", text: "Nama biaya minimal 2 huruf." });
+      return;
+    }
+
     try {
+      const costBreakdown = costItems.map((item) => ({
+        ...item,
+        name: item.name.trim(),
+      }));
+
+      // Satu jalur tulis saja: store meneruskan rincian biaya dan foto
+      // progres ke updateTicket, jadi halaman tidak perlu memanggil Server
+      // Action-nya sendiri. Dua jalur tulis saling menimpa urutan dan membuat
+      // salinan tiket di store setengah jadi.
+
       await updateServiceTicket(selectedTicket.id, {
         repair_status: editStatus,
         sparepart_fee: sparepartFee,
         labor_fee: laborFee,
         technician_notes: notes,
+        cost_breakdown: costBreakdown,
+        photo_urls: progressPhotos,
       });
 
       // Update active modal copy
@@ -80,6 +183,8 @@ export default function TechnicianServicePage() {
               labor_fee: laborFee,
               total_fee: sparepartFee + laborFee,
               technician_notes: notes,
+              cost_breakdown: costBreakdown,
+              photo_urls: progressPhotos,
             }
           : null
       );
@@ -354,6 +459,134 @@ export default function TechnicianServicePage() {
                     className="text-xs"
                   />
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-line bg-paper p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-ink">Rincian Biaya (Nota)</span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => addCostItem("sparepart")}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Suku cadang
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => addCostItem("labor")}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Jasa
+                    </Button>
+                  </div>
+                </div>
+
+                {costItems.length === 0 ? (
+                  <p className="text-[11px] text-muted">
+                    Belum ada rincian. Nota servis hanya akan menampilkan baris total.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {costItems.map((item) => (
+                      <li key={item.id} className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <label
+                            className="block font-semibold text-muted mb-1"
+                            htmlFor={`cost-name-${item.id}`}
+                          >
+                            {item.type === "sparepart" ? "Suku cadang" : "Jasa"}
+                          </label>
+                          <Input
+                            id={`cost-name-${item.id}`}
+                            value={item.name}
+                            onChange={(e) => updateCostItem(item.id, { name: e.target.value })}
+                            className="text-xs"
+                          />
+                        </div>
+                        <div className="w-32">
+                          <label
+                            className="block font-semibold text-muted mb-1"
+                            htmlFor={`cost-amount-${item.id}`}
+                          >
+                            Nominal
+                          </label>
+                          <Input
+                            id={`cost-amount-${item.id}`}
+                            type="number"
+                            min={0}
+                            value={item.cost}
+                            onChange={(e) =>
+                              updateCostItem(item.id, { cost: Number(e.target.value) })
+                            }
+                            className="text-xs font-mono"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          aria-label={`Hapus baris biaya ${item.name || "tanpa nama"}`}
+                          onClick={() => removeCostItem(item.id)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-[11px] text-muted">
+                  Tambah baris biaya, aggregate sparepart dan labor di atas ikut dihitung ulang.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-dashed border-line bg-paper p-3">
+                <label
+                  className="block font-semibold text-muted mb-1"
+                  htmlFor="service-progress-photo"
+                >
+                  Foto progres perbaikan (maksimal {MAX_PHOTOS} file)
+                </label>
+                <input
+                  id="service-progress-photo"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => void handleProgressPhotoChange(event)}
+                  disabled={uploadingPhoto}
+                  className="block w-full text-xs text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                />
+                <p className="mt-1 text-[11px] text-muted">
+                  {uploadingPhoto
+                    ? "Mengunggah foto..."
+                    : `${progressPhotos.length} foto siap disimpan`}
+                </p>
+                {progressPhotos.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {progressPhotos.map((url) => (
+                      <li key={url}>
+                        {/* Thumbnail dari bucket publik Supabase dengan ukuran
+                            yang tidak diketahui, jadi next/image tidak bisa
+                            menentukan dimensi dan hanya menambah satu optimizer
+                            round-trip per foto. Sama seperti foto tiket di
+                            halaman lacak. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={url}
+                          alt="Foto progres perbaikan"
+                          loading="lazy"
+                          className="h-14 w-14 rounded-lg border border-line object-cover"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="p-3 bg-accent-soft/70 rounded-xl border border-accent/20 flex items-center justify-between">
