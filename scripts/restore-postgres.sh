@@ -46,10 +46,19 @@ seed_auth_stubs() {
   ids_file="$(mktemp)"
   stub_sql="$(mktemp)"
 
+  # Catatan soal awk di bawah. Dulu program ini `exit` begitu kena penanda
+  # akhir blok COPY, sementara script berjalan dengan set -o pipefail. Saat awk
+  # keluar lebih dulu, pipe-nya ditutup, lalu pg_restore yang masih menulis
+  # trailer dump menerima SIGPIPE dan seluruh pipeline mati dengan kode 141,
+  # walau restore-nya sendiri tidak salah. Pola yang sama menimpa guard
+  # auth.users di bawah. Perbaikannya bukan mematikan pipefail, tapi membuat
+  # konsumen menelan semua input sampai producer selesai: setelah penanda akhir
+  # distro, awk tetap lanjut membaca tapi berhenti mencetak.
   pg_restore --data-only -t profiles -f - "$DUMP_FILE" \
     | awk -F'\t' '
         /^COPY public\.profiles / { inside = 1; next }
-        inside && /^\\\.$/ { exit }
+        inside && /^\\\.$/ { selesai = 1; next }
+        inside && selesai { next }
         inside && NF { print $1 }
       ' \
     | sort -u >"$ids_file"
@@ -77,7 +86,27 @@ seed_auth_stubs() {
   printf 'Stub auth.users dibuat: %s baris (account asli belum ikut di dump).\n' "$count"
 }
 
-if psql "$RESTORE_DATABASE_URL" -q -t -c "select to_regclass('auth.users') is not null" 2>/dev/null | grep -q t; then
+# Guard ini pernah melaporkan "auth.users tidak ada di target" padahal tabelnya
+# ada. Penyebabnya bukan koneksi: output psql dulu dialirkan ke `grep -q` yang
+# langsung keluar begitu nemu t, jadi psql menerima SIGPIPE dan pipefail
+# mengubah status pipeline jadi 141. Kalau db benar-benar tidak ada atau psql
+# gagal, errornya pun hilang karena stderr dibuang ke /dev/null, jadi dua
+# kegagalan itu terlihat sama. Di sini tidak ada pipeline sama sekali: keluaran
+# psql ditahan di variabel lalu diperiksa, dan stderr disimpan supaya kegagalan
+# asli ikut terbawa ke pesan error.
+#
+# -A itu wajib: tanpa flag itu psql mencetak " t" dengan spasi di depan, dan
+# perbandingan string lalu salah menilai. Spasi dan baris baru tetap
+# dibuang lagi di bawah supaya format keluaran psql tidak menggigit.
+auth_probe=""
+if ! auth_probe="$(psql "$RESTORE_DATABASE_URL" -q -t -A \
+      -c "select to_regclass('auth.users') is not null" 2>&1)"; then
+  printf 'Gagal memeriksa auth.users di target: %s\n' "$auth_probe" >&2
+  exit 1
+fi
+auth_probe="${auth_probe//[[:space:]]/}"
+
+if [ "$auth_probe" = "t" ]; then
   seed_auth_stubs
 else
   echo "auth.users tidak ada di target. Jalankan scripts/restore-target-bootstrap.sql lebih dulu." >&2
