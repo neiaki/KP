@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { execFileSync } from "node:child_process";
 
 /*
  * Dockerfile.coolify menarik image hasil build GitHub Actions. Semula tag-nya
@@ -22,10 +21,19 @@ import { execFileSync } from "node:child_process";
  * kembalinya ke `latest` tanpa deploy sungguhan. Uji negatif di akhir berkas
  * memastikan predikatnya sendiri masih bisa menangkap, karena kelas cacat
  * "guard yang diam-diam tidak bisa gagal" sudah beberapa kali muncul di repo.
+ *
+ * Uji "commit yang dipin ada di repository" sengaja tidak ada di sini.
+ * actions/checkout@v4 di kedua workflow memakai fetch-depth bawaan yaitu satu,
+ * jadi runner hanya memegang satu commit dan commit sebelumnya tidak ada di
+ * objek database. Uji seperti itu akan hijau di mesin lokal dan merah di CI.
+ * Membiarkannya lulus diam-diam di shallow clone tidak lebih baik, karena
+ * penjaganya lalu berhenti menjaga tanpa ada yang gagal. Tag salah bentuk sudah
+ * ditolak tiga test lain, dan tag yang menunjuk commit tidak ada akan gagal
+ * di deploy dengan pesan yang menyebut tagnya, jadi kehilangan uji ini tidak
+ * membuka jalan bagi kegagalan senyap.
  */
 
 const repo = (rel: string) => new URL(rel, import.meta.url);
-const akarRepo = new URL("../", repo("x"));
 
 const dockerfile = await readFile(repo("../Dockerfile.coolify"), "utf8");
 const workflow = await readFile(
@@ -87,23 +95,6 @@ test("tag itu bukan latest", () => {
     "latest",
     "tag latest memakai cache base image lokal VPS sehingga deploy hijau " +
       "padahal image lama yang jalan",
-  );
-});
-
-test("commit yang dipin ada di repository", () => {
-  const commit = tag().replace(/^sha-/, "");
-  let ada = true;
-  try {
-    execFileSync("git", ["cat-file", "-e", `${commit}^{commit}`], {
-      cwd: new URL(".", akarRepo),
-      stdio: "ignore",
-    });
-  } catch {
-    ada = false;
-  }
-  assert.ok(
-    ada,
-    `commit ${commit} yang dipin di Dockerfile.coolify tidak ada di repository`,
   );
 });
 
