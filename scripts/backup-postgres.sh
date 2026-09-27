@@ -7,6 +7,18 @@ umask 077
 : "${SOURCE_DATABASE_URL:?SOURCE_DATABASE_URL wajib diisi}"
 : "${BACKUP_DIR:?BACKUP_DIR wajib diisi}"
 
+# Berapa lama dump lama dibuang. 0 berarti tidak pernah dihapus, jadi yang
+# memakai KEEP_DAYS=0 harus menyimpan salinannya di luar (misalnya rsync ke
+# tempat lain). Tanpa rotasi, direktori backup tumbuh tanpa batas sampai disk
+# penuh, dan disk penuh adalah tempat terakhir yang boleh menyimpan cadangan.
+KEEP_DAYS="${KEEP_DAYS:-14}"
+case "$KEEP_DAYS" in
+  ''|*[!0-9]*|-*)
+    echo "KEEP_DAYS harus bilangan bulat non-negatif, bukan '${KEEP_DAYS}'." >&2
+    exit 1
+    ;;
+esac
+
 command -v pg_dump >/dev/null 2>&1 || {
   echo "pg_dump tidak tersedia. Jalankan script ini di environment yang memiliki PostgreSQL client." >&2
   exit 1
@@ -43,3 +55,16 @@ chmod 600 "${dump_path}.sha256"
 
 printf 'Backup selesai: %s (%s bytes)\n' "$dump_name" "$(stat -c '%s' "$dump_path")"
 printf 'Checksum: %s.sha256\n' "$dump_name"
+
+if [ "$KEEP_DAYS" -gt 0 ]; then
+  # Hanya nama yang cocok pola milik script ini yang disentuh, supaya direktori
+  # backup yang juga menyimpan file lain tidak ikut terhapus.
+  removed=0
+  while IFS= read -r stale; do
+    [ -n "$stale" ] || continue
+    rm -f -- "$stale" "$stale.sha256"
+    printf 'Dihapus karena lewat %s hari: %s\n' "$KEEP_DAYS" "$(basename "$stale")"
+    removed=$((removed + 1))
+  done < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'atcell-*.dump' -mtime "+$KEEP_DAYS" -print)
+  [ "$removed" -eq 0 ] || printf 'Total %s dump lama dihapus.\n' "$removed"
+fi

@@ -19,3 +19,14 @@ test("restore script memiliki guard eksplisit dan single-job", () => {
   assert.match(restoreScript, /--jobs=1/);
   assert.match(restoreScript, /--single-transaction/);
 });
+
+test("backup script memutar dump lama dan menolak KEEP_DAYS tidak valid", () => {
+  // Tanpa rotasi direktori backup tumbuh sampai disk penuh, dan script ini
+  // biasanya satu-satunya cadangan dari data produksi.
+  assert.match(backupScript, /KEEP_DAYS/);
+  assert.match(backupScript, /mtime/);
+  // Hanya pola milik script sendiri yang boleh dihapus.
+  assert.match(backupScript, /-name 'atcell-\*\.dump'/);
+  // Nilai salah harus berhenti sebelum pg_dump, bukan diam-diam lanjut.
+  assert.match(backupScript, /KEEP_DAYS harus bilangan bulat non-negatif/);
+});
