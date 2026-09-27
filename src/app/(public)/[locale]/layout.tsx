@@ -9,7 +9,8 @@ import { StoreJsonLd } from "@/components/public/store-json-ld";
 import { RootProviders, htmlClass, bodyClass } from "@/components/root-shell";
 import { buildLayoutMetadata, isSupportedLocale } from "@/app/sitemap";
 import { Locale } from "@/lib/translations";
-import { getPublicSnapshot, type PublicSnapshot } from "@/lib/actions/public";
+import { getPublicSnapshot } from "@/lib/actions/public";
+import { toPublicSeed } from "@/lib/public-seed";
 
 /*
  * Root layout area publik. Sengaja berada di dalam [locale] supaya atribut
@@ -54,15 +55,34 @@ export default async function PublicRootLayout({
   }
   const locale: Locale = resolvedParams.locale;
 
-  // Etalase diambil di server lalu jadi state awal store. Tanpa ini, seluruh
-  // halaman publik merender kosong lebih dulu dan baru terisi setelah
-  // loadLiveData() jalan di useEffect, jadi HTML yang sampai ke crawler
-  // berisi "0 unit ada di toko" dengan jam buka dan telepon yang kosong.
-  // Gagal membaca tidak boleh menggagalkan halaman: seed null mengembalikan
-  // store ke kondisi kosong, dan loadLiveData tetap mencoba lagi di browser.
-  const seed: PublicSnapshot | null = await getPublicSnapshot()
-    .then((r) => (r.ok ? r.data : null))
-    .catch(() => null);
+  /*
+   * KEPUTUSAN: tukar render statis dengan render di server.
+   *
+   * Versi sebelum ini tidak punya await di sini. Etalase hanya terisi setelah
+   * loadLiveData() jalan di useEffect di browser, jadi HTML yang sampai ke
+   * crawler benar-benar kosong: katalog menampilkan "0 unit ada di toko", dan
+   * jam buka, telepon, serta alamat toko kosong semua. Untuk etalase toko,
+   * itu bukan cacat kecil, karena Google dan WhatsApp sama-sama membaca
+   * halaman kosong itu.
+   *
+   * Yang dibayar: setiap halaman publik di bawah [locale] sekarang dirender
+   * per permintaan dan tidak diprerender, jadi satu container Coolify
+   * menjalankan satu query Postgres per kunjungan. Untuk toko satu
+   * lokasi yang pengunjunya sedikit, itu murah, sedangkan etalase yang tidak
+   * terindeks jauh lebih mahal.
+   *
+   * Kalau halaman publik harus statis lagi, jangan dibalik ke useEffect.
+   * Yang perlu diganti adalah cara data sampai ke HTML: snapshot di-cache
+   * singkat di server, misalnya 60 detik, atau ISR dengan revalidate, supaya
+   * etalase tetap berisi tapi halamannya boleh diprerender. Selama
+   * getPublicSnapshot masih dipanggil di jalur render, halaman tidak akan
+   * menjadi statis.
+   *
+   * Gagal membaca tidak boleh menggagalkan halaman. toPublicSeed mengubah
+   * hasil error jadi null, dan null berarti "tidak ada seed", bukan melempar
+   * error, sehingga loadLiveData() tetap mencoba lagi di browser.
+   */
+  const seed = toPublicSeed(await getPublicSnapshot().catch(() => null));
 
   return (
     <html

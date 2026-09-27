@@ -25,6 +25,7 @@ import {
 } from "./mock-data";
 import { getPortalSnapshot, type PortalSnapshot } from "@/lib/actions/portal";
 import { getPublicSnapshot, type PublicSnapshot } from "@/lib/actions/public";
+import { resolveSeed } from "@/lib/public-seed";
 import { createProduct as createProductAction, updateProduct as updateProductAction } from "@/lib/actions/products";
 import { registerUnits, updateUnitStatus as updateUnitStatusAction } from "@/lib/actions/inventory";
 import { executeSale as executeSaleAction } from "@/lib/actions/pos";
@@ -159,7 +160,10 @@ function applyPortalSnapshot(
  */
 export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
   const pathname = usePathname() ?? "/";
-  const seed = liveBackendEnabled ? publicSeed : undefined;
+  // Mode demo sudah ditangani resolveSeed dari argumen liveBackend, jadi seed
+  // tidak perlu difilter lagi di sini: jepit yang sama dua kali hanya
+  // membuat aturan ini terlihat seperti dua aturan terpisah.
+  const seed = publicSeed;
   const [mounted, setMounted] = useState(false);
   const [isHydrating, setIsHydrating] = useState(liveBackendEnabled);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -170,13 +174,19 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     liveBackendEnabled ? null : initialProfiles[0] ?? null
   );
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(
-    seed ? seed.storeSettings : liveBackendEnabled ? emptyStoreSettings : initialStoreSettings
+    resolveSeed(
+      seed,
+      liveBackendEnabled,
+      (s) => s.storeSettings,
+      emptyStoreSettings,
+      initialStoreSettings
+    )
   );
   const [products, setProducts] = useState<Product[]>(
-    seed ? seed.products : liveBackendEnabled ? [] : initialProducts
+    resolveSeed(seed, liveBackendEnabled, (s) => s.products, [], initialProducts)
   );
   const [inventoryUnits, setInventoryUnits] = useState<InventoryUnit[]>(
-    seed ? seed.inventoryUnits : liveBackendEnabled ? [] : initialInventoryUnits
+    resolveSeed(seed, liveBackendEnabled, (s) => s.inventoryUnits, [], initialInventoryUnits)
   );
   const [transactions, setTransactions] = useState<Transaction[]>(
     liveBackendEnabled ? [] : initialTransactions
