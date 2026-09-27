@@ -121,7 +121,9 @@ export default function SalesPosPage() {
         setNotice({ type: "error", text: result.error });
         return;
       }
-      setTradeInPhotoUrls((prev) => [...prev, result.data.url]);
+      // Path, bukan signed URL: yang kolom photo_urls terima harus bisa
+      // dibuka ulang di sesi berikutnya.
+      setTradeInPhotoUrls((prev) => [...prev, result.data.path]);
     } catch {
       setNotice({ type: "error", text: "Gagal mengunggah foto. Coba lagi." });
     } finally {

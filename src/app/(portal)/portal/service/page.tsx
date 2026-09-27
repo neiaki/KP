@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { RepairStatus, ServiceCostItem, ServiceTicket } from "@/types";
-import { uploadPhoto } from "@/lib/actions/storage";
+import { signPhotoPaths, uploadPhoto } from "@/lib/actions/storage";
 import {
   Wrench,
   Plus,
@@ -49,7 +49,12 @@ export default function TechnicianServicePage() {
   const [costItems, setCostItems] = useState<ServiceCostItem[]>([]);
   // Foto masuk sudah ada sejak intake; PRD menjanjikan bukti sebelum/sesudah,
   // jadi foto progres ditambahkan dari meja kerja, bukan hanya diantar.
+  // Dua daftar dengan sengaja dipisah. progressPhotos berisi path yang
+  // disimpan ke kolom photo_urls, sedangkan progressPhotoPreviews berisi
+  // signed URL untuk pratinjau pada sesi berjalan saja. Kalau keduanya
+  // dicampur, foto yang tersimpan ikut kedaluwarsa sepuluh menit kemudian.
   const [progressPhotos, setProgressPhotos] = useState<string[]>([]);
+  const [progressPhotoPreviews, setProgressPhotoPreviews] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const MAX_COST_ITEMS = 50;
@@ -114,7 +119,8 @@ export default function TechnicianServicePage() {
         setNotice({ type: "error", text: result.error });
         return;
       }
-      setProgressPhotos((prev) => [...prev, result.data.url]);
+      setProgressPhotos((prev) => [...prev, result.data.path]);
+      setProgressPhotoPreviews((prev) => [...prev, result.data.url]);
     } catch {
       setNotice({ type: "error", text: "Gagal mengunggah foto. Coba lagi." });
     } finally {
@@ -122,14 +128,25 @@ export default function TechnicianServicePage() {
     }
   };
 
-  const handleOpenTicketModal = (ticket: ServiceTicket) => {
+  const handleOpenTicketModal = async (ticket: ServiceTicket) => {
     setSelectedTicket(ticket);
     setEditStatus(ticket.repair_status);
     setSparepartFee(ticket.sparepart_fee);
     setLaborFee(ticket.labor_fee);
     setNotes(ticket.technician_notes ?? "");
     setCostItems(ticket.cost_breakdown ?? []);
-    setProgressPhotos(ticket.photo_urls ?? []);
+
+    const refs = ticket.photo_urls ?? [];
+    setProgressPhotos(refs);
+    // Pratinjau perlu URL bertanda tangan yang baru, karena signed URL punya
+    // masa berlaku. Kegagalan di sini tidak memblokir modal: path-nya tetap
+    // tersimpan dan placeholder di bawah akan menjelaskan fotonya ada tapi
+    // tidak bisa dimuat.
+    setProgressPhotoPreviews(refs.map((r) => (/^https?:\/\//i.test(r) ? r : "")));
+    if (!refs.some((r) => !/^https?:\/\//i.test(r))) return;
+    const signed = await signPhotoPaths("service-photos", refs);
+    const peta = signed.ok ? signed.data : {};
+    setProgressPhotoPreviews(refs.map((r) => peta[r] ?? (/^https?:\/\//i.test(r) ? r : "")));
   };
 
   useEffect(() => {
@@ -569,22 +586,38 @@ export default function TechnicianServicePage() {
                 </p>
                 {progressPhotos.length > 0 && (
                   <ul className="mt-2 flex flex-wrap gap-2">
-                    {progressPhotos.map((url) => (
-                      <li key={url}>
-                        {/* Thumbnail dari bucket publik Supabase dengan ukuran
-                            yang tidak diketahui, jadi next/image tidak bisa
-                            menentukan dimensi dan hanya menambah satu optimizer
-                            round-trip per foto. Sama seperti foto tiket di
-                            halaman lacak. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={url}
-                          alt="Foto progres perbaikan"
-                          loading="lazy"
-                          className="h-14 w-14 rounded-lg border border-line object-cover"
-                        />
-                      </li>
-                    ))}
+                    {progressPhotos.map((ref, i) => {
+                      const preview = progressPhotoPreviews[i];
+                      return (
+                        <li key={ref} className="h-14 w-14">
+                          {preview ? (
+                            <>
+                              {/* Ukuran gambarnya tidak diketahui, jadi
+                                  next/image tidak bisa menentukan dimensi dan
+                                  hanya menambah satu optimizer round-trip per
+                                  foto. Sama seperti foto tiket di halaman lacak. */}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={preview}
+                                alt="Foto progres perbaikan"
+                                loading="lazy"
+                                className="h-14 w-14 rounded-lg border border-line object-cover"
+                              />
+                            </>
+                          ) : (
+                            // Pratinjau kosong berarti signed URL gagal dibuat
+                            // atau sudah kedaluwarsa. Path-nya tetap tersimpan,
+                            // jadi jangan dihapus diam-diam.
+                            <span
+                              title="Foto tersimpan tapi tidak bisa dimuat. Muat ulang halaman."
+                              className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-line text-center text-[10px] leading-tight text-muted"
+                            >
+                              tidak bisa dimuat
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
