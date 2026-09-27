@@ -60,6 +60,14 @@ const nextConfig: NextConfig = {
       }
     : {}),
   experimental: {
+    // Prarender dibatasi ke dua halaman sekaligus. Default Next memakai jumlah
+    // worker sesuai jumlah CPU, dan tiap worker adalah proses Node terpisah
+    // yang memuat seluruh graf modul. Di mesin 23 GB yang sudah memakai
+    // 7,8 GB swap, tujuh worker sekaligus membuat sistem masuk kondisi swap
+    // berat: worker dapat SIGKILL dan halaman lewat ambang 60 detik sehingga
+    // build gagal. Dengan dua worker, 17 halaman selesai dalam 1,9 detik dan
+    // total build tetap sekitar satu menit. Tidak ada dampak ke runtime produksi.
+    staticGenerationMaxConcurrency: 2,
     serverActions: {
       // Upload validasi menerima 5 MB; sisakan ruang untuk multipart overhead.
       bodySizeLimit: "6mb",

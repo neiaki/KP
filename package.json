@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "if [ -L node_modules/node_modules ]; then rm -f node_modules/node_modules; fi",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
