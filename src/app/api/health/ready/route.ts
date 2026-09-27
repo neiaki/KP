@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   getSupabaseAnonKey,
@@ -7,28 +6,12 @@ import {
   getSupabaseUrl,
 } from "@/lib/supabase/config";
 import { isReady } from "@/lib/health";
+import { probeSchema } from "../db-probe";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const NO_STORE = "no-store, max-age=0";
-
-type SchemaProbe = {
-  profiles: boolean;
-  store_settings: boolean;
-  products: boolean;
-  inventory_units: boolean;
-  transactions: boolean;
-  transaction_items: boolean;
-  trade_in_records: boolean;
-  service_tickets: boolean;
-  v_public_inventory: boolean;
-};
-
-type DatabaseProbe = {
-  reachable: boolean;
-  schemaReady: boolean;
-};
 
 /**
  * Readiness hanya mengembalikan detail boolean. Jangan pernah kirim nilai
@@ -41,49 +24,15 @@ export async function GET() {
   let databaseSchemaReady = false;
 
   if (databaseConfigured) {
+    // getDb() dan probe sengaja dibungkus try/catch: endpoint health tidak
+    // boleh pernah melempar 500, karena Coolify membaca statusnya sebagai
+    // sinyal kontainer. Probe sudah fail-closed dan sudah membuang klien yang
+    // tidak menjawab sendiri, jadi try/catch di sini hanya menutup jalur
+    // terakhir, yaitu DATABASE_URL yang tidak diparse.
     try {
-      const db = getDb();
-      if (db) {
-        const probe = await Promise.race<DatabaseProbe>([
-          db
-            .execute<SchemaProbe>(sql`
-              select
-                to_regclass('public.profiles') is not null as profiles,
-                to_regclass('public.store_settings') is not null as store_settings,
-                to_regclass('public.products') is not null as products,
-                to_regclass('public.inventory_units') is not null as inventory_units,
-                to_regclass('public.transactions') is not null as transactions,
-                to_regclass('public.transaction_items') is not null as transaction_items,
-                to_regclass('public.trade_in_records') is not null as trade_in_records,
-                to_regclass('public.service_tickets') is not null as service_tickets,
-                to_regclass('public.v_public_inventory') is not null as v_public_inventory
-            `)
-            .then((rows) => {
-              const row = rows[0];
-              return {
-                reachable: true,
-                schemaReady: Boolean(
-                  row &&
-                    row.profiles &&
-                    row.store_settings &&
-                    row.products &&
-                    row.inventory_units &&
-                    row.transactions &&
-                    row.transaction_items &&
-                    row.trade_in_records &&
-                    row.service_tickets &&
-                    row.v_public_inventory
-                ),
-              };
-            })
-            .catch(() => ({ reachable: false, schemaReady: false })),
-          new Promise<DatabaseProbe>((resolve) =>
-            setTimeout(() => resolve({ reachable: false, schemaReady: false }), 3000)
-          ),
-        ]);
-        databaseReachable = probe.reachable;
-        databaseSchemaReady = probe.schemaReady;
-      }
+      const probe = await probeSchema(getDb());
+      databaseReachable = probe.reachable;
+      databaseSchemaReady = probe.schemaReady;
     } catch {
       databaseReachable = false;
       databaseSchemaReady = false;
