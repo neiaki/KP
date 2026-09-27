@@ -304,7 +304,7 @@ Sparx EA tidak import `.puml` langsung. Cara manual (5 menit):
 2. Tiap diagram: drag Actor (stickman) + tambahkan UseCase ellipse sesuai `UC-*.puml` (nama sudah `UC-xx + judul`).
 3. Buat Boundary `Sistem At Cell`, masukkan use case ke dalamnya.
 4. Relasi: `Sales → UC-13`, `UC-14 → UC-13` sebagai `Extend` (tanpa aktor langsung ke UC-14), `UC-02 → UC-12` sebagai `Use`.
-5. Untuk dokumen: pakai PNG/SVG di folder ini langsung (sudah putih, tanpa shadow, монохром ala EA).
+5. Untuk dokumen: pakai PNG/SVG di folder ini langsung (sudah putih, tanpa shadow, monokrom ala EA).
 
 File di folder ini:
 - `usecase-ea-01..04-publik/admin/pos/servis.puml` — sumber (edit di sini)

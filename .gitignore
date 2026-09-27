@@ -56,3 +56,6 @@ next-env.d.ts
 
 # artefak browser MCP
 .playwright-mcp/
+
+# hasil laporan audit yang di-generate, bukan sumber yang perlu direview
+/.pi/

@@ -1,6 +1,6 @@
 -- Nama pemilik toko, dipakai sebagai nama orang yang dihubungi lewat WhatsApp.
 --
--- власти: kolom ini tidak ada sebelumnya, padahal nomor WhatsApp toko sudah
+-- Catatan: kolom ini tidak ada sebelumnya, padahal nomor WhatsApp toko sudah
 -- dipakai di footer, katalog, POS, dan widget live chat. Tanpa nama, pelanggan
 -- hanya melihat nomor telepon tanpa tahu siapa yang akan membalas.
 
