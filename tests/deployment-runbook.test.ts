@@ -249,6 +249,26 @@ test("runbook punya bagian memeriksa etalase di HTML", () => {
   assert.ok(posisiBagian > posisiRilis, "verifikasi etalase harus ada setelah langkah rilis");
 });
 
+test("langkah deploy menyebut header CSP sebagai penanda image baru", () => {
+  // Dua kali deploy hijau tanpa perubahan apa pun terjadi karena image lama
+  // yang jalan, dan health check tidak bisa membedakannya. Header CSP adalah
+  // satu-satunya tanda yang langsung berubah bersama image, jadi langkah
+  // deploy wajib menyebutkannya sebagai penanda, bukan hanya "/api/health/ready".
+  const mulai = runbook.indexOf("## Rilis yang aman");
+  assert.ok(mulai > 0, "runbook tidak punya bagian rilis yang aman");
+  const langkah = runbook.slice(mulai, mulai + 1200);
+  assert.match(
+    langkah,
+    /content-security-policy/,
+    "langkah deploy harus menyebut header content-security-policy sebagai penanda image baru"
+  );
+  assert.match(
+    langkah,
+    /CSP\.md/,
+    "langkah deploy harus menunjuk ke docs/CSP.md untuk cara lengkapnya"
+  );
+});
+
 test("perhitungan unit di runbook benar-benar mengembalikan angka", async () => {
   // Angka dan kata "unit" dipisah simpul komentar React, sehingga HTML mentah
   // tidak pernah cocok dengan pola "unit, harga". Perintah yang pertama ditulis
