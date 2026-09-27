@@ -249,6 +249,21 @@ test("runbook punya bagian memeriksa etalase di HTML", () => {
   assert.ok(posisiBagian > posisiRilis, "verifikasi etalase harus ada setelah langkah rilis");
 });
 
+test("runbook menjelaskan cara membaca commit sumber dari image yang jalan", () => {
+  // Image yang salah tetap menghasilkan deploy hijau, jadi operator perlu
+  // perintah yang langsung menjawab "image ini dari commit mana". Label
+  // org.opencontainers.image.revision dipasang GitHub Actions dan sudah
+  // terbukti ada di image At Cell, jadi ini bukan asumsi.
+  const isi = bagian("## Tag image di Dockerfile.coolify");
+  for (const wajib of [
+    "org.opencontainers.image.revision",
+    "docker inspect",
+    "sha-<commit>",
+  ]) {
+    assert.ok(isi.includes(wajib), `bagian tag image harus menyebut ${wajib}`);
+  }
+});
+
 test("langkah deploy menyebut header CSP sebagai penanda image baru", () => {
   // Dua kali deploy hijau tanpa perubahan apa pun terjadi karena image lama
   // yang jalan, dan health check tidak bisa membedakannya. Header CSP adalah
