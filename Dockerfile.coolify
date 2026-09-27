@@ -31,6 +31,6 @@
 # tests/deploy-image-pin.test.ts menjaga dua hal yang di sini bisa kembali
 # rusak tanpa deploy gagal: tag tetap berbentuk sha dan bukan latest, dan
 # commit yang disebut benar-benar ada di repository.
-FROM ghcr.io/neiaki/kp:sha-7d82c923daf6c7efeafc3e35864815bd65b55903
+FROM ghcr.io/neiaki/kp:sha-adf54cd9f92e65319711e6fa6eadb0872954abf1
 
 # CMD, ENV, EXPOSE, dan USER sudah ada di image, tidak perlu diulang di sini.
