@@ -94,11 +94,22 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
 
       // Unit lama pelanggan langsung jadi stok second siap jual (FR-C-04).
       // Format IMEI sudah divalidasi Zod (15 digit) sebelum masuk sini.
+      //
+      // productId sengaja NULL, bukan menyalin unit.productId. Handset yang
+      // pelanggan tukar tidak punya baris di katalog products, karena katalog
+      // produk eksklusif Admin (FR-D-04) dan kasir tidak boleh membuatnya di
+      // tempat. Menyalin id produk unit BARU akan mendaftarkan handset lama
+      // ke model yang salah: tukar S9 dengan S24 tercatat sebagai S24, lalu
+      // unit salah itu naik ke etalase publik dan ke semua filter merek.
+      // Deskripsi otoritatif handset lama ada di
+      // trade_in_records.original_brand_model, lengkap dengan grading, IMEI,
+      // dan fotonya. Lihat migrasi
+      // 20260927180000_nullable_inventory_unit_product.sql.
       if (v.tradeIn) {
         const [second] = await tx
           .insert(inventoryUnits)
           .values({
-            productId: unit.productId,
+            productId: null,
             imei: v.tradeIn.imei,
             condition: "second",
             status: "available",

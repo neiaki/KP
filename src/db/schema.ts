@@ -145,14 +145,51 @@ export const products = pgTable(
   ]
 );
 
+// --- product_images (registry file di Supabase Storage) ---
+// Dipakai migrasi 20260927130000. Tiap file punya tepat satu baris di sini,
+// jadi lokasi gambarnya bukan tebakan: komponen mencari lewat path lalu memakai
+// public_url. product_id NULL untuk file yang tidak menempel pada satu produk,
+// misalnya foto carousel halaman depan dan logo pembayaran.
+export const productImages = pgTable(
+  "product_images",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    productId: bigint("product_id", { mode: "number" }).references(() => products.id, {
+      onDelete: "cascade",
+    }),
+    path: text("path").notNull(),
+    publicUrl: text("public_url").notNull(),
+    kind: text("kind")
+      .$type<"official" | "second" | "hero" | "payment">()
+      .notNull()
+      .default("official"),
+    altText: text("alt_text").notNull().default(""),
+    byteSize: bigint("byte_size", { mode: "number" }).notNull().default(0),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: createdAtCol(),
+  },
+  (t) => [
+    uniqueIndex("product_images_path_key").on(t.path),
+    index("product_images_product_idx").on(t.productId),
+    index("product_images_kind_idx").on(t.kind),
+    check("product_images_byte_size_check", sql`${t.byteSize} >= 0`),
+  ]
+);
+
 // --- inventory_units (satu baris = satu HP fisik ber-IMEI) ---
+// product_id nullable sejak migrasi 20260927180000: handset yang pelanggan
+// tukar masuk (trade-in) tidak punya baris katalog, karena katalog produk
+// eksklusif Admin dan kasir tidak boleh membuatnya di tempat. Baris seperti
+// ini punya product_id NULL dan deskripsi aslinya dibaca dari
+// trade_in_records.original_brand_model. Lihat catatan migrasi itu untuk
+// keputusan menyembunyikannya dari v_public_inventory.
 export const inventoryUnits = pgTable(
   "inventory_units",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-    productId: bigint("product_id", { mode: "number" })
-      .notNull()
-      .references(() => products.id, { onDelete: "restrict" }),
+    productId: bigint("product_id", { mode: "number" }).references(() => products.id, {
+      onDelete: "restrict",
+    }),
     imei: text("imei").notNull().unique(),
     condition: unitConditionEnum("condition").notNull(),
     status: unitStatusEnum("status").notNull().default("available"),

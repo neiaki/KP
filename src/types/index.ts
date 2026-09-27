@@ -76,7 +76,13 @@ export interface Product {
 
 export interface InventoryUnit {
   id: number;
-  product_id: number;
+  // NULL untuk unit trade-in: handset milik pelanggan tidak punya baris
+  // katalog, jadi deskripsinya ada di trade_in_model di bawah.
+  product_id: number | null;
+  // Merek dan model asli unit trade-in, diambil dari trade_in_records saat
+  // snapshot portal dirakit. Staff butuh ini untuk tahu unit apa yang sedang
+  // mereka lihat, karena product_id-nya sengaja null. Hanya terisi di portal.
+  trade_in_model?: string;
   imei: string; // strict 15 digits
   condition: UnitCondition;
   purchase_cost: number; // Internal only, never leak to public

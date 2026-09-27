@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useStore } from "@/context/store-context";
+import { unitLabel } from "@/lib/shop";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { UnitCondition, UnitStatus } from "@/types";
 import {
@@ -153,11 +154,9 @@ export default function InventoryManagementPage() {
 
   // Filter units
   const filteredUnits = inventoryUnits.filter((unit) => {
-    const prod = products.find((p) => p.id === unit.product_id);
     const matchesSearch =
       unit.imei.includes(search) ||
-      prod?.brand.toLowerCase().includes(search.toLowerCase()) ||
-      prod?.model_name.toLowerCase().includes(search.toLowerCase());
+      unitLabel(unit, products).toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || unit.status === statusFilter;
     const matchesCondition = conditionFilter === "all" || unit.condition === conditionFilter;
     return matchesSearch && matchesStatus && matchesCondition;
@@ -332,12 +331,10 @@ export default function InventoryManagementPage() {
                   </tr>
                 ) : (
                   filteredUnits.map((unit) => {
-                    const prod = products.find((p) => p.id === unit.product_id);
+                    const label = unitLabel(unit, products);
                     return (
                       <tr key={unit.id} className="hover:bg-paper/80">
-                        <td className="p-3 font-semibold text-ink">
-                          {prod?.brand} {prod?.model_name}
-                        </td>
+                        <td className="p-3 font-semibold text-ink">{label}</td>
                         <td className="p-3 font-mono font-bold text-accent-deep">
                           <span className="flex items-center gap-1">
                             <Barcode className="w-3.5 h-3.5 text-muted" />

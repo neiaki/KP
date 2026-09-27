@@ -31,6 +31,29 @@ export function shortIDR(n: number) {
   return formatIDR(n);
 }
 
+// Unit tanpa katalog (product_id NULL) tidak pernah sampai ke sini lewat jalur
+// publik: v_public_inventory memakai JOIN, jadi etalase hanya menampilkan unit
+// yang punya produk. Tanpa itu, kartu akan jatuh ke teks fallback
+// "HP"/"Smartphone" tanpa foto dan tanpa spesifikasi.
+// Lihat migrasi 20260927180000_nullable_inventory_unit_product.sql.
+/**
+ * Label unit untuk daftar inventaris portal.
+ *
+ * Unit yang punya katalog memakai merek dan model dari products. Unit trade-in
+ * sengaja punya product_id null karena handset yang pelanggan tukar tidak ada
+ * di katalog, jadi labelnya diambil dari trade_in_records.original_brand_model
+ * lewat trade_in_model. Tanpa ini kolom model kosong dan tabel inventaris
+ * tidak bisa dicari menurut tipe HP.
+ */
+export function unitLabel(unit: InventoryUnit, products: Product[]): string {
+  const product = products.find((p) => p.id === unit.product_id);
+  if (product) return `${product.brand} ${product.model_name}`;
+  if (unit.trade_in_model) return unit.trade_in_model;
+  // product_id null tanpa trade_in_model berarti data trade-innya hilang.
+  // Lebih jujur menampilkan itu daripada membiarkan kolom kosong.
+  return "Model tidak tercatat";
+}
+
 export function toCardItem(
   unit: InventoryUnit,
   products: Product[],
@@ -70,10 +93,15 @@ export function tagForUnit(
   unit: InventoryUnit,
   allUnits: InventoryUnit[]
 ): UnitTag | undefined {
+  // Unit tanpa product_id adalah unit trade-in. Tanpa katalog, tidak ada
+  // "produk" tempat tag ini dihitung, jadi jangan diberi label apa pun:
+  // kalau ikut dihitung, semua unit trade-in digabung ke satu kunci null sehingga
+  // mereka berebut bestseller dan salah hitung laststock.
+  if (unit.product_id === null) return undefined;
   if (unit.status !== "available" || allUnits.length === 0) return undefined;
   const soldByProduct = new Map<number, number>();
   for (const u of allUnits) {
-    if (u.status === "sold") {
+    if (u.status === "sold" && u.product_id !== null) {
       soldByProduct.set(u.product_id, (soldByProduct.get(u.product_id) ?? 0) + 1);
     }
   }
