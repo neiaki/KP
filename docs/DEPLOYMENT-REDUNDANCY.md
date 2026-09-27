@@ -435,6 +435,68 @@ alamat `restore-stub-<uuid>@invalid.local` dan `on conflict do nothing`, jadi je
 bukan akun sungguhan dan tidak merusak Auth asli yang sudah ada. Backfill Auth
 Supabase tetap wajib dilakukan sebelum restore target dipakai sungguhan.
 
+#### Standby terisi di VPS
+
+Resource yang sama itu sekarang berjalan dan diisi ulang secara terjadwal, jadi
+restore target tidak lagi sekadar resource yang di-start manual saat restore test.
+Ini **bukan mirror aktif**: aplikasi tidak pernah terhubung ke database ini,
+dan setiap sinkronisasi bersifat destruktif terhadap standby karena isinya
+di-restore ulang dari dump.
+
+| Komponen | Lokasi |
+|----------|--------|
+| Resource Coolify | `atcell-restore-local`, image `postgres:18-alpine` |
+| Container | `ah5xioiowolm1uub4lpthnnd`, network `coolify` saja, tanpa port host |
+| Jadwal | `/etc/cron.d/atcell-standby-sync`, 03.17/09.17/15.17/21.17 waktu host |
+| Wrapper | `/usr/local/bin/atcell-standby-sync` (mode 700, root) |
+| Log | `/var/log/atcell-standby-sync.log`, diputar `/etc/logrotate.d/atcell-standby-sync` |
+| Dump perantara | `/data/backups/atcell-standby/atcell-<timestamp>.dump`, `KEEP_DAYS=7` |
+
+Database standby tidak punya port host. Ia hanya terjangkau dari container lain
+di network `coolify`, jadi dari luar VPS tidak bisa diakses:
+
+```bash
+# dari luar VPS: harus gagal
+nc -vz <ip-vps> 5432
+
+# dari container lain di network coolify: berhasil
+docker exec <container> pg_isready -h 10.0.1.4 -p 5432
+```
+
+Jalankan sinkronisasi manual dengan cara yang sama seperti cron, supaya
+redireksi log terjadi sebagai root:
+
+```bash
+sudo /usr/local/bin/atcell-standby-sync
+```
+
+Alur tiap sinkronisasi: dump logis dari Supabase (script repo, mode 0600 untuk
+`DATABASE_URL` yang diambil runtime dari container aplikasi), bootstrap
+minimum, lalu `pg_restore`. Karena `auth.users` tidak ikut di dalam dump dan stub
+dipakai `on conflict do nothing`, wrapper lebih dulu menghapus schema `auth`
+dulu supaya baris lama dari volume versi sebelumnya tidak bertahan diam-diam
+dan setiap hasil sync benar-benar freshly seeded. Wrapper selalu memverifikasi
+hasil akhir (`v_public_inventory`, `to_regclass`, dan kelengkapan stub
+`auth.users`) sebelum melapor sukses, dan tidak menyentuh standby kalau dump
+gagal.
+
+Contoh verifikasi manual:
+
+```bash
+docker exec ah5xioiowolm1uub4lpthnnd psql -U postgres -d postgres \
+  -c "select count(*) from v_public_inventory" \
+  -c "select to_regclass('public.products') is not null"
+```
+
+**Batas failure domain.** Standby ini ada di VPS yang sama dengan Coolify dan
+aplikasi, jadi ia melindungi dari kerusakan data, migration yang salah, atau
+`drop` yang tidak disengaja, dan memperpendek RTO karena tidak perlu install
+apa pun untuk memulihkan. Ia **tidak** melindungi dari kehilangan VPS, dari
+akun Supabase yang dikompromikan, atau dari ransomware di host yang sama.
+Salinan terenkripsi off-host tetap wajib dan belum ada; sampai itu dibuat,
+dump di `/data/backups/atcell` masih hidup dan mati di tempat yang sama.
+
+
 ### Backup otomatis di VPS
 
 `scripts/backup-postgres.sh` dijadwalkan lewat cron, bukan dijalankan manual:
