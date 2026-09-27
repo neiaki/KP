@@ -10,8 +10,9 @@ import { translations } from "@/lib/translations";
  *
  * Teksnya diambil dari kamus yang sudah dipakai halaman (nav.brand dan
  * hero.tag), jadi tidak ada slogan atau nama merek baru yang ditulis ulang
- * di sini. Warna diambil dari token globals.css: satu aksen biru AtCell
- * (#0b4ed8) di atas paper (#f4f5f7) dengan teks ink (#101828).
+ * di sini. Warnanya disalin dari token globals.css mode terang: satu aksen
+ * biru At Cell di atas paper dengan teks ink, jadi ditulis ulang secara
+ * literal. Lihat catatan di dekat konstantannya.
  *
  * Font: TIDAK ada font kustom. next/og memuat Geist-Regular.ttf dari paket
  *nya sendiri saat modul ini di-import (node_modules/next/dist/compiled/
@@ -26,10 +27,21 @@ export const alt = "At Cell, toko handphone dan pusat servis di Serpong Utara";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const ACCENT = "#0b4ed8";
-const PAPER = "#f4f5f7";
-const INK = "#101828";
-const MUTED = "#475467";
+/*
+ * Warna ini disalin literal dari token mode terang di src/app/globals.css,
+ * bukan dibaca darinya. next/og menggambar ke PNG di luar browser, jadi
+ * tidak ada cascade CSS yang bisa diikuti dan nilai token tidak bisa dibaca
+ * dari berkas CSS.
+ *
+ * Konsekuensinya, kalau nilai token berubah di globals.css, keempat
+ * konstanta di bawah harus diubah juga. Warna mode gelap tidak dipakai di
+ * sini karena gambar OG selalu dikirim ke situs pihak ketiga yang
+ * menampilkannya di latar terang.
+ */
+const ACCENT = "#0b4ed8"; // globals.css: --color-accent
+const PAPER = "#f4f5f7"; // globals.css: --color-paper
+const INK = "#101828"; // globals.css: --color-ink
+const MUTED = "#475467"; // globals.css: --color-muted
 
 export default async function OpengraphImage({
   params,

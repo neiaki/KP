@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { formatIDR } from "@/lib/utils";
 import { MessageCircle, ArrowLeftRight, Check, BadgeCheck, CreditCard, ChevronLeft, ChevronRight, Flame, Smartphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/button-link";
 import { BrandLogo } from "@/components/public/brand-mark";
 import { Locale } from "@/lib/translations";

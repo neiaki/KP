@@ -168,6 +168,39 @@ Gunakan `/api/health/ready` sebagai target health check Coolify. Response 503
 harus dianggap sebagai not ready, bukan sebagai keberanian untuk memakai data
 mock.
 
+## Header proxy dan rate limit
+
+Batas percobaan login dan batas lacak resi memakai IP klien sebagai kunci,
+diambil di `src/lib/client-ip.ts`. Fungsi itu membaca entri TERAKHIR
+`X-Forwarded-For`, bukan yang pertama, dan itu pilihan yang disengaja.
+
+Traefik tidak menimpa `X-Forwarded-For`, melainkan menambahkan IP aslinya di
+belakang nilai yang sudah ada. Dengan `forwardedHeaders.insecure = false`
+(konfigurasi bawaan sejak Traefik v2.10) header itu dibersihkan dulu dari
+permintaan tak tepercaya lalu diisi satu IP saja, jadi entri pertama dan
+terakhir sama-sama benar dan tidak ada perbedaan perilaku.
+
+Bedanya baru muncul kalau `insecure` dinyalakan atau ada proxy lain di depan
+Traefik. Penyerang yang mengirim `X-Forwarded-For: 1.2.3.4` akan membuat
+aplikasi menerima `1.2.3.4, ip-asli`. Dengan entri pertama tiap percobaan
+membuat kunci bucket yang berbeda sehingga batasnya tidak pernah tercapai.
+Dengan entri terakhir semua percobaan menumpuk pada satu IP dan batasnya
+berlaku.
+
+Kalau struktur ini diubah, tiga hal ikut berubah:
+
+1. Rate limit kehilangan nilainya kalau IP tidak bisa dipercaya. Pastikan
+   tidak ada job internal yang memakai IP proxy bersama, karena semua trafik
+   seperti itu lalu berbagi satu kuota.
+2. `X-Real-Ip` bukan cadangan yang lebih aman. Middleware `forwardedheaders`
+   Traefik hanya menulisnya kalau masih kosong, jadi pada konfigurasi longgar
+   nilai dari klien justru dipertahankan.
+3. Kalau aplikasi bisa dijangkau langsung tanpa lewat Traefik, semua
+   permintaan tanpa header berakhir pada satu kunci tunggal. Itu disengaja
+   karena membuat batas lebih ketat, tapi gejalanya rate limit yang tiba-tiba
+   terasa sangat rapat.
+
+
 ## Rilis yang aman
 
 1. Jalankan test, typecheck, lint, dan build di commit yang sama.

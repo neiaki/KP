@@ -115,6 +115,37 @@ export const updateUnitStatusSchema = z.object({
 });
 export type UpdateUnitStatusInput = z.infer<typeof updateUnitStatusSchema>;
 
+/**
+ * Referensi foto yang disimpan di kolom photo_urls.
+ *
+ * Dua bucket foto pelanggan sengaja privat, jadi yang disimpan ke database
+ * adalah path Storage, bukan URL. getPublicUrl tidak bisa dipakai di sana
+ * karena hanya menyusun URL /object/public/ tanpa memeriksa privatnya bucket.
+ * Path tidak pernah kedaluwarsa, sedangkan signed URL iya, jadi path yang
+ * disimpan dan URL yang ditampilkan harus dipisahkan.
+ *
+ * URL penuh tetap diterima supaya baris lama yang sudah terlanjur menyimpan
+ * URL dan seluruh mode mock lokal tidak ikut rusak. Path yang naik ke folder
+ * induk juga ditolak walau karakternya lolos, supaya tidak ada kunci Storage
+ * yang keluar dari folder stafnya sendiri.
+ */
+const photoRefSchema = z
+  .string()
+  .trim()
+  .min(1, "Referensi foto tidak boleh kosong.")
+  .max(600, "Referensi foto terlalu panjang.")
+  .refine(
+    (v) => {
+      if (/^https?:\/\//i.test(v)) return true;
+      if (v.includes("..")) return false;
+      return /^[A-Za-z0-9._\-/]+$/.test(v);
+    },
+    "Referensi foto harus berupa path Storage atau URL."
+  );
+
+/** Daftar foto, maksimal sepuluh, sama untuk tiket servis dan trade-in. */
+const photoRefsSchema = z.array(photoRefSchema).max(10, "Maksimal 10 foto.");
+
 // Grading kondisi unit lama (FR-C-01). Foto diunggah terpisah via uploadPhoto.
 export const tradeInGradingSchema = z.object({
   originalBrandModel: z.string().trim().min(3, "Isi merek dan tipe unit lama."),
@@ -123,7 +154,7 @@ export const tradeInGradingSchema = z.object({
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .default({}),
   offeredPrice: rupiah("Nilai taksiran"),
-  photoUrls: z.array(z.string().url("URL foto tidak valid.")).max(10).default([]),
+  photoUrls: photoRefsSchema.default([]),
 });
 export type TradeInGradingInput = z.infer<typeof tradeInGradingSchema>;
 
@@ -147,7 +178,7 @@ export const createTicketSchema = z.object({
   imeiOrSn: z.string().trim().max(20, "IMEI/SN maksimal 20 karakter.").default(""),
   issueNotes: z.string().trim().min(5, "Jelaskan keluhan minimal 5 huruf."),
   technicianId: z.string().uuid("ID teknisi tidak valid.").optional(),
-  photoUrls: z.array(z.string().url("URL foto tidak valid.")).max(10).default([]),
+  photoUrls: photoRefsSchema.default([]),
 });
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
 
@@ -194,7 +225,7 @@ export const updateTicketSchema = z.object({
   costBreakdown: z.array(costItemSchema).max(50).optional(),
   // Foto progres perbaikan ditambahkan dari meja kerja, bukan hanya saat intake,
   // jadi update perlu bisa menambah URL tanpa menimpa daftar yang ada.
-  photoUrls: z.array(z.string().url("URL foto tidak valid.")).max(10).optional(),
+  photoUrls: photoRefsSchema.optional(),
 });
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
 

@@ -2,9 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useStore } from "@/context/store-context";
-import { Wrench, ArrowLeft, CheckCircle2, User, Smartphone, Camera, X } from "lucide-react";
+import { Wrench, ArrowLeft, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -42,7 +41,9 @@ export default function NewServiceTicketPage() {
         setNotice({ type: "error", text: result.error });
         return;
       }
-      setPhotoUrls((prev) => [...prev, result.data.url]);
+      // Yang disimpan ke database adalah path, bukan signed URL. URL-nya
+      // kedaluwarsa sepuluh menit lagi, sedangkan path tidak pernah basi.
+      setPhotoUrls((prev) => [...prev, result.data.path]);
     } catch {
       setNotice({ type: "error", text: "Gagal mengunggah foto. Coba lagi." });
     } finally {
