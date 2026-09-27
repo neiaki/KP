@@ -26,10 +26,11 @@ on conflict (id) do update
 
 -- 2) Jenis gambar. "hero" dipakai foto carousel halaman depan yang modelnya
 --    tidak ada di katalog, jadi product_id-nya null.
-create type public.image_kind as enum ('official', 'second', 'hero', 'payment');
+do $$ begin create type public.image_kind as enum ('official', 'second', 'hero', 'payment');
+exception when duplicate_object then null; end $$;
 
 -- 3) Tabel registry.
-create table public.product_images (
+create table if not exists public.product_images (
   id bigint generated always as identity primary key,
   -- null untuk foto hero dan logo pembayaran: gambarnya ada di web tapi tidak
   -- menempel pada satu produk di katalog.
@@ -52,33 +53,37 @@ comment on column public.product_images.path is
 comment on column public.product_images.is_primary is
   'Gambar sampul produk. Dipakai sebagai products.image_url.';
 
-create index product_images_product_idx on public.product_images(product_id);
-create index product_images_kind_idx on public.product_images(kind);
+create index if not exists product_images_product_idx on public.product_images(product_id);
+create index if not exists product_images_kind_idx on public.product_images(kind);
 
 -- 4) RLS. Daftar gambar bukan data sensitif: nama file, ukuran, dan alt teks
 --    sudah tampil di halaman publik. Yang dilindungi adalah hak ubah.
 alter table public.product_images enable row level security;
 
-create policy "product_images_public_read"
+drop policy if exists product_images_public_read on public.product_images;
+create policy product_images_public_read
   on public.product_images
   for select
   to anon, authenticated
   using (true);
 
-create policy "product_images_staff_write"
+drop policy if exists product_images_staff_write on public.product_images;
+create policy product_images_staff_write
   on public.product_images
   for insert
   to authenticated
   with check (private.is_staff());
 
-create policy "product_images_staff_update"
+drop policy if exists product_images_staff_update on public.product_images;
+create policy product_images_staff_update
   on public.product_images
   for update
   to authenticated
   using (private.is_staff())
   with check (private.is_staff());
 
-create policy "product_images_admin_delete"
+drop policy if exists product_images_admin_delete on public.product_images;
+create policy product_images_admin_delete
   on public.product_images
   for delete
   to authenticated
