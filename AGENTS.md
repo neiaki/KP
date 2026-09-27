@@ -50,7 +50,8 @@ health endpoint `/api/health/ready` sebelum Production. PRD di
   `inventoryUnits` — berlaku di registrasi inventaris, POS, dan trade-in.
 - `executePosSale` menolak unit berstatus selain `available` (anti double-sell).
   Jangan melonggarkan tanpa persetujuan.
-- Kode tiket servis `SRV-YYYYMMDD-XXXX` dibuat di `createServiceTicket`
+- Kode tiket servis `SRV-YYYYMMDD-XXXXXXXX` (8 karakter base32 dari alfabet
+  tanpa `I`, `L`, `O`, `U`) dibuat di `createServiceTicket`
   (anti-tabrakan). Alur status: `received → diagnosing → waiting_approval →
   in_progress → testing → completed → picked_up` (+ `cancelled`).
 - Tipe baru di `src/types/index.ts`. Produk punya `official_images` (unit baru)

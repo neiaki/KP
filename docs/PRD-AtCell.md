@@ -52,8 +52,8 @@ Fitur-fitur kunci yang wajib diimplementasikan:
    - Pendaftaran otomatis unit bekas pelanggan ke tabel `inventory_units` dengan status `available` dan kondisi `second`.
 
 6. **Meja Kerja Servis & Pelacakan Mandiri**
-   - Pendaftaran tiket servis masuk di kasir/teknisi dengan kode resi unik: `SRV-YYYYMMDD-XXXX`, dibuat otomatis oleh sistem untuk menjamin keunikan.
-   - Workflow pengerjaan teknisi: `received` → `diagnosing` → `waiting_approval` → `in_progress` → `completed` → `picked_up`.
+   - Pendaftaran tiket servis masuk di kasir/teknisi dengan kode resi unik: `SRV-YYYYMMDD-XXXXXXXX` (8 karakter base32), dibuat otomatis oleh sistem untuk menjamin keunikan.
+   - Workflow pengerjaan teknisi: `received` → `diagnosing` → `waiting_approval` → `in_progress` → `testing` → `completed` → `picked_up` (+ `cancelled`).
    - Rincian biaya transparan yang memisahkan biaya suku cadang (*sparepart*) dan jasa teknisi (*labor*), dilengkapi unggahan foto kondisi/bukti pengerjaan.
    - Halaman pelacakan publik di `atcell.my.id/[locale]/tracking` dengan visualisasi linier (*stepper/timeline*), dapat diakses tanpa login menggunakan kode tiket saja.
 
@@ -276,9 +276,9 @@ Bagian ini mengatur batasan teknis dan panduan desain yang harus dipatuhi.
      - `user_role`: `admin`, `sales`, `technician`, `customer`.
      - `unit_condition`: `new`, `second`.
      - `unit_status`: `available`, `reserved`, `sold`, `in_service`, `returned`.
-     - `repair_status`: `received`, `diagnosing`, `waiting_approval`, `in_progress`, `completed`, `picked_up`.
+     - `repair_status`: `received`, `diagnosing`, `waiting_approval`, `in_progress`, `testing`, `completed`, `picked_up`, `cancelled`.
      - `payment_method`: `cash`, `transfer`, `qris`, `debit`, `credit`.
-   - **Generate Kode Tiket:** `ticket_code` (`SRV-YYYYMMDD-XXXX`) dibuat otomatis melalui fungsi/trigger `BEFORE INSERT` di database agar format dan keunikan terjamin secara atomik, tanpa race condition saat beberapa tiket dibuat di hari yang sama.
+   - **Generate Kode Tiket:** `ticket_code` (`SRV-YYYYMMDD-XXXXXXXX`) dibuat otomatis melalui fungsi/trigger `BEFORE INSERT` di database agar format dan keunikan terjamin secara atomik, tanpa race condition saat beberapa tiket dibuat di hari yang sama. Suffix 8 karakter diambil dari 40 bit acak dengan memetakan ke alfabet base32 tanpa `I`, `L`, `O`, dan `U` supaya mudah dibaca dan ditulis di nota. Constraint menerima juga suffix 4 digit untuk tiket lama yang terbit sebelum format ini dipakai.
    - **Integritas Trade-in:** Eksekusi tukar tambah wajib dijalankan melalui transaksi database atomik (PostgreSQL RPC) untuk mencegah kegagalan mutasi ganda.
    - **Pelanggan Tanpa Akun Penuh:** `customer_id` pada `transactions` dan `service_tickets` bersifat nullable; Sales/Teknisi dapat mencatat nama dan nomor telepon pelanggan secara langsung untuk transaksi walk-in tanpa mewajibkan pembuatan akun.
 

@@ -125,7 +125,7 @@ Jangan pernah commit `.env.local`, password database, service role key, atau tok
 - IMEI wajib tepat 15 digit angka dan harus unik.
 - POS hanya dapat menjual unit berstatus `available` untuk mencegah double-sell.
 - Trade-in Sekaligus mencatat transaksi dan mendaftarkan unit lama sebagai stok second.
-- Kode tiket servis mengikuti format `SRV-YYYYMMDD-XXXX`.
+- Kode tiket servis mengikuti format `SRV-YYYYMMDD-XXXXXXXX`, yaitu 8 karakter base32 dari alfabet tanpa `I`, `L`, `O`, dan `U` supaya mudah ditulis di nota.
 - Alur servis mencakup status pengerjaan dari penerimaan hingga unit diambil pelanggan.
 - RLS dan pemeriksaan peran dijalankan lagi pada Server Actions yang memakai koneksi database langsung.
 

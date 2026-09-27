@@ -179,11 +179,11 @@ Hasil lama: `usecase.png` / `diagram.mmd`.
 
 ### UC-04 Lacak Resi Servis Publik
 - **Tujuan:** Transparansi tanpa login.
-- **Pre:** `service_tickets.ticket_code` (`SRV-YYYYMMDD-XXXX`) ada.
+- **Pre:** `service_tickets.ticket_code` (`SRV-YYYYMMDD-XXXXXXXX`) ada.
 - **Alur utama:**
   1. Input kode di widget beranda atau halaman `/[locale]/tracking`.
   2. Server Action query by `ticket_code` saja.
-  3. Tampil timeline linier `received → diagnosing → waiting_approval → in_progress → completed → picked_up` + `sparepart_fee + labor_fee = total_fee`.
+  3. Tampil timeline linier `received → diagnosing → waiting_approval → in_progress → testing → completed → picked_up` + `sparepart_fee + labor_fee = total_fee`. Foto kondisi tidak ikut ditampilkan di halaman publik ini.
 - **Alternatif:** Kode tidak ketemu → pesan error, jangan bocorkan tiket lain.
 
 ### UC-05 Login Subdomain + Redirect Peran
@@ -253,12 +253,12 @@ Hasil lama: `usecase.png` / `diagram.mmd`.
 - **Aktor:** Sales / Teknisi.
 - **Alur utama:**
   1. Input `customer_name/phone` (atau `customer_id` jika member), `device_model`, `imei_or_sn`, `issue_notes`, foto awal ke `service-photos`.
-  2. Insert → trigger `BEFORE INSERT` generate `ticket_code SRV-YYYYMMDD-XXXX` atomik (anti race-condition).
+  2. Insert → trigger `BEFORE INSERT` generate `ticket_code SRV-YYYYMMDD-XXXXXXXX` (8 karakter base32) atomik (anti race-condition).
   3. Status awal `received`, serahkan resi ke pelanggan.
 
 ### UC-16 Update Workflow + Biaya Servis
 - **Aktor:** Teknisi.
-- **Alur:** `received → diagnosing → waiting_approval → in_progress → completed`, tiap pindah status update `sparepart_fee + labor_fee = total_fee` + foto bukti + catatan. Hanya `role = technician` boleh update (RLS).
+- **Alur:** `received → diagnosing → waiting_approval → in_progress → testing → completed`, tiap pindah status update `sparepart_fee + labor_fee = total_fee` + foto bukti + catatan. Hanya `role = technician` boleh update (RLS).
 
 ### UC-17 Serah Terima Unit
 - **Alur utama:** Pelanggan datang → catat pelunasan → status `completed → picked_up`.
