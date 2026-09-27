@@ -37,13 +37,29 @@ export function shortIDR(n: number) {
 // "HP"/"Smartphone" tanpa foto dan tanpa spesifikasi.
 // Lihat migrasi 20260927180000_nullable_inventory_unit_product.sql.
 /**
- * Label unit untuk daftar inventaris portal.
+ * Teks yang dipakai unitLabel kalau tidak ada data yang bisa dipercaya.
+ *
+ * Diekspor karena ini keputusan yang harus terlihat, bukan sekadar string.
+ * Pemakainya nota pelanggan: kalau label sebuah unit sama dengan nilai ini,
+ * nota tidak boleh berpura-pura tahu modelnya dan harus menyatakan terus
+ * terang bahwa yang sah adalah IMEI-nya.
+ */
+export const UNIT_LABEL_UNKNOWN = "Model tidak tercatat";
+
+/**
+ * Label unit untuk daftar inventaris portal DAN untuk nota pelanggan.
  *
  * Unit yang punya katalog memakai merek dan model dari products. Unit trade-in
  * sengaja punya product_id null karena handset yang pelanggan tukar tidak ada
  * di katalog, jadi labelnya diambil dari trade_in_records.original_brand_model
  * lewat trade_in_model. Tanpa ini kolom model kosong dan tabel inventaris
  * tidak bisa dicari menurut tipe HP.
+ *
+ * Ini satu-satunya tempat yang menerjemahkan product_id menjadi teks. Halaman
+ * mana pun yang butuh nama unit wajib lewat sini, bukan mencari produknya
+ * sendiri: mencari sendiri membuat product_id null jadi label kosong, dan
+ * label kosong di nota garansi berarti pelanggan memegang dokumen yang salah
+ * menyebut handset yang ia beli.
  */
 export function unitLabel(unit: InventoryUnit, products: Product[]): string {
   const product = products.find((p) => p.id === unit.product_id);
@@ -51,7 +67,7 @@ export function unitLabel(unit: InventoryUnit, products: Product[]): string {
   if (unit.trade_in_model) return unit.trade_in_model;
   // product_id null tanpa trade_in_model berarti data trade-innya hilang.
   // Lebih jujur menampilkan itu daripada membiarkan kolom kosong.
-  return "Model tidak tercatat";
+  return UNIT_LABEL_UNKNOWN;
 }
 
 export function toCardItem(
