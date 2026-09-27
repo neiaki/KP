@@ -9,6 +9,7 @@ import { StoreJsonLd } from "@/components/public/store-json-ld";
 import { RootProviders, htmlClass, bodyClass } from "@/components/root-shell";
 import { buildLayoutMetadata, isSupportedLocale } from "@/app/sitemap";
 import { Locale } from "@/lib/translations";
+import { getPublicSnapshot, type PublicSnapshot } from "@/lib/actions/public";
 
 /*
  * Root layout area publik. Sengaja berada di dalam [locale] supaya atribut
@@ -53,6 +54,16 @@ export default async function PublicRootLayout({
   }
   const locale: Locale = resolvedParams.locale;
 
+  // Etalase diambil di server lalu jadi state awal store. Tanpa ini, seluruh
+  // halaman publik merender kosong lebih dulu dan baru terisi setelah
+  // loadLiveData() jalan di useEffect, jadi HTML yang sampai ke crawler
+  // berisi "0 unit ada di toko" dengan jam buka dan telepon yang kosong.
+  // Gagal membaca tidak boleh menggagalkan halaman: seed null mengembalikan
+  // store ke kondisi kosong, dan loadLiveData tetap mencoba lagi di browser.
+  const seed: PublicSnapshot | null = await getPublicSnapshot()
+    .then((r) => (r.ok ? r.data : null))
+    .catch(() => null);
+
   return (
     <html
       lang={locale}
@@ -61,7 +72,7 @@ export default async function PublicRootLayout({
       suppressHydrationWarning
     >
       <body className={bodyClass} suppressHydrationWarning>
-        <RootProviders>
+        <RootProviders publicSeed={seed}>
           <div className="flex min-h-[100dvh] flex-col">
             <PublicNavbar locale={locale} />
             <main className="flex-1">

@@ -146,8 +146,20 @@ function applyPortalSnapshot(
   setProfiles(snapshot.profiles);
 }
 
-export function useAtCellStore() {
+/*
+ * publicSeed diisi layout area publik dengan hasil getPublicSnapshot di server,
+ * supaya render pertama sudah berisi etalase. Tanpa itu, useState di bawah
+ * selalu mulai dari kosong di mode live dan loadLiveData baru mengisi layar
+ * setelah useEffect jalan, sehingga HTML yang dikirim ke crawler kosong
+ * ("0 unit ada di toko", jam buka dan telepon kosong).
+ *
+ * Seed hanya berisi data yang memang sudah publik: purchase_cost sudah
+ * dinolkan dan IMEI sudah disensor oleh getPublicSnapshot. Portal tidak
+ * mengirim seed, jadi ia tetap pakai getPortalSnapshot yang butuh sesi.
+ */
+export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
   const pathname = usePathname() ?? "/";
+  const seed = liveBackendEnabled ? publicSeed : undefined;
   const [mounted, setMounted] = useState(false);
   const [isHydrating, setIsHydrating] = useState(liveBackendEnabled);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -158,13 +170,13 @@ export function useAtCellStore() {
     liveBackendEnabled ? null : initialProfiles[0] ?? null
   );
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(
-    liveBackendEnabled ? emptyStoreSettings : initialStoreSettings
+    seed ? seed.storeSettings : liveBackendEnabled ? emptyStoreSettings : initialStoreSettings
   );
   const [products, setProducts] = useState<Product[]>(
-    liveBackendEnabled ? [] : initialProducts
+    seed ? seed.products : liveBackendEnabled ? [] : initialProducts
   );
   const [inventoryUnits, setInventoryUnits] = useState<InventoryUnit[]>(
-    liveBackendEnabled ? [] : initialInventoryUnits
+    seed ? seed.inventoryUnits : liveBackendEnabled ? [] : initialInventoryUnits
   );
   const [transactions, setTransactions] = useState<Transaction[]>(
     liveBackendEnabled ? [] : initialTransactions

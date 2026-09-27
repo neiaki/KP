@@ -2,13 +2,21 @@
 
 import React, { createContext, useContext } from "react";
 import { useAtCellStore } from "@/lib/store";
+import type { PublicSnapshot } from "@/lib/actions/public";
 
 type StoreType = ReturnType<typeof useAtCellStore>;
 
 const StoreContext = createContext<StoreType | null>(null);
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const store = useAtCellStore();
+export function StoreProvider({
+  children,
+  publicSeed,
+}: {
+  children: React.ReactNode;
+  /* Hasil getPublicSnapshot di server, hanya diisi layout area publik. */
+  publicSeed?: PublicSnapshot | null;
+}) {
+  const store = useAtCellStore(publicSeed);
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }
 
