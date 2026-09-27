@@ -42,9 +42,9 @@ pg_restore --list "$DUMP_FILE" >/dev/null
 # Baris stub memakai on conflict do nothing, jadi restore ke target yang
 # sudah punya Auth asli tidak merusak apa pun.
 seed_auth_stubs() {
-  local ids_file stub_sql count
+  local ids_file stub_sql
   ids_file="$(mktemp)"
-  stub_sql="$(mktemp)"
+  trap 'rm -f -- "$ids_file"' RETURN
 
   pg_restore --data-only -t profiles -f - "$DUMP_FILE" \
     | awk -F'\t' '
@@ -54,17 +54,16 @@ seed_auth_stubs() {
       ' \
     | sort -u >"$ids_file"
 
-  count="$(wc -l <"$ids_file" | tr -d ' ')"
-  if [ "$count" -eq 0 ]; then
-    rm -f -- "$ids_file" "$stub_sql"
+  if [[ ! -s "$ids_file" ]]; then
     echo "Tidak ada baris public.profiles di dump; lewati stub auth."
     return 0
   fi
 
+  stub_sql="$(mktemp)"
   {
     echo "begin;"
     while read -r id; do
-      [ -n "$id" ] || continue
+      [[ -n "$id" ]] || continue
       printf "insert into auth.users (id, email, raw_user_meta_data) values ('%s', 'restore-stub-%s@invalid.local', '{\"atcell_restore_stub\":true}'::jsonb) on conflict (id) do nothing;\n" \
         "$id" "$id"
     done <"$ids_file"
@@ -72,9 +71,9 @@ seed_auth_stubs() {
   } >"$stub_sql"
 
   psql "$RESTORE_DATABASE_URL" -q -v ON_ERROR_STOP=1 -f "$stub_sql" >/dev/null
-  rm -f -- "$ids_file" "$stub_sql"
+  rm -f -- "$stub_sql"
 
-  printf 'Stub auth.users dibuat: %s baris (account asli belum ikut di dump).\n' "$count"
+  printf 'Stub auth.users dibuat: %s baris (account asli belum ikut di dump).\n' "$(wc -l <"$ids_file")"
 }
 
 if psql "$RESTORE_DATABASE_URL" -q -t -c "select to_regclass('auth.users') is not null" 2>/dev/null | grep -q t; then
@@ -83,6 +82,7 @@ else
   echo "auth.users tidak ada di target. Jalankan scripts/restore-target-bootstrap.sql lebih dulu." >&2
   exit 1
 fi
+
 pg_restore \
   --clean \
   --if-exists \

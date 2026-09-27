@@ -205,12 +205,45 @@ Kalau struktur ini diubah, tiga hal ikut berubah:
 
 1. Jalankan test, typecheck, lint, dan build di commit yang sama.
 2. Pastikan migration canonical sudah tercatat dan diterapkan satu kali.
-3. Deploy Coolify production dari branch `main` dan cek `/api/health/ready`.
-4. Jalankan smoke test public, login, role guard, IMEI, POS, service tracking,
+3. Tulis tag image di `Dockerfile.coolify` memakai `sha-<commit>` sesuai bagian
+   tag image di bawah, lalu commit.
+4. Deploy Coolify production dari branch `main` dan cek `/api/health/ready`.
+5. Jalankan smoke test public, login, role guard, IMEI, POS, service tracking,
    dan upload pada URL production.
-5. Verifikasi RLS, trigger, view, Storage, advisor, dan backup.
-6. Aktifkan domain final dan TLS hanya setelah deployment lulus.
-7. Lakukan restore test terjadwal ke resource restore private.
+6. Verifikasi RLS, trigger, view, Storage, advisor, dan backup.
+7. Aktifkan domain final dan TLS hanya setelah deployment lulus.
+8. Lakukan restore test terjadwal ke resource restore private.
+
+## Tag image di Dockerfile.coolify
+
+`Dockerfile.coolify` menarik image yang sudah dibangun GitHub Actions, dan tag
+yang dipakai wajib `sha-<commit>`. Tag `latest` tidak boleh dipakai.
+
+Coolify menjalankan `docker build --no-cache` tanpa `--pull`. `--no-cache`
+hanya membersihkan cache lapisan build, bukan cache base image. Dengan tag
+`latest`, Docker memakai salinan tag itu yang sudah tersimpan di lokal VPS dan
+tidak pernah menanyakan registry lagi. Deploy selesai hijau, health check hijau,
+tetapi image yang jalan adalah image lama.
+
+Kejadian itu tidak terlihat dari status mana pun. Penandanya hanya
+respons: `/robots.txt` dilayani sebagai HTML, footer masih memakai warna
+lama, nomor telepon kosong, dan ukuran HTML landing tidak berubah satu byte
+pun. `tests/deploy-image-pin.test.ts` menjaga tag tetap berbentuk `sha` dan
+bukan `latest`, menjaga commit yang disebut ada di repository, dan menjaga
+formatnya sama dengan yang diturunkan `docker-publish.yml`.
+
+Ada satu commit keterlambatan yang harus dipahami. Tag ditulis di commit yang
+sekarang, sedangkan image untuk commit itu baru ada setelah commit itu dipush.
+Jadi deploy commit P menjalankan image commit sebelumnya. Untuk menjalankan
+image commit Q, tuliskan `sha-Q` di `Dockerfile.coolify`, commit, lalu deploy
+lagi. Menjalankan image commit Q berarti commit yang berisi tag `sha-Q`
+belum pernah menjadi image, dan itu tidak bisa dihindari selama tag
+ditulis manual di dalam repository.
+
+Cara memastikan image yang benar-benar jalan bukan cuma lewat `/robots.txt`.
+Bandingkan ukuran dan isi HTML landing sebelum dan sesudah deploy, atau ambil
+digest image yang berjalan lewat Coolify lalu bandingkan dengan digest tag
+`sha-<commit>` di GHCR.
 
 ### Verifikasi etalase di HTML, bukan hanya di browser
 
