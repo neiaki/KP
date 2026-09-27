@@ -45,6 +45,11 @@ function fallbackPopup(title: string, fullHtml: string) {
   }
   win.document.write(fullHtml);
   win.document.close();
+  // Dialog print dipanggil dari sini, bukan dari skrip inline di dalam HTML
+  // nota. Skrip inline tidak bisa dipakai karena dokumen popup mewarisi
+  // Content-Security-Policy halaman, jadi skrip tanpa nonce akan diblokir.
+  win.focus();
+  win.setTimeout(() => win.print(), 60);
 }
 
 function notaDocument(title: string, bodyHtml: string) {
@@ -55,9 +60,7 @@ function notaDocument(title: string, bodyHtml: string) {
     NOTA_CSS +
     "</style></head><body><div class=\"nota\">" +
     bodyHtml +
-    "</div><scr" +
-    "ipt>window.onload=function(){window.print();};</scr" +
-    "ipt></body></html>"
+    "</div></body></html>"
   );
 }
 

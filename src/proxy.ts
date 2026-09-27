@@ -12,6 +12,7 @@ import {
   isPortalLoginPath,
   isAuthSessionMissingError,
 } from "@/lib/access";
+import { buildContentSecurityPolicy, createNonce } from "@/lib/csp";
 import type { UserRole } from "@/types";
 
 function copyCookies(source: NextResponse, target: NextResponse) {
@@ -20,6 +21,32 @@ function copyCookies(source: NextResponse, target: NextResponse) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  /*
+   * Nonce dibuat satu kali per permintaan lalu dipasang ke header request dan
+   * header respons. Next.js membaca nonce dari header request waktu merender,
+   * jadi cukup memasang di respons akan membuat seluruh skrip hydration ditolak
+   * browser dan halaman tampil kosong.
+   */
+  const nonce = createNonce();
+  const csp = buildContentSecurityPolicy({
+    nonce,
+    isDevelopment: process.env.NODE_ENV === "development",
+    supabaseUrl: getSupabaseUrl() || null,
+  });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  // Setiap NextResponse yang meneruskan rantai harus membawa header di atas,
+  // sedangkan respons yang dibuat sendiri cukup memasang CSP di sisi respons.
+  const continueChain = () => NextResponse.next({ request: { headers: requestHeaders } });
+  const rewriteTo = (target: URL) =>
+    NextResponse.rewrite(target, { request: { headers: requestHeaders } });
+  const withCsp = (res: NextResponse) => {
+    res.headers.set("Content-Security-Policy", csp);
+    return res;
+  };
   const hostname = (request.headers.get("host") || "").toLowerCase().split(":")[0];
 
   // Check if request comes from login subdomain (e.g. login.atcell.my.id or login.localhost:3000)
@@ -33,41 +60,41 @@ export async function proxy(request: NextRequest) {
     // Subdomain login mengarah ke halaman login publik ber-locale.
     // /portal/login lama ikut dipetakan ke /id/login agar bookmark tetap jalan.
     if (pathname === "/" || pathname === "") {
-      response = NextResponse.rewrite(new URL("/id/login", request.url));
+      response = rewriteTo(new URL("/id/login", request.url));
       effectivePathname = "/id/login";
     } else if (isPortalLoginPath(pathname)) {
       if (pathname === "/portal/login" || pathname.startsWith("/portal/login/")) {
-        response = NextResponse.rewrite(
+        response = rewriteTo(
           new URL(pathname.replace("/portal/login", "/id/login"), request.url)
         );
         effectivePathname = "/id/login";
       } else {
         // Login locale pada subdomain boleh dilayani tanpa rewrite.
-        response = NextResponse.next();
+        response = continueChain();
         effectivePathname = pathname;
       }
     } else if (/^\/(id|en)(?:\/|$)/.test(pathname)) {
-      response = NextResponse.next();
+      response = continueChain();
       effectivePathname = pathname;
     } else if (!pathname.startsWith("/portal")) {
       // URL tetap terlihat bersih di browser, tetapi guard memakai path internal.
       const target = new URL(`/portal${pathname}`, request.url);
       target.search = request.nextUrl.search;
-      response = NextResponse.rewrite(target);
+      response = rewriteTo(target);
       effectivePathname = `/portal${pathname}`;
     } else {
-      response = NextResponse.next();
+      response = continueChain();
     }
   } else if (pathname === "/" || pathname === "") {
     // Root redirect to default locale /id
-    return NextResponse.redirect(new URL("/id", request.url));
+    return withCsp(NextResponse.redirect(new URL("/id", request.url)));
   } else if (pathname === "/portal/login" || pathname.startsWith("/portal/login/")) {
     // URL login lama pindah ke rute publik ber-locale. Query string dipertahankan.
     const url = request.nextUrl.clone();
     url.pathname = pathname.replace("/portal/login", "/id/login");
-    return NextResponse.redirect(url);
+    return withCsp(NextResponse.redirect(url));
   } else {
-    response = NextResponse.next();
+    response = continueChain();
   }
 
   // Refresh sesi Supabase sebelum request diproses. Guard hanya aktif ketika
@@ -112,7 +139,7 @@ export async function proxy(request: NextRequest) {
           status: 503,
         });
         copyCookies(response, unavailable);
-        return unavailable;
+        return withCsp(unavailable);
       }
 
       if (!user) {
@@ -123,7 +150,7 @@ export async function proxy(request: NextRequest) {
         );
         const redirect = NextResponse.redirect(loginUrl);
         copyCookies(response, redirect);
-        return redirect;
+        return withCsp(redirect);
       }
 
       const { data: profile, error: profileError } = await supabase
@@ -137,21 +164,23 @@ export async function proxy(request: NextRequest) {
           status: 403,
         });
         copyCookies(response, forbidden);
-        return forbidden;
+        return withCsp(forbidden);
       }
 
       const role = profile.role as UserRole;
       if (!canAccessPortalPath(effectivePathname, role)) {
-        const redirect = NextResponse.redirect(new URL(defaultPortalPath(role), request.url));
+        const redirect = NextResponse.redirect(
+          new URL(defaultPortalPath(role), request.url)
+        );
         copyCookies(response, redirect);
-        return redirect;
+        return withCsp(redirect);
       }
     } else {
       await supabase.auth.getClaims();
     }
   }
 
-  return response;
+  return withCsp(response);
 }
 
 export const config = {
