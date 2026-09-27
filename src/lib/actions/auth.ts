@@ -14,6 +14,7 @@ import {
   staffInviteSchema,
   usernameSchema,
 } from "@/lib/validations";
+import { pickClientIp } from "@/lib/client-ip";
 import { consumeCredentialAttempt } from "@/lib/rate-limit";
 import type { UserRole } from "@/types";
 import {
@@ -38,19 +39,14 @@ function usernameFromEmail(email: string): string {
 }
 
 /**
- * Pembaca IP untuk menjadi kunci throttle kredensial. Traefik di Coolify
- * selalu menyetel X-Forwarded-For, jadi entri pertama adalah klien asli.
- * Kalau headernya hilang, semua permintaan memakai satu kunci, yang membuat
- * batas lebih ketat dan tidak bisa dipakai untuk melewati limit.
+ * Pembaca IP untuk menjadi kunci throttle kredensial. Logikanya ada di
+ * src/lib/client-ip.ts supaya auth dan lacak resi tidak punya dua versi
+ * pembacaan IP yang bisa berbeda. Kalau headernya hilang, semua permintaan
+ * memakai satu kunci, yang membuat batas lebih ketat dan tidak bisa dipakai
+ * untuk melewati limit.
  */
 async function getCredentialClientId(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return h.get("x-real-ip")?.trim() || "unknown";
+  return pickClientIp(await headers());
 }
 
 /**
