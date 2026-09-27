@@ -36,8 +36,14 @@ export default function InventoryManagementPage() {
     ? selectedProductId
     : products[0]?.id ?? selectedProductId;
   const [batchCondition, setBatchCondition] = useState<UnitCondition>("new");
-  const [purchaseCost, setPurchaseCost] = useState<number>(10000000);
-  const [sellingPrice, setSellingPrice] = useState<number>(12000000);
+  // Harga beli tidak ada di master produk, jadi starts dari 0 dan wajib diisi
+  // staf. Angka bawaan seperti 10 juta akan tersimpan diam-diam kalau lupa
+  // diganti, dan itu merusak laporan margin.
+  const [purchaseCost, setPurchaseCost] = useState<number>(0);
+  const [sellingPrice, setSellingPrice] = useState<number>(0);
+  // Produk terakhir yang harganya sudah diturunkan, supaya harga tidak
+  // menimpa pilihan staf saat produknya tidak berubah.
+  const [lastPricedProductId, setLastPricedProductId] = useState<number | null>(null);
   const [imeiInputText, setImeiInputText] = useState("");
   const [validationError, setValidationError] = useState("");
 
@@ -53,6 +59,20 @@ export default function InventoryManagementPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showBatchModal]);
 
+  // Harga jual diturunkan dari master produk tiap kali produk berganti, bukan
+  // dari angka tetap. Sebelumnya memakai 12 juta untuk semua model, jadi unit
+  // Redmi 2,8 juta bisa terdaftar dengan harga jual 12 juta kalau staf lupa
+  // menyesuaikan sendiri.
+  //
+  // Penyesuaian dilakukan saat render, bukan di useEffect: memanggil setState
+  // di dalam effect memaksa render kedua dan memicu render berantai. Ini pola
+  // resmi React untuk "menyesuaikan state saat sebuah nilai berubah".
+  const selectedProduct = products.find((product) => product.id === activeProductId);
+  if (lastPricedProductId !== activeProductId) {
+    setLastPricedProductId(activeProductId);
+    setSellingPrice(selectedProduct?.default_price ? Number(selectedProduct.default_price) : 0);
+  }
+
   const handleBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError("");
@@ -64,6 +84,23 @@ export default function InventoryManagementPage() {
 
     if (imeis.length === 0) {
       setValidationError("Masukkan minimal 1 nomor IMEI.");
+      return;
+    }
+
+    // Harga tidak boleh 0 atau negatif. Karena form dimulai dari 0, angka
+    // bawaan yang dulu bisa lolos kalau staf tidak menyentuh field ini.
+    if (!Number.isFinite(purchaseCost) || purchaseCost <= 0) {
+      setValidationError("Harga beli harus diisi lebih dari nol.");
+      return;
+    }
+    if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) {
+      setValidationError("Harga jual harus diisi lebih dari nol.");
+      return;
+    }
+    if (sellingPrice < purchaseCost) {
+      setValidationError(
+        `Harga jual (${formatIDR(sellingPrice)}) lebih kecil dari harga beli (${formatIDR(purchaseCost)}).`
+      );
       return;
     }
 

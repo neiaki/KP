@@ -61,7 +61,10 @@ export default function SalesPosPage() {
   const [cameraWorks, setCameraWorks] = useState(true);
   const [signalWorks, setSignalWorks] = useState(true);
   const [boxIncluded, setBoxIncluded] = useState(true);
-  const [customTradeInPrice, setCustomTradeInPrice] = useState(2500000);
+  // Taksiran harga trade-in hanya staf yang bisa tahu, jadi form dimulai dari
+  // 0 dan wajib diisi kalau trade-in dicentang. Angka 2,5 juta sebelumnya bisa
+  // ikut tersimpan sebagai taksiran padahal bukan hasil pemeriksaan unit itu.
+  const [customTradeInPrice, setCustomTradeInPrice] = useState(0);
   const [tradeInPhotoUrls, setTradeInPhotoUrls] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,6 +153,10 @@ export default function SalesPosPage() {
       inventoryUnits.some((u) => u.imei === tradeInIMEI.trim())
     ) {
       setNotice({ type: "error", text: "IMEI unit tukar tambah sudah terdaftar di inventaris!" });
+      return;
+    }
+    if (hasTradeIn && (!Number.isFinite(customTradeInPrice) || customTradeInPrice <= 0)) {
+      setNotice({ type: "error", text: "Taksiran harga tukar tambah wajib diisi lebih dari nol." });
       return;
     }
 
