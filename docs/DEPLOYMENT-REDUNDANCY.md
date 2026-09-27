@@ -245,6 +245,52 @@ Bandingkan ukuran dan isi HTML landing sebelum dan sesudah deploy, atau ambil
 digest image yang berjalan lewat Coolify lalu bandingkan dengan digest tag
 `sha-<commit>` di GHCR.
 
+### Verifikasi etalase di HTML, bukan hanya di browser
+
+Sejak layout area publik membaca snapshot di server, HTML yang sampai ke crawler
+sudah berisi etalase. `/api/health/ready` yang menjawab 200 tidak
+membuktikannya: health check hanya membuktikan database terjangkau, sedangkan
+etalase membaca view `v_public_inventory` dan tabel produk.
+
+Setelah deploy, cek dua hal ini:
+
+```bash
+curl -s https://atcell.my.id/id/catalog | grep -o "[0-9]* unit, harga"
+curl -s https://atcell.my.id/id/catalog | grep -c "Redmi Note 13"
+```
+
+Yang benar: hitungannya bukan 0, dan nama model dari `v_public_inventory`
+muncul di HTML. Kalau hitungannya 0 dan muncul "Tidak ada yang cocok", snapshot
+gagal dibaca. Keadaan itu sah secara kode: pembacaan yang gagal menghasilkan
+tanpa seed, browser mencoba lagi sendiri lewat `loadLiveData`, dan pengunjung
+manusia tetap melihat katalog yang benar setelah sepersekian detik. Yang tidak
+memperoleh kesempatan itu Google dan pratinjau tautan WhatsApp, karena keduanya
+hanya membaca HTML.
+
+Urutan pemeriksaan saat hitungannya 0:
+
+1. `/api/health/ready` mengembalikan `databaseReachable: true` dan
+   `databaseSchemaReady: true`.
+2. `select count(*) from public.v_public_inventory;` mengembalikan lebih dari 0.
+3. Log container di Coolify memuat `Data publik sedang tidak dapat dimuat`,
+   yaitu pesan kegagalan snapshot. Pesan ini hanya ada di log, tidak pernah
+   tampil di halaman, jadi halaman kosong tanpa penjelasan itu sendiri.
+
+### Verifikasi lokal memakai database yang sama
+
+Kalau `DATABASE_URL` lokal menunjuk pooler Supabase yang sama dengan production,
+jalankan hanya satu proses Next.js di mesin lokal. Tiap proses menahan sampai 5
+koneksi (`max` di `src/db/client.ts`), sehingga `next dev` di repo utama
+bersamaan dengan `next start` di worktree, ditambah beberapa permintaan curl
+bersamaan, bisa membuat antrean menumpuk di belakang
+`statement_timeout` 2500 milidetik.
+
+Gejalanya halaman publik yang menggantung, yaitu melewati batas waktu curl,
+sementara `/robots.txt` dan `/api/health/live` tetap menjawab dalam sepersekian
+detik. Itu gejala rebutan lokal, bukan bug kode. Cara memastikan: hentikan
+proses Next.js lain, kirim satu permintaan, lalu periksa waktunya. Halaman
+publik yang sehat menjawab antara 0,1 sampai 3 detik.
+
 ## DNS dan session
 
 Domain At Cell dikelola melalui MyDomaiNesia. Buka **Domain → DNS Management**
