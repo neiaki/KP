@@ -25,13 +25,55 @@ Set variabel berikut di Coolify Production. Nilai secret hanya diisi lewat
 dashboard atau secret manager, tidak pernah commit ke repository.
 
 ```env
+# Wajib ada di production
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SECRET_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_COOKIE_DOMAIN=.atcell.my.id
 DATABASE_URL=
+
+# Opsional. Kosongkan kalau fitur terkait memang tidak dipakai, tapi baca
+# penjelasan di bawah sebelum mengosongkan.
 GOOGLE_PLACES_API_KEY=
+GOOGLE_PLACE_ID=
+NEXT_PUBLIC_SITE_URL=
+SITE_URL=
+SERVER_ACTIONS_ALLOWED_ORIGINS=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
+
+Wajib ada di production:
+
+- `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` untuk
+  browser.
+- `SUPABASE_SECRET_KEY` untuk admin client. `SUPABASE_SERVICE_ROLE_KEY` adalah
+  nama lama yang masih diterima sebagai cadangan, dan wajib ikut diisi kalau
+  project Supabase masih memakai kunci `service_role`. `src/lib/supabase/config.ts`
+  membaca `SUPABASE_SECRET_KEY` dulu, lalu `SUPABASE_SERVICE_ROLE_KEY`.
+  `requireRole()` dan health check menolak jalan kalau keduanya kosong, jadi
+  production yang hanya mengisi satu-duanya akan gagal saat login, saat
+  mengelola staf, dan saat `/api/health/ready` diperiksa.
+- `DATABASE_URL` ke connection pooler Supabase production, bukan ke `localhost`
+  VPS. Koneksi ini melewati RLS, jadi penegakan peran tetap di
+  `requireRole()` tiap Server Action.
+- `SUPABASE_COOKIE_DOMAIN` untuk sesi lintas subdomain antara
+  `atcell.my.id` dan `login.atcell.my.id`.
+
+Opsional, tapi kosong berarti fitur tertentu mati:
+
+- `GOOGLE_PLACES_API_KEY` untuk sync ulasan Google. Kosong hanya mematikan
+  auto-sync, bukan halaman ulasan.
+- `GOOGLE_PLACE_ID` untuk memilih toko yang diulas. Ada nilai bawaan di
+  `src/lib/reviews.ts`, jadi tidak wajib diisi kalau toko tidak pernah
+  berubah.
+- `NEXT_PUBLIC_SITE_URL` atau `SITE_URL` untuk URL kanonik di `sitemap.ts`.
+  Kosong membuat sitemap memakai URL yang dikarang, bukan domain produksi.
+- `SERVER_ACTIONS_ALLOWED_ORIGINS` untuk origin tambahan Server Actions,
+  dipisah koma tanpa protocol dan tanpa path. `next.config.ts` sudah memakai
+  domain apex sebagai bawaan.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` hanya untuk kompatibilitas project lama
+  yang belum memakai publishable key.
 
 `DATABASE_URL` harus menunjuk ke connection pooler Supabase production, bukan
 ke `localhost` VPS. `SUPABASE_SECRET_KEY` hanya boleh tersedia sebagai secret
@@ -39,22 +81,58 @@ server. Jangan memakai legacy `anon` atau `service_role` untuk release baru.
 
 ## Migrasi database
 
-Jalankan seluruh migration Supabase secara berurutan:
+Jalankan seluruh migration di `supabase/migrations/` secara berurutan. Urutannya
+wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 
-```text
-supabase/migrations/0001_atcell_schema.sql
-supabase/migrations/0002_harden_atcell_schema.sql
-supabase/migrations/0003_lock_legacy_helpers.sql
-supabase/migrations/20260925142137_align_schema_contract.sql
-supabase/migrations/20260926025406_index_public_foreign_keys.sql
-```
+| Berkas | Isi |
+|--------|-----|
+| `0001_atcell_schema.sql` | Tabel, enum, RLS, trigger, view, bucket Storage, grant Data API, dan seed `store_settings` |
+| `0002_harden_atcell_schema.sql` | Helper private, grant minimum, trigger anti-double-sell, `security_invoker` pada view |
+| `0003_lock_legacy_helpers.sql` | Menutup helper legacy di schema `public` |
+| `0004_align_schema_contract.sql` | Menyelaraskan FK, index performa, dan singleton `store_settings` dengan hasil audit production |
+| `0005_username_login.sql` | Login berbasis username, bukan email |
+| `0006_store_social_urls.sql` | Akun media sosial toko |
+| `0007_audit_trail.sql` | Riwayat audit untuk mutasi data sensitif |
+| `20260926025406_index_public_foreign_keys.sql` | Index untuk seluruh foreign key di schema `public` |
+| `20260926103000_strengthen_ticket_codes.sql` | Format kode tiket servis 8 karakter base32 plus validasi transisi status |
+| `20260927120000_auto_enable_rls_on_new_tables.sql` | RLS otomatis aktif pada tabel baru |
+| `20260927130000_product_image_registry.sql` | Tabel `product_images` sebagai sumber kebenaran path gambar katalog |
+| `20260927140000_store_owner_and_real_contact.sql` | Kolom `owner_name` dan kontak asli toko |
+| `20260927150000_revoke_anon_write_on_product_images.sql` | Mengcabut hak tulis `anon` pada `product_images`, sisanya hanya `SELECT` |
+| `20260927160000_harden_storage_access.sql` | Bucket foto pelanggan jadi privat, `storage_public_read` hanya untuk katalog, batas ukuran dan tipe MIME |
+| `20260927170000_demo_ticket_for_tracking_example.sql` | Tiket contoh supaya kode contoh di halaman lacak benar-benar berfungsi |
 
-`0001` membuat tabel, enum, RLS, trigger, view, bucket Storage, grant Data API,
-dan seed `store_settings`. `0002` menyelaraskan project yang awalnya memakai
-versi `0001` lama dengan helper private, grant minimum, trigger anti-double-sell,
-serta `security_invoker` pada view. `0003` menutup helper legacy di schema
-`public`. Migration timestamp berikutnya menyelaraskan FK, index performa, dan
-singleton `store_settings` dengan hasil audit production.
+Setiap migrasi baru wajib ditambah ke tabel ini. `tests/deployment-runbook.test.ts`
+memeriksa dua arah: berkas yang sudah di-commit tapi belum disebut akan
+menggagalkan test, dan nama berkas di tabel ini yang tidak ada di
+`supabase/migrations/` juga akan menggagalkan test.
+
+Dua baris terakhir sangat penting untuk keamanan dan sering terlewat. Tanpa
+`20260927150000`, tabel `product_images` tetap memberi `anon` hak tulis
+warisan default privilege Supabase. Tanpa `20260927160000`, foto servis dan
+trade-in tetap dapat diambil siapa pun yang punya URL, karena bucket `public`
+melayani path `/object/public/` tanpa token dan tanpa cek RLS.
+
+Cara menjalankan:
+
+1. Buka SQL Editor di Supabase, atau `psql "$SOURCE_DATABASE_URL"`.
+2. Jalankan setiap berkas sesuai urutan tabel di atas.
+3. Catat hasilnya di `supabase_migrations.schema_migrations` dengan nama berkas
+   tanpa ekstensi, supaya `supabase db push` tidak mencoba menjalankannya ulang.
+4. Uji idempotensi dengan menjalankan ulang di dalam `begin; ... rollback;`
+   sebelum schema perlu dibuka ke publik.
+
+Jangan memakai `supabase db push` untuk database ini. Angka versi di ledger
+untuk beberapa berkas tidak sama dengan nama berkasnya, karena berkas `0001`
+sampai `0007` dulu diterapkan dengan stempel waktu Supabase sebelum repo memakai
+penamaan berurutan. CLI akan membandingkan keduanya, menemukan angka versi yang
+tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
+terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
+
+`supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
+satu berkas urut untuk project yang belum punya skema sama sekali. Isinya
+harus identik dengan berkas aslinya, dan `tests/run-all-pending.test.ts`
+menjaga hal itu. Jangan menjalankan kedua sumber sekaligus.
 
 Jangan menjalankan `supabase/drizzle/0000_*.sql` sebagai migration production
 karena file tersebut tidak mencakup RLS, trigger, view, Storage, dan grant.
