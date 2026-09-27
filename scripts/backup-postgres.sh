@@ -51,10 +51,12 @@ fi
 
 mv -- "$temporary_path" "$dump_path"
 # Checksum ditulis dari dalam BACKUP_DIR dan dengan nama relatif, bukan path
-# absolut. sha256sum mencatat argumen yang diberikan apa adanya, jadi dump yang
-# lalu disalin ke storage off-site tidak akan bisa dicek dengan
-# "sha256sum -c", karena baris checksumnya menunjuk ke /home/ubuntu/... yang
-# tidak ada di mesin tujuan.
+# absolut. sha256sum mencatat argumen yang diberikan apa adanya, jadi path yang
+# tersimpan di dalam berkas checksum sama dengan tempat dump dibuat. Pada
+# Coolify path itu /backup/... di dalam container sekali pakai, sehingga tidak
+# pernah ada di mesin tujuan dan "sha256sum -c" selalu gagal, baik di VPS
+# maupun di lokasi off-site. Nama relatif membuat dump dan berkas checksum
+# pindah bersama dan bisa dicek di mana pun keduanya diletakkan.
 (cd "$BACKUP_DIR" && sha256sum "$dump_name" > "${dump_name}.sha256")
 chmod 600 "${dump_path}.sha256"
 
