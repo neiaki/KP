@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Indeks dokumentasi
+    url: https://github.com/neiaki/KP/blob/main/docs/README.md
+    about: Mulai dari sini untuk PRD, use case, kebutuhan, dan status setiap dokumen.
+  - name: Runbook deployment
+    url: https://github.com/neiaki/KP/blob/main/docs/DEPLOYMENT-REDUNDANCY.md
+    about: Pipeline image, tag sha, Coolify, health check, backup, dan restore.

@@ -63,7 +63,7 @@ export function PaymentContent({ locale }: { locale: Locale }) {
           "Booking a unit is free with a 1x24 hour hold, no down payment.",
           "Installment plans are processed in store with eligible cards only.",
           "Never transfer to personal accounts. The shop account is only ever stated at the counter.",
-          "Prices in the etalase are final retail prices including store warranty.",
+          "Prices on display are final retail prices including store warranty.",
         ]
       : [
           "Setiap pembayaran dapat nota cetak yang mencantumkan IMEI unit.",

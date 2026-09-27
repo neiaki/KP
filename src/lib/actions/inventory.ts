@@ -47,6 +47,9 @@ export async function listUnits(opts?: {
 }): Promise<ActionResult<InventoryUnit[]>> {
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
+  // Panjang status dibatasi supaya string bebas yang sangat panjang tidak
+  // ikut masuk ke query. Nilai di luar enum tidak akan match apa pun juga.
+  if (opts?.status && opts.status.length > 20) return fail("Filter status tidak valid.");
   const db = getDb();
   if (!db) return backendOffline();
   // Filter disusun dinamis: hanya kondisi yang diisi yang ikut ke WHERE.
@@ -60,14 +63,20 @@ export async function listUnits(opts?: {
       .from(inventoryUnits)
       .where(filters.length > 0 ? and(...filters) : undefined)
       .orderBy(desc(inventoryUnits.createdAt))
-      .limit(opts?.limit ?? 200);
+      .limit(Math.min(Math.max(opts?.limit ?? 200, 1), 200));
     return ok(rows.map(mapUnit));
   } catch {
     return fail("Gagal memuat unit inventaris. Coba lagi.");
   }
 }
 
-/** Unit `available` per produk untuk picker IMEI di POS (anti double-sell di UI). */
+/**
+ * Unit `available` per produk untuk picker IMEI di POS (anti double-sell di UI).
+ *
+ * CATATAN: listUnits meng-clamp limit di 200 baris, jadi 500 di sini cuma
+ * permintaan, bukan jaminan. listUnits belum punya paging, jadi lebih dari
+ * 200 unit available untuk satu model memang tidak bisa diambil sekaligus.
+ */
 export async function getAvailableUnitsByProduct(
   productId: number
 ): Promise<ActionResult<InventoryUnit[]>> {

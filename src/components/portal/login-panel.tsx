@@ -115,7 +115,10 @@ export function LoginPanel({ locale }: { locale: Locale }) {
         router.push(result.data.redirectTo);
         router.refresh();
       } catch {
-        setLoginError("Login sedang tidak dapat diproses. Coba lagi sebentar.");
+        // String yang sama persis dengan fallback di src/lib/actions/auth.ts
+        // (signInWithUsername), supaya pesan di layar dan pesan yang sampai
+        // dari server tidak berbeda kalimat.
+        setLoginError("Masuk sedang tidak dapat diproses. Coba lagi sebentar.");
       } finally {
         setSubmitting(false);
       }

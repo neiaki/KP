@@ -24,7 +24,7 @@ export function TermsContent({ locale }: { locale: Locale }) {
           {
             title: "Prices and stock",
             body: [
-              "Prices in the etalase are final retail prices including store warranty and may change as stock rotates.",
+              "Prices on display are final retail prices including store warranty and may change as stock rotates.",
               "Stock follows first come first served at the counter, except confirmed WhatsApp bookings which lock a unit for 1x24 hours.",
             ],
           },

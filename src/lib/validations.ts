@@ -284,7 +284,7 @@ const socialUrl = z
   .trim()
   .max(300)
   .refine((v) => v === "" || /^https?:\/\//.test(v), {
-    message: "URL sosmed harus diawali http:// atau https://",
+    message: "URL sosmed harus diawali http:// atau https://.",
   });
 const openingHours = z.record(z.string(), z.string());
 
@@ -334,3 +334,62 @@ export const uploadPhotoSchema = z.object({
   size: z.coerce.number().int().positive().max(5 * 1024 * 1024, "Maksimal 5MB per foto."),
 });
 export type UploadPhotoInput = z.infer<typeof uploadPhotoSchema>;
+
+/**
+ * Folder Storage milik satu staf, satu-satunya prefix yang boleh dipakai
+ * untuk menyusun kunci objek.
+ *
+ * Sisi baca (photoRefSchema di atas) menolak ".." dan karakter di luar
+ * [A-Za-z0-9._\-/]. Sisi tulis tidak boleh lebih longgar dari sisi baca:
+ * prefix yang lolos akan menulis berkas ke folder staf lain, jadi prefix
+ * tidak lagi jadi parameter publik uploadPhoto dan nilainya selalu
+ * profile.id dari requireRole. Pemeriksaan ini tetap ada supaya penjaga
+ * di sisi aplikasi tidak bisa hilang tanpa terlihat.
+ */
+const storageFolderSchema = z
+  .string()
+  .min(1, "Folder foto tidak boleh kosong.")
+  .max(100, "Folder foto terlalu panjang.")
+  .refine(
+    (v) => /^[A-Za-z0-9._-]+$/.test(v) && !v.includes(".."),
+    "Folder foto harus satu segmen tanpa garis miring."
+  );
+
+/**
+ * Susun kunci objek Storage untuk satu foto: `<folder>/<acak>-<nama>`.
+ *
+ * Nama file dibersihkan di sini, bukan di pemanggil, supaya tidak ada jalur
+ * yang melewatkan pembersihan itu. Kembalikan null kalau folder tidak aman;
+ * pemanggil membalas dengan fail(...).
+ */
+export function buildPhotoObjectKey(
+  folder: string,
+  randomPart: string,
+  fileName: string
+): string | null {
+  const parsed = storageFolderSchema.safeParse(folder);
+  if (!parsed.success) return null;
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `${parsed.data}/${randomPart}-${safeName}`;
+}
+
+/** Nilai yang boleh tersimpan di profiles.role, sama dengan enum user_role. */
+export const staffRoleSchema = z.enum(["admin", "sales", "technician", "customer"]);
+export type StaffRoleInput = z.infer<typeof staffRoleSchema>;
+
+/**
+ * True kalau perubahan peran atau penonaktifan ini akan meninggalkan NOL
+ * admin, jadi aksi harus ditolak.
+ *
+ * adminCount diambil dari database, targetIsAdmin adalah peran target
+ * sekarang, dan nextIsAdmin adalah peran sesudahnya (false untuk
+ * penonaktifan). Yang dihitung hanya admin yang benar-benar hilang, jadi
+ * promosi ke admin tidak pernah ikut tersentuh.
+ */
+export function wouldLeaveNoAdmin(input: {
+  adminCount: number;
+  targetIsAdmin: boolean;
+  nextIsAdmin: boolean;
+}): boolean {
+  return input.targetIsAdmin && !input.nextIsAdmin && input.adminCount <= 1;
+}

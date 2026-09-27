@@ -36,8 +36,6 @@ plantuml -tpng -tsvg docs/*.puml
 
 - Dua mode aplikasi (mock lokal dan Supabase live) dijelaskan di
   [`../README.md`](../README.md) bagian Konfigurasi Supabase.
-- `design-taste-frontend/` di root repo adalah eksplorasi mockup lokal
-  (10 varian HTML, gitignored) dan bukan bagian dari dokumen ini.
 - `tests/deployment-runbook.test.ts` menjaga isi runbook deployment tetap sinkron
   dengan `supabase/migrations/`, dan `tests/docs-index.test.ts` menjaga tabel di
   file ini tetap memuat seluruh dokumen yang ada.

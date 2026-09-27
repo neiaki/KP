@@ -227,17 +227,20 @@ export default function SalesPosPage() {
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-ink tracking-tight">
+      {/* flex-col di HP: judul, badge, dan tombol CTA tidak berebut lebar
+          dalam satu baris sempit, dan badge tidak lagi berupa label kapital
+          yang berfungsi sebagai eyebrow. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">
               Terminal Kasir POS & Tukar Tambah
             </h1>
-            <Badge variant="success" className="font-mono text-xs">
-              SALES PORTAL
+            <Badge variant="info" className="font-mono text-xs">
+              Portal kasir
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted mt-1">
+          <p className="mt-1 text-sm text-muted">
             Pilih unit fisik per nomor IMEI 15-digit, integrasi trade-in otomatis, dan terbitkan nota bergaransi.
           </p>
         </div>
@@ -275,13 +278,13 @@ export default function SalesPosPage() {
           {/* Step 1: Physical Unit & IMEI Selector */}
           <Card className="border-line shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center justify-between">
+              <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base font-bold">
                 <span className="flex items-center gap-2">
-                  <Smartphone className="w-5 h-5 text-accent-deep" />
-                  <span>1. Pilih Unit Handphone & Nomor IMEI Fisik</span>
+                  <Smartphone className="h-5 w-5 text-accent-deep" />
+                  <span>Pilih Unit Handphone &amp; Nomor IMEI Fisik</span>
                 </span>
-                <span className="text-xs font-mono text-muted">
-                  {availableUnits.length} Unit Siap Jual
+                <span className="font-mono text-xs text-muted">
+                  {availableUnits.length} unit siap jual
                 </span>
               </CardTitle>
               <CardDescription className="text-xs">
@@ -290,54 +293,69 @@ export default function SalesPosPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {availableUnits.length === 0 ? (
-                <div className="p-6 text-center text-xs text-bad bg-bad-bg rounded-xl">
+                <div className="rounded-xl bg-bad-bg p-6 text-center text-sm text-bad">
                   Stok unit siap jual kosong. Tambah nomor IMEI di menu Inventaris terlebih dahulu.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-1">
+                /* Di HP daftar unit mengalir penuh mengikuti halaman. Versi lama
+                   memakai max-h-72 overflow-y-auto, jadi kotak internal hanya
+                   288px tinggi dan baris terakhir selalu terpotong tepat di
+                   tengah tanpa ada petunjuk apa pun kalau masih bisa digulir.
+                   Batas tinggi baru dikembalikan di layar lebar, tempat
+                   daftar unit pendek dan tidak eats the viewport. */
+                <div
+                  role="radiogroup"
+                  aria-label="Daftar unit siap jual per nomor IMEI"
+                  className="grid max-h-[60vh] grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 lg:max-h-72"
+                >
                   {availableUnits.map((unit) => {
                     const label = unitLabel(unit, products);
                     const isSelected = selectedUnitId === unit.id;
                     return (
-                      <div
+                      <button
                         key={unit.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
                         onClick={() => setSelectedUnitId(unit.id)}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                        className={`flex w-full items-center justify-between gap-3 rounded-xl border p-3 text-left transition-colors ${
                           isSelected
                             ? "border-accent bg-accent-soft/70 ring-2 ring-accent/30"
                             : "border-line bg-card hover:border-muted hover:bg-paper"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
                               isSelected
                                 ? "border-accent bg-accent text-white"
-                                : "border-slate-300 bg-card"
+                                : "border-line bg-card"
                             }`}
                           >
-                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-ink">{label}</div>
-                            <div className="text-[11px] font-mono text-accent-deep mt-0.5">
-                              IMEI: <span className="font-bold">{unit.imei}</span>
-                            </div>
-                          </div>
-                        </div>
+                            {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-bold text-ink sm:text-xs">
+                              {label}
+                            </span>
+                            <span className="mt-0.5 block break-all font-mono text-xs text-accent-deep">
+                              IMEI <span className="font-bold">{unit.imei}</span>
+                            </span>
+                          </span>
+                        </span>
 
-                        <div className="text-right">
-                          <div className="text-xs font-black text-ink">
+                        <span className="shrink-0 text-right">
+                          <span className="block text-sm font-black text-ink sm:text-xs">
                             {formatIDR(unit.selling_price)}
-                          </div>
+                          </span>
                           <Badge
                             variant={unit.condition === "new" ? "success" : "info"}
-                            className="text-[10px] uppercase font-mono mt-0.5"
+                            className="mt-0.5 font-mono text-[10px]"
                           >
-                            {unit.condition}
+                            {unit.condition === "new" ? "Baru" : "Seken"}
                           </Badge>
-                        </div>
-                      </div>
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
@@ -345,21 +363,21 @@ export default function SalesPosPage() {
             </CardContent>
           </Card>
 
-          {/* Step 2: Trade-In Accordion / Box */}
+          {/* Kartu transaksi tukar tambah */}
           <Card className="border-line shadow-sm">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col items-start gap-3 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <ArrowLeftRight className="w-5 h-5 text-amber-500" />
-                  <span>2. Transaksi Tukar Tambah (Trade-In)</span>
+                <CardTitle className="flex items-center gap-2 text-base font-bold">
+                  <ArrowLeftRight className="h-5 w-5 text-accent-deep" />
+                  <span>Transaksi Tukar Tambah (Trade-In)</span>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Otomatis potong harga & daftarkan unit lama ke inventaris stok seken
+                  Otomatis potong harga &amp; daftarkan unit lama ke inventaris stok seken
                 </CardDescription>
               </div>
               {/* Label inilah target sentuhnya, bukan checkbox 16px di
-                  dalamnya, jadi label yang dapet tinggi 40px di HP. */}
-              <label className="flex min-h-10 items-center gap-2 cursor-pointer sm:min-h-0">
+                  dalamnya, jadi label yang dapat tinggi 44px di HP. */}
+              <label className="flex min-h-11 w-full cursor-pointer items-center gap-2 sm:min-h-0 sm:w-auto">
                 <input
                   type="checkbox"
                   checked={hasTradeIn}
@@ -367,9 +385,9 @@ export default function SalesPosPage() {
                     setHasTradeIn(e.target.checked);
                     if (!e.target.checked) setTradeInPhotoUrls([]);
                   }}
-                  className="rounded text-accent-deep focus:ring-accent h-4 w-4"
+                  className="h-4 w-4 shrink-0 rounded text-accent-deep focus:ring-accent"
                 />
-                <span className="text-xs font-bold text-ink">Aktifkan Trade-In</span>
+                <span className="text-sm font-bold text-ink">Aktifkan Trade-In</span>
               </label>
             </CardHeader>
 
@@ -404,15 +422,28 @@ export default function SalesPosPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-muted mb-1">
+                    <label
+                      htmlFor="trade-in-imei"
+                      className="mb-1 block text-xs font-semibold text-muted"
+                    >
                       Nomor IMEI Unit Lama (Wajib 15 Digit)
                     </label>
+                    {/* inputMode="numeric" plus autoComplete="off" supaya HP
+                        membuka keypad angka dan tidak ikut mengisi dari kontak
+                        tersimpan, jadi 15 digit tidak pernah dikoreksi kelamaan
+                        karena ketemu autocomplete. */}
                     <Input
+                      id="trade-in-imei"
+                      name="trade-in-imei"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="off"
                       maxLength={15}
                       value={tradeInIMEI}
                       onChange={(e) => setTradeInIMEI(e.target.value.replace(/\D/g, ""))}
                       placeholder="15 digit angka IMEI"
-                      className="text-xs font-mono"
+                      className="font-mono sm:text-xs"
                     />
                   </div>
                 </div>
@@ -438,20 +469,29 @@ export default function SalesPosPage() {
                   </div>
                 )}
 
-                {/* Grading Options */}
-                <div className="p-3 bg-paper rounded-xl border border-line space-y-3">
-                  <div className="text-xs font-bold text-ink flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <span>Checklist Hasil Grading Meja Kasir:</span>
+                {/* Checklist grading */}
+                <div className="space-y-3 rounded-xl border border-line bg-paper p-3">
+                  <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
+                    <Sparkles className="h-4 w-4 text-accent-deep" />
+                    <span>Checklist Hasil Grading Meja Kasir</span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  {/* Satu kolom di HP: dua kolom select p-1 lama hanya menyisakan
+                      sekitar 130px per select, jadi label opsi terpotong dan
+                      target sentuhnya di bawah 44px. */}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
-                      <span className="text-muted block text-[11px] mb-1">Layar LCD:</span>
+                      <label
+                        htmlFor="trade-in-screen"
+                        className="mb-1 block text-xs font-semibold text-muted"
+                      >
+                        Layar LCD
+                      </label>
                       <select
+                        id="trade-in-screen"
                         value={screenGrading}
                         onChange={(e) => setScreenGrading(e.target.value as typeof screenGrading)}
-                        className="w-full bg-card border border-slate-300 rounded p-1 text-xs"
+                        className="h-11 w-full rounded-lg border border-line bg-card px-3 text-base text-ink sm:h-10 sm:text-xs"
                       >
                         <option value="good">Mulus Original</option>
                         <option value="minor_scratches">Lecet Pemakaian</option>
@@ -460,11 +500,17 @@ export default function SalesPosPage() {
                     </div>
 
                     <div>
-                      <span className="text-muted block text-[11px] mb-1">Bodi / Bezel:</span>
+                      <label
+                        htmlFor="trade-in-body"
+                        className="mb-1 block text-xs font-semibold text-muted"
+                      >
+                        Bodi / Bezel
+                      </label>
                       <select
+                        id="trade-in-body"
                         value={bodyGrading}
                         onChange={(e) => setBodyGrading(e.target.value as typeof bodyGrading)}
-                        className="w-full bg-card border border-slate-300 rounded p-1 text-xs"
+                        className="h-11 w-full rounded-lg border border-line bg-card px-3 text-base text-ink sm:h-10 sm:text-xs"
                       >
                         <option value="flawless">Mulus Sempurna</option>
                         <option value="minor_dents">Sedikit Dent</option>
@@ -473,55 +519,76 @@ export default function SalesPosPage() {
                     </div>
 
                     <div>
-                      <span className="text-muted block text-[11px] mb-1">Battery Health:</span>
+                      <label
+                        htmlFor="trade-in-battery"
+                        className="mb-1 block text-xs font-semibold text-muted"
+                      >
+                        Battery Health (persen)
+                      </label>
                       <Input
+                        id="trade-in-battery"
                         type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={100}
                         value={batteryHealth}
                         onChange={(e) => setBatteryHealth(Number(e.target.value))}
-                        className="h-7 text-xs"
+                        className="sm:text-xs"
                       />
                     </div>
 
                     <div>
-                      <span className="text-muted block text-[11px] mb-1">Harga Taksiran (Rp):</span>
+                      <label
+                        htmlFor="trade-in-price"
+                        className="mb-1 block text-xs font-semibold text-muted"
+                      >
+                        Harga Taksiran (Rp)
+                      </label>
                       <Input
+                        id="trade-in-price"
                         type="number"
+                        inputMode="numeric"
                         step={50000}
+                        min={0}
                         value={customTradeInPrice}
                         onChange={(e) => setCustomTradeInPrice(Number(e.target.value))}
-                        className="h-7 text-xs font-bold text-amber-600"
+                        className="font-bold text-accent-deep sm:text-xs"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
-                    <label className="flex items-center gap-1.5 cursor-pointer">
+                  <div className="grid grid-cols-1 gap-1 pt-1 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4">
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1 text-sm text-ink sm:min-h-0 sm:text-xs">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 shrink-0"
                         checked={biometricWorks}
                         onChange={(e) => setBiometricWorks(e.target.checked)}
                       />
                       <span>Face/Touch ID Ok</span>
                     </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1 text-sm text-ink sm:min-h-0 sm:text-xs">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 shrink-0"
                         checked={cameraWorks}
                         onChange={(e) => setCameraWorks(e.target.checked)}
                       />
                       <span>Kamera Ok</span>
                     </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1 text-sm text-ink sm:min-h-0 sm:text-xs">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 shrink-0"
                         checked={signalWorks}
                         onChange={(e) => setSignalWorks(e.target.checked)}
                       />
-                      <span>Sinyal & Wi-Fi Ok</span>
+                      <span>Sinyal &amp; Wi-Fi Ok</span>
                     </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1 text-sm text-ink sm:min-h-0 sm:text-xs">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 shrink-0"
                         checked={boxIncluded}
                         onChange={(e) => setBoxIncluded(e.target.checked)}
                       />
@@ -538,47 +605,66 @@ export default function SalesPosPage() {
         <div className="lg:col-span-5 space-y-6">
           <Card className="border-line shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <User className="w-5 h-5 text-accent-deep" />
-                <span>3. Data Pelanggan Walk-In & Garansi</span>
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <User className="h-5 w-5 text-accent-deep" />
+                <span>Data Pelanggan Walk-In &amp; Garansi</span>
               </CardTitle>
               <CardDescription className="text-xs">
-                Daftarkan nama & nomor telepon untuk aktivasi garansi toko tanpa perlu akun login.
+                Daftarkan nama &amp; nomor telepon untuk aktivasi garansi toko tanpa perlu akun login.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1">
+                <label
+                  htmlFor="pos-customer-name"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
                   Nama Lengkap Pembeli <span className="text-bad">*</span>
                 </label>
                 <Input
+                  id="pos-customer-name"
+                  name="pos-customer-name"
+                  autoComplete="name"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Contoh: Anisa Rahmawati"
-                  className="text-xs"
+                  className="sm:text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1">
+                <label
+                  htmlFor="pos-customer-phone"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
                   Nomor WhatsApp / HP Pelanggan
                 </label>
                 <Input
+                  id="pos-customer-phone"
+                  name="pos-customer-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="Contoh: 082155667788"
-                  className="text-xs font-mono"
+                  className="font-mono sm:text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-muted mb-1">
+                <label
+                  htmlFor="pos-warranty"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
                   Masa Garansi Toko
                 </label>
                 <select
+                  id="pos-warranty"
+                  name="pos-warranty"
                   value={warrantyMonths}
                   onChange={(e) => setWarrantyMonths(Number(e.target.value))}
-                  className="w-full bg-card border border-slate-300 rounded p-2 text-xs font-medium"
+                  className="h-11 w-full rounded-lg border border-line bg-card px-3 text-base font-medium text-ink sm:h-10 sm:text-xs"
                 >
                   <option value={1}>1 Bulan Garansi Toko (Seken Standar)</option>
                   <option value={3}>3 Bulan Garansi Toko (Seken Grade A)</option>
@@ -587,27 +673,44 @@ export default function SalesPosPage() {
                 </select>
               </div>
 
-              {/* Payment Method Selector */}
               <div>
-                <label className="block text-xs font-semibold text-muted mb-2">
+                <span className="mb-2 block text-xs font-semibold text-muted">
                   Metode Pembayaran
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                </span>
+                {/* radiogroup + tombol min-h-11: versi lama p-2 hanya 34px dan
+                    grid-cols-3 memecah "transfer" jadidua baris di 375px. */}
+                <div
+                  role="radiogroup"
+                  aria-label="Metode pembayaran"
+                  className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+                >
                   {(["qris", "cash", "transfer", "debit", "credit"] as PaymentMethod[]).map((m) => {
                     const Icon = m === "qris" ? QrCode : m === "cash" ? Banknote : m === "transfer" ? Landmark : CreditCard;
+                    const label =
+                      m === "qris"
+                        ? "QRIS"
+                        : m === "cash"
+                        ? "Tunai"
+                        : m === "transfer"
+                        ? "Transfer"
+                        : m === "debit"
+                        ? "Debit"
+                        : "Kredit";
                     return (
                       <button
                         key={m}
                         type="button"
+                        role="radio"
+                        aria-checked={paymentMethod === m}
                         onClick={() => setPaymentMethod(m)}
-                        className={`flex items-center justify-center gap-1.5 p-2 rounded-lg border text-xs font-semibold uppercase font-mono transition-colors ${
+                        className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-sm font-semibold transition-colors sm:text-xs ${
                           paymentMethod === m
                             ? "border-accent bg-accent text-white"
-                            : "border-line bg-paper text-muted hover:bg-paper"
+                            : "border-line bg-paper text-muted hover:border-muted hover:text-ink"
                         }`}
                       >
-                        <Icon className="h-3.5 w-3.5 shrink-0" />
-                        {m}
+                        <Icon className="h-4 w-4 shrink-0" />
+                        {label}
                       </button>
                     );
                   })}
@@ -616,32 +719,32 @@ export default function SalesPosPage() {
             </CardContent>
           </Card>
 
-          {/* Checkout Breakdown & Action */}
+          {/* Ringkasan checkout */}
           <Card className="border-line bg-gradient-to-b from-accent-soft/40 to-card shadow-md">
-            <CardHeader className="pb-3 border-b border-line">
-              <CardTitle className="text-base font-bold text-ink flex items-center justify-between">
+            <CardHeader className="border-b border-line pb-3">
+              <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base font-bold text-ink">
                 <span>Rincian Transaksi Checkout</span>
-                <Badge variant="purple" className="text-[10px]">
-                  Faktur Kasir
+                <Badge variant="info" className="text-[10px]">
+                  Faktur kasir
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between text-muted">
+              <div className="space-y-2 text-sm">
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-muted">
                   <span>Harga Unit Baru/Dipilih:</span>
                   <span className="font-semibold text-ink">{formatIDR(subtotal)}</span>
                 </div>
 
                 {hasTradeIn && (
-                  <div className="flex justify-between text-good font-semibold bg-good-bg p-2 rounded">
+                  <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 rounded bg-good-bg p-2 font-semibold text-good">
                     <span>Potongan Trade-In ({tradeInBrandModel}):</span>
                     <span>-{formatIDR(tradeInDeduction)}</span>
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-line flex justify-between items-center">
-                  <span className="text-sm font-bold text-ink">Total Wajib Bayar:</span>
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2">
+                  <span className="text-base font-bold text-ink">Total Wajib Bayar:</span>
                   <span className="text-2xl font-black text-accent-deep">
                     {formatIDR(finalPayment)}
                   </span>
@@ -651,7 +754,7 @@ export default function SalesPosPage() {
               <Button
                 onClick={handleCheckout}
                 disabled={isSubmitting || !selectedUnitId || !customerName.trim()}
-                className="w-full py-6 font-bold text-sm bg-accent hover:bg-accent-deep gap-2 shadow-md shadow-accent/20"
+                className="w-full gap-2 bg-accent py-6 text-sm font-bold shadow-md shadow-accent/20 hover:bg-accent-deep"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>
@@ -664,13 +767,16 @@ export default function SalesPosPage() {
       </div>
 
       {/* Invoice Confirmation Modal */}
+      {/* Dialog nota. Overlay-nya yang menggulir (overflow-y-auto) dan
+          align-items-start, supaya di layar pendek area isi dialog bisa
+          digulir tanpa tombol Cetak Nota keluar dari jangkauan. */}
       {completedInvoice && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Nota hasil transaksi kasir"
-            className="bg-card rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-line rise"
+            className="rise my-auto w-full max-w-lg space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:space-y-6 sm:p-6"
           >
             <div className="text-center space-y-2 border-b border-line pb-4">
               <div className="w-12 h-12 rounded-full bg-good-bg text-good flex items-center justify-center mx-auto">
@@ -682,41 +788,46 @@ export default function SalesPosPage() {
               </p>
             </div>
 
-            {/* Invoice Print Details */}
-            <div className="print-area p-4 bg-paper rounded-xl border border-line space-y-3 text-xs">
-              <div className="flex justify-between">
+            {/* Rincian nota. flex-wrap per baris supaya label dan nilai
+                pindah ke baris masing-masing di layar sempit, bukan saling
+                mendorong keluar kotak. */}
+            <div className="print-area space-y-3 rounded-xl border border-line bg-paper p-3 text-sm sm:p-4">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
                 <span className="text-muted">Pelanggan:</span>
                 <span className="font-bold text-ink">{completedInvoice.customer_name}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
                 <span className="text-muted">Unit Terjual:</span>
                 <span className="font-bold text-ink">{completedInvoice.unitModel}</span>
               </div>
-              <div className="flex justify-between font-mono bg-card p-2 rounded border border-line">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 rounded border border-line bg-card p-2 font-mono">
                 <span className="text-muted">IMEI Terikat:</span>
-                <span className="font-bold text-accent-deep">{completedInvoice.unitIMEI}</span>
+                <span className="break-all font-bold text-accent-deep">{completedInvoice.unitIMEI}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
                 <span className="text-muted">Garansi Toko:</span>
                 <span className="font-bold text-good">
                   {completedInvoice.items?.[0]?.warranty_duration_months || 12} Bulan
                 </span>
               </div>
               {completedInvoice.trade_in && (
-                <div className="flex justify-between text-good font-medium">
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 font-medium text-good">
                   <span>Trade-In ({completedInvoice.trade_in.original_brand_model}):</span>
                   <span>-{formatIDR(completedInvoice.trade_in_deduction ?? 0)}</span>
                 </div>
               )}
-              <div className="pt-2 border-t border-line flex justify-between font-bold text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2 text-base font-bold">
                 <span>Total Pelunasan ({completedInvoice.payment_method.toUpperCase()}):</span>
-                <span className="text-accent-deep text-base">
+                <span className="text-accent-deep">
                   {formatIDR(completedInvoice.final_payment ?? 0)}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Tumpuk di HP: dua tombol "Cetak Nota Garansi" dan "Selesai /
+                Transaksi Baru" berbagi lebar 375px dan teksnya ikut
+                membungkus dua baris. */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <Button
                 variant="outline"
                 onClick={() =>

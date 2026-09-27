@@ -2,17 +2,38 @@
 
 At Cell Web adalah aplikasi web untuk toko handphone **At Cell** di Paku Jaya, Serpong Utara. Proyek ini menggabungkan etalase publik dwibahasa dengan portal operasional_INTERNAL untuk admin, kasir, teknisi, dan pelanggan.
 
-Aplikasi memiliki dua mode yang sengaja dipisahkan:
+## Situs live
 
-- **Demo lokal:** portal memakai data mock dan `localStorage` tanpa Supabase.
-- **Mode live:** Supabase menjadi sumber data bersama, dengan autentikasi, Row Level Security (RLS), Storage, dan validasi backend.
+Aplikasi production sudah berjalan di domain berikut:
+
+| Domain | Isi |
+|------|-----|
+| `https://atcell.my.id` | Etalase publik, katalog, pelacakan servis, dan trade-in |
+| `https://www.atcell.my.id` | Alias domain utama, dilayani aplikasi yang sama |
+| `https://login.atcell.my.id` | Halaman masuk staf, dilayani lewat rewrite ke `/id/login` |
+
+Etalase tersedia dalam dua bahasa di `https://atcell.my.id/id` dan
+`https://atcell.my.id/en`. Login staf juga bisa dibuka langsung di
+`https://atcell.my.id/id/login`.
+
+## Status
+
+Aplikasi sengaja dipisah menjadi dua mode:
+
+- **Production (live):** Supabase menjadi sumber data bersama, dengan autentikasi, Row Level Security (RLS), Storage, dan validasi backend.
+- **Demo lokal:** portal memakai data mock dan `localStorage` tanpa Supabase, jadi repo ini tetap bisa dijalankan tanpa kredensial apa pun.
+
+Pemilihan mode dilakukan otomatis, bukan lewat flag manual. Backend live aktif
+saat `NODE_ENV` bernilai `production` atau saat `NEXT_PUBLIC_SUPABASE_URL`
+terisi, dan selain itu portal memakai data mock lokal. Lihat `liveBackendEnabled`
+di `src/lib/store.ts`.
 
 ## Fitur Utama
 
 ### Halaman publik
 
 - Landing page dan profil toko dalam Bahasa Indonesia dan Inggris.
-- Katalog handphone ready stock dengan filter merek dan kondisi.
+- Etalase HP siap jual dengan filter merek dan kondisi.
 - Informasi layanan, garansi, pengiriman, pembayaran, kontak, dan trade-in.
 - Pelacakan servis publik tanpa login menggunakan kode tiket.
 - Tema terang/gelap dan desain responsif.
@@ -25,7 +46,7 @@ Aplikasi memiliki dua mode yang sengaja dipisahkan:
 - Trade-in dengan inspeksi unit lama dan registrasi otomatis ke inventaris.
 - Meja kerja servis dengan tiket unik serta pembaruan status pengerjaan.
 - Master produk, pengaturan toko, staf, laporan, dan akun pelanggan.
-- Kontrol akses berbasis peran untuk admin, sales, teknisi, dan customer.
+- Kontrol akses berbasis peran untuk admin, sales, teknisi, dan pelanggan.
 
 ## Peran Pengguna
 
@@ -92,9 +113,10 @@ npm run dev
 Buka:
 
 - Halaman publik: `http://localhost:3000/id`
+- Versi Inggris: `http://localhost:3000/en`
 - Katalog: `http://localhost:3000/id/catalog`
-- Login portal: `http://localhost:3000/id/login`
-- Alias login portal lama: `http://localhost:3000/portal/login`
+- Login staf: `http://localhost:3000/id/login`
+- URL lama `http://localhost:3000/portal/login` masih dilayani, tapi isinya hanya pengalihan ke `/id/login`
 
 Untuk demo lokal, environment Supabase dan `DATABASE_URL` boleh dibiarkan kosong. Jangan memasukkan data mock ke database production.
 
@@ -175,22 +197,37 @@ Restore bersifat destruktif. Jalankan hanya terhadap database restore sementara,
 ## Struktur Proyek
 
 ```text
-src/app/[locale]/       Halaman publik dwibahasa
-src/app/portal/         Portal operasional staf
-src/app/api/            Health check dan endpoint aplikasi
-src/components/         Komponen publik, portal, dan UI dasar
-src/lib/actions/        Server Actions per modul bisnis
-src/lib/                Store, validasi, auth, dan utilitas
-src/db/                 Schema dan koneksi Drizzle
-supabase/migrations/    Migration SQL canonical untuk production
-scripts/                Backup, restore, dan smoke test deployment
-tests/                  Test keamanan, validasi, health, dan migrasi
-docs/                   PRD, kebutuhan, use case, dan runbook deployment
+src/app/(public)/[locale]/  Halaman publik dwibahasa, termasuk /id dan /en
+src/app/(portal)/portal/   Portal operasional staf
+src/app/api/                Health check dan endpoint aplikasi
+src/components/             Komponen publik, portal, dan UI dasar
+src/context/                Provider store sisi klien
+src/db/                     Skema dan koneksi Drizzle
+src/lib/actions/            Server Actions per modul bisnis
+src/lib/supabase/           Klien Supabase untuk browser, server, dan admin
+src/lib/                    Store, validasi, auth, dan utilitas
+src/types/                  Tipe domain dan tipe baris database
+public/                     Foto produk, logo, dan aset statis
+supabase/migrations/        Migration SQL canonical untuk production
+scripts/                    Backup, restore, dan smoke test deployment
+tests/                      Test keamanan, validasi, health, dan migrasi
+docs/                       PRD, kebutuhan, use case, dan runbook deployment
+.github/workflows/          Workflow CI dan build image Docker ke GHCR
 ```
 
 ## Deployment
 
-Strategi deployment saat ini:
+Build image tidak pernah terjadi di VPS production. Pipeline berjalan begini:
+
+1. Push ke branch `main` memicu GitHub Actions di `.github/workflows/docker-publish.yml`.
+2. Workflow menjalankan `npm test`, `npx tsc --noEmit`, dan `npm run lint`. Image hanya dibangun kalau ketiganya hijau.
+3. Build berjalan di runner GitHub lewat `Dockerfile` yang memakai `node:22-bookworm-slim`, lalu hasilnya di-push ke GHCR sebagai `ghcr.io/neiaki/kp:sha-<commit>`.
+4. Coolify di VPS hanya menarik tag yang sudah dipin itu lewat `Dockerfile.coolify`. Tag wajib `sha-<commit>` dan tidak boleh `latest`, karena Coolify menjalankan `docker build` tanpa `--pull`, sehingga tag `latest` bisa terlanjur tersimpan di lokal VPS. Deploy lalu terlihat hijau sambil tetap menjalankan image lama. `tests/deploy-image-pin.test.ts` menjaga aturan ini.
+5. Coolify memasang health check ke `GET /api/health/ready`. Selama jawabannya bukan 200, deployment belum siap.
+
+Karena tag ditulis manual di dalam `Dockerfile.coolify`, ada satu commit keterlambatan. Image untuk commit Q baru ada setelah commit itu di-push, jadi menulis tag `sha-Q` membuat commit yang baru ikut ter-deploy menjalankan image commit sebelumnya.
+
+Batasan production lainnya:
 
 - Coolify VPS sebagai satu-satunya host aplikasi production.
 - Supabase PostgreSQL, Auth, dan Storage sebagai backend bersama.
@@ -210,3 +247,5 @@ Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 - [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md): deployment, migration, DNS, backup, restore, dan rollout.
 - [`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md): urutan mengganti secret yang pernah bocor, lengkap dengan verifikasinya.
 - [`docs/CSP.md`](docs/CSP.md): cara kerja Content-Security-Policy berbasis nonce, directive yang dipakai, dan alasan setiap keputusan.
+- [`docs/VPS-HARDENING.md`](docs/VPS-HARDENING.md): catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan.
+- [`docs/diagram.mmd`](docs/diagram.mmd): diagram alur aktor dan use case dalam sintaks Mermaid, untuk pratinjau cepat tanpa PlantUML.

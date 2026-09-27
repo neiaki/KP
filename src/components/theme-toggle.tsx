@@ -60,9 +60,9 @@ export function ThemeToggle({
       aria-label={dark ? "Ganti ke mode terang" : "Ganti ke mode gelap"}
       title={dark ? "Mode terang" : "Mode gelap"}
       className={cn(
-        /* 40px di HP supaya jari tidak meleset, kembali 36px di desktop
-             supaya navbar tetap rapat. */
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors sm:h-9 sm:w-9",
+        /* 44px di HP (batas minimum target sentuh) supaya jari tidak meleset,
+           kembali 36px di desktop supaya navbar tetap rapat. */
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors sm:h-9 sm:w-9",
         variant === "onDark"
           ? "border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-slate-800 hover:text-white"
           : "border-line text-ink hover:bg-paper",

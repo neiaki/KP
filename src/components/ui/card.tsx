@@ -29,10 +29,15 @@ const CardHeader = React.forwardRef<
 CardHeader.displayName = "CardHeader";
 
 const CardTitle = React.forwardRef<
-  HTMLParagraphElement,
+  HTMLHeadingElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <h3
+  /* h2, bukan h3. Di portal setiap halaman punya satu h1 di header lalu
+     CardTitle sebagai judul section, jadi h3 berarti lompat satu level
+     (h1 -> h3). Di web publik CardTitle muncul berdampingan dengan h2 di
+     bawah h1, jadi h2 di sana juga tidak lompat. Satu level untuk dua
+     konteks, tanpa patching per halaman. */
+  <h2
     ref={ref}
     className={cn(
       "text-lg font-extrabold leading-none tracking-tight text-ink",

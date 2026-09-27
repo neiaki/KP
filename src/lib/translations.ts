@@ -100,7 +100,7 @@ export const translations = {
     features: {
       f1_title: "Precision IMEI Tracking",
       f1_desc: "Each individual unit is tracked with its 15-digit IMEI for transparent history and warranty.",
-      f2_title: "Transparent Service Desk",
+      f2_title: "Open Service Desk",
       f2_desc: "Monitor repair phases in real-time from diagnostics, spare parts, to final quality testing.",
       f3_title: "Transparent Trade-In",
       f3_desc: "Objective physical grading inspection providing instant direct deductions for your new device.",

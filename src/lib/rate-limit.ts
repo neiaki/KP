@@ -83,7 +83,7 @@ export function consumeRateLimit(
 /**
  * Kembalikan satu kuota yang sempat dipotong, tanpa mengubah jendela.
  *
- * Dipakai hanya oleh lapisan yang baru bisa tahu setelah запрос selesai
+ * Dipakai hanya oleh lapisan yang baru bisa tahu setelah permintaan selesai
  * apakah permintaan itu sah: kuota global lacak servis dipotong sebelum
  * query, lalu dikembalikan begitu ternyata kodenya ketemu. Jadi kuota global
  * itu sebenarnya hanya menghitung kode yang SALAH, sementara permintaan

@@ -266,7 +266,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
     en: {
       title: "Store Terms For Buying, Trading In, And Repairs | At Cell",
       description:
-        "The short rules for buying, trading in, and repairing at At Cell: etalase pricing, 1x24 hour unit holds, warranty, and order cancellation.",
+        "The short rules for buying, trading in, and repairing at At Cell: display pricing, 1x24 hour unit holds, warranty, and order cancellation.",
     },
   },
   {

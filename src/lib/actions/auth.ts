@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +12,9 @@ import {
   customerSignUpSchema,
   phoneSchema,
   staffInviteSchema,
+  staffRoleSchema,
   usernameSchema,
+  wouldLeaveNoAdmin,
 } from "@/lib/validations";
 import { pickClientIp } from "@/lib/client-ip";
 import { consumeCredentialAttempt } from "@/lib/rate-limit";
@@ -97,7 +99,7 @@ export async function signInWithUsername(
     .select("email")
     .eq("username", parsed.data)
     .maybeSingle();
-  if (lookupError) return fail("Login sedang tidak dapat diproses. Coba lagi sebentar.");
+  if (lookupError) return fail("Masuk sedang tidak dapat diproses. Coba lagi sebentar.");
   if (!row?.email) return fail("Username atau kata sandi salah.");
 
   const supabase = await createClient();
@@ -250,7 +252,40 @@ export async function updateMyPhoneNumber(
   return ok({ phoneNumber: updated.phoneNumber });
 }
 
-/** Admin mengubah peran / menonaktifkan staf (nonaktif = hapus user Auth). */
+/**
+ * Jumlah baris profiles dengan role = 'admin' plus peran target yang
+ * dimaksud, dibaca sekali sebelum menulis apa pun.
+ *
+ * Null berarti backend belum dikonfigurasi ATAU targetnya tidak ada, dan
+ * pemanggil wajib berhenti di situ sebelum query update atau delete.
+ */
+async function cekSisaAdmin(
+  userId: string
+): Promise<{ adminCount: number; targetIsAdmin: boolean } | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [target, total] = await Promise.all([
+    db
+      .select({ role: profiles.role })
+      .from(profiles)
+      .where(eq(profiles.id, userId))
+      .limit(1),
+    db.select({ total: count() }).from(profiles).where(eq(profiles.role, "admin")),
+  ]);
+  const row = target[0];
+  if (!row) return null;
+  return { adminCount: total[0]?.total ?? 0, targetIsAdmin: row.role === "admin" };
+}
+
+/** Pesan yang sama untuk kedua jalur supaya keduanya mudah dibaca. */
+const PESAN_SISA_ADMIN = "Minimal harus ada satu admin yang tersisa.";
+
+/**
+ * Admin mengubah peran / menonaktifkan staf (nonaktif = hapus user Auth).
+ *
+ * Peran dari client tidak dipercaya: tipe UserRole dihapus saat runtime, jadi
+ * nilai role di sini bisa berisi apa saja sampai dicek staffRoleSchema.
+ */
 export async function updateStaffRole(
   userId: string,
   role: UserRole
@@ -258,14 +293,27 @@ export async function updateStaffRole(
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   if (guard.profile.id === userId) return fail("Tidak bisa mengubah peran akun sendiri.");
+  const parsed = staffRoleSchema.safeParse(role);
+  if (!parsed.success) return fail("Peran tidak dikenal.");
   const db = getDb();
   if (!db) return backendOffline();
-  const [updated] = await db
-    .update(profiles)
-    .set({ role })
-    .where(eq(profiles.id, userId))
-    .returning({ id: profiles.id });
-  if (!updated) return fail("User tidak ditemukan.");
+  try {
+    const sisa = await cekSisaAdmin(userId);
+    if (!sisa) return fail("User tidak ditemukan.");
+    // Admin terakhir yang kehilangan peran mengunci semua orang dari portal,
+    // dan pemulihannya butuh tulis langsung ke database. Jadi ditolak di sini.
+    if (wouldLeaveNoAdmin({ ...sisa, nextIsAdmin: parsed.data === "admin" })) {
+      return fail(PESAN_SISA_ADMIN);
+    }
+    const [updated] = await db
+      .update(profiles)
+      .set({ role: parsed.data })
+      .where(eq(profiles.id, userId))
+      .returning({ id: profiles.id });
+    if (!updated) return fail("User tidak ditemukan.");
+  } catch {
+    return fail("Gagal mengubah peran. Coba lagi.");
+  }
   revalidatePath("/portal/staff");
   return ok({ userId });
 }
@@ -276,6 +324,18 @@ export async function deactivateStaff(userId: string): Promise<ActionResult<{ us
   if (guard.profile.id === userId) return fail("Tidak bisa menonaktifkan akun sendiri.");
   if (!isSupabaseAdminConfigured()) {
     return fail("SUPABASE_SERVICE_ROLE_KEY belum diisi, tidak bisa menonaktifkan user.");
+  }
+  // Menonaktifkan berarti perannya hilang, jadi jalur ini juga harus menjaga
+  // minimal satu admin: mengunci semua orang dari portal hanya dipulihkan
+  // lewat tulis langsung ke database.
+  try {
+    const sisa = await cekSisaAdmin(userId);
+    if (!sisa) return fail("User tidak ditemukan.");
+    if (wouldLeaveNoAdmin({ ...sisa, nextIsAdmin: false })) {
+      return fail(PESAN_SISA_ADMIN);
+    }
+  } catch {
+    return fail("Gagal menonaktifkan user. Coba lagi.");
   }
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
