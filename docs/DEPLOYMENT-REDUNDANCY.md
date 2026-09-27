@@ -101,6 +101,7 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20260927150000_revoke_anon_write_on_product_images.sql` | Mengcabut hak tulis `anon` pada `product_images`, sisanya hanya `SELECT` |
 | `20260927160000_harden_storage_access.sql` | Bucket foto pelanggan jadi privat, `storage_public_read` hanya untuk katalog, batas ukuran dan tipe MIME |
 | `20260927170000_demo_ticket_for_tracking_example.sql` | Tiket contoh supaya kode contoh di halaman lacak benar-benar berfungsi |
+| `20260927180000_nullable_inventory_unit_product.sql` | `inventory_units.product_id` jadi nullable untuk unit trade-in, etalase publik hanya menampilkan unit berkatalog, plus catatan perbaikan baris lama |
 
 Setiap migrasi baru wajib ditambah ke tabel ini. `tests/deployment-runbook.test.ts`
 memeriksa dua arah: berkas yang sudah di-commit tapi belum disebut akan
@@ -112,6 +113,13 @@ Dua baris terakhir sangat penting untuk keamanan dan sering terlewat. Tanpa
 warisan default privilege Supabase. Tanpa `20260927160000`, foto servis dan
 trade-in tetap dapat diambil siapa pun yang punya URL, karena bucket `public`
 melayani path `/object/public/` tanpa token dan tanpa cek RLS.
+
+`20260927180000` memperbaiki tautan yang salah, jadi jangan dilewatkan. Tanpa
+migrasi ini, `executeSale` menautkan handset yang pelanggan tukar ke baris
+katalog unit yang baru terjual, sehingga tukar S9 dengan S24 terdaftar dan
+tampil di etalase sebagai S24. Migrasi ini sengaja tidak memperbaiki data
+lama; cara mengenali dan memperbaiki baris yang sudah salah ada di catatan
+di dalam berkasnya, dan harus dijalankan operator setelah datanya dicek.
 
 Cara menjalankan:
 
