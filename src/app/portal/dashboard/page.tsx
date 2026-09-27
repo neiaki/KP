@@ -358,8 +358,14 @@ export default function AdminDashboardPage() {
               <tbody className="divide-y divide-line">
                 {transactions.slice(0, 8).map((tx) => (
                   <tr key={tx.id} className="hover:bg-paper/80">
-                    <td className="p-3 font-mono font-bold text-accent-deep">
-                      #{tx.id}
+                    {/* Kolom ini berjudul ID Faktur, jadi isinya harus nomor
+                        faktur yang dipakai pelanggan di kasir, bukan id baris.
+                        Id baris cuma angka urut internal (1, 2, 3) yang tidak
+                        bisa dipakai melacak pembelian. Nomor faktur dibuat
+                        trigger trg_invoice_number; transaksi lama dari mode
+                        lokal belum punya nomor sehingga jatuh ke id. */}
+                    <td className="p-3 font-mono font-bold text-accent-deep whitespace-nowrap">
+                      {tx.invoice_number ?? `#${tx.id}`}
                     </td>
                     <td className="p-3 font-medium text-ink">
                       {tx.customer_name || "Guest Walk-in"}
