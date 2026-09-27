@@ -4,6 +4,7 @@ import { StoreProvider } from "@/context/store-context";
 import { DemoRoleBar } from "@/components/demo-role-bar";
 import { BackendStatus } from "@/components/backend-status";
 import { ThemeInit } from "@/components/theme-init";
+import type { PublicSnapshot } from "@/lib/actions/public";
 
 /*
  * Root layout sekarang ada dua: area publik di bawah [locale] dan portal
@@ -33,11 +34,18 @@ export const htmlClass = `${fontVars} h-full antialiased`;
 
 export const bodyClass = "min-h-full flex flex-col bg-paper text-ink";
 
-export function RootProviders({ children }: { children: React.ReactNode }) {
+export function RootProviders({
+  children,
+  publicSeed,
+}: {
+  children: React.ReactNode;
+  /* Hanya layout area publik yang mengisinya. Portal sengaja tidak. */
+  publicSeed?: PublicSnapshot | null;
+}) {
   return (
     <>
       <ThemeInit />
-      <StoreProvider>
+      <StoreProvider publicSeed={publicSeed}>
         <DemoRoleBar />
         <BackendStatus />
         {children}
