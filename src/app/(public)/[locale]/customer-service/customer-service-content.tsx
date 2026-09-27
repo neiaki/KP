@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/button-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -151,14 +152,15 @@ export function CustomerServiceContent({ locale }: { locale: Locale }) {
                     : "Balasan tercepat di jam toko, biasanya dalam hitungan menit."}
                 </p>
               </div>
-              <a
+              <ButtonLink
                 href={channels[0].href}
                 target="_blank"
                 rel="noreferrer"
+                variant="wa"
                 className="shrink-0"
               >
-                <Button variant="wa">{channels[0].action}</Button>
-              </a>
+                {channels[0].action}
+              </ButtonLink>
             </CardContent>
           </Card>
           <Card>
@@ -169,11 +171,14 @@ export function CustomerServiceContent({ locale }: { locale: Locale }) {
               <p className="mt-3 text-[15px] font-extrabold text-ink">{channels[1].title}</p>
               <p className="font-mono text-sm font-bold text-ink">{channels[1].value}</p>
               <p className="mt-1 text-[13px] leading-relaxed text-muted">{channels[1].desc}</p>
-              <a href={channels[1].href} className="mt-3 inline-block">
-                <Button variant="outline" size="sm">
-                  {channels[1].action}
-                </Button>
-              </a>
+              <ButtonLink
+                href={channels[1].href}
+                variant="outline"
+                size="sm"
+                className="mt-3"
+              >
+                {channels[1].action}
+              </ButtonLink>
             </CardContent>
           </Card>
         </div>
@@ -198,16 +203,22 @@ export function CustomerServiceContent({ locale }: { locale: Locale }) {
                 <span className="font-bold text-ink">{storeSettings.opening_hours.saturday_sunday}</span>
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <a href={storeSettings.maps_url} target="_blank" rel="noreferrer">
-                  <Button variant="outline" size="sm">
-                    {locale === "en" ? "Open maps" : "Buka peta"}
-                  </Button>
-                </a>
-                <Link href={`/${locale}/about`}>
-                  <Button variant="ghost" size="sm">
-                    {locale === "en" ? "More about the shop" : "Kenalan dengan toko"}
-                  </Button>
-                </Link>
+                <ButtonLink
+                  href={storeSettings.maps_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  variant="outline"
+                  size="sm"
+                >
+                  {locale === "en" ? "Open maps" : "Buka peta"}
+                </ButtonLink>
+                <ButtonLink
+                  href={`/${locale}/about`}
+                  variant="ghost"
+                  size="sm"
+                >
+                  {locale === "en" ? "More about the shop" : "Kenalan dengan toko"}
+                </ButtonLink>
               </div>
             </div>
           </div>
@@ -318,9 +329,12 @@ export function CustomerServiceContent({ locale }: { locale: Locale }) {
                 : "Cek progresnya sendiri pakai kode nota."}
             </p>
           </div>
-          <Link href={`/${locale}/tracking`} className="shrink-0">
-            <Button>{locale === "en" ? "Track repair" : "Lacak servis"}</Button>
-          </Link>
+          <ButtonLink
+            href={`/${locale}/tracking`}
+            className="shrink-0"
+          >
+            {locale === "en" ? "Track repair" : "Lacak servis"}
+          </ButtonLink>
         </div>
       </div>
     </div>

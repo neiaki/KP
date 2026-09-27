@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   CircleCheck,
 } from "lucide-react";
+import { ButtonLink } from "@/components/button-link";
 
 export function PaymentContent({ locale }: { locale: Locale }) {
   const { storeSettings } = useStore();
@@ -154,7 +155,7 @@ export function PaymentContent({ locale }: { locale: Locale }) {
                 : "Simpan baik-baik. Itu bukti garansi Anda."}
             </p>
           </div>
-          <a
+          <ButtonLink
             href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
               locale === "en"
                 ? "Hello At Cell, I want to ask about payment options."
@@ -162,12 +163,11 @@ export function PaymentContent({ locale }: { locale: Locale }) {
             )}`}
             target="_blank"
             rel="noreferrer"
+            variant="wa"
             className="shrink-0"
           >
-            <Button variant="wa">
-              {locale === "en" ? "Ask on WhatsApp" : "Tanya via WhatsApp"}
-            </Button>
-          </a>
+            {locale === "en" ? "Ask on WhatsApp" : "Tanya via WhatsApp"}
+          </ButtonLink>
         </div>
 
         <Link

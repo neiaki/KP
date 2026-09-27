@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ButtonLink } from "@/components/button-link";
 
 const WORKFLOW_STEPS: { key: RepairStatus; verbId: string; verbEn: string; descId: string; descEn: string }[] = [
   { key: "received", verbId: "HP diterima di konter", verbEn: "Received at the counter", descId: "HP sudah kami terima dan dapat antrean teknisi.", descEn: "Your phone is checked in and queued." },
@@ -112,7 +113,7 @@ export function Lightbox({
               type="button"
               onClick={onClose}
               aria-label={locale === "en" ? "Close photo viewer" : "Tutup penampil foto"}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sm font-extrabold text-ink transition-colors hover:bg-line dark:text-paper"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-card text-sm font-extrabold text-ink transition-colors hover:bg-line"
             >
               <X className="h-5 w-5" />
             </button>
@@ -532,18 +533,18 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                         : "Belum ada foto untuk nota ini."}
                     </div>
                   )}
-                  <a
+                  <ButtonLink
                     href={`https://wa.me/${storeSettings.whatsapp_number?.replace(/\D/g, "")}?text=${encodeURIComponent(
                       `Halo At Cell, saya mau tanya progres servis ${activeTicket.ticket_code} (${activeTicket.device_model}).`
                     )}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="block"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
                   >
-                    <Button variant="outline" size="sm" className="w-full">
-                      Tanya teknisi via WhatsApp
-                    </Button>
-                  </a>
+                    Tanya teknisi via WhatsApp
+                  </ButtonLink>
                 </CardContent>
               </Card>
             </div>

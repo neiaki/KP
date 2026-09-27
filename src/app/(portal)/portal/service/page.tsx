@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ButtonLink } from "@/components/button-link";
 
 export default function TechnicianServicePage() {
   const { serviceTickets, updateServiceTicket } = useStore();
@@ -130,12 +131,10 @@ export default function TechnicianServicePage() {
           </p>
         </div>
 
-        <Link href="/portal/service/new">
-          <Button className="gap-2 font-bold text-xs shadow-md">
-            <Plus className="w-4 h-4" />
-            <span>+ Daftarkan Tiket Servis Baru</span>
-          </Button>
-        </Link>
+        <ButtonLink href="/portal/service/new" className="gap-2 font-bold text-xs shadow-md">
+          <Plus className="w-4 h-4" />
+          <span>+ Daftarkan Tiket Servis Baru</span>
+        </ButtonLink>
       </div>
 
       {notice && (

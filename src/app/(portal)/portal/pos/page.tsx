@@ -295,7 +295,7 @@ export default function SalesPosPage() {
                         className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                           isSelected
                             ? "border-accent bg-accent-soft/70 ring-2 ring-accent/30"
-                            : "border-line bg-card hover:border-slate-300 hover:bg-paper"
+                            : "border-line bg-card hover:border-muted hover:bg-paper"
                         }`}
                       >
                         <div className="flex items-center gap-3">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/button-link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   ShieldCheck,
@@ -107,9 +108,13 @@ export function AboutContent({ locale }: { locale: Locale }) {
                 ? "Live count from the shop etalase. Prices already include store warranty."
                 : "Hitungan live dari etalase toko. Harga sudah termasuk garansi toko."}
             </p>
-            <Link href={`/${locale}/catalog`} className="mt-4 inline-block">
-              <Button size="sm">{locale === "en" ? "See the stock" : "Lihat stoknya"}</Button>
-            </Link>
+            <ButtonLink
+              href={`/${locale}/catalog`}
+              size="sm"
+              className="mt-4"
+            >
+              {locale === "en" ? "See the stock" : "Lihat stoknya"}
+            </ButtonLink>
           </div>
           <div className="grid grid-cols-1 gap-4">
             <Card>
@@ -196,7 +201,7 @@ export function AboutContent({ locale }: { locale: Locale }) {
               </p>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <a
+              <ButtonLink
                 href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
                   locale === "en"
                     ? "Hello At Cell, I want to ask about stock."
@@ -204,18 +209,22 @@ export function AboutContent({ locale }: { locale: Locale }) {
                 )}`}
                 target="_blank"
                 rel="noreferrer"
+                variant="wa"
+                size="sm"
               >
-                <Button variant="wa" size="sm">
-                  <MessageCircle className="h-4 w-4" />
-                  Chat WhatsApp
-                </Button>
-              </a>
-              <a href={storeSettings.maps_url} target="_blank" rel="noreferrer">
-                <Button variant="outline" size="sm">
-                  {locale === "en" ? "Directions" : "Rute ke toko"}
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </a>
+                <MessageCircle className="h-4 w-4" />
+                Chat WhatsApp
+              </ButtonLink>
+              <ButtonLink
+                href={storeSettings.maps_url}
+                target="_blank"
+                rel="noreferrer"
+                variant="outline"
+                size="sm"
+              >
+                {locale === "en" ? "Directions" : "Rute ke toko"}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </ButtonLink>
             </div>
           </div>
           <div className="overflow-hidden rounded-xl border border-line lg:col-span-7">

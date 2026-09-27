@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/button-link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Store,
@@ -122,12 +123,16 @@ export function ShippingContent({ locale }: { locale: Locale }) {
                   : "Tanpa kirim ekspedisi, tanpa COD. Anda pegang unit persisnya sebelum bayar sepeser pun."}
               </p>
             </div>
-            <a href={waBook} target="_blank" rel="noreferrer" className="shrink-0">
-              <Button variant="wa">
-                <MessageCircle className="h-4 w-4" />
-                {locale === "en" ? "Reserve a unit" : "Booking unit"}
-              </Button>
-            </a>
+            <ButtonLink
+              href={waBook}
+              target="_blank"
+              rel="noreferrer"
+              variant="wa"
+              className="shrink-0"
+            >
+              <MessageCircle className="h-4 w-4" />
+              {locale === "en" ? "Reserve a unit" : "Booking unit"}
+            </ButtonLink>
           </div>
         </div>
 

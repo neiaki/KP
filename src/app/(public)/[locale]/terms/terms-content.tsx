@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/button-link";
 import { MessageCircle } from "lucide-react";
 
 export function TermsContent({ locale }: { locale: Locale }) {
@@ -171,11 +172,9 @@ export function TermsContent({ locale }: { locale: Locale }) {
 
         <div className="mt-6 flex flex-wrap gap-2">
           {links.map((l) => (
-            <Link key={l.href} href={l.href}>
-              <Button variant="outline" size="sm">
-                {l.label}
-              </Button>
-            </Link>
+            <ButtonLink key={l.href} href={l.href} variant="outline" size="sm">
+              {l.label}
+            </ButtonLink>
           ))}
         </div>
 
@@ -188,7 +187,7 @@ export function TermsContent({ locale }: { locale: Locale }) {
               {locale === "en" ? "Ask before you buy, not after." : "Tanya sebelum beli, bukan sesudahnya."}
             </p>
           </div>
-          <a
+          <ButtonLink
             href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
               locale === "en"
                 ? "Hello At Cell, I want to ask about the store terms."
@@ -196,13 +195,12 @@ export function TermsContent({ locale }: { locale: Locale }) {
             )}`}
             target="_blank"
             rel="noreferrer"
+            variant="wa"
             className="shrink-0"
           >
-            <Button variant="wa">
-              <MessageCircle className="h-4 w-4" />
-              {locale === "en" ? "Ask on WhatsApp" : "Tanya via WhatsApp"}
-            </Button>
-          </a>
+            <MessageCircle className="h-4 w-4" />
+            {locale === "en" ? "Ask on WhatsApp" : "Tanya via WhatsApp"}
+          </ButtonLink>
         </div>
       </div>
     </div>
