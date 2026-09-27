@@ -192,6 +192,9 @@ export const updateTicketSchema = z.object({
   laborFee: rupiah("Biaya jasa").optional(),
   warrantyDays: z.coerce.number().int().min(0).max(365).optional(),
   costBreakdown: z.array(costItemSchema).max(50).optional(),
+  // Foto progres perbaikan ditambahkan dari meja kerja, bukan hanya saat intake,
+  // jadi update perlu bisa menambah URL tanpa menimpa daftar yang ada.
+  photoUrls: z.array(z.string().url("URL foto tidak valid.")).max(10).optional(),
 });
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
 

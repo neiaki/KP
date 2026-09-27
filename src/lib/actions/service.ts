@@ -155,6 +155,7 @@ export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult
           ...(v.technicianNotes !== undefined ? { technicianNotes: v.technicianNotes } : {}),
           ...(v.warrantyDays !== undefined ? { warrantyDays: v.warrantyDays } : {}),
           ...(v.costBreakdown !== undefined ? { costBreakdown: v.costBreakdown } : {}),
+          ...(v.photoUrls !== undefined ? { photoUrls: v.photoUrls } : {}),
         })
         .where(eq(serviceTickets.id, v.ticketId))
         .returning();
