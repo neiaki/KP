@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { formatIDR } from "@/lib/utils";
+import { cleanWaNumber } from "@/lib/wa";
 import { Smartphone, MessageCircle } from "lucide-react";
 import { ProductCard } from "@/components/public/product-card";
 import { StockFilter } from "@/components/public/stock-filter";
@@ -14,7 +15,6 @@ import {
   sortItems,
   type SortOrder,
 } from "@/lib/shop";
-import { cleanWaNumber } from "@/lib/wa";
 
 export function CatalogContent({ locale }: { locale: Locale }) {
   const { products, inventoryUnits, storeSettings } = useStore();

@@ -3,8 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
-import { cleanWaNumber } from "@/lib/wa";
 import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
+import { cleanWaNumber } from "@/lib/wa";
 import {
   MessageCircle,
   X,

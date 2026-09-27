@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ErrorState } from "@/components/error-state";
+import { getPublicImageUrls } from "@/lib/actions/public";
 
 export const metadata: Metadata = {
   title: "Halaman tidak ditemukan",
@@ -8,13 +9,23 @@ export const metadata: Metadata = {
     "Alamat yang kamu buka tidak ketemu di At Cell. Kembali ke beranda, lihat stok HP, atau lacak servis kamu.",
 };
 
-export default function NotFound() {
+/*
+ * Foto 404 diambil dari registry seperti foto halaman lain, jadi tidak ada
+ * satu pun gambar situs yang masih terikat ke path lokal. Not-found boleh
+ * async karena Next.js merendernya sebagai server component.
+ */
+const NOT_FOUND_PHOTO = "products/iphone-duo.jpg";
+
+export default async function NotFound() {
+  const imageUrls = await getPublicImageUrls();
+  const photo = imageUrls[NOT_FOUND_PHOTO] ?? `/${NOT_FOUND_PHOTO}`;
+
   return (
     <ErrorState
       code="404"
       title="Halaman ini tidak ketemu"
       description="Alamatnya mungkin salah ketik atau halamannya sudah dihapus. Stok dan data servis kamu tetap aman."
-      image="/products/iphone-duo.jpg"
+      image={photo}
       imageAlt="Dua unit iPhone di etalase At Cell"
       imageCaption="Yang nyasar cuma halaman ini. Stok di etalase tetap rapi."
       primary={{ href: "/id", label: "Kembali ke beranda" }}

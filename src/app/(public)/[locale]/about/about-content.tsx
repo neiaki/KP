@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
+import { cleanWaNumber } from "@/lib/wa";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/button-link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,9 +21,23 @@ import { StoreMap } from "@/components/public/store-map";
 
 const BRANDS = ["Apple", "Samsung", "Xiaomi", "Oppo", "Vivo"];
 
-export function AboutContent({ locale }: { locale: Locale }) {
+/**
+ * Foto konter memakai path yang sama dengan registry product_images, jadi
+ * alamatnya ikut diambil dari database. Kalau registry tidak punya path-nya,
+ * path lokal dipakai sebagai cadangan.
+ */
+const COUNTER_PHOTO = "products/iphone-15-pro-2.jpg";
+
+export function AboutContent({
+  locale,
+  imageUrls,
+}: {
+  locale: Locale;
+  /** Peta path di product_images -> URL publik. Dikirim server component. */
+  imageUrls: Record<string, string>;
+}) {
   const { storeSettings, products, inventoryUnits } = useStore();
-  const cleanWa = (storeSettings.whatsapp_number || "6285775398389").replace(/\D/g, "");
+  const cleanWa = cleanWaNumber(storeSettings.whatsapp_number);
   const available = inventoryUnits.filter((u) => u.status === "available");
   const brandCount = new Set(
     available.map((u) => products.find((p) => p.id === u.product_id)?.brand ?? "")
@@ -78,7 +93,7 @@ export function AboutContent({ locale }: { locale: Locale }) {
         <figure className="mt-6">
           <div className="overflow-hidden rounded-xl border border-line bg-card">
             <img
-              src="/products/iphone-15-pro-2.jpg"
+              src={imageUrls[COUNTER_PHOTO] ?? `/${COUNTER_PHOTO}`}
               alt={
                 locale === "en"
                   ? "A phone unit displayed at the At Cell counter"

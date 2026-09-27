@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildLoginMetadata } from "@/app/sitemap";
 import { LoginPanel } from "@/components/portal/login-panel";
 import { Locale } from "@/lib/translations";
 
@@ -8,13 +9,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const isEn = locale === "en";
-  return {
-    title: isEn ? "Staff Portal Login" : "Masuk Portal Staf",
-    description: isEn
-      ? "Secure staff portal access for the At Cell operations team."
-      : "Akses portal operasional At Cell yang aman untuk tim toko.",
-  };
+  return buildLoginMetadata(locale);
 }
 
 export default async function LocaleLoginPage({
