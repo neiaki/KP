@@ -27,9 +27,13 @@ for (const target of targets) {
         redirect: "manual",
         signal: controller.signal,
       });
-      const expectedReady = path !== "/api/health/ready" || process.env.SMOKE_REQUIRE_READY !== "0";
+      // /api/health/ready mengembalikan 200 saat siap dan 503 saat belum siap,
+      // jadi SMOKE_REQUIRE_READY=0 hanya boleh meloloskan 503. Versi lama
+      // memakai "response.status < 600" yang selalu benar, sehingga gerbang
+      // rilis tidak akan pernah gagal meski aplikasinya balas 404 atau 500.
+      const lenient = path === "/api/health/ready" && process.env.SMOKE_REQUIRE_READY === "0";
       const isRedirect = label === "portal-login" && response.status >= 300 && response.status < 400;
-      const ok = isRedirect || (expectedReady ? response.status === 200 : response.status < 600);
+      const ok = isRedirect || response.status === 200 || (lenient && response.status === 503);
       console.log(`${ok ? "PASS" : "FAIL"} ${label} ${response.status}`);
       if (!ok) failed = true;
     } catch (error) {
