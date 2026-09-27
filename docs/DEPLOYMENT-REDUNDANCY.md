@@ -292,9 +292,42 @@ psql "$RESTORE_DATABASE_URL" -f scripts/restore-target-bootstrap.sql
 ALLOW_RESTORE=YES RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" npm run restore:postgres
 ```
 
-Script backup memakai format custom, checksum SHA-256, dan tidak mencetak URL
-database. Script restore memakai `ALLOW_RESTORE=YES` sebagai guard karena
-operation tersebut dapat menimpa data target.
+`KEEP_DAYS` opsional dan default-nya 14. Setelah dump baru ditulis, dump yang
+lebih tua dari `KEEP_DAYS` hari beserta file `.sha256`-nya dihapus, dan hanya
+nama yang cocok pola `atcell-*.dump` yang disentuh. Nilai `0` mematikan rotasi
+dan berarti orang yang memakai KEEP_DAYS=0 harus menyimpan salinannya sendiri
+di luar. Tanpa rotasi direktori backup tumbuh tanpa batas sampai disk penuh, dan
+disk penuh adalah tempat terakhir yang boleh menyimpan cadangan.
+
+Script restore sudah mengisi `auth.users` dengan stub untuk setiap UUID profil di
+dump sebelum menjalankan `pg_restore`, karena dump hanya mencakup schema `public`
+dan `private` sedangkan `profiles.id` mereferensi `auth.users(id)`. Stub memakai
+alamat `restore-stub-<uuid>@invalid.local` dan `on conflict do nothing`, jadi jelas
+bukan akun sungguhan dan tidak merusak Auth asli yang sudah ada. Backfill Auth
+Supabase tetap wajib dilakukan sebelum restore target dipakai sungguhan.
+
+### Backup otomatis di VPS
+
+`scripts/backup-postgres.sh` dijadwalkan lewat cron, bukan dijalankan manual:
+
+| Komponen | Lokasi |
+|----------|--------|
+| Jadwal | `/etc/cron.d/atcell-backup`, setiap hari 02.17 waktu host |
+| Wrapper | `/usr/local/bin/atcell-backup` |
+| Script repo | `/opt/atcell/scripts/backup-postgres.sh` |
+| Hasil | `/data/backups/atcell/atcell-<timestamp>.dump` + `.sha256` |
+| Log | `/var/log/atcell-backup.log`, diputar `/etc/logrotate.d/atcell-backup` |
+
+App container tidak punya `pg_dump`, jadi wrapper menjalankan script itu di dalam
+`postgres:17-alpine` yang sudah ada di host. Versi 17 wajib karena server
+Supabase masih 17.x; `postgres:15` akan menolak dengan `server version mismatch`.
+`DATABASE_URL` dibaca dari app container saat runtime ke file sementara mode 0600
+yang langsung dihapus, jadi tidak ada salinan kedua dari secret itu di disk.
+
+Untuk memastikan backup benar-benar bisa dipulihkan, jalankan restore test dari
+dump terbaru ke PostgreSQL 17 sekali pakai, bandingkan jumlah baris dengan
+produksi, lalu hapus container uji. Backup yang belum pernah di-restore belum
+bisa disebut cadangan.
 
 Jangan menyimpan password database, token, atau checksum dump sensitif di
 repository. Nilai secret hanya disimpan di Coolify secret manager.
