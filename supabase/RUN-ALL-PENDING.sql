@@ -22,6 +22,15 @@
 --   0006_store_social_urls             URL sosmed resmi toko, diisi Admin lewat portal/settings
 --   0007_audit_trail                   audit trail unit + tiket servis (NFR-07), ditulis trigger database
 --   0005_username_login                kolom email + username, trigger profil, login portal pakai username
+--   20260927130000_product_image_registry registry gambar produk + bucket Storage product-images
+--   20260927120000_auto_enable_rls_on_new_tables jaring pengaman RLS untuk tabel baru di schema public
+--
+-- CATATAN soal tabel schema_migrations: project ini tidak memakai Supabase CLI
+-- untuk menjalankan migrasi, dan repo ini tidak punya supabase/config.toml.
+-- Tabel supabase_migrations.schema_migrations karena itu bukan catatan resmi
+-- dan tidak boleh dipakai untuk menyimpulkan status migrasi. Yang otoritatif
+-- adalah daftar file di supabase/migrations/ dan file ini. Beberapa migrasi
+-- sengaja dijalankan lewat psql dan tidak tercatat di ledger itu.
 --
 -- ATURAN: seluruh bagian di bawah idempoten dan tidak menghapus data. Aman
 -- dijalankan berulang. SQL Editor membungkus semua Run dalam satu transaction,
@@ -41,7 +50,7 @@
 
 
 -- ###########################################################################
--- BAGIAN 1 dari 6: 0004_align_schema_contract
+-- BAGIAN 1 dari 8: 0004_align_schema_contract
 -- ###########################################################################
 
 do $$
@@ -147,7 +156,7 @@ on conflict (id) do nothing;
 
 
 -- ###########################################################################
--- BAGIAN 2 dari 6: 20260926025406_index_public_foreign_keys
+-- BAGIAN 2 dari 8: 20260926025406_index_public_foreign_keys
 -- ###########################################################################
 
 create index if not exists service_tickets_customer_id_idx
@@ -167,7 +176,7 @@ create index if not exists transactions_customer_id_idx
 
 
 -- ###########################################################################
--- BAGIAN 3 dari 6: 20260926103000_strengthen_ticket_codes
+-- BAGIAN 3 dari 8: 20260926103000_strengthen_ticket_codes
 -- ###########################################################################
 
 create or replace function public.generate_ticket_code()
@@ -225,7 +234,7 @@ alter table public.service_tickets
 
 
 -- ###########################################################################
--- BAGIAN 4 dari 6: 0006_store_social_urls
+-- BAGIAN 4 dari 8: 0006_store_social_urls
 -- ###########################################################################
 
 alter table public.store_settings add column if not exists social_facebook text;
@@ -272,7 +281,7 @@ end $$;
 
 
 -- ###########################################################################
--- BAGIAN 5 dari 6: 0007_audit_trail
+-- BAGIAN 5 dari 8: 0007_audit_trail
 -- ###########################################################################
 
 create table if not exists public.unit_status_audit (
@@ -443,7 +452,7 @@ grant usage, select on all sequences in schema public to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 6 dari 6: 0005_username_login
+-- BAGIAN 6 dari 8: 0005_username_login
 -- ###########################################################################
 
 alter table public.profiles add column if not exists email text;
@@ -587,15 +596,202 @@ grant all on public.profiles to service_role;
 
 
 -- ###########################################################################
+-- BAGIAN 7 dari 8: 20260927130000_product_image_registry
+-- ###########################################################################
+
+-- Registry gambar produk. Foto produk sebelumnya hanya file lokal di
+-- public/products/, jadi tidak terlihat di database dan tidak bisa dikelola staf
+-- dari portal. Foto servis dan trade-in sudah memakai Storage, jadi produk
+-- mengikuti pola yang sama supaya ada satu sumber kebenaran.
+--
+-- Tabel ini daftar gambar, bukan tempat menyimpan biner. Binernya ada di bucket
+-- Storage "product-images"; kolom path dan public_url menunjuk ke sana.
+--
+-- Berbeda dengan file migrasi aslinya, bagian ini ditulis idempoten: type, tabel,
+-- index, dan policy diperiksa dulu supaya aman dijalankan berulang sesuai aturan
+-- di header file ini.
+
+-- --------------------------------------------------------------------------
+-- 1. Bucket Storage publik. Produk tampil di katalog publik, jadi bucketnya
+--    public supaya URL bisa dipakai <img> tanpa token.
+-- --------------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'product-images',
+  'product-images',
+  true,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml']
+)
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+-- --------------------------------------------------------------------------
+-- 2. Jenis gambar. "hero" dipakai foto carousel halaman depan yang modelnya
+--    tidak ada di katalog, jadi product_id-nya null.
+-- --------------------------------------------------------------------------
+do $$
+begin
+  if not exists (
+    select 1 from pg_type t
+      join pg_namespace n on n.oid = t.typnamespace
+     where t.typname = 'image_kind' and n.nspname = 'public'
+  ) then
+    create type public.image_kind as enum ('official', 'second', 'hero', 'payment');
+  end if;
+end $$;
+
+-- --------------------------------------------------------------------------
+-- 3. Tabel registry
+-- --------------------------------------------------------------------------
+create table if not exists public.product_images (
+  id bigint generated always as identity primary key,
+  -- null untuk foto hero dan logo pembayaran: gambarnya ada di web tapi tidak
+  -- menempel pada satu produk di katalog.
+  product_id bigint references public.products(id) on delete cascade,
+  path text not null unique,
+  public_url text not null,
+  kind public.image_kind not null default 'official',
+  -- Wajib deskriptif karena alt teks ini dipakai sebagai fallback alt saat
+  -- merender gambar, dan gambar produk adalah konten utama katalog.
+  alt_text text not null default '',
+  byte_size integer not null default 0 check (byte_size >= 0),
+  is_primary boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.product_images is
+  'Daftar gambar produk dan aset web. Binernya ada di bucket Storage product-images.';
+comment on column public.product_images.path is
+  'Path objek di bucket Storage, tanpa domain. Contoh: products/iphone-13-1.jpg';
+comment on column public.product_images.is_primary is
+  'Gambar sampul produk. Dipakai sebagai products.image_url.';
+
+create index if not exists product_images_product_idx on public.product_images(product_id);
+create index if not exists product_images_kind_idx on public.product_images(kind);
+
+-- --------------------------------------------------------------------------
+-- 4. RLS. Daftar gambar bukan data sensitif: nama file, ukuran, dan alt teks
+--    sudah tampil di halaman publik. Yang dilindungi adalah hak ubah.
+--
+--    Perhatikan bahwa bagian 8 dipasang setelah bagian ini, jadi tabel
+--    product_images ini RLS-nya diaktifkan lewat pernyataan eksplisit di bawah,
+--    bukan lewat event trigger.
+-- --------------------------------------------------------------------------
+alter table public.product_images enable row level security;
+
+drop policy if exists "product_images_public_read" on public.product_images;
+create policy "product_images_public_read"
+  on public.product_images
+  for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "product_images_staff_write" on public.product_images;
+create policy "product_images_staff_write"
+  on public.product_images
+  for insert
+  to authenticated
+  with check (private.is_staff());
+
+drop policy if exists "product_images_staff_update" on public.product_images;
+create policy "product_images_staff_update"
+  on public.product_images
+  for update
+  to authenticated
+  using (private.is_staff())
+  with check (private.is_staff());
+
+drop policy if exists "product_images_admin_delete" on public.product_images;
+create policy "product_images_admin_delete"
+  on public.product_images
+  for delete
+  to authenticated
+  using ((select private.get_my_role()) = 'admin');
+
+-- --------------------------------------------------------------------------
+-- 5. Verifikasi (read-only)
+-- --------------------------------------------------------------------------
+-- select p.model_name, count(*) as jumlah_gambar
+--   from public.product_images i join public.products p on p.id = i.product_id
+--  group by 1 order by 1;
+-- select name, public, file_size_limit from storage.buckets where id = 'product-images';
+
+
+-- ###########################################################################
+-- BAGIAN 8 dari 8: 20260927120000_auto_enable_rls_on_new_tables
+-- ###########################################################################
+
+-- Jaring pengaman: tabel baru di schema public otomatis dilindungi RLS.
+--
+-- Kenapa perlu di proyek ini: default privileges Supabase memberi anon=arwdDxtm
+-- pada setiap tabel baru di schema public. Artinya tanpa RLS, tabel bisa dibaca
+-- DAN ditulis siapa saja lewat PostgREST. RLS satu-satunya penghalang, dan
+-- "lupa mengaktifkan RLS" adalah kesalahan yang mudah terjadi tanpa sengaja.
+--
+-- Catatan: mengaktifkan RLS tanpa policy berarti tolak semua (fail closed), jadi
+-- tabel yang sudah terproteksi tapi belum punya policy akan terlihat kosong,
+-- bukan bocor. Itu perilaku yang memang diinginkan untuk keamanan.
+--
+-- Event trigger ini tidak dibuat otomatis oleh Supabase, harus dipasang sendiri.
+-- Supabase menyertakan cuplikan ini sebagai contoh, tapi tidak memasangnya
+-- sendiri di database kita.
+
+create or replace function rls_auto_enable()
+returns event_trigger
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+declare
+  cmd record;
+begin
+  for cmd in
+    select *
+      from pg_event_trigger_ddl_commands()
+     where command_tag in ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
+       and object_type in ('table', 'partitioned table')
+       and schema_name = 'public'
+  loop
+    execute format('alter table if exists %s enable row level security', cmd.object_identity);
+    raise log 'rls_auto_enable: RLS aktif di %', cmd.object_identity;
+  end loop;
+end;
+$$;
+
+-- Sengaja tidak memakai EXCEPTION WHEN OTHERS. Kalau RLS gagal diaktifkan,
+-- CREATE TABLE harus dibatalkan agar tabel tanpa proteksi tidak pernah ada.
+-- Versi yang menelan error dengan RAISE LOG membuat kontrol ini fail open:
+-- gagal diam-diam, tabel tetap bocor.
+
+drop event trigger if exists ensure_rls;
+create event trigger ensure_rls
+  on ddl_command_end
+  when tag in ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
+  execute function rls_auto_enable();
+
+-- --------------------------------------------------------------------------
+-- Verifikasi (read-only)
+-- --------------------------------------------------------------------------
+-- select evtname, evtevent from pg_event_trigger where evtname = 'ensure_rls';
+-- select c.relname, c.relrowsecurity
+--   from pg_class c join pg_namespace n on n.oid = c.relnamespace
+--  where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
+
+
+-- ###########################################################################
 -- VERIFIKASI (read-only, aman dijalankan berkali-kali)
 --
--- 1. Index pendukung, harus keluar 15 baris:
+-- 1. Index pendukung, harus keluar 17 baris:
 --    select indexname from pg_indexes where schemaname = 'public' and indexname in
 --      ('products_brand_idx', 'inventory_units_product_status_idx', 'inventory_units_status_idx',
 --       'transactions_created_idx', 'transactions_sales_idx', 'transaction_items_tx_idx',
 --       'service_tickets_code_idx', 'service_tickets_status_idx', 'service_tickets_tech_idx',
 --       'service_tickets_customer_id_idx', 'transactions_customer_id_idx', 'transaction_items_unit_id_idx',
---       'trade_in_records_transaction_id_idx', 'trade_in_records_resulting_unit_id_idx', 'profiles_username_key')
+--       'trade_in_records_transaction_id_idx', 'trade_in_records_resulting_unit_id_idx', 'profiles_username_key',
+--       'product_images_product_idx', 'product_images_kind_idx')
 --      order by indexname;
 --
 -- 2. Constraint store_settings, harus keluar 2 baris:
@@ -622,4 +818,28 @@ grant all on public.profiles to service_role;
 --    dilakukan dari SQL Editor):
 --    select created_at, actor_id, old_status, new_status
 --      from public.unit_status_audit order by created_at desc limit 5;
+--
+-- 9. Registry gambar produk, harus keluar 5 baris untuk 5 produk aktif:
+--    select p.model_name, count(*) as jumlah_gambar
+--      from public.product_images i join public.products p on p.id = i.product_id
+--     group by 1 order by 1;
+--
+-- 10. Bucket Storage produk, harus keluar 1 baris public = true:
+--    select id, public, file_size_limit from storage.buckets where id = 'product-images';
+--
+-- 11. Policy registry gambar, harus keluar 4 baris:
+--    select policyname from pg_policies
+--      where schemaname = 'public' and tablename = 'product_images' order by policyname;
+--
+-- 12. Jaring pengaman RLS terpasang, harus keluar 1 baris:
+--    select evtname, evtevent, evtenabled from pg_event_trigger where evtname = 'ensure_rls';
+--
+-- 13. Semua tabel public harus punya RLS aktif. Query di bawah mengembalikan
+--     baris HANYA kalau ada tabel yang bocor, jadi hasil kosong berarti aman:
+--    select c.relname, c.relrowsecurity
+--      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+--     where n.nspname = 'public' and c.relkind = 'r'
+--       and not c.relrowsecurity;
+--    (query di atas mengembalikan baris HANYA kalau ada tabel yang bocor, jadi
+--     hasil kosong berarti semua aman)
 -- ###########################################################################
