@@ -47,3 +47,15 @@ backups
 *.sql
 *.dump
 *.sql.gz
+
+# Kunci, sertifikat, dan skrip agen lokal, tidak pernah ikut ke image
+.secrets
+.secrets.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+.agents
+.serena
+.pi

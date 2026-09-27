@@ -320,3 +320,18 @@ test("runbook punya aturan satu proses Next.js untuk database yang sama", () => 
     assert.ok(isi.includes(wajib), `bagian verifikasi lokal harus menyebut ${wajib}`);
   }
 });
+
+test("runbook menjelaskan cara membaca commit sumber dari image yang jalan", () => {
+  // Image yang salah tetap menghasilkan deploy hijau, jadi operator perlu
+  // perintah yang langsung menjawab "image ini dari commit mana". Label
+  // org.opencontainers.image.revision dipasang GitHub Actions dan sudah
+  // terbukti ada di image At Cell, jadi ini bukan asumsi.
+  const isi = bagian("## Tag image di Dockerfile.coolify");
+  for (const wajib of [
+    "org.opencontainers.image.revision",
+    "docker inspect",
+    "sha-<commit>",
+  ]) {
+    assert.ok(isi.includes(wajib), `bagian tag image harus menyebut ${wajib}`);
+  }
+});

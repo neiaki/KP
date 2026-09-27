@@ -19,17 +19,19 @@ import {
   AlertTriangle,
   User,
   Smartphone,
+  ExternalLink,
   Phone,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { RoleBadge } from "@/components/portal/role-badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ButtonLink } from "@/components/button-link";
 
 export default function TechnicianServicePage() {
-  const { serviceTickets, updateServiceTicket } = useStore();
+  const { serviceTickets, updateServiceTicket, currentRole } = useStore();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -224,38 +226,51 @@ export default function TechnicianServicePage() {
     return matchesSearch && matchesStatus;
   });
 
+  /* Peta status perbaikan ke Bahasa Indonesia.
+     Tipenya Record<RepairStatus, string>, jadi kalau enum RepairStatus di
+     src/types/index.ts nambah nilai baru, tsc gagal di sini sampai labelnya
+     ikut ditambah. Daftar chip dan isi dropdown di bawah keduanya dibangun
+     dari peta ini, jadi keduanya tidak bisa lagi berbeda dari enum. */
+  const REPAIR_STATUS_LABEL: Record<RepairStatus, string> = {
+    received: "Diterima",
+    diagnosing: "Pengecekan komponen",
+    waiting_approval: "Menunggu persetujuan biaya",
+    in_progress: "Sedang dikerjakan",
+    testing: "Uji fungsi QC",
+    completed: "Selesai reparasi",
+    picked_up: "Sudah diambil pelanggan",
+    cancelled: "Dibatalkan",
+  };
+
   const statuses: { key: RepairStatus | "all"; label: string }[] = [
     { key: "all", label: "Semua" },
-    { key: "received", label: "Received" },
-    { key: "diagnosing", label: "Diagnosing" },
-    { key: "waiting_approval", label: "Approval" },
-    { key: "in_progress", label: "In Progress" },
-    { key: "testing", label: "Testing" },
-    { key: "completed", label: "Completed" },
-    { key: "picked_up", label: "Picked Up" },
+    ...(Object.entries(REPAIR_STATUS_LABEL) as [RepairStatus, string][]).map(
+      ([key, label]) => ({ key, label })
+    ),
   ];
 
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-ink tracking-tight">
-              Meja Kerja Teknisi & Layanan Servis
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">
+              Meja Kerja Teknisi &amp; Layanan Servis
             </h1>
-            <Badge variant="warning" className="font-mono text-xs">
-              TECHNICIAN ROLE
-            </Badge>
+            <RoleBadge role={currentRole} />
           </div>
-          <p className="text-xs sm:text-sm text-muted mt-1">
-            Kelola antrian reparasi, perbarui tahap workflow, catat suku cadang & rincian biaya jasa.
+          <p className="mt-1 text-sm text-muted">
+            Kelola antrian reparasi, perbarui tahap workflow, catat suku cadang &amp; rincian biaya jasa.
           </p>
         </div>
 
-        <ButtonLink href="/portal/service/new" className="gap-2 font-bold text-xs shadow-md">
+        <ButtonLink
+          href="/portal/service/new"
+          className="w-full gap-2 text-sm font-bold shadow-md sm:w-auto sm:text-xs"
+        >
           <Plus className="w-4 h-4" />
-          <span>+ Daftarkan Tiket Servis Baru</span>
+          <span>Daftarkan Tiket Servis Baru</span>
         </ButtonLink>
       </div>
 
@@ -280,25 +295,34 @@ export default function TechnicianServicePage() {
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="bg-card p-4 rounded-xl border border-line shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+      {/* Pencarian & filter status */}
+      <div className="flex flex-col items-stretch gap-4 rounded-xl border border-line bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-muted absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-muted absolute left-3 top-3.5" />
+          <label htmlFor="service-search" className="sr-only">
+            Cari tiket servis
+          </label>
           <Input
+            id="service-search"
+            type="search"
+            inputMode="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nomor tiket, nama, atau model..."
-            className="pl-9 h-10 text-xs"
+            className="pl-9 sm:text-xs"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+        {/* min-h-11 di HP: chip status ini yang dipakai teknisi untuk
+            memisahkan antrian, dan versi lama 40px sering salah ketuk. */}
+        <div className="-mx-1 flex w-full gap-1.5 overflow-x-auto px-1 pb-1 md:w-auto md:flex-wrap md:overflow-visible">
           {statuses.map((st) => (
             <button
               key={st.key}
+              type="button"
               onClick={() => setStatusFilter(st.key)}
-              /* min-h-10 untuk tinggi sentuh 40px di HP, kembali rapat di desktop. */
-              className={`min-h-10 rounded-lg px-3 py-2 text-xs font-semibold cursor-pointer transition-colors sm:min-h-0 sm:py-1.5 ${
+              aria-pressed={statusFilter === st.key}
+              className={`min-h-11 shrink-0 cursor-pointer rounded-full px-3 text-xs font-semibold transition-colors md:min-h-0 md:py-1.5 ${
                 statusFilter === st.key
                   ? "bg-accent text-white shadow-xs"
                   : "bg-paper text-muted hover:bg-line"
@@ -310,23 +334,23 @@ export default function TechnicianServicePage() {
         </div>
       </div>
 
-      {/* Tickets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Daftar tiket servis */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {filteredTickets.length === 0 ? (
-          <div className="col-span-full py-16 text-center bg-card rounded-xl border border-dashed border-line">
-            <Wrench className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+          <div className="col-span-full rounded-xl border border-dashed border-line bg-card py-16 text-center">
+            <Wrench className="h-12 w-12 mx-auto mb-3 text-slate-300" />
             <p className="text-sm font-semibold text-muted">Tidak ada tiket servis aktif</p>
-            <p className="text-xs text-muted mt-1">Coba ubah filter atau daftarkan tiket masuk baru.</p>
+            <p className="mt-1 text-xs text-muted">Coba ubah filter atau daftarkan tiket masuk baru.</p>
           </div>
         ) : (
           filteredTickets.map((ticket) => (
             <Card
               key={ticket.id}
-              className="border-line hover:shadow-md transition-shadow flex flex-col justify-between"
+              className="flex flex-col justify-between border-line transition-shadow hover:shadow-md"
             >
-              <CardHeader className="pb-3 border-b border-line">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-black text-accent-deep bg-accent-soft px-2 py-0.5 rounded">
+              <CardHeader className="border-b border-line pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="break-all rounded bg-accent-soft px-2 py-0.5 font-mono text-xs font-black text-accent-deep">
                     {ticket.ticket_code}
                   </span>
                   <Badge
@@ -337,36 +361,36 @@ export default function TechnicianServicePage() {
                         ? "destructive"
                         : "warning"
                     }
-                    className="text-[10px] uppercase font-bold"
+                    className="text-[10px] font-bold"
                   >
                     {ticket.repair_status.replace("_", " ")}
                   </Badge>
                 </div>
-                <CardTitle className="text-base font-bold text-ink mt-2">
+                <CardTitle className="mt-2 text-base font-bold text-ink">
                   {ticket.device_model}
                 </CardTitle>
-                <div className="text-[11px] font-mono text-muted">
+                <div className="break-all font-mono text-[11px] text-muted">
                   IMEI/SN: {ticket.imei_or_sn}
                 </div>
               </CardHeader>
 
-              <CardContent className="p-4 space-y-3 text-xs flex-1">
-                <div className="flex items-center gap-2 text-muted">
-                  <User className="w-3.5 h-3.5 text-muted" />
+              <CardContent className="flex-1 space-y-3 p-4 text-sm">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted">
+                  <User className="h-4 w-4 shrink-0 text-muted" />
                   <span className="font-semibold">{ticket.customer_name}</span>
-                  <span className="text-muted">({ticket.customer_phone})</span>
+                  <span className="font-mono text-xs">({ticket.customer_phone})</span>
                 </div>
 
-                <div className="p-2.5 bg-paper rounded-lg text-muted leading-relaxed line-clamp-3">
-                  <span className="font-bold text-ink block text-[10px] uppercase">
-                    Keluhan:
+                <div className="rounded-lg bg-paper p-2.5 leading-relaxed text-muted line-clamp-3">
+                  <span className="block text-[11px] font-bold text-ink">
+                    Keluhan
                   </span>
                   {ticket.issue_notes}
                 </div>
 
-                <div className="pt-2 border-t border-line flex items-center justify-between text-[11px]">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 border-t border-line pt-2 text-xs">
                   <span className="text-muted">Total Biaya:</span>
-                  <span className="font-black text-ink text-sm">
+                  <span className="text-sm font-black text-ink">
                     {formatIDR(ticket.total_fee)}
                   </span>
                 </div>
@@ -375,7 +399,7 @@ export default function TechnicianServicePage() {
               <div className="p-4 pt-0">
                 <Button
                   onClick={() => handleOpenTicketModal(ticket)}
-                  className="w-full text-xs font-semibold gap-1.5"
+                  className="w-full gap-1.5 text-sm font-semibold sm:text-xs"
                   size="sm"
                 >
                   <Wrench className="w-3.5 h-3.5" />
@@ -387,106 +411,138 @@ export default function TechnicianServicePage() {
         )}
       </div>
 
-      {/* Ticket Details & Workflow Action Modal */}
+      {/* Dialog meja kerja. Isinya jauh lebih tinggi dari layar HP, jadi
+          headernya dikunci di atas, formnya yang menggulir, dan footer
+          tombolnya menempel di bawah supaya "Simpan Perubahan" selalu
+          terjangkau tanpa harus menggulir sampai ujung. */}
       {selectedTicket && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <button
+            type="button"
+            onClick={() => setSelectedTicket(null)}
+            aria-label="Tutup dialog tiket servis"
+            className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-xs"
+          />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={`Kelola tiket servis ${selectedTicket.ticket_code}`}
-            className="bg-card rounded-xl max-w-2xl w-full p-6 space-y-5 shadow-2xl border border-line max-h-[90vh] overflow-y-auto rise"
+            className="rise relative flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-xl border border-line bg-card shadow-2xl sm:max-h-[90dvh] sm:rounded-xl"
           >
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div>
-                <span className="font-mono text-xs font-bold text-accent-deep bg-accent-soft px-2 py-0.5 rounded">
+            <div className="flex items-start justify-between gap-3 border-b border-line p-4 pb-3">
+              <div className="min-w-0">
+                <span className="inline-block break-all rounded bg-accent-soft px-2 py-0.5 font-mono text-xs font-bold text-accent-deep">
                   {selectedTicket.ticket_code}
                 </span>
-                <h3 className="text-xl font-black text-ink mt-1">
+                <h3 className="mt-1 text-lg font-black text-ink sm:text-xl">
                   {selectedTicket.device_model}
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedTicket(null)}
                 aria-label="Tutup dialog tiket servis"
-                className="text-muted hover:text-ink cursor-pointer"
+                className="-mr-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink sm:h-10 sm:w-10"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Quick Customer & Device Summary */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-paper rounded-xl text-xs">
+            <div className="grid grid-cols-1 gap-3 p-3 text-sm sm:grid-cols-3">
               <div>
-                <span className="text-muted block">Pelanggan:</span>
-                <strong className="text-ink">{selectedTicket.customer_name}</strong>
+                <span className="block text-xs text-muted">Pelanggan:</span>
+                <strong className="break-words text-ink">{selectedTicket.customer_name}</strong>
               </div>
               <div>
-                <span className="text-muted block">Nomor Telepon:</span>
-                <strong className="text-ink">{selectedTicket.customer_phone}</strong>
+                <span className="block text-xs text-muted">Nomor Telepon:</span>
+                <strong className="break-all text-ink">{selectedTicket.customer_phone}</strong>
               </div>
               <div>
-                <span className="text-muted block">IMEI / SN:</span>
-                <strong className="text-ink font-mono">{selectedTicket.imei_or_sn}</strong>
+                <span className="block text-xs text-muted">IMEI / SN:</span>
+                <strong className="break-all font-mono text-ink">{selectedTicket.imei_or_sn}</strong>
               </div>
             </div>
 
-            {/* Editing Form */}
-            <form onSubmit={handleSaveTicket} className="space-y-4 text-xs">
+            <form
+              id="ticket-workbench-form"
+              onSubmit={handleSaveTicket}
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-t border-line p-4 text-sm"
+            >
               <div>
-                <label className="block font-bold text-ink mb-1">
-                  Tahapan Alur Kerja (Workflow Status):
+                <label
+                  htmlFor="ticket-status"
+                  className="mb-1 block text-xs font-bold text-ink"
+                >
+                  Tahapan alur kerja
                 </label>
+                {/* Tanpa prefiks angka: aturan proyek melarang label bernomor
+                    dan eyebrow kapital, dan urutan tahap sudah terlihat dari
+                    urutan pilihannya. Opsi dibangun dari peta label yang sama
+                    dengan chip filter di atas, jadi keduanya tidak mungkin
+                    berbeda atau lupa satu status. */}
                 <select
+                  id="ticket-status"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as RepairStatus)}
-                  className="w-full bg-paper border border-line rounded-lg p-2.5 text-xs font-bold text-accent-deep uppercase font-mono"
+                  className="h-11 w-full rounded-lg border border-line bg-paper px-3 text-base font-bold text-accent-deep sm:h-10 sm:text-sm"
                 >
-                  <option value="received">1. RECEIVED (Diterima)</option>
-                  <option value="diagnosing">2. DIAGNOSING (Pengecekan Komponen)</option>
-                  <option value="waiting_approval">3. WAITING_APPROVAL (Menunggu Persetujuan Biaya)</option>
-                  <option value="in_progress">4. IN_PROGRESS (Sedang Dikerjakan)</option>
-                  <option value="testing">5. TESTING (Uji Fungsi QC)</option>
-                  <option value="completed">6. COMPLETED (Selesai Reparasi)</option>
-                  <option value="picked_up">7. PICKED_UP (Sudah Diambil Pelanggan)</option>
-                  <option value="cancelled">CANCELLED (Dibatalkan)</option>
+                  {(
+                    Object.entries(REPAIR_STATUS_LABEL) as [RepairStatus, string][]
+                  ).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block font-bold text-muted mb-1">
-                    Biaya Penggantian Suku Cadang (Sparepart):
+                  <label
+                    htmlFor="ticket-sparepart"
+                    className="mb-1 block text-xs font-bold text-muted"
+                  >
+                    Biaya Penggantian Suku Cadang (Sparepart)
                   </label>
                   <Input
+                    id="ticket-sparepart"
                     type="number"
+                    inputMode="numeric"
+                    min={0}
                     value={sparepartFee}
                     onChange={(e) => setSparepartFee(Number(e.target.value))}
-                    className="text-xs"
+                    className="sm:text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-muted mb-1">
-                    Biaya Jasa Pengerjaan Teknisi (Labor):
+                  <label
+                    htmlFor="ticket-labor"
+                    className="mb-1 block text-xs font-bold text-muted"
+                  >
+                    Biaya Jasa Pengerjaan Teknisi (Labor)
                   </label>
                   <Input
+                    id="ticket-labor"
                     type="number"
+                    inputMode="numeric"
+                    min={0}
                     value={laborFee}
                     onChange={(e) => setLaborFee(Number(e.target.value))}
-                    className="text-xs"
+                    className="sm:text-xs"
                   />
                 </div>
               </div>
 
-              <div className="rounded-xl border border-line bg-paper p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold text-ink">Rincian Biaya (Nota)</span>
+              <div className="space-y-2 rounded-xl border border-line bg-paper p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm font-bold text-ink">Rincian Biaya (Nota)</span>
                   <div className="flex gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="text-xs"
+                      className="flex-1 text-xs sm:flex-none"
                       onClick={() => addCostItem("sparepart")}
                     >
                       <Plus className="h-3.5 w-3.5" />
@@ -496,7 +552,7 @@ export default function TechnicianServicePage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="text-xs"
+                      className="flex-1 text-xs sm:flex-none"
                       onClick={() => addCostItem("labor")}
                     >
                       <Plus className="h-3.5 w-3.5" />
@@ -512,10 +568,17 @@ export default function TechnicianServicePage() {
                 ) : (
                   <ul className="space-y-2">
                     {costItems.map((item) => (
-                      <li key={item.id} className="flex items-end gap-2">
-                        <div className="flex-1">
+                      /* Satu kolom di HP: baris lama memakai w-32 untuk nominal,
+                         jadi kolom nama hanya tersisa sekitar 120px di 375px
+                         dan setiap baris biaya mustahil dibaca sambil memegang
+                         unit. */
+                      <li
+                        key={item.id}
+                        className="grid grid-cols-1 items-end gap-2 sm:flex sm:items-end sm:gap-2"
+                      >
+                        <div className="min-w-0 flex-1">
                           <label
-                            className="block font-semibold text-muted mb-1"
+                            className="mb-1 block text-xs font-semibold text-muted"
                             htmlFor={`cost-name-${item.id}`}
                           >
                             {item.type === "sparepart" ? "Suku cadang" : "Jasa"}
@@ -524,12 +587,12 @@ export default function TechnicianServicePage() {
                             id={`cost-name-${item.id}`}
                             value={item.name}
                             onChange={(e) => updateCostItem(item.id, { name: e.target.value })}
-                            className="text-xs"
+                            className="sm:text-xs"
                           />
                         </div>
-                        <div className="w-32">
+                        <div className="w-full sm:w-32">
                           <label
-                            className="block font-semibold text-muted mb-1"
+                            className="mb-1 block text-xs font-semibold text-muted"
                             htmlFor={`cost-amount-${item.id}`}
                           >
                             Nominal
@@ -537,23 +600,25 @@ export default function TechnicianServicePage() {
                           <Input
                             id={`cost-amount-${item.id}`}
                             type="number"
+                            inputMode="numeric"
                             min={0}
                             value={item.cost}
                             onChange={(e) =>
                               updateCostItem(item.id, { cost: Number(e.target.value) })
                             }
-                            className="text-xs font-mono"
+                            className="font-mono sm:text-xs"
                           />
                         </div>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="text-xs"
+                          className="w-full text-xs sm:w-auto"
                           aria-label={`Hapus baris biaya ${item.name || "tanpa nama"}`}
                           onClick={() => removeCostItem(item.id)}
                         >
                           <X className="h-3.5 w-3.5" />
+                          <span className="sm:hidden">Hapus baris</span>
                         </Button>
                       </li>
                     ))}
@@ -622,48 +687,57 @@ export default function TechnicianServicePage() {
                 )}
               </div>
 
-              <div className="p-3 bg-accent-soft/70 rounded-xl border border-accent/20 flex items-center justify-between">
-                <span className="font-bold text-ink">Total Biaya Reparasi:</span>
-                <span className="text-lg font-black text-accent-deep">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-accent/20 bg-accent-soft/70 p-3">
+                <span className="text-sm font-bold text-ink">Total Biaya Reparasi:</span>
+                <span className="text-xl font-black text-accent-deep">
                   {formatIDR(sparepartFee + laborFee)}
                 </span>
               </div>
 
               <div>
-                <label className="block font-bold text-muted mb-1">
-                  Catatan Teknisi / Tindakan Perbaikan:
+                <label
+                  htmlFor="ticket-notes"
+                  className="mb-1 block text-xs font-bold text-muted"
+                >
+                  Catatan Teknisi / Tindakan Perbaikan
                 </label>
                 <textarea
+                  id="ticket-notes"
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full p-2.5 bg-paper border border-line rounded-lg text-xs"
+                  className="w-full rounded-lg border border-line bg-paper p-3 text-base text-ink sm:text-sm"
                 />
               </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-line">
-                <Link
-                  href={`/id/tracking?ticket=${selectedTicket.ticket_code}`}
-                  target="_blank"
-                  className="text-accent-deep hover:underline inline-flex items-center gap-1 text-xs font-semibold"
-                >
-                  <span>Pratinjau Pelacakan Publik ↗</span>
-                </Link>
-
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setSelectedTicket(null)}
-                  >
-                    Tutup
-                  </Button>
-                  <Button type="submit" className="font-bold">
-                    Simpan Perubahan Meja Kerja
-                  </Button>
-                </div>
-              </div>
             </form>
+
+            {/* Footer dialog: tombol Simpan tidak ikut menggulir bersama form,
+                jadi teknisi tidak perlu menggulir melewati seluruh rincian biaya
+                hanya untuk menyimpan. */}
+            <div className="border-t border-line bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <Link
+                href={`/id/tracking?ticket=${selectedTicket.ticket_code}`}
+                target="_blank"
+                className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-accent-deep hover:underline sm:min-h-0 sm:mb-0 sm:text-xs"
+              >
+                <span>Pratinjau pelacakan publik</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedTicket(null)}
+                  className="w-full sm:w-auto"
+                >
+                  Tutup
+                </Button>
+                <Button type="submit" form="ticket-workbench-form" className="w-full font-bold sm:w-auto">
+                  Simpan Perubahan Meja Kerja
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

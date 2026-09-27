@@ -42,8 +42,12 @@ export type TicketAuditEntry = {
 };
 
 /**
- * Riwayat status satu unit. Admin dan staf boleh melihat; policy RLS
- * service_ticket_audit / unit_status_audit juga membatasi baris yang sampai.
+ * Riwayat status satu unit. Satu-satunya penjaga di jalur ini adalah
+ * requireRole(["admin", "sales", "technician"]): getDb() memakai koneksi
+ * yang MELEWATI RLS (lihat src/db/client.ts), jadi policy RLS
+ * service_ticket_audit / unit_status_audit tidak ikut membatasi baris yang
+ * sampai ke sini. Policy itu tetap ada dan tetap benar, tapi hanya berlaku
+ * untuk jalur Data API (PostgREST), bukan untuk kode di file ini.
  */
 export async function listUnitAudit(
   unitId: number,

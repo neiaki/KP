@@ -8,6 +8,7 @@ import { Boxes, Plus, Search, Edit2, CheckCircle2, AlertCircle, Smartphone, X } 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { RoleBadge } from "@/components/portal/role-badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 // Dipakai kalau produk belum punya foto. Foto stok pihak ketiga tidak pernah
@@ -17,7 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const PLACEHOLDER_IMAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/products/placeholder.svg`;
 
 export default function MasterProductsPage() {
-  const { products, inventoryUnits, addProduct, updateProduct } = useStore();
+  const { products, inventoryUnits, addProduct, updateProduct, currentRole } =
+    useStore();
 
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -115,26 +117,24 @@ export default function MasterProductsPage() {
   );
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-ink tracking-tight">
+    <div className="space-y-6 pb-12 sm:space-y-8">
+      {/* Header katalog */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">
               Katalog Master Produk
             </h1>
-            <Badge variant="purple" className="font-mono text-xs">
-              ADMIN EXCLUSIVE
-            </Badge>
+            <RoleBadge role={currentRole} />
           </div>
-          <p className="text-xs sm:text-sm text-muted mt-1">
+          <p className="mt-1 text-sm text-muted">
             Definisi master seri smartphone, spesifikasi acuan, dan harga dasar. Sales meregistrasi IMEI di bawah master ini.
           </p>
         </div>
 
-        <Button onClick={handleOpenAdd} className="gap-2 font-bold text-xs shadow-md">
+        <Button onClick={handleOpenAdd} className="w-full gap-2 text-sm font-bold shadow-md sm:w-auto sm:text-xs">
           <Plus className="w-4 h-4" />
-          <span>+ Tambah Model Produk Baru</span>
+          <span>Tambah Model Produk Baru</span>
         </Button>
       </div>
 
@@ -164,24 +164,30 @@ export default function MasterProductsPage() {
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="bg-card p-4 rounded-xl border border-line shadow-sm flex items-center justify-between">
+      {/* Pencarian katalog */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-card p-4 shadow-sm">
         <div className="relative w-full max-w-sm">
-          <Search className="w-4 h-4 text-muted absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-muted absolute left-3 top-3.5" />
+          <label htmlFor="product-search" className="sr-only">
+            Cari produk
+          </label>
           <Input
+            id="product-search"
+            type="search"
+            inputMode="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari model atau spesifikasi produk..."
-            className="pl-9 h-10 text-xs"
+            className="pl-9 sm:text-xs"
           />
         </div>
-        <span className="text-xs text-muted font-semibold hidden sm:inline">
-          Total: {products.length} Model Terdaftar
+        <span className="hidden text-xs font-semibold text-muted sm:inline">
+          Total: {products.length} model terdaftar
         </span>
       </div>
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Grid katalog */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {filteredProducts.map((p) => {
           const availableUnitsCount = inventoryUnits.filter(
             (u) => u.product_id === p.id && u.status === "available"
@@ -190,37 +196,40 @@ export default function MasterProductsPage() {
           return (
             <Card
               key={p.id}
-              className="border-line hover:shadow-md transition-shadow flex flex-col justify-between"
+              className="flex flex-col justify-between border-line transition-shadow hover:shadow-md"
             >
-              <div className="h-44 bg-paper overflow-hidden rounded-t-xl">
+              {/* h-32 di HP: h-44 memakai hampir separuh layar pertama di
+                  812px hanya untuk satu foto produk. */}
+              <div className="h-32 overflow-hidden rounded-t-xl bg-paper sm:h-44">
                 <img
                   src={p.image_url || PLACEHOLDER_IMAGE}
                   alt={p.model_name}
-                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  className="h-full w-full object-cover"
                 />
               </div>
 
-              <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between text-xs">
+              <CardContent className="flex flex-1 flex-col justify-between space-y-3 p-4 text-sm">
                 <div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="bg-slate-900/80 text-white backdrop-blur text-[10px]">
+                    <Badge variant="secondary" className="text-[10px]">
                       {p.brand}
                     </Badge>
                     <Badge
                       variant={availableUnitsCount > 0 ? "success" : "destructive"}
                       className="font-mono text-[10px]"
                     >
-                      {availableUnitsCount} Unit Siap Jual
+                      {availableUnitsCount} unit siap jual
                     </Badge>
                   </div>
-                  <h3 className="font-bold text-ink text-base mt-2">{p.model_name}</h3>
-                  <p className="text-muted line-clamp-2 mt-1 leading-relaxed">{p.specs}</p>
+                  <h3 className="mt-2 text-base font-bold text-ink">{p.model_name}</h3>
+                  <p className="mt-1 leading-relaxed text-muted line-clamp-2">{p.specs}</p>
                 </div>
 
-                <div className="pt-3 border-t border-line flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] uppercase text-muted font-semibold">Harga Acuan</span>
-                    <div className="text-sm font-black text-accent-deep">
+                <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-semibold text-muted">Harga acuan</span>
+                    <div className="font-mono text-sm font-black text-accent-deep">
                       {formatIDR(p.default_price)}
                     </div>
                   </div>
@@ -229,7 +238,7 @@ export default function MasterProductsPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleOpenEdit(p)}
-                    className="h-10 gap-1.5 text-xs font-semibold sm:h-8"
+                    className="h-11 shrink-0 gap-1.5 text-xs font-semibold sm:h-8"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                     <span>Edit</span>
@@ -241,37 +250,47 @@ export default function MasterProductsPage() {
         })}
       </div>
 
-      {/* Add / Edit Product Modal */}
+      {/* Dialog tambah/edit produk */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-label={editingProduct ? "Dialog edit master produk" : "Dialog tambah master produk"}
-            className="bg-card rounded-xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-line rise"
+            className="rise my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
           >
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-lg font-bold text-ink flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-accent-deep" />
+            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+              <h3 className="flex items-center gap-2 text-base font-bold text-ink sm:text-lg">
+                <Boxes className="h-5 w-5 shrink-0 text-accent-deep" />
                 <span>{editingProduct ? "Edit Master Produk" : "Tambah Model Produk Baru"}</span>
               </h3>
               <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
                 aria-label="Tutup dialog produk"
-                className="text-muted hover:text-ink cursor-pointer"
+                className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink sm:h-10 sm:w-10"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form
+              onSubmit={handleSubmit}
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 text-sm"
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block font-semibold text-muted mb-1">Merek Handphone:</label>
+                  <label
+                    htmlFor="product-brand"
+                    className="mb-1 block text-xs font-semibold text-muted"
+                  >
+                    Merek Handphone
+                  </label>
                   <select
+                    id="product-brand"
                     value={brand}
                     onChange={(e) => setBrand(e.target.value)}
-                    className="w-full bg-paper border border-slate-300 rounded-lg p-2 text-xs font-semibold"
+                    className="h-11 w-full rounded-lg border border-line bg-paper px-3 text-base font-semibold text-ink sm:h-10 sm:text-xs"
                   >
                     <option value="Apple">Apple</option>
                     <option value="Samsung">Samsung</option>
@@ -283,56 +302,95 @@ export default function MasterProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-muted mb-1">Nama Seri / Model:</label>
+                  <label
+                    htmlFor="product-model"
+                    className="mb-1 block text-xs font-semibold text-muted"
+                  >
+                    Nama Seri / Model
+                  </label>
                   <Input
+                    id="product-model"
                     value={modelName}
                     onChange={(e) => setModelName(e.target.value)}
                     placeholder="Contoh: iPhone 16 Pro 256GB"
-                    className="text-xs"
+                    className="sm:text-xs"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-muted mb-1">Harga Acuan Dasar (Rp):</label>
+                <label
+                  htmlFor="product-price"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
+                  Harga Acuan Dasar (Rp)
+                </label>
                 <Input
+                  id="product-price"
                   type="number"
+                  inputMode="numeric"
+                  min={0}
                   value={defaultPrice}
                   onChange={(e) => setDefaultPrice(Number(e.target.value))}
-                  className="text-xs font-bold text-accent-deep"
+                  className="font-bold text-accent-deep sm:text-xs"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-muted mb-1">Spesifikasi Utama:</label>
+                <label
+                  htmlFor="product-specs"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
+                  Spesifikasi Utama
+                </label>
                 <textarea
+                  id="product-specs"
                   rows={3}
                   value={specs}
                   onChange={(e) => setSpecs(e.target.value)}
                   placeholder="Chipset, RAM/Storage, Kamera, Ukuran Layar..."
-                  className="w-full p-2.5 bg-paper border border-slate-300 rounded-lg text-xs"
+                  className="w-full rounded-lg border border-line bg-paper p-3 text-base text-ink sm:text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-muted mb-1">URL Foto Produk:</label>
+                <label
+                  htmlFor="product-image"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
+                  URL Foto Produk
+                </label>
                 <Input
+                  id="product-image"
+                  type="url"
+                  inputMode="url"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/..."
-                  className="text-xs"
+                  className="sm:text-xs"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-line">
-                <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+              <div className="flex flex-col-reverse gap-2 border-t border-line pt-3 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-full sm:w-auto"
+                >
                   Batal
                 </Button>
-                <Button type="submit" disabled={isSaving} className="font-bold">
-                  {isSaving ? "Menyimpan..." : editingProduct ? "Simpan Perubahan" : "Tambah Produk"}
-                  {editingProduct ? "Simpan Perubahan" : "Tambahkan Model"}
+                <Button type="submit" disabled={isSaving} className="w-full font-bold sm:w-auto">
+                  {isSaving
+                    ? "Menyimpan..."
+                    : editingProduct
+                    ? "Simpan Perubahan"
+                    : "Tambahkan Model"}
                 </Button>
               </div>
             </form>

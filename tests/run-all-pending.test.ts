@@ -4,10 +4,10 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * supabase/RUN-ALL-PENDING.sql menggabungkan dua belas migrasi supaya project
- * baru cukup di-paste sekali lewat SQL Editor. File itu dibangun dengan skrip di
- * luar repo, jadi tidak ada yang menahan isinya tetap sama dengan migrasi
- * aslinya.
+ * supabase/RUN-ALL-PENDING.sql menggabungkan empat belas migrasi supaya
+ * project baru cukup di-paste sekali lewat SQL Editor. File itu dibangun
+ * dengan skrip di luar repo, jadi tidak ada yang menahan isinya tetap sama
+ * dengan migrasi aslinya.
  *
  * Risiko nyata yang sudah pernah terjadi: proses penggabungan memotong badan
  * migrasi 0006 di separator yang salah, jadi alter table-nya hilang tanpa error
@@ -62,6 +62,10 @@ const SECTIONS: { label: string; source: string }[] = [
     label: "20260927180000_nullable_inventory_unit_product",
     source: "20260927180000_nullable_inventory_unit_product.sql",
   },
+  {
+    label: "20260927190000_close_browser_role_write_grants",
+    source: "20260927190000_close_browser_role_write_grants.sql",
+  },
 ];
 
 /** Migrasi yang sudah ada sebelum file gabungan dibuat, jadi tidak ada di dalamnya. */
@@ -74,7 +78,7 @@ const ALREADY_PROVISIONED = ["0001", "0002", "0003"];
  *
  * Blok komentar di awal badan sengaja tidak dibandingkan: saat digabung,
  * pembatas bagian di dalam migrasi jadi berlebihan karena penanda
- * `-- BAGIAN n dari 12` sudah melakukan hal yang sama. Yang wajib identik
+ * `-- BAGIAN n dari 14` sudah melakukan hal yang sama. Yang wajib identik
  * adalah setiap baris SQL-nya, dan itu yang dicek di sini.
  */
 /**
@@ -181,7 +185,7 @@ test("penanda bagian lengkap dan berurutan", () => {
 });
 
 test("tidak ada SQL di luar bagian mana pun", () => {
-  // Setiap baris SQL di file gabungan harus milik salah satu dari enam bagian.
+  // Setiap baris SQL di file gabungan harus milik salah satu dari semua bagian.
   // Baris di luar semua rentang bagian berarti ada potongan yang tidak
   // berasal dari migrasi mana pun, dan itu yang pernah terjadi saat badan
   // migrasi 0006 terpotong.

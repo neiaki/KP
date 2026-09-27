@@ -66,7 +66,7 @@ const GUESS_KEY = "track-global-guess";
 const kode = (suffix: string) => `SRV-20260912-${suffix}`;
 
 test("satu kode resi tidak bisa dielabui dari banyak alamat", () => {
-  // Lapisan per IP sudahJWsoleh address, jadi penyerang dengan banyak IP
+  // Lapisan per IP sudah mengikat address, jadi penyerang dengan banyak IP
   // selalu dapat bucket baru di situ. Lapisan per kode tidak memakai alamat.
   resetRateLimits();
   let allowed = 0;
@@ -86,7 +86,7 @@ test("menyapu banyak kode berbeda tetap tertahan plafon global", () => {
     if (!consumeRateLimit(GUESS_KEY, GLOBAL_GUESS, 60_000).allowed) break;
     allowed++;
   }
-  assert.equal(allowed, GLOBAL_GUESS, "plafon tebakan global harus mengikatacross kode berbeda");
+  assert.equal(allowed, GLOBAL_GUESS, "plafon tebakan global harus mengikat lintas kode berbeda");
 });
 
 test("pelanggan dengan kode valid tidak pernah ikut kehabisan kuota", () => {
@@ -103,10 +103,10 @@ test("pelanggan dengan kode valid tidak pernah ikut kehabisan kuota", () => {
     "plafon harus habis setelah tebakan salah sebanyak batasnya"
   );
 
-  //now pelanggan datang dengan kode yang benar.
+  // Sekarang pelanggan datang dengan kode yang benar.
   const konsumen = consumeRateLimit(GUESS_KEY, GLOBAL_GUESS, 60_000);
   assert.equal(konsumen.allowed, false, "permintaan pertama memang sudah lewat batas");
-  //.pemanggil上一页 mengembalikanquotANYA begitu hasil query ketemu.
+  // Pemanggil berikutnya mengembalikan kuota begitu hasil query ketemu.
   refundRateLimit(GUESS_KEY);
   assert.ok(
     consumeRateLimit(GUESS_KEY, GLOBAL_GUESS, 60_000).allowed,
@@ -115,7 +115,7 @@ test("pelanggan dengan kode valid tidak pernah ikut kehabisan kuota", () => {
 });
 
 test("ribuan permintaan kode valid tidak pernah membebani kuota global", () => {
-  // Pelan: setiap permintaan yang berhasil立刻 dikembalikan, jadi bucket
+  // Pelan: setiap permintaan yang berhasil langsung dikembalikan, jadi bucket
   // global tidak pernah naik meski dipakai terus-menerus.
   resetRateLimits();
   for (let i = 0; i < 5_000; i++) {

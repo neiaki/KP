@@ -17,21 +17,24 @@ export default function PortalLayout({
     <div className="flex min-h-[calc(100dvh-3rem)] bg-paper">
       <PortalSidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-card/95 px-4 backdrop-blur lg:hidden">
+        {/* Topbar HP: tinggi sentuh 44px (bukan 36px seperti p-2 default),
+            plus ruang untuk notch/iStatus bar. Sticky karena halaman portal
+            panjang (settings, reports) dan menu harus selalu terjangkau. */}
+        <div className="sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b border-line bg-card/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-2 sm:px-4 lg:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Buka menu navigasi"
             aria-expanded={mobileOpen}
-            className="rounded-lg p-2 text-ink hover:bg-paper"
+            className="-ml-1 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg text-ink hover:bg-paper"
           >
             <Menu className="h-6 w-6" />
           </button>
-          <span className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-xs font-extrabold text-white">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-extrabold text-white">
               AT
             </span>
-            <span className="text-sm font-extrabold tracking-tight text-ink">
+            <span className="truncate text-sm font-extrabold tracking-tight text-ink">
               At Cell Portal
             </span>
           </span>
@@ -40,14 +43,17 @@ export default function PortalLayout({
             <Link
               href="/id"
               aria-label="Lihat web publik"
-              className="rounded-lg p-2 text-muted hover:bg-paper hover:text-ink"
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink"
             >
               <ExternalLink className="h-5 w-5" />
             </Link>
           </div>
         </div>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
+        {/* pb-extra + safe-area: keypad HP dan garis gestur iOS bisa menutup
+            baris terakhir / tombol submit kalau halaman tidak menyisakan
+            ruang tambahan di bawah. */}
+        <main className="flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:p-6 lg:p-8">
+          <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>
     </div>

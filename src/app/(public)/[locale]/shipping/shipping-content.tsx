@@ -32,7 +32,7 @@ export function ShippingContent({ locale }: { locale: Locale }) {
       verb: locale === "en" ? "Reserve on WhatsApp" : "Booking via WhatsApp",
       desc:
         locale === "en"
-          ? "Send the model name and the last 4 digits of the IMEI from the etalase."
+          ? "Send the model name and the last 4 digits of the IMEI from the display."
           : "Kirim nama model dan 4 digit terakhir IMEI dari etalase.",
     },
     {
