@@ -12,7 +12,21 @@ export const imeiSchema = z
 // sudah tercetak tidak ikut invalid.
 const TICKET_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const TICKET_CODE_PATTERN = /^SRV-\d{8}-(?:\d{4}|[0-9A-HJKMNP-TV-Z]{8})$/i;
-export const TICKET_CODE_EXAMPLE = "SRV-20260913-7K4M2QX9";
+
+/* Satu-satunya contoh kode tiket di seluruh situs.
+ *
+ * Nilai ini dulu ditulis ulang di tujuh tempat dan tidak semuanya sama: kolom
+ * validasi memakai 20260913 sementara placeholder di halaman lacak, landing
+ * page, dan widget live chat memakai 20260912. Pelanggan yang salah ketik
+ * diarahkan ke kode SRV-YYYYMMDD-XXXXXXXX, lalu diklik "Cek nota", lalu diberi
+ * pesan yang menyodorkan contoh berbeda dari yang tadi dia baca. Formatnya
+ * sama, jadi kesalahannya tidak kelihatan sampai kode itu ditolak.
+ *
+ * Kode ini bukan contoh karangan. Migrasi 20260927170000 membuatkannya sebagai
+ * tiket demo sungguhan yang sudah berjalan sampai status testing, jadi siapa
+ * pun yang mengikutinya mendapat halaman lacak yang benar-benar berfungsi.
+ */
+export const TICKET_CODE_EXAMPLE = "SRV-20260912-7K4M2QX9";
 
 /**
  * Sufiks 8 karakter untuk mode lokal tanpa Supabase. Di produksi kode ini
@@ -225,6 +239,10 @@ const storeLongitude = z.coerce.number().min(-180).max(180).nullable().optional(
 const storeMapsUrl = z.string().trim().url("URL peta tidak valid.").max(500).or(z.literal(""));
 const storePhone = z.string().trim().min(5, "Nomor telepon toko wajib diisi.");
 const storeWhatsapp = z.string().trim().max(16);
+// Menerima format apa pun yang diketik staf, termasuk 0812..., lalu
+// cleanWaNumber yang menormalkan ke 62812... untuk link wa.me. Validasi di sini
+// hanya menjaga panjang masuk akal, bukan menolak format lokal.
+const storeOwnerName = z.string().trim().max(80);
 // Hanya http dan https. Menolak skema lain mencegah form settings dipakai
 // menyuntik javascript: atau data: lewat kolom URL.
 const socialUrl = z
@@ -246,6 +264,7 @@ export const storeSettingsSchema = z.object({
   maps_url: storeMapsUrl.optional(),
   phone_number: storePhone,
   whatsapp_number: storeWhatsapp.optional(),
+  owner_name: storeOwnerName.optional(),
   social_facebook: socialUrl.optional(),
   social_instagram: socialUrl.optional(),
   social_x: socialUrl.optional(),
@@ -264,6 +283,7 @@ export const storeSettingsUpdateSchema = z.object({
   maps_url: storeMapsUrl.optional(),
   phone_number: storePhone.optional(),
   whatsapp_number: storeWhatsapp.optional(),
+  owner_name: storeOwnerName.optional(),
   social_facebook: socialUrl.optional(),
   social_instagram: socialUrl.optional(),
   social_x: socialUrl.optional(),

@@ -19,6 +19,7 @@ export default function StoreSettingsPage() {
   const [longitude, setLongitude] = useState(storeSettings.longitude);
   const [phoneNumber, setPhoneNumber] = useState(storeSettings.phone_number);
   const [whatsappNumber, setWhatsappNumber] = useState(storeSettings.whatsapp_number || "");
+  const [ownerName, setOwnerName] = useState(storeSettings.owner_name || "");
   const [socialFacebook, setSocialFacebook] = useState(storeSettings.social_facebook || "");
   const [socialInstagram, setSocialInstagram] = useState(storeSettings.social_instagram || "");
   const [socialX, setSocialX] = useState(storeSettings.social_x || "");
@@ -42,6 +43,7 @@ export default function StoreSettingsPage() {
       setLongitude(storeSettings.longitude);
       setPhoneNumber(storeSettings.phone_number);
       setWhatsappNumber(storeSettings.whatsapp_number || "");
+      setOwnerName(storeSettings.owner_name || "");
       setSocialFacebook(storeSettings.social_facebook || "");
       setSocialInstagram(storeSettings.social_instagram || "");
       setSocialX(storeSettings.social_x || "");
@@ -67,6 +69,7 @@ export default function StoreSettingsPage() {
         longitude: Number(longitude),
         phone_number: phoneNumber,
         whatsapp_number: whatsappNumber,
+        owner_name: ownerName,
         social_facebook: socialFacebook,
         social_instagram: socialInstagram,
         social_x: socialX,
@@ -234,6 +237,25 @@ export default function StoreSettingsPage() {
                   className="text-xs font-mono"
                   required
                 />
+                <p className="text-[11px] text-muted mt-1">
+                  Boleh ditulis format lokal (0812...). Otomatis diubah jadi 62812... saat
+                  link WhatsApp dibuat.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-muted mb-1">
+                  Nama yang jawab di WhatsApp:
+                </label>
+                <Input
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  className="text-xs"
+                  placeholder="Steven Eka"
+                />
+                <p className="text-[11px] text-muted mt-1">
+                  Tampil di widget live chat supaya pelanggan tahu siapa yang membalas.
+                </p>
               </div>
             </div>
           </CardContent>

@@ -6,6 +6,7 @@ import {
   Transaction,
   ServiceTicket,
 } from "@/types";
+import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
 
 export const initialProfiles: Profile[] = [
   {
@@ -349,7 +350,9 @@ export const initialTransactions: Transaction[] = [
 export const initialServiceTickets: ServiceTicket[] = [
   {
     id: 1,
-    ticket_code: "SRV-20260912-7K4M2QX9",
+    // Kode yang sama dengan contoh di halaman lacak, jadi mode lokal dan
+    // produksi memakai satu tiket yang bisa dicoba.
+    ticket_code: TICKET_CODE_EXAMPLE,
     customer_id: "prof-cust-01",
     customer_name: "Anisa Rahmawati",
     customer_phone: "082155667788",

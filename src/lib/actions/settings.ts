@@ -43,6 +43,7 @@ export async function updateStoreSettings(
         ...(v.maps_url !== undefined ? { mapsUrl: v.maps_url || null } : {}),
         ...(v.phone_number !== undefined ? { phoneNumber: v.phone_number } : {}),
         ...(v.whatsapp_number !== undefined ? { whatsappNumber: v.whatsapp_number || null } : {}),
+        ...(v.owner_name !== undefined ? { ownerName: v.owner_name } : {}),
         // String kosong dari form berarti Admin ingin platform itu disembunyikan,
         // jadi disimpan sebagai null, bukan string kosong.
         ...(v.social_facebook !== undefined ? { socialFacebook: v.social_facebook || null } : {}),

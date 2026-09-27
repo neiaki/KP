@@ -80,7 +80,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
               />
               <button
                 type="submit"
-                className="absolute right-0 top-0 h-10 rounded-r-lg rounded-l-md bg-accent px-4 text-xs font-bold text-white hover:bg-accent-deep sm:right-1 sm:top-1 sm:h-8 sm:rounded-md"
+                className="absolute right-0 top-0 h-10 rounded-r-lg bg-accent px-4 text-xs font-bold text-white hover:bg-accent-deep sm:right-1 sm:top-1 sm:h-8 sm:rounded-lg"
               >
                 {locale === "en" ? "Search" : "Cari"}
               </button>
@@ -100,6 +100,10 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
+            {/* Segmented control: wrapper 8px dengan padding 2px, jadi radius
+                segmen di dalamnya 6px (8 - 2). Jangan diubah jadi 8px, nanti
+                sudut segmen menusup keluar dari kurva wrapper. Versi mobile
+                di bawah memakai angka yang sama. */}
             <div
               className="hidden items-center rounded-lg border border-line p-0.5 text-xs font-bold sm:flex"
               aria-label={locale === "en" ? "Language" : "Bahasa"}
@@ -161,7 +165,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
               />
               <button
                 type="submit"
-                className="absolute right-0 top-0 h-10 rounded-r-lg rounded-l-md bg-accent px-3 text-xs font-bold text-white sm:right-1 sm:top-1 sm:h-8 sm:rounded-md"
+                className="absolute right-0 top-0 h-10 rounded-r-lg bg-accent px-3 text-xs font-bold text-white sm:right-1 sm:top-1 sm:h-8 sm:rounded-lg"
               >
                 {locale === "en" ? "Search" : "Cari"}
               </button>

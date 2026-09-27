@@ -318,6 +318,7 @@ export function useAtCellStore() {
           maps_url: newSettings.maps_url,
           phone_number: newSettings.phone_number,
           whatsapp_number: newSettings.whatsapp_number,
+          owner_name: newSettings.owner_name,
           // Tanpa empat baris ini, kolom sosmed tidak pernah dikirim ke
           // server action, jadi Admin mengisi form tapi tidak tersimpan.
           social_facebook: newSettings.social_facebook,
