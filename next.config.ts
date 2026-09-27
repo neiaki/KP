@@ -31,8 +31,34 @@ const securityHeaders = [
     : []),
 ];
 
+// Foto produk kini diambil dari Supabase Storage (bucket product-images), bukan
+// file lokal di public/. Host Storage dihitung dari env, bukan ditulis mati,
+// supaya tidak ikut bocor ke repo kalau project Supabase diganti.
+const supabaseStorageHost = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+})();
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  ...(supabaseStorageHost
+    ? {
+        images: {
+          remotePatterns: [
+            {
+              protocol: "https" as const,
+              hostname: supabaseStorageHost,
+              pathname: "/storage/v1/object/public/product-images/**",
+            },
+          ],
+        },
+      }
+    : {}),
   experimental: {
     serverActions: {
       // Upload validasi menerima 5 MB; sisakan ruang untuk multipart overhead.

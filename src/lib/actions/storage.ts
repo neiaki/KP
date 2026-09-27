@@ -4,7 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { uploadPhotoSchema } from "@/lib/validations";
 import { fail, ok, requireRole, type ActionResult } from "./_helpers";
 
-const ALLOWED_BUCKETS = ["trade-in-photos", "service-photos"] as const;
+const ALLOWED_BUCKETS = [
+  "trade-in-photos",
+  "service-photos",
+  // Foto produk katalog. Daftar gambarnya ada di tabel public.product_images,
+  // path di bucket ini yang jadi sumber kebenarannya.
+  "product-images",
+] as const;
 
 /**
  * Unggah foto kondisi ke Supabase Storage (FR-C-01, FR-B-01).
