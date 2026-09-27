@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { Locale } from "@/lib/translations";
-import { formatIDR } from "@/lib/utils";
+import { cn, formatIDR } from "@/lib/utils";
 import { useStore } from "@/context/store-context";
 import { Smartphone, ShieldCheck, Send, BadgeCheck, AlertCircle, Upload, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   IPHONE_LINEUP,
@@ -18,6 +18,22 @@ import {
 
 const MAX_PHOTOS = 4;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+/*
+ * CardTitle di components/ui/card.tsx selalu merender <h3>. Di halaman ini
+ * kedua kartu adalah section utama, jadi levelnya harus h2 supaya tidak ada
+ * lompatan dari h1. Pembaca layar berpindah antar level heading, jadi level
+ * h2 yang hilang berarti dua section ini terbaca sebagai anak dari h1.
+ *
+ * components/ui/ milik shadcn dan tidak boleh diubah, jadi tag-nya diturunkan
+ * di sini. Kelas di bawah sengaja meniru CardTitle supaya tampilan tetap sama;
+ * kalau CardTitle berubah, classes ini ikut disamakan.
+ */
+const SECTION_TITLE_CLASS = "text-lg font-extrabold leading-none tracking-tight text-ink";
+
+function SectionTitle({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <h2 className={cn(SECTION_TITLE_CLASS, className)}>{children}</h2>;
+}
 
 type Photo = { url: string; name: string };
 
@@ -196,10 +212,10 @@ export function TradeInContent({ locale }: { locale: Locale }) {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+                <SectionTitle className="flex items-center gap-2 text-base">
                   <Smartphone className="h-4 w-4 text-accent" />
                   {en ? "Your old phone condition" : "Kondisi HP lama"}
-                </CardTitle>
+                </SectionTitle>
               </CardHeader>
               <CardContent className="space-y-5">
                 <p className="flex items-start gap-1.5 rounded-lg bg-accent-soft p-2.5 text-left text-[11px] leading-relaxed text-accent-deep">
@@ -398,10 +414,10 @@ export function TradeInContent({ locale }: { locale: Locale }) {
           <div>
             <Card className="border-dashed lg:sticky lg:top-24">
               <CardHeader className="border-b border-dashed border-line pb-3">
-                <CardTitle className="flex items-center justify-center gap-1.5 text-center text-sm text-muted">
+                <SectionTitle className="flex items-center justify-center gap-1.5 text-center text-sm text-muted">
                   <BadgeCheck className="h-4 w-4 text-accent" />
                   {en ? "Trade-in estimate" : "Taksiran tukar tambah"}
-                </CardTitle>
+                </SectionTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-5 text-center">
                 <div>
