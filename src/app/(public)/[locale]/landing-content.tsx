@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { translations, Locale } from "@/lib/translations";
 import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
+import { cleanWaNumber } from "@/lib/wa";
 import {
   BRANDS,
   toCardItem,
@@ -14,7 +15,6 @@ import {
   shortIDR,
   type SortOrder,
 } from "@/lib/shop";
-import { cleanWaNumber } from "@/lib/wa";
 import {
   Smartphone,
   Wrench,
@@ -43,9 +43,21 @@ import { StoreMap } from "@/components/public/store-map";
 import { BrandMarquee } from "@/components/public/brand-marquee";
 import { ButtonLink } from "@/components/button-link";
 
-const HERO_PHOTO = "/products/iphone-15-pro-1.jpg";
+/**
+ * Slide hero sebelum alamat filenya diselesaikan. photo adalah kunci di
+ * product_images, bukan URL, supaya daftar ini tetap bisa dibaca sebagai
+ * keputusan editorial tanpa ikut campur dengan lokasi server.
+ */
+type CuratedSlide = Omit<HeroSlide, "src"> & { photo: string };
 
-export function LandingContent({ locale }: { locale: Locale }) {
+export function LandingContent({
+  locale,
+  imageUrls,
+}: {
+  locale: Locale;
+  /** Peta path di product_images -> URL publik. Dikirim server component. */
+  imageUrls: Record<string, string>;
+}) {
   const router = useRouter();
   const { storeSettings, products, inventoryUnits } = useStore();
   const t = translations[locale];
@@ -67,11 +79,15 @@ export function LandingContent({ locale }: { locale: Locale }) {
     sortOrder
   );
 
-  /* Slot foto: taruh file resmi di public/products dengan nama persis
-     di bawah. Sebelum ada, carousel tampil jujur tanpa foto palsu. */
-  const heroSlides: HeroSlide[] = [
+  /* Foto slide memakai copy yang dikurasi manusia, jadi daftarnya tetap di
+     sini. Yang diambil dari database hanya lokasi filenya: photo adalah kunci
+     di tabel product_images, dan server component mengirim peta
+     path -> URL publik sebagai prop imageUrls. Kalau registry tidak punya
+     path itu, path lokal dipakai sebagai cadangan supaya carousel tidak
+     pernah kosong, dan file lokal tetap ada di public/products. */
+  const curatedSlides: CuratedSlide[] = [
     {
-      src: "/products/iphone-18-pro.jpg",
+      photo: "products/iphone-18-pro.jpg",
       alt:
         locale === "en"
           ? "iPhone 18 Pro, coming soon at At Cell"
@@ -87,7 +103,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
           : "Halo At Cell, kabari saya kalau iPhone 18 Pro sudah ready.",
     },
     {
-      src: "/products/iphone-duo.jpg",
+      photo: "products/iphone-duo.jpg",
       alt:
         locale === "en"
           ? "iPhone Duo, the first foldable iPhone, coming soon"
@@ -103,7 +119,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
           : "Halo At Cell, kabari saya kalau iPhone Duo sudah ready.",
     },
     {
-      src: "/products/galaxy-s26.jpg",
+      photo: "products/galaxy-s26.jpg",
       alt:
         locale === "en"
           ? "Samsung Galaxy S26, the newest Samsung flagship"
@@ -119,7 +135,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
           : "Halo At Cell, Samsung Galaxy S26 masih ada?",
     },
     {
-      src: "/products/galaxy-z-fold-8.jpg",
+      photo: "products/galaxy-z-fold-8.jpg",
       alt:
         locale === "en"
           ? "Samsung Galaxy Z Fold 8, the wider book-style foldable"
@@ -135,7 +151,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
           : "Halo At Cell, kabari saya kalau Galaxy Z Fold 8 sudah masuk.",
     },
     {
-      src: "/products/galaxy-z-flip-8.jpg",
+      photo: "products/galaxy-z-flip-8.jpg",
       alt:
         locale === "en"
           ? "Samsung Galaxy Z Flip 8, the thinnest Galaxy flip"
@@ -151,6 +167,14 @@ export function LandingContent({ locale }: { locale: Locale }) {
           : "Halo At Cell, kabari saya kalau Galaxy Z Flip 8 sudah masuk.",
     },
   ];
+
+  // Alamat file hero berasal dari database. Kalau registry tidak punya path-nya,
+  // path lokal dipakai supaya carousel tetap jalan; kedua sumber tetap ada di
+  // repo, jadi halaman tidak pernah kehilangan foto.
+  const heroSlides: HeroSlide[] = curatedSlides.map((slide) => ({
+    ...slide,
+    src: imageUrls[slide.photo] ?? `/${slide.photo}`,
+  }));
 
   const handleTrackSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,7 +215,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
       icon: BadgeCheck,
       title: "IMEI ditulis di nota",
       desc: "Nomor unit yang Anda bayar sama dengan yang dibawa pulang. Cocokkan kapan pun.",
-      photo: "/products/iphone-13-2.jpg",
+      photo: "products/iphone-13-2.jpg",
       photoAlt: "Unit iPhone second yang siap dicek di konter",
       wide: true,
       href: `/${locale}/catalog`,
@@ -210,7 +234,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
       icon: CreditCard,
       title: "Cicilan dan tukar tambah",
       desc: "0% sampai 12 bulan, atau potong harga pakai HP lama.",
-      photo: "/products/a55-1.jpg",
+      photo: "products/a55-1.jpg",
       photoAlt: "Unit Samsung Galaxy A55 di etalase toko",
       wide: false,
       href: `/${locale}/trade-in`,
@@ -220,7 +244,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
       icon: Store,
       title: "Beli dan servis satu tempat",
       desc: "Konter yang menjual HP Anda juga yang merawatnya. Riwayat unit tercatat.",
-      photo: "/products/vivo-v30-2.jpg",
+      photo: "products/vivo-v30-2.jpg",
       photoAlt: "Dua unit Vivo V30 di meja display",
       wide: true,
       href: `/${locale}/tracking`,
@@ -438,7 +462,7 @@ export function LandingContent({ locale }: { locale: Locale }) {
                     }`}
                   >
                     <img
-                      src={f.photo}
+                      src={imageUrls[f.photo] ?? `/${f.photo}`}
                       alt={f.photoAlt}
                       loading="lazy"
                       className={`w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${

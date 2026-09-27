@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Locale } from "@/lib/translations";
 import { cn, formatIDR } from "@/lib/utils";
+import { cleanWaNumber } from "@/lib/wa";
 import { useStore } from "@/context/store-context";
 import { Smartphone, ShieldCheck, Send, BadgeCheck, AlertCircle, Upload, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -181,7 +182,7 @@ export function TradeInContent({ locale }: { locale: Locale }) {
       return;
     }
     setError("");
-    const cleanWa = (storeSettings.whatsapp_number || "6285775398389").replace(/\D/g, "");
+    const cleanWa = cleanWaNumber(storeSettings.whatsapp_number);
     const text = en
       ? `Hello At Cell, I want to trade in my ${deviceLabel} (estimate ${formatIDR(estimatedValue)}, ${grade}). Which replacement stock is available?`
       : `Halo At Cell, saya mau tukar tambah ${deviceLabel} (taksiran ${formatIDR(estimatedValue)}, ${grade}). Stok penggantinya apa saja?`;

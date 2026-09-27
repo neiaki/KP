@@ -2,7 +2,11 @@
 
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { products as productsTable, storeSettings } from "@/db/schema";
+import {
+  productImages as productImagesTable,
+  products as productsTable,
+  storeSettings,
+} from "@/db/schema";
 import type {
   InventoryUnit,
   Product,
@@ -103,6 +107,47 @@ export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettin
     return ok(mapStoreSettings(row));
   } catch {
     return fail("Pengaturan toko sedang tidak dapat dimuat.");
+  }
+}
+
+/**
+ * Peta path -> URL publik untuk SELURUH file di product_images.
+ *
+ * Slide carousel dan kartu alasan di halaman depan memuat copy pemasaran yang
+ * dikurasi manusia, jadi daftar fotonya tidak bisa dibangkitkan dari database;
+ * yang bisa dipindah ke database hanya lokasi filenya. Peta ini dibaca di server
+ * component lalu dikasih ke komponen klien sebagai prop, supaya tidak ada dua
+ * daftar lokasi yang bisa berbeda dan peta ini tidak ikut tersimpan ke
+ * localStorage milik store.
+ *
+ * Filter kind sengaja tidak dipakai. Dulu fungsi ini hanya mengambil baris
+ * kind = "hero", padahal foto yang dirujuk halaman depan tidak semuanya
+ * hero: kartu "IMEI ditulis di nota" memakai foto produk second, dan
+ * "Cicilan dan tukar tambah" memakai foto Samsung A55. Keduanya kind official,
+ * jadi dengan filter itu keduanya diam-diam jatuh kembali ke path lokal
+ * tanpa ada yang salah terlihat.
+ *
+ * Seluruh registry cuma 38 baris dengan URL sekitar 100 karakter, jadi
+ * seluruhnya dikirim, bukan disaring per halaman. Menyaringnya memang hemat
+ * sedikit, tapi pemanggil jadi harus tahu daftar path-nya sebelum menanyakan
+ * lokasi file, sementara daftar itu justru hidup di komponen klien.
+ *
+ * Kegagalan di sini sengaja tidak fatal: pemanggil memakai path lokal sebagai
+ * cadangan, jadi lebih baik peta kosong daripada halaman depan tidak termuat.
+ */
+export async function getPublicImageUrls(): Promise<Record<string, string>> {
+  const db = getDb();
+  if (!db) return {};
+  try {
+    const rows = await db
+      .select({
+        path: productImagesTable.path,
+        publicUrl: productImagesTable.publicUrl,
+      })
+      .from(productImagesTable);
+    return Object.fromEntries(rows.map((r) => [r.path, r.publicUrl]));
+  } catch {
+    return {};
   }
 }
 

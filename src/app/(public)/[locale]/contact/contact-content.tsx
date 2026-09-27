@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
+import { cleanWaNumber } from "@/lib/wa";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/button-link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,10 +20,21 @@ import { StoreMap } from "@/components/public/store-map";
 
 export function ContactContent({ locale }: { locale: Locale }) {
   const { storeSettings } = useStore();
-  const cleanWa = (storeSettings.whatsapp_number || "6285775398389").replace(/\D/g, "");
+  const cleanWa = cleanWaNumber(storeSettings.whatsapp_number);
   const waLink = `https://wa.me/${cleanWa}?text=${encodeURIComponent(
     locale === "en" ? "Hello At Cell, I want to ask something." : "Halo At Cell, saya mau tanya."
   )}`;
+
+  // Nomor telepon dan tautan peta keduanya opsional di pengaturan toko. Kalau
+  // tidak diisi, halaman tidak boleh memancarkan tautan yang tidak bisa
+  // dipakai: `tel:` kosong tidak menelepon siapa pun, dan `href=""` cuma
+  // memuat ulang halaman. Jadi tombolnya hanya dirender kalau isinya ada,
+  // dan kalau tidak, kontak toko ditampilkan sebagai teks biasa.
+  const phoneDigits = (storeSettings.phone_number || "").replace(/\D/g, "");
+  const hasPhone = phoneDigits.length > 0;
+  const telHref = `tel:${(storeSettings.phone_number || "").replace(/[^+\d]/g, "")}`;
+  const mapsUrl = (storeSettings.maps_url || "").trim();
+  const hasMaps = mapsUrl.length > 0;
 
   return (
     <div className="bg-paper">
@@ -66,20 +78,36 @@ export function ContactContent({ locale }: { locale: Locale }) {
                 <p className="text-[15px] font-extrabold text-ink">
                   {locale === "en" ? "Phone" : "Telepon"}
                 </p>
-                <p className="font-mono text-sm font-bold text-ink">{storeSettings.phone_number}</p>
+                {hasPhone ? (
+                  <p className="font-mono text-sm font-bold text-ink">
+                    {storeSettings.phone_number}
+                  </p>
+                ) : (
+                  <p className="text-sm font-bold text-muted">
+                    {locale === "en" ? "Not published" : "Belum dipublikasikan"}
+                  </p>
+                )}
                 <p className="mt-1 text-[13px] leading-relaxed text-muted">
-                  {locale === "en"
-                    ? "For urgent matters such as pickup timing and claim status."
-                    : "Untuk hal mendesak seperti jadwal ambil dan status klaim."}
+                  {hasPhone
+                    ? locale === "en"
+                      ? "For urgent matters such as pickup timing and claim status."
+                      : "Untuk hal mendesak seperti jadwal ambil dan status klaim."
+                    : locale === "en"
+                      ? "The shop has not published a phone number. WhatsApp is the fastest way to reach us."
+                      : "Toko belum memasang nomor telepon. WhatsApp cara tercepat menghubungi kami."}
                 </p>
               </div>
-              <ButtonLink
-                href={`tel:${(storeSettings.phone_number || "").replace(/[^+\d]/g, "")}`}
-                variant="outline"
-              >
-                <Phone className="h-4 w-4" />
-                {locale === "en" ? "Call the shop" : "Telepon toko"}
-              </ButtonLink>
+              {hasPhone ? (
+                <ButtonLink href={telHref} variant="outline">
+                  <Phone className="h-4 w-4" />
+                  {locale === "en" ? "Call the shop" : "Telepon toko"}
+                </ButtonLink>
+              ) : (
+                <ButtonLink href={waLink} target="_blank" rel="noreferrer" variant="outline">
+                  <MessageCircle className="h-4 w-4" />
+                  {locale === "en" ? "Ask on WhatsApp" : "Tanya lewat WhatsApp"}
+                </ButtonLink>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -102,16 +130,18 @@ export function ContactContent({ locale }: { locale: Locale }) {
               </p>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <ButtonLink
-                href={storeSettings.maps_url}
-                target="_blank"
-                rel="noreferrer"
-                variant="outline"
-                size="sm"
-              >
-                {locale === "en" ? "Directions" : "Rute ke toko"}
-                <ExternalLink className="h-3.5 w-3.5" />
-              </ButtonLink>
+              {hasMaps ? (
+                <ButtonLink
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  variant="outline"
+                  size="sm"
+                >
+                  {locale === "en" ? "Directions" : "Rute ke toko"}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </ButtonLink>
+              ) : null}
               <ButtonLink
                 href={`/${locale}/customer-service`}
                 variant="ghost"

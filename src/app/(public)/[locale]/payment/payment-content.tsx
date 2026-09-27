@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
+import { cleanWaNumber } from "@/lib/wa";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -19,7 +20,7 @@ import { ButtonLink } from "@/components/button-link";
 
 export function PaymentContent({ locale }: { locale: Locale }) {
   const { storeSettings } = useStore();
-  const cleanWa = (storeSettings.whatsapp_number || "6285775398389").replace(/\D/g, "");
+  const cleanWa = cleanWaNumber(storeSettings.whatsapp_number);
 
   const methods = [
     {

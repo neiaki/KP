@@ -23,6 +23,12 @@ export default function SegmentError({ error, retry, reset }: SegmentErrorProps)
       code="500"
       title="Sistem kami lagi gangguan"
       description="Coba muat ulang halaman ini. Kalau masih gagal, kirim kode di bawah lewat WA biar tim kami cepat cek."
+      // Path lokal, satu-satunya di situs ini yang belum lewat product_images.
+      // Alasannya bukan lupa: error boundary Next.js harus client component,
+      // sedangkan product_images dibaca lewat database dari server. Halaman
+      // 500 justru sering muncul saat database tidak bisa dijangkau, jadi
+      // menanyakan lokasi file ke database di sini akan menggagalkan dua kali.
+      // File-nya tetap ada di public/products, jadi fotonya tetap muncul.
       image="/products/iphone-15-pro-1.jpg"
       imageAlt="Unit iPhone di meja servis At Cell"
       imageCaption="Data transaksi dan antrean servis kamu tidak hilang."

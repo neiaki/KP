@@ -1,6 +1,18 @@
 import React from "react";
+import type { Metadata } from "next";
+import { buildRouteMetadata } from "@/app/sitemap";
 import { AboutContent } from "./about-content";
 import { Locale } from "@/lib/translations";
+import { getPublicImageUrls } from "@/lib/actions/public";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return buildRouteMetadata("about", locale);
+}
 
 export default async function AboutPage({
   params,
@@ -10,5 +22,7 @@ export default async function AboutPage({
   const resolvedParams = await params;
   const locale: Locale = resolvedParams.locale === "en" ? "en" : "id";
 
-  return <AboutContent locale={locale} />;
+  const imageUrls = await getPublicImageUrls();
+
+  return <AboutContent locale={locale} imageUrls={imageUrls} />;
 }
