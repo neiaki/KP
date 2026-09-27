@@ -89,8 +89,14 @@ export async function getLowStockAlerts(
     .select({ productId: inventoryUnits.productId })
     .from(inventoryUnits)
     .where(eq(inventoryUnits.status, "available"));
+  // Unit trade-in punya product_id NULL. Mengabaikannya di sini penting:
+  // kalau ikut dihitung, satu bucket null akan menggabungkan semua handset
+  // tukar-tukar menjadi satu "produk", dan low-stock ikut salah.
   const counts = new Map<number, number>();
-  for (const u of availableUnits) counts.set(u.productId, (counts.get(u.productId) ?? 0) + 1);
+  for (const u of availableUnits) {
+    if (u.productId === null) continue;
+    counts.set(u.productId, (counts.get(u.productId) ?? 0) + 1);
+  }
   return ok(
     productRows
       .map((p) => ({

@@ -576,7 +576,13 @@ export function useAtCellStore() {
     if (params.tradeIn) {
       const secondHandUnit: InventoryUnit = {
         id: transactionId + 99,
-        product_id: unit.product_id,
+        // product_id null, sama seperti jalur live di src/lib/actions/pos.ts.
+        // Menyalin unit.product_id mendaftarkan handset pelanggan ke katalog
+        // unit baru, dan demo lalu menampilkan bug yang sudah diperbaiki.
+        // Deskripsinya ada di trade_in_model supaya tabel inventaris tetap
+        // bisa dibaca.
+        product_id: null,
+        trade_in_model: params.tradeIn.originalBrandModel,
         imei: params.tradeIn.imei,
         condition: "second",
         status: "available",
@@ -711,6 +717,11 @@ export function useAtCellStore() {
           sparepartFee: updates.sparepart_fee,
           laborFee: updates.labor_fee,
           technicianNotes: updates.technician_notes ?? updates.issue_notes,
+          // Opsional di updateTicketSchema, jadi undefined berarti "jangan
+          // sentuh kolom ini" dan tiket lama yang belum punya rincian tetap
+          // bisa diperbarui tanpa mengirim apa pun.
+          costBreakdown: updates.cost_breakdown,
+          photoUrls: updates.photo_urls,
         })
       );
       setServiceTickets((prev) =>

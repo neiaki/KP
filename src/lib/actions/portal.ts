@@ -37,6 +37,12 @@ export type PortalSnapshot = {
   profiles: Profile[];
 };
 
+/** Baris trade_in_records yang dipakai untuk melabeli unit tanpa katalog. */
+type TradeInLabelRow = {
+  resulting_unit_id: number | null;
+  original_brand_model: string;
+};
+
 type ProductDbRow = {
   id: number;
   brand: string;
@@ -220,9 +226,34 @@ export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshot>>
     if ("error" in publicResult) return fail(publicResult.error);
     portalInventoryUnits = publicResult.data.inventoryUnits;
   } else {
+    // Unit trade-in punya product_id NULL karena tidak punya baris katalog,
+    // jadi dari products tidak ada apa pun yang bisa ditampilkan. Label
+    // aslinya ada di trade_in_records.original_brand_model.
+    //
+    // Query ini sengaja terpisah dari unitsQuery, bukan di-embed. Embed lewat
+    // PostgREST akan mengalikan baris inventory_units untuk unit yang punya
+    // lebih dari satu trade_in_records (resulting_unit_id tidak punya UNIQUE),
+    // dan itu juga bisa menggeser urutan created_at. Dengan query terpisah,
+    // himpunan baris inventory_units dan urutannya dijamin tidak berubah.
+    const tradeInLabels = new Map<number, string>();
+    const { data: tradeInRows } = await supabase
+      .from("trade_in_records")
+      .select("resulting_unit_id, original_brand_model")
+      .limit(2000);
+    for (const row of (tradeInRows ?? []) as TradeInLabelRow[]) {
+      if (row.resulting_unit_id === null) continue;
+      // Baris pertama yang menang kalau-kalau ada duplikat. Isinya sama
+      // untuk satu unit, jadi hasilnya tidak bergantung urutan.
+      if (!tradeInLabels.has(row.resulting_unit_id)) {
+        tradeInLabels.set(row.resulting_unit_id, row.original_brand_model);
+      }
+    }
     portalInventoryUnits = (
       unitsResult.data as unknown as Array<Parameters<typeof mapUnit>[0]>
-    ).map((unit) => mapUnit(unit));
+    ).map((unit) => ({
+      ...mapUnit(unit),
+      trade_in_model: tradeInLabels.get(unit.id),
+    }));
   }
 
   const productRows = productsResult.data as unknown as ProductDbRow[];

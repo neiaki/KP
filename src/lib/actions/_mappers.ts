@@ -6,7 +6,8 @@ import { toISO, toNumber } from "./_helpers";
 
 export type UnitRow = {
   id: number;
-  product_id: number;
+  // NULL untuk unit trade-in yang tidak punya baris katalog products.
+  product_id: number | null;
   imei: string;
   condition: InventoryUnit["condition"];
   status: InventoryUnit["status"];

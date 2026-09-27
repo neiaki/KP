@@ -50,7 +50,7 @@
 
 
 -- ###########################################################################
--- BAGIAN 1 dari 12: 0004_align_schema_contract
+-- BAGIAN 1 dari 13: 0004_align_schema_contract
 -- ###########################################################################
 
 do $$
@@ -156,7 +156,7 @@ on conflict (id) do nothing;
 
 
 -- ###########################################################################
--- BAGIAN 2 dari 12: 20260926025406_index_public_foreign_keys
+-- BAGIAN 2 dari 13: 20260926025406_index_public_foreign_keys
 -- ###########################################################################
 
 create index if not exists service_tickets_customer_id_idx
@@ -176,7 +176,7 @@ create index if not exists transactions_customer_id_idx
 
 
 -- ###########################################################################
--- BAGIAN 3 dari 12: 20260926103000_strengthen_ticket_codes
+-- BAGIAN 3 dari 13: 20260926103000_strengthen_ticket_codes
 -- ###########################################################################
 
 create or replace function public.generate_ticket_code()
@@ -234,7 +234,7 @@ alter table public.service_tickets
 
 
 -- ###########################################################################
--- BAGIAN 4 dari 12: 0006_store_social_urls
+-- BAGIAN 4 dari 13: 0006_store_social_urls
 -- ###########################################################################
 
 alter table public.store_settings add column if not exists social_facebook text;
@@ -281,7 +281,7 @@ end $$;
 
 
 -- ###########################################################################
--- BAGIAN 5 dari 12: 0007_audit_trail
+-- BAGIAN 5 dari 13: 0007_audit_trail
 -- ###########################################################################
 
 create table if not exists public.unit_status_audit (
@@ -452,7 +452,7 @@ grant usage, select on all sequences in schema public to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 6 dari 12: 0005_username_login
+-- BAGIAN 6 dari 13: 0005_username_login
 -- ###########################################################################
 
 alter table public.profiles add column if not exists email text;
@@ -596,7 +596,7 @@ grant all on public.profiles to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 7 dari 12: 20260927130000_product_image_registry
+-- BAGIAN 7 dari 13: 20260927130000_product_image_registry
 -- ###########################################################################
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -677,7 +677,7 @@ create policy product_images_admin_delete
   using ((select private.get_my_role()) = 'admin');
 
 -- ###########################################################################
--- BAGIAN 8 dari 12: 20260927120000_auto_enable_rls_on_new_tables
+-- BAGIAN 8 dari 13: 20260927120000_auto_enable_rls_on_new_tables
 -- ###########################################################################
 CREATE OR REPLACE FUNCTION rls_auto_enable()
 RETURNS EVENT_TRIGGER
@@ -777,7 +777,7 @@ EXECUTE FUNCTION rls_auto_enable();
 
 
 -- ###########################################################################
--- BAGIAN 9 dari 12: 20260927140000_store_owner_and_real_contact
+-- BAGIAN 9 dari 13: 20260927140000_store_owner_and_real_contact
 -- ###########################################################################
 alter table public.store_settings
   add column if not exists owner_name text not null default '';
@@ -797,7 +797,7 @@ where id = 1;
 
 
 -- ###########################################################################
--- BAGIAN 10 dari 12: 20260927150000_revoke_anon_write_on_product_images
+-- BAGIAN 10 dari 13: 20260927150000_revoke_anon_write_on_product_images
 -- ###########################################################################
 
 -- Hak tulis anon di registry gambar produk.
@@ -830,7 +830,7 @@ grant select on public.product_images to anon;
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 11 dari 12: 20260927160000_harden_storage_access
+-- BAGIAN 11 dari 13: 20260927160000_harden_storage_access
 -- ###########################################################################
 
 -- Akses Storage untuk foto pelanggan.
@@ -911,7 +911,7 @@ create policy storage_staff_read on storage.objects
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 12 dari 12: 20260927170000_demo_ticket_for_tracking_example
+-- BAGIAN 12 dari 13: 20260927170000_demo_ticket_for_tracking_example
 -- ###########################################################################
 
 -- Tiket demo untuk kode contoh di halaman lacak servis publik.
@@ -991,4 +991,126 @@ update public.service_tickets set repair_status = 'testing'
 where ticket_code = 'SRV-20260912-7K4M2QX9' and repair_status = 'in_progress';
 
 -- ###########################################################################
+-- ###########################################################################
+
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 13 dari 13: 20260927180000_nullable_inventory_unit_product
+-- ###########################################################################
+
+-- inventory_units.product_id jadi nullable, etalase publik tetap jujur.
+--
+-- Latar: executeSale() di src/lib/actions/pos.ts membuat unit trade-in dengan
+-- productId milik unit BARU yang dijual, bukan model handset lama milik
+-- pelanggan. Jadi tukar Samsung S9 dengan Galaxy S24 menghasilkan baris
+-- inventory_units yang product_id-nya menunjuk ke katalog S24. Baris salah
+-- itu langsung muncul di etalase publik (v_public_inventory) dan di setiap
+-- filter merek/model, lalu tertinggal tanpa ada yang memperbaikinya.
+--
+-- Kenapa product_id di-null-kan, bukan dibuatkan baris products baru:
+-- katalog produk eksklusif Admin (FR-D-04). Kasir tidak boleh membuat
+-- produk di tempat, jadi pilihan lain hanya menebak atau memakai produk
+-- closest-match, yang mengembalikan jenis bug yang sama dalam bentuk lain.
+-- NULL berarti "unit ini tidak punya baris katalog", dan deskripsi
+-- otoritatif handset yang masuk ada di trade_in_records.original_brand_model
+-- (grading, IMEI, dan foto ikut di sana).
+
+-- =============================================================================
+-- 1. Lepaskan NOT NULL pada inventory_units.product_id
+-- =============================================================================
+-- Kolom tetap punya FK ke products(id) ON DELETE RESTRICT, jadi produk yang
+-- masih dirujuk unit tidak bisa dihapus. NULL berarti "tanpa katalog", bukan
+-- "tanpa identitas": IMEI, kondisi, harga beli/jual, dan status tetap ada.
+--
+-- Idempoten: drop not null pada kolom yang sudah nullable tidak error.
+alter table public.inventory_units alter column product_id drop not null;
+
+comment on column public.inventory_units.product_id is
+  'NULL untuk unit trade-in: handset milik pelanggan tidak punya baris katalog products. Deskripsi aslinya ada di trade_in_records.original_brand_model. Unit dengan product_id NULL sengaja disembunyikan dari v_public_inventory.';
+
+-- =============================================================================
+-- CATATAN PERBAIKAN DATA (JANGAN DIJALANKAN OTOMATIS)
+-- =============================================================================
+-- Migrasi ini sengaja TIDAK memperbaiki baris yang sudah terlanjur salah.
+-- Menaruh UPDATE di sini berarti ikut dibungkus transaksi SQL Editor dan
+-- ikut ter-copy ke project lain lewat RUN-ALL-PENDING.sql, jadi perbaikannya
+-- diserahkan ke operator yang memutuskan sendiri untuk toko masing-masing.
+--
+-- Cara mengenali unit trade-in yang salah:
+--
+--   select
+--     u.id                              as unit_id,
+--     u.imei,
+--     u.product_id                      as salah_product_id,
+--     p.brand || ' ' || p.model_name    as katalog_terpasang,
+--     t.original_brand_model            as model_asli,
+--     t.transaction_id
+--     from public.inventory_units u
+--     join public.trade_in_records t on t.resulting_unit_id = u.id
+--     left join public.products p on p.id = u.product_id
+--    where u.product_id is not null;
+--
+-- resulting_unit_id adalah join yang tepat: setiap unit hasil trade-in punya
+-- tepat satu baris trade_in_records yang menunjuk balik ke unit itu, jadi
+-- unit inventaris biasa tidak ikut tertangkap. Bandingkan model_asli dengan
+-- katalog_terpasang; kalau keduanya memang sama, unit itu kebetulan benar
+-- dan tidak perlu disentuh.
+--
+-- Perbaikannya (JALANKAN SENDIRI setelah hasil di atas dicek):
+--
+--   update public.inventory_units u
+--      set product_id = null
+--     from public.trade_in_records t
+--    where t.resulting_unit_id = u.id
+--      and u.product_id is not null;
+--
+-- Setelah itu unit-unit tersebut hilang dari etalase publik, memang itu
+-- tujuannya, dan tetap bisa dicari lewat /portal/inventory berdasarkan IMEI.
+
+-- =============================================================================
+-- 2. v_public_inventory hanya menampilkan unit berkatalog
+-- =============================================================================
+-- Keputusan: unit trade-in disembunyikan dari etalase, bukan ditampilkan
+-- dengan merek/model fallback.
+--
+-- Alasannya: etalase publik adalah etalase jualan, dan kartu produknya butuh
+-- merek, model, spesifikasi, serta foto. Semua kolom itu milik products,
+-- yang tidak ada untuk unit trade-in. Kalau ditampilkan dengan teks
+-- fallback, pengunjung akan melihat kartu "Samsung / Galaxy S9" tanpa foto
+-- dan tanpa spesifikasi, dengan harga yang justru berasal dari taksiran
+-- trade-in yang diberikan ke pelanggan, bukan harga jual yang disetujui
+-- toko. Itu berisiko menjual barang dengan informasi yang salah dan tidak
+-- bisa diperbaiki tanpa membuat katalog palsu. Unit trade-in tetap bisa
+-- dijual, tapi lewat alur kasir, bukan lewat etalase publik.
+--
+-- Syarat u.product_id is not null sengaja ditulis eksplisit walau JOIN di
+-- atas sudah memblokir NULL, supaya niatnya terbaca dan tetap berlaku
+-- kalau JOIN someday diganti menjadi LEFT JOIN.
+create or replace view public.v_public_inventory
+with (security_invoker = true)
+as
+select p.brand,
+       p.model_name,
+       p.specs,
+       p.image_url,
+       p.official_images,
+       p.second_images,
+       u.condition,
+       u.selling_price,
+       u.created_at as unit_created_at,
+       p.id as product_id,
+       u.id as unit_id,
+       right(u.imei, 4) as imei_tail
+  from public.inventory_units u
+  join public.products p on p.id = u.product_id
+ where u.product_id is not null
+   and u.status = 'available'
+   and p.is_active;
+
+-- GRANT tidak perlu diulang: create or replace view mempertahankan hak akses
+-- yang sudah diberikan di 0002 (revoke all dari public/anon/authenticated,
+-- lalu grant select ke service_role), dan daftar kolom view ini tidak berubah.
+-- ###########################################################################
+
 -- ###########################################################################

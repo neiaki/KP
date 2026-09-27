@@ -58,6 +58,10 @@ const SECTIONS: { label: string; source: string }[] = [
     label: "20260927170000_demo_ticket_for_tracking_example",
     source: "20260927170000_demo_ticket_for_tracking_example.sql",
   },
+  {
+    label: "20260927180000_nullable_inventory_unit_product",
+    source: "20260927180000_nullable_inventory_unit_product.sql",
+  },
 ];
 
 /** Migrasi yang sudah ada sebelum file gabungan dibuat, jadi tidak ada di dalamnya. */
