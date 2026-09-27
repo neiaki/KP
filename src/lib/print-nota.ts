@@ -119,6 +119,12 @@ export function buildPosNotaHtml(params: {
   date: string;
   customerName: string;
   unitModel: string;
+  /**
+   * False kalau nama model unit tidak berasal dari data, melainkan teks
+   * fallback unitLabel(). Default true supaya pemanggil yang tidak punya
+   * masalah ini tidak ikut berubah perilakunya.
+   */
+  unitModelKnown?: boolean;
   imei: string;
   warrantyMonths: number;
   tradeInModel?: string;
@@ -147,10 +153,19 @@ export function buildPosNotaHtml(params: {
     "</td></tr>" +
     "<tr><td>Unit</td><td>" +
     esc(params.unitModel) +
+    // Model tebakan tidak boleh berdiri sendiri di dokumen garansi. Dinyatakan
+    // apa adanya, dan nama field-nya dikecilkan supaya jelas itu pelengkap,
+    // bukan identitas unit.
+    (params.unitModelKnown === false
+      ? '<br><span style="font-weight:normal;font-size:10px">' +
+        "nama model tidak tercatat di katalog toko</span>"
+      : "") +
     "</td></tr>" +
-    "<tr><td>IMEI</td><td class=\"mono\">" +
+    // IMEI yang jadi penanda sah unit, jadi diberi penekanan eksplisit:
+    // labelnya menyatakan perannya, dan angkanya dibungkus strong.
+    "<tr><td>IMEI (kode unit, penanda sah)</td><td class=\"mono\"><strong>" +
     esc(params.imei) +
-    "</td></tr>" +
+    "</strong></td></tr>" +
     "<tr><td>Garansi toko</td><td>" +
     esc(params.warrantyMonths) +
     " bulan</td></tr>" +
@@ -162,7 +177,9 @@ export function buildPosNotaHtml(params: {
     esc(formatIDR(params.total)) +
     "</td></tr>" +
     "</table><hr>" +
-    "<p class=\"foot\">Simpan nota ini sebagai bukti garansi.<br>IMEI di unit wajib sama dengan di nota.</p>"
+    "<p class=\"foot\">Simpan nota ini sebagai bukti garansi.<br>" +
+    "IMEI di unit wajib sama dengan di nota. IMEI adalah penanda sah unit ini; " +
+    "nama model di atas bersifat keterangan saja.</p>"
   );
 }
 

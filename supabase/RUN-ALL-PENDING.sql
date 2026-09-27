@@ -1061,9 +1061,18 @@ comment on column public.inventory_units.product_id is
 --
 --   update public.inventory_units u
 --      set product_id = null
---     from public.trade_in_records t
+--     from public.trade_in_records t, public.products p
 --    where t.resulting_unit_id = u.id
---      and u.product_id is not null;
+--      and p.id = u.product_id
+--      and u.product_id is not null
+--      and lower(p.brand || ' ' || p.model_name)
+--          is distinct from lower(t.original_brand_model);
+--
+-- Syarat terakhir itu wajib, bukan hiasan. Tanpa itu pernyataan ini memakai
+-- setiap unit hasil trade-in, termasuk unit yang katalognya sudah benar, jadi
+-- operator yang menjalankan persis seperti tertulis justru memutus tautan
+-- katalog stok second yang masih layak jual. Kedua sisi dinormalisasi huruf
+-- kecil supaya beda kapital tidak salah dinilai sebagai "salah".
 --
 -- Setelah itu unit-unit tersebut hilang dari etalase publik, memang itu
 -- tujuannya, dan tetap bisa dicari lewat /portal/inventory berdasarkan IMEI.
