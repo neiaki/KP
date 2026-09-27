@@ -15,6 +15,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `DEPLOYMENT-REDUNDANCY.md` | Runbook Coolify, Supabase, health check, backup, dan rollout | **Acuan operasional** |
 | `VPS-HARDENING.md` | Catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan | **Acuan operasional** |
 | `SECRET-ROTATION.md` | Urutan mengganti secret yang pernah bocor, lengkap dengan verifikasi | **Acuan operasional** |
+| `CSP.md` | Cara kerja Content-Security-Policy berbasis nonce, daftar directive yang dipakai, dan alasan setiap keputusan | **Acuan keamanan** |
 
 ## Diagram
 
@@ -40,3 +41,6 @@ plantuml -tpng -tsvg docs/*.puml
 - `tests/deployment-runbook.test.ts` menjaga isi runbook deployment tetap sinkron
   dengan `supabase/migrations/`, dan `tests/docs-index.test.ts` menjaga tabel di
   file ini tetap memuat seluruh dokumen yang ada.
+- `tests/csp-doc.test.ts` menjaga `CSP.md` tetap sinkron dengan
+  `src/lib/csp.ts`, supaya penjaga kebijakan tidak bisa dibenarkan sebagai
+  dokumentasi yang sudah basi.
