@@ -1,0 +1,115 @@
+/*
+ * Content-Security-Policy dalam satu tempat.
+ *
+ * Modul ini murni: tidak mengimpor next/server maupun next/headers, sehingga
+ * bisa diuji langsung dengan runner test bawaan Node tanpa menjalankan dev
+ * server. Proxy memanggilnya lalu memasang hasilnya sebagai header respons dan
+ * juga sebagai header request, karena Next.js membaca nonce dari header
+ * request ketika merender.
+ */
+
+/*
+ * Host yang boleh dimuat oleh halaman. Semuanya ditulis utuh, bukan dari
+ * pola, supaya mudah diaudit: satu kali baca cukup untuk melihat semua asal
+ * daya yang diizinkan.
+ */
+const ASAL_GAMBAR_MEJA = "https://cdn.simpleicons.org";
+const ASAL_GAMBAR_CONTOH = "https://images.unsplash.com";
+const ASAL_PETA_EMBED = "https://www.google.com";
+
+export type CspOptions = {
+  /*
+   * Nonce per permintaan. Kalau kosong, kebijakan turun ke mode longgar
+   * (lihat buildContentSecurityPolicy) supaya halaman yang tidak sempat
+   * dirender dinamis tidak ikut mati. Halaman yang gagal tampil lebih buruk
+   * daripada halaman yang tampil dengan perlindungan separuh.
+   */
+  nonce?: string | null;
+  isDevelopment?: boolean;
+  /* URL project Supabase, dipakai untuk host Storage. */
+  supabaseUrl?: string | null;
+};
+
+/*
+ * Host Storage diambil dari env, bukan ditulis mati, supaya kalau project
+ * Supabase diganti tidak ada host lama yang tertinggal di dalam kebijakan.
+ * Bucket foto produk dan foto tiket berada di host yang sama dengan project.
+ */
+function hostStorage(supabaseUrl?: string | null): string | null {
+  if (!supabaseUrl) return null;
+  try {
+    return new URL(supabaseUrl).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/*
+ * Nonce dibuat dari UUID lalu di-base64. btoa dipakai, bukan Buffer, supaya
+ * baris ini tetap jalan kalau proxy nanti diganti runtime edge.
+ */
+export function createNonce(): string {
+  return btoa(crypto.randomUUID());
+}
+
+export function buildContentSecurityPolicy({
+  nonce,
+  isDevelopment = false,
+  supabaseUrl,
+}: CspOptions = {}): string {
+  const storage = hostStorage(supabaseUrl);
+
+  /*
+   * script-src punya dua mode. Kalau nonce tersedia, hanya skrip ber-nonce
+   * yang boleh jalan, dan strict-dynamic membuat browser ikut mempercayai
+   * skrip yang dimuat oleh skrip itu, sehingga daftar host tidak perlu
+   * dipercaya dan tidak perlu menebak asal lain. Kalau nonce tidak ada,
+   * halaman masih tampil memakai mode longgar, karena lebih baik tampil
+   * dengan perlindungan separuh daripada tidak tampil sama sekali.
+   */
+  const scriptSrc = nonce
+    ? [
+        "'self'",
+        `'nonce-${nonce}'`,
+        "'strict-dynamic'",
+        ...(isDevelopment ? ["'unsafe-eval'"] : []),
+      ]
+    : ["'self'", "'unsafe-inline'", ...(isDevelopment ? ["'unsafe-eval'"] : [])];
+
+  const imgSrc = [
+    "'self'",
+    "data:",
+    "blob:",
+    ASAL_GAMBAR_MEJA,
+    ASAL_GAMBAR_CONTOH,
+    ...(storage ? [`https://${storage}`] : []),
+  ];
+
+  /*
+   * upgrade-insecure-requests sengaja tidak dipakai. HSTS dengan preload di
+   * next.config.ts sudah lebih kuat, sedangkan directive ini justru merusak
+   * `next start` lokal yang berjalan di http, karena browser akan menaikkan
+   * setiap alamat http menjadi https lalu gagal terhubung.
+   */
+  const directives: Record<string, string[]> = {
+    "default-src": ["'self'"],
+    "base-uri": ["'self'"],
+    "object-src": ["'none'"],
+    "frame-ancestors": ["'none'"],
+    "form-action": ["'self'"],
+    "script-src": scriptSrc,
+    "script-src-attr": ["'none'"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "img-src": imgSrc,
+    "font-src": ["'self'"],
+    "connect-src": ["'self'"],
+    "frame-src": [ASAL_PETA_EMBED],
+    "media-src": ["'self'"],
+    "manifest-src": ["'self'"],
+    "worker-src": ["'self'", "blob:"],
+  };
+
+  return Object.entries(directives)
+    .map(([nama, nilai]) => `${nama} ${nilai.join(" ")}`)
+    .join("; ");
+}
