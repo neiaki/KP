@@ -63,6 +63,7 @@ test("dokumen acuan ditautkan dari README root", () => {
     "requirement-2.0.md",
     "DEPLOYMENT-REDUNDANCY.md",
     "SECRET-ROTATION.md",
+    "CSP.md",
   ];
   const hilang = aktif.filter((n) => !readme.includes(`docs/${n}`));
   assert.deepEqual(
