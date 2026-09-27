@@ -190,15 +190,39 @@ test("robots tidak menutup halaman publik", () => {
   }
 });
 
-test("robots memblokir hanya halaman staf, dan login tetap di luar sitemap", () => {
+test("robots memblokir hanya portal, dan halaman login di-crawl agar noindex-nya terbaca", () => {
   const single = robots().rules as { disallow?: string | string[] };
   const disallowed = (
     Array.isArray(single.disallow) ? single.disallow : [single.disallow ?? ""]
   ).filter(Boolean);
 
   assert.ok(disallowed.includes("/portal/"));
-  assert.ok(disallowed.includes("/id/login"));
-  assert.ok(disallowed.includes("/en/login"));
+
+  // Login tidak boleh masuk Disallow. Google berhenti di robots.txt dan tidak
+  // pernah membaca tag noindex pada halaman yang tidak boleh di-crawl, jadi
+  // memblokirnya membuat niat de-index tidak pernah tereksekusi.
+  for (const locale of LOCALES) {
+    assert.equal(
+      disallowed.includes(`/${locale}/login`),
+      false,
+      `/${locale}/login harus boleh di-crawl supaya noindex-nya dibaca`
+    );
+  }
+
+  // De-index ditegakkan lewat meta robots, bukan lewat Disallow.
+  //
+  // Bentuk objeknya ikut diuji, bukan hanya nilai index/follow. Kalau
+  // buildLoginMetadata nanti diubah jadi robots: "noindex", perbandingan
+  // terhadap { index, follow } ini langsung gagal, sementara membaca
+  // propertinya langsung akan gagal compile karena tipe Metadata mengizinkan
+  // string maupun objek.
+  for (const locale of LOCALES) {
+    assert.deepEqual(
+      buildLoginMetadata(locale).robots,
+      { index: false, follow: true },
+      `/${locale}/login harus memakai objek robots: noindex, follow`
+    );
+  }
 
   const urls = sitemap().map((entry) => entry.url);
   for (const blocked of disallowed) {
@@ -206,6 +230,13 @@ test("robots memblokir hanya halaman staf, dan login tetap di luar sitemap", () 
       urls.some((url) => url.startsWith(SITE_ORIGIN + blocked)),
       false,
       `${blocked} tidak boleh masuk sitemap`
+    );
+  }
+  for (const locale of LOCALES) {
+    assert.equal(
+      urls.some((url) => url === `${SITE_ORIGIN}/${locale}/login`),
+      false,
+      `/${locale}/login tetap harus di luar sitemap`
     );
   }
 });
