@@ -103,12 +103,10 @@ Untuk demo lokal, environment Supabase dan `DATABASE_URL` boleh dibiarkan kosong
 Untuk menjalankan mode live:
 
 1. Buat project Supabase khusus At Cell.
-2. Jalankan migration berikut secara berurutan dari SQL Editor:
-   - `supabase/migrations/0001_atcell_schema.sql`
-   - `supabase/migrations/0002_harden_atcell_schema.sql`
-   - `supabase/migrations/0003_lock_legacy_helpers.sql`
-   - `supabase/migrations/20260925142137_align_schema_contract.sql`
-   - `supabase/migrations/20260926025406_index_public_foreign_keys.sql`
+2. Jalankan seluruh berkas di `supabase/migrations/` secara berurutan dari SQL
+   Editor, sesuai abjad nama berkasnya. Daftar lengkap ada di
+   `docs/DEPLOYMENT-REDUNDANCY.md`; jangan menyalin sebagian saja, karena
+   beberapa migrasi mengubah hasil migrasi sebelumnya.
 3. Isi environment pada `.env.local` atau secret manager platform:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` atau key anon lama
