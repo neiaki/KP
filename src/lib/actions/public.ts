@@ -7,12 +7,14 @@ import {
   products as productsTable,
   storeSettings,
 } from "@/db/schema";
+import type { Db } from "@/db/client";
 import type {
   InventoryUnit,
   Product,
   StoreSettings,
   UnitCondition,
 } from "@/types";
+import { attemptWithRetry, pesanError } from "@/lib/retry";
 import { backendOffline, fail, ok, toISO, toNumber, type ActionResult } from "./_helpers";
 import { mapStoreSettings } from "./_mappers";
 
@@ -157,14 +159,17 @@ export type PublicSnapshot = {
   inventoryUnits: InventoryUnit[];
 };
 
-/**
- * Snapshot minimum untuk komponen publik. View v_public_inventory tidak
- * pernah menyertakan purchase_cost, sehingga data ini aman untuk browser.
+/* Cadangan untuk galat tanpa pesan, misalnya TypeError dari balapan cache kolom. */
+const PESAN_GAGAL_SNAPSHOT = "Data publik sedang tidak dapat dimuat.";
+
+/*
+ * Satu kali pembacaan snapshot. Melempar galat, bukan mengembalikan
+ * ActionResult, supaya attemptWithRetry bisa membedakan pembacaan yang berhasil
+ * dengan pembacaan yang gagal. Kegagalan dari ketiga query jadi satu jalur
+ * lempar yang sama, sehingga semuanya bisa diulang dengan aturan yang sama.
  */
-export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>> {
-  const db = getDb();
-  if (!db) return backendOffline();
-  const snapshotResults = await Promise.all([
+async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
+  const [settingsResult, inventoryResult, productRows] = await Promise.all([
     getPublicStoreSettings(),
     getPublicInventory({ limit: 500 }),
     db
@@ -172,11 +177,9 @@ export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>>
       .from(productsTable)
       .where(eq(productsTable.isActive, true))
       .orderBy(productsTable.createdAt),
-  ]).catch(() => null);
-  if (!snapshotResults) return fail("Data publik sedang tidak dapat dimuat.");
-  const [settingsResult, inventoryResult, productRows] = snapshotResults;
-  if ("error" in settingsResult) return fail(settingsResult.error);
-  if ("error" in inventoryResult) return fail(inventoryResult.error);
+  ]);
+  if ("error" in settingsResult) throw new Error(settingsResult.error);
+  if ("error" in inventoryResult) throw new Error(inventoryResult.error);
 
   const productMap = new Map<number, Product>();
   for (const row of productRows) {
@@ -220,9 +223,29 @@ export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>>
     };
   });
 
-  return ok({
+  return {
     storeSettings: settingsResult.data,
     products: [...productMap.values()],
     inventoryUnits,
-  });
+  };
+}
+
+/**
+ * Snapshot minimum untuk komponen publik. View v_public_inventory tidak pernah
+ * menyertakan purchase_cost, sehingga data ini aman untuk browser.
+ *
+ * Pembacaan diulang sekali saat gagal. Tanpa itu, satu balapan antara dua
+ * pembacaan pertama yang berjalan bersamaan membuat seluruh etalase kosong:
+ * komponen publik membaca inventoryUnits.length sehingga landing page
+ * menulis "0 unit ada di toko", dan jam buka, telepon, serta alamat ikut
+ * kosong karena snapshot yang gagal dikosongkan semua. Gejalanya tidak terlihat
+ * dari halaman, hanya dari isi yang hilang, jadi lebih baik diulang sekali
+ * daripada diturunkan ke status gagal.
+ */
+export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>> {
+  const db = getDb();
+  if (!db) return backendOffline();
+  const hasil = await attemptWithRetry(() => bacaSnapshot(db));
+  if (!hasil.ok) return fail(pesanError(hasil.error, PESAN_GAGAL_SNAPSHOT));
+  return ok(hasil.value);
 }
