@@ -207,3 +207,54 @@ test("env yang opsional tapi dibaca kode tetap disebut di runbook", () => {
     `env ini dibaca kode tapi tidak disebut di runbook, fitur terkait akan mati tanpa pemberitahuan: ${hilang.join(", ")}`
   );
 });
+
+/*
+ * Bagian verifikasi etalase dijaga karena etalase kosong di HTML tidak pernah
+ * muncul sebagai halaman error. Statusnya 200, bentuknya tetap halaman toko,
+ * dan yang hilang hanya isi etalase, jadi tanpa pemeriksaan HTML yang
+ * disengaja tidak ada yang tahu Google dan pratinjau tautan WhatsApp membaca
+ * "0 unit".
+ */
+function bagian(judul: string): string {
+  const mulai = runbook.indexOf(judul);
+  assert.ok(mulai > 0, `runbook tidak punya bagian "${judul}"`);
+  const akhir = runbook.indexOf("\n## ", mulai + judul.length);
+  return runbook.slice(mulai, akhir === -1 ? undefined : akhir);
+}
+
+test("runbook punya bagian memeriksa etalase di HTML", () => {
+  const isi = bagian("### Verifikasi etalase di HTML");
+
+  // Etalase kosong harus bisa dikenali lewat bukti yang bisa diulang, bukan
+  // hanya deemed benar karena health check hijau.
+  for (const wajib of [
+    "v_public_inventory",
+    "loadLiveData",
+    "Data publik sedang tidak dapat dimuat",
+    "databaseSchemaReady",
+    "unit, harga",
+  ]) {
+    assert.ok(
+      isi.includes(wajib),
+      `bagian verifikasi etalase harus menyebut ${wajib}`
+    );
+  }
+
+  // Bagian ini harus menempel pada langkah rilis, bukan berdiri sendiri di
+  // bagian yang tidak dibaca sebelum deploy.
+  const posisiRilis = runbook.indexOf("## Rilis yang aman");
+  const posisiBagian = runbook.indexOf("### Verifikasi etalase di HTML");
+  const posisiDns = runbook.indexOf("## DNS dan session");
+  assert.ok(posisiRilis >= 0 && posisiDns > posisiBagian, "urutan bagian salah");
+  assert.ok(posisiBagian > posisiRilis, "verifikasi etalase harus ada setelah langkah rilis");
+});
+
+test("runbook punya aturan satu proses Next.js untuk database yang sama", () => {
+  // Gejalanya menyesatkan: halaman publik menggantung sementara health check
+  // tetap hijau, sehingga orang menyimpulkan ada bug render, bukan rebutan
+  // koneksi.
+  const isi = bagian("### Verifikasi lokal memakai database yang sama");
+  for (const wajib of ["satu proses Next.js", "statement_timeout", "max"]) {
+    assert.ok(isi.includes(wajib), `bagian verifikasi lokal harus menyebut ${wajib}`);
+  }
+});
