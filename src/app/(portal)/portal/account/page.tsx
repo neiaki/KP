@@ -16,10 +16,13 @@ import {
   AlertCircle,
   ExternalLink,
   Barcode,
+  Phone,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { updateMyPhoneNumber } from "@/lib/actions/auth";
 
 export default function CustomerAccountPage() {
   const {
@@ -33,6 +36,39 @@ export default function CustomerAccountPage() {
   } = useStore();
 
   const displayName = currentProfile?.full_name ?? (isLiveBackend ? "Pelanggan" : "Anisa Rahmawati");
+
+  const storedPhone = currentProfile?.phone_number || "";
+  // Profil datang dari server setelah komponen ini mount, jadi nilainya bisa
+  // berubah di tengah hidup komponen. Nilai server dipakai langsung, dan
+  // phoneDraft hanya menyimpan ketikan yang belum disimpan.
+  //
+  // Dua cara lain sudah dicoba di file ini dan keduanya ditolak aturan
+  // react-hooks di repo ini: setState saat render, dan setState di dalam
+  // effect. Pola ini tidak butuh keduanya, dan karena draf dibuang setiap
+  // kali nilai server berubah, ketikan yang sedang berjalan tidak pernah
+  // ikut tertimpa.
+  const [phoneDraft, setPhoneDraft] = useState<string | null>(null);
+  const phoneInput = phoneDraft ?? storedPhone;
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+
+  const handleSavePhone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPhone(true);
+    setPhoneError(null);
+    setPhoneSaved(false);
+    const result = await updateMyPhoneNumber(phoneInput);
+    setSavingPhone(false);
+    if (!result.ok) {
+      setPhoneError(result.error);
+      return;
+    }
+    setPhoneSaved(true);
+    // Buang draf supaya input kembali ke nilai yang disimpan server, termasuk
+    // kalau server menormalisasi nomornya.
+    setPhoneDraft(null);
+  };
 
   // Find purchased units from transactions
   const purchasedItems = transactions.flatMap((tx) =>
@@ -120,6 +156,52 @@ export default function CustomerAccountPage() {
             <span>Cetak Kartu Garansi</span>
           </Button>
         </div>
+      </div>
+
+      {/* Kontak yang bisa dihubungi toko. Sekarang bisa diisi sendiri, dulu
+          tidak ada jalur sama sekali sehingga kolomnya selalu kosong. */}
+      <div className="print-area">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Phone className="w-4 h-4 text-accent" />
+              Nomor Kontak Saya
+            </CardTitle>
+            <CardDescription>
+              Dipakai toko saat ada yang perlu dikonfirmasi soal pembelian, tukar
+              tambah, atau servis HP Anda.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              onSubmit={handleSavePhone}
+              className="flex flex-col gap-2 sm:flex-row sm:items-end"
+            >
+              <div className="flex-1">
+                <label htmlFor="my-phone" className="block text-xs font-semibold text-muted mb-1">
+                  Nomor telepon atau WhatsApp
+                </label>
+                <Input
+                  id="my-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneDraft(e.target.value)}
+                  placeholder={currentProfile?.phone_number || "Contoh: 0812-3456-7890"}
+                  className="font-mono"
+                />
+              </div>
+              <Button type="submit" disabled={savingPhone || !isLiveBackend} className="text-xs">
+                {savingPhone ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </form>
+            {phoneError ? (
+              <p className="mt-2 text-xs text-bad">{phoneError}</p>
+            ) : phoneSaved ? (
+              <p className="mt-2 text-xs text-good">Nomor kontak tersimpan.</p>
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
 
       {/* 1. Purchased Handphones & Warranty Countdown */}

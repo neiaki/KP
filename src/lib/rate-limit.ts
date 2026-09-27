@@ -76,6 +76,72 @@ export function consumeRateLimit(
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Login dan pendaftaran                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Batas percobaan untuk endpoint kredensial (login portal dan pendaftaran
+ * pelanggan). Jauh lebih longgar daripada kuota lacak resi karena kredensial
+ * asli sering diketik ulang, tapi cukup rapat untuk membuat tebak password
+ * satu per satu tidak layak.
+ */
+export const CREDENTIAL_ATTEMPT_LIMIT = 10;
+export const CREDENTIAL_ATTEMPT_WINDOW_MS = 5 * 60_000;
+/**
+ * Lapisan kedua untuk penyerang yang memakai banyak username. Tanpa ini,
+ * memutar username memberi bucket baru tiap giliran dan kuota per
+ * username/IP jadi tidak berarti. Angkanya sengaja jauh di atas kuota per
+ * pasangan supaya satu orang yang salah ketik berkali-kali tidak ikut
+ * mengunci tukang tokonya sendiri.
+ */
+export const CREDENTIAL_IP_LIMIT = 40;
+export const CREDENTIAL_IP_WINDOW_MS = 5 * 60_000;
+
+export type CredentialThrottle = { allowed: true } | {
+  allowed: false;
+  retryAfterSeconds: number;
+};
+
+/**
+ * Catat satu percobaan kredensial lalu kembalikan apakah boleh lewat.
+ *
+ * `identifier` adalah username atau email yang dikirim, bukan hasil
+ * pencarian. Kunci bucket dibentuk dari IP + identifier, jadi satu penyerang
+ * tidak bisa mengunci seluruh toko: dia hanya mengunci kombinasi
+ * IP + username miliknya sendiri.
+ *
+ * Fungsi ini tidak menerima apa pun tentang apakah username itu ada, dan
+ * pemanggilnya harus memanggilnya SEBELUM mencari profil. Kalau kuota baru
+ * dipotong setelah username ketemu, pesan "terlalu banyak percobaan"
+ * berubah jadi jawaban ya/tidak untuk "apakah username ini ada", dan
+ * pesan galat yang selama ini dijaga sama untuk semua kegagalan jadi tidak
+ * berguna.
+ */
+export function consumeCredentialAttempt(
+  clientId: string,
+  identifier: string
+): CredentialThrottle {
+  // Header IP yang hilang membuat semua permintaan memakai satu kunci. Itu
+  // membuat batas lebih ketat, bukan lebih longgar, dan tidak bisa dipakai
+  // untuk melewati limit.
+  const ip = clientId.trim() || "unknown";
+  const who = identifier.trim().toLowerCase();
+  const pair = consumeRateLimit(
+    `cred-ip-user:${ip}:${who}`,
+    CREDENTIAL_ATTEMPT_LIMIT,
+    CREDENTIAL_ATTEMPT_WINDOW_MS
+  );
+  if (!pair.allowed) return { allowed: false, retryAfterSeconds: pair.retryAfterSeconds };
+  const perIp = consumeRateLimit(
+    `cred-ip:${ip}`,
+    CREDENTIAL_IP_LIMIT,
+    CREDENTIAL_IP_WINDOW_MS
+  );
+  if (!perIp.allowed) return { allowed: false, retryAfterSeconds: perIp.retryAfterSeconds };
+  return { allowed: true };
+}
+
 /** Hanya untuk test, membersihkan seluruh state rate limit. */
 export function resetRateLimits(): void {
   buckets.clear();

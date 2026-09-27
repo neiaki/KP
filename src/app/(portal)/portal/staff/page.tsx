@@ -161,7 +161,18 @@ export default function StaffManagementPage() {
             <CardContent className="p-4 space-y-2 text-xs">
               <div className="flex justify-between text-muted">
                 <span>Kontak Telepon:</span>
-                <span className="font-mono text-ink">{staf.phone_number || "-"}</span>
+                <span className="font-mono text-ink">
+                  {staf.phone_number ? (
+                    staf.phone_number
+                  ) : (
+                    <span
+                      className="font-sans font-normal text-muted"
+                      title="Nomor bisa diisi sendiri oleh pemiliknya lewat portal/account."
+                    >
+                      belum diisi
+                    </span>
+                  )}
+                </span>
               </div>
               <div className="flex justify-between text-muted">
                 <span>Status Akun:</span>
