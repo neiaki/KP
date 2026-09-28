@@ -1,6 +1,7 @@
 "use client";
 
 import React, { type CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { translations, Locale } from "@/lib/translations";
@@ -287,10 +288,12 @@ export function PublicFooter({ locale }: { locale: Locale }) {
                    menghilangkannya di footer terang, jadi logo diletakkan
                    di chip putih yang sama di kedua mode. */
                 <span className="flex h-4 items-center rounded-sm bg-white px-1">
-                  <img
+                  <Image
+                    width={40}
+                    height={12}
+                    unoptimized
                     src={m.logo}
                     alt="Logo QRIS"
-                    loading="lazy"
                     className="h-3 w-auto"
                   />
                 </span>

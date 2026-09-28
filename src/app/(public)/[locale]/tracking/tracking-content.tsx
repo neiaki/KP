@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
@@ -79,12 +80,23 @@ export function Lightbox({
         aria-label={`${locale === "en" ? "Photo" : "Foto"} ${index + 1} ${locale === "en" ? "of" : "dari"} ${photos.length} (${ticketCode})`}
         className="relative w-full max-w-3xl"
       >
-        <img
-          key={photos[index]}
-          src={photos[index]}
-          alt={`${locale === "en" ? "Repair documentation" : "Dokumentasi servis"} ${index + 1}`}
-          className="max-h-[80vh] w-full rounded-xl object-contain"
-        />
+        <div className="relative aspect-[4/3] w-full">
+          <Image
+            key={photos[index]}
+            fill
+            // Dialog ini max-w-3xl (768 px), bukan selebar layar. sizes
+            // 100vw membuat browser mengunduh turunan 2 sampai 3 kali lebih
+            // besar dari yang pernah ditampilkan.
+            sizes="(max-width: 768px) 100vw, 768px"
+            src={photos[index]}
+            alt={`${locale === "en" ? "Repair documentation" : "Dokumentasi servis"} ${index + 1}`}
+            // object-contain dengan rasio 4/3 di wrapper: foto servis bisa
+            // potret atau landscape. Wrapper menjaga proporsi, object-contain
+            // menjaga isi foto utuh tanpa terpotong. Batas 80vh dipasang di
+            // wrapper supaya layar pendek tidak membuat halaman bisa digulir.
+            className="rounded-xl object-contain"
+          />
+        </div>
         <div className="mt-3 flex items-center justify-between gap-2">
           <p className="font-mono text-xs font-bold text-white">
             {index + 1} / {photos.length}
@@ -515,12 +527,19 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                               ? `Enlarge photo ${i + 1} of ${activeTicket.photo_urls.length}`
                               : `Perbesar foto ${i + 1} dari ${activeTicket.photo_urls.length}`
                           }
-                          className="group h-36 cursor-zoom-in overflow-hidden rounded-lg border border-line bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          className="group relative h-36 cursor-zoom-in overflow-hidden rounded-lg border border-line bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         >
-                          <img
+                          <Image
+                            fill
+                            // 144px itu tinggi thumbnail, bukan lebarnya.
+                            // Lebar sebenarnya mengikuti grid: satu kolom di
+                            // layar sempit, tiga di lebar penuh card
+                            // max-w-4xl. Salah di sini membuat browser
+                            // mengunduh turunan kecil lalu memperbesar,
+                            // dan hasilnya buram tepat di layar besar.
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                             src={photo}
                             alt={locale === "en" ? `Repair documentation ${i + 1}` : `Dokumentasi servis ${i + 1}`}
-                            loading="lazy"
                             className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] group-active:scale-100"
                           />
                         </button>

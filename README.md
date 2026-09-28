@@ -82,14 +82,15 @@ flowchart LR
 
 | Teknologi | Versi atau penggunaan |
 |-----------|----------------------|
-| Next.js | `16.3.5`, App Router dan Server Actions |
+| Next.js | `16.3.6`, App Router dan Server Actions |
 | React | `19.2.8` |
 | TypeScript | Mode strict |
 | Tailwind CSS | `4` |
 | Supabase | PostgreSQL, Auth, SSR, dan Storage |
 | Drizzle ORM | Skema dan akses PostgreSQL sisi server |
-| React Hook Form + Zod | Form dan validasi input |
+| Zod | Validasi input di Server Action (`src/lib/validations.ts`) |
 | Node.js Test Runner | Test keamanan, migrasi, backup, health, dan validasi |
+| Sentry | Pelacakan galat production, opsional lewat `SENTRY_DSN` |
 | npm | Package manager repo |
 
 ## Menjalankan Secara Lokal
@@ -176,6 +177,53 @@ npm run build
 - `GET /api/health/ready` memeriksa environment, koneksi PostgreSQL, schema wajib, dan secret server.
 
 Endpoint `/ready` harus menjadi target health check Coolify. Respons `503` berarti deployment belum siap dan tidak boleh dialihkan ke data mock.
+
+Batas `/ready` perlu dipahami: endpoint itu memeriksa Supabase, konfigurasi
+database, jangkauan koneksi, schema wajib, dan secret server. Itupun tidak
+menangkap halaman yang bergantung pada data live tapi gagal dirender.
+`/id` pernah timeout sementara `/ready` tetap hijau, jadi health check ini
+menjawab "apakah prosesnya hidup dan database bisa dijangkau", bukan
+"apakah semua halaman berfungsi". Untuk jawaban kedua, lihat
+[Pelacakan Galat](#pelacakan-galat-sentry) dan monitor uptime eksternal.
+
+## Pelacakan Galat (Sentry)
+
+Sentry menangkap galat production dan mengirimkannya ke dashboard
+sentry.io. Opt-in lewat `SENTRY_DSN`: kalau kosong, `Sentry.init()` tidak
+dijalankan sama sekali, tidak ada request keluar, dan tidak ada biaya.
+
+| Berkas | Sisi | Yang diinisialisasi |
+|--------|------|---------------------|
+| `src/instrumentation.ts` | Server | SDK Node untuk Server Actions, Route Handlers, komponen server |
+| `src/instrumentation-client.ts` | Browser | SDK browser, sesi direkam hanya saat ada galat |
+
+Dua boundary galat Next.js sudah melapor: `src/app/error.tsx` untuk galat
+segmen, dan `src/app/global-error.tsx` untuk galat yang membuat root layout
+sendiri crash.
+
+Data pelanggan disaring sebelum keluar dari server: kode tiket servis di
+query string (yang membuat halaman lacak bisa dibuka tanpa login), body
+request, cookie, dan header `Authorization`. Sisi browser tidak menyaring
+nilai, hanya membuang event yang bukan milik aplikasi.
+
+Isi env di platform (Coolify):
+
+```text
+NEXT_PUBLIC_SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>
+SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>
+NEXT_PUBLIC_COMMIT_SHA=atcell-web@<commit>
+```
+
+Tanpa `NEXT_PUBLIC_COMMIT_SHA`, Sentry tetap melapor tetapi nomor versinya
+kosong sehingga galat dari beberapa deploy tercampur menjadi satu grup.
+Nilai itu diisi otomatis dari tag image Coolify (`sha-<commit>`) oleh langkah
+deploy di
+[`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md).
+
+Rekam sesi dan tracing performance sengaja dimatikan. At Cell melayani
+pengunjung etalase yang luas, sementara yang perlu ditelusuri saat ada
+masalah adalah alur portal staf, jadi tidak ada alasan bisnis merekam
+navigasi rutin.
 
 ## Backup dan Restore
 

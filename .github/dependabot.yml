@@ -1,0 +1,75 @@
+# Dependabot untuk At Cell.
+#
+# security.yml sudah menjalankan `npm audit --audit-level=high` setiap Senin
+# dan memindai lockfile terhadap OSV. Yang belum ada sebelumnya adalah bagian
+# yang membuka PR pembaruan: tanpa file ini, advisory baru hanya dilaporkan
+# sebagai job yang gagal, dan tidak ada yang menghasilkan diff untuk ditinjau.
+#
+# Batas jumlah PR terbuka sengaja rendah (5 untuk npm). Dependabot membuka PR
+# untuk setiap rantai langsung, dan tanpa batas itu satu update esbuild atau
+# drizzle-kit bisa memakan seluruh antrean review.
+version: 2
+
+updates:
+  # Single-source repo: hanya ada package.json di root, tidak ada workspace.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      # Senin, 4 menit sebelum jadwal security.yml (03.37 UTC). PR week's
+      # opened sedikit lebih dulu supaya lockfile yang kemudian dipindai
+      # security.yml sudah memuat versi yang baru.
+      interval: weekly
+      day: monday
+      time: "03:30"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+    groups:
+      # Next.js, React, dan eslint-config-next harus naik bersamaan:
+      # memisahkan mereka menghasilkan CI gagal karena peer dependency.
+      next-ecosystem:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+      react-ecosystem:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      # Toolchain styling dan ORM rides dapat satu PR karena sama-sama
+      # sering punya dependensi bersama.
+      styling-and-orm:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/postcss"
+          - "drizzle-orm"
+          - "drizzle-kit"
+      # Temuan moderate terhadap rantai dev (GHSA-67mh-4wv8-2f99 di esbuild
+      # yang ditarik drizzle-kit) hanya bisa hilang kalau drizzle-kit naik ke
+      # major yang menghapus @esbuild-kit. Kelompokkan supaya PR itu terlihat
+      # sebagai satu perubahan yang bisa diuji, bukan beberapa PR terpisah
+      # yang saling menunggu.
+      dev-toolchain:
+        dependency-type: development
+        patterns:
+          - "*"
+
+  # GitHub Actions. Workflow di repo memakai tag mayor (@v4), yang bisa naik
+  # ke versi mayor baru tanpa ada commit di repo.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:30"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - dependencies
+      - ci

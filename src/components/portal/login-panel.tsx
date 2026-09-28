@@ -21,6 +21,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signInWithUsername } from "@/lib/actions/auth";
+import { defaultPortalPath } from "@/lib/access";
+import { resolveLoginDestination } from "@/lib/login-redirect";
 
 type DemoAccount = {
   role: UserRole;
@@ -104,6 +106,11 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     e.preventDefault();
     setLoginError(null);
 
+    // Halaman yang ingin dibuka staf sebelum dipantulkan ke sini ditulis
+    // src/proxy.ts sebagai ?next=. Nilainya dibaca langsung dari address bar
+    // supaya yang memutuskan tujuan adalah penjaga di src/lib/login-redirect.ts.
+    const next = new URLSearchParams(window.location.search).get("next");
+
     if (isLiveBackend) {
       setSubmitting(true);
       try {
@@ -112,7 +119,9 @@ export function LoginPanel({ locale }: { locale: Locale }) {
           setLoginError(result.error);
           return;
         }
-        router.push(result.data.redirectTo);
+        router.push(
+          resolveLoginDestination(next, result.data.role, result.data.redirectTo)
+        );
         router.refresh();
       } catch {
         // String yang sama persis dengan fallback di src/lib/actions/auth.ts
@@ -126,10 +135,9 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     }
 
     switchRole(selectedRole);
-    if (selectedRole === "admin") router.push("/portal/dashboard");
-    else if (selectedRole === "sales") router.push("/portal/pos");
-    else if (selectedRole === "technician") router.push("/portal/service");
-    else router.push("/portal/account");
+    router.push(
+      resolveLoginDestination(next, selectedRole, defaultPortalPath(selectedRole))
+    );
   };
 
   // Input email/password rawan diinjeksi DOM oleh ekstensi browser

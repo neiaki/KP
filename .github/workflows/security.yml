@@ -1,0 +1,110 @@
+name: Security
+
+# Pemeriksaan keamanan dependensi.
+#
+# Dois workflow yang ada hanya berjalan saat ada push ke main, jadi lockfile
+# yang tidak berubah tidak pernah dipindai ulang. Advisory baru terhadap versi
+# yang sudah dipin tidak akan pernah terlihat tanpa commit baru. Jadwal
+# mingguan di bawah menutup celah itu.
+
+on:
+  schedule:
+    # Senin 03.37 UTC. Dipilih karena:
+    # - menit 37 tidak menabrak cron backup VPS (02.17) maupun sinkronisasi
+    #   standby (03.17, 09.17, 15.17, 21.17) yang semuanya di menit 17;
+    # - bukan menit 0, jadi tidak ikut antrean jadwal Github Actions yang
+    #   menumpuk di awal jam;
+    # - setelah Dependabot membuka PR versi mingguan, sehingga lockfile yang
+    #   dipindai sudah mencakup versi yang baru.
+    - cron: "37 3 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/dependabot.yml
+      - .github/workflows/security.yml
+
+# Workflow ini hanya boleh membaca isi repo. Tidak ada hak tulis package dan
+# tidak ada akses secrets, jadi tidak mungkin mendorong image dari sini.
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Flag yang sama dengan workflow Build Image, dipakai karena lockfile
+      # bisa memuat kombinasi peer dependency yang menolak resolusi ketat.
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      # Langkah ini ada karena GHSA-vcvr-r3jv-pc5j (CVE-2026-94545, RCE di
+      # next/og ImageResponse) tidak ada di feed advisory npm maupun di
+      # database OSV. npm audit dan OSV tidak akan pernah melaporkannya, jadi
+      # batas versi di bawah wajib dicek manual. Bandingkan per komponen
+      # angka, bukan string, supaya 16.3.10 tidak dianggap lebih kecil dari
+      # 16.3.6.
+      - name: Check next version floor
+        run: |
+          current="$(node -p 'require("next/package.json").version')"
+          node -e '
+            const FLOOR = "16.3.6";
+            const version = process.argv[1];
+            const parse = (value) => {
+              const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(String(value).trim());
+              if (match === null) {
+                return null;
+              }
+              return {
+                core: [Number(match[1]), Number(match[2]), Number(match[3])],
+                pre: match[4] !== undefined,
+              };
+            };
+            const below = (a, b) => {
+              for (let i = 0; i < 3; i += 1) {
+                if (a.core[i] !== b.core[i]) {
+                  return a.core[i] < b.core[i];
+                }
+              }
+              return a.pre && !b.pre;
+            };
+            const installed = parse(version);
+            if (installed === null) {
+              console.error("next: versi tidak bisa dibaca: " + version);
+              process.exit(1);
+            }
+            if (below(installed, parse(FLOOR))) {
+              console.error(
+                "next " + version + " di bawah batas aman " + FLOOR +
+                ". Naikkan ke minimal " + FLOOR + " lalu ulangi langkah ini."
+              );
+              process.exit(1);
+            }
+            console.log("next " + version + " memenuhi batas " + FLOOR + ".");
+          ' "$current"
+
+      # Lapisan kedua, hanya laporan, belum menggagalkan job. Scan kunci tidak
+      # butuh token, hanya akses baca ke database OSV publik. Diletakkan di
+      # sini sebagai bell, bukan pagar, karena lockfile masih menyimpan 4
+      # temuan moderate dari rantai dev drizzle-kit.
+      - name: Scan lockfile against OSV
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json

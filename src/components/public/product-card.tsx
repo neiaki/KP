@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { formatIDR } from "@/lib/utils";
 import { MessageCircle, ArrowLeftRight, Check, BadgeCheck, CreditCard, ChevronLeft, ChevronRight, Flame, Smartphone } from "lucide-react";
 import { ButtonLink } from "@/components/button-link";
@@ -69,12 +70,21 @@ export function ProductCard({
           </div>
         )}
         {gallery.length > 0 && (
-          <img
+          // Foto produk adalah gambar dengan byte terbesar di situs ini
+          // (galeri penuh public/products/ mencapai 5,4 MB), jadi ini yang
+          // paling diuntungkan optimizer: browser menerima turunan sesuai
+          // lebar layar, bukan file 300 sampai 460 KB apa adanya.
+          //
+          // src bisa berupa path lokal (/products/...) atau URL absolut dari
+          // Supabase Storage. Keduanya didukung remotePatterns di
+          // next.config.ts.
+          <Image
             key={gallery[current]}
             src={gallery[current]}
             alt={`${item.brand} ${item.modelName} foto ${current + 1} dari ${gallery.length}`}
-            loading="lazy"
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-cover"
           />
         )}
         {gallery.length > 1 && (
