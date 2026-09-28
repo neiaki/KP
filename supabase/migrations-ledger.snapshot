@@ -1,0 +1,44 @@
+# Snapshot ledger migrasi production At Cell.
+#
+# Berkas ini adalah SALINAN nilai yang ada di
+# supabase_migrations.schema_migrations pada database production ketika
+# snapshot ini diambil. Job database-tests memakainya untuk mengisi ledger
+# pada PostgreSQL sementara di CI, lalu tests/migration-ledger.test.ts
+# membandingkan ledger itu dengan nama berkas di supabase/migrations/.
+#
+# Kenapa perlu snapshot, dan kenapa tidak cukup mengisi ledger langsung dari
+# nama berkas: kalau ledger dibangun dengan iterasi atas glob berkas yang
+# sama persis dengan yang dibaca test, tidak ada yang bisa gagal. Testnya
+# hanya akan membuktikan bahwa bash bisa menyalin nama berkas ke database,
+# sedangkan masalah yang sebenarnya adalah "versi di ledger production tidak
+# punya berkas" atau "berkas tidak tercatat". Snapshot yang di-check-in
+# membuat test itu benar-benar bisa merah: begitu ada migrasi baru yang belum
+# di-seed di sini, atau versi lama yang hilang dari ledger production, job
+# gagal.
+#
+# Cara memperbarui setelah menambah migrasi:
+#   psql "$DATABASE_URL" -tAc \
+#     "select version || '|' || name from supabase_migrations.schema_migrations order by version"
+# lalu salin hasilnya ke bawah. Kalau migrasi belum ada di production, JANGAN
+# ditambah di sini: biarkan job CI yang memberi tahu, atau tambahkan ke
+# production lebih dulu sesuai langkah di docs/DEPLOYMENT-REDUNDANCY.md.
+#
+# Format: satu versi per baris, dipisah tab. Baris komentar dan baris kosong
+# diabaikan.
+0001	atcell_schema
+0002	harden_atcell_schema
+0003	lock_legacy_helpers
+0004	align_schema_contract
+0005	username_login
+0006	store_social_urls
+0007	audit_trail
+20260926025406	index_public_foreign_keys
+20260926103000	strengthen_ticket_codes
+20260927120000	auto_enable_rls_on_new_tables
+20260927130000	product_image_registry
+20260927140000	store_owner_and_real_contact
+20260927150000	revoke_anon_write_on_product_images
+20260927160000	harden_storage_access
+20260927170000	demo_ticket_for_tracking_example
+20260927180000	nullable_inventory_unit_product
+20260927190000	close_browser_role_write_grants

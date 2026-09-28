@@ -31,7 +31,7 @@ const securityHeaders = [
     : []),
 ];
 
-// Foto produk kini diambil dari Supabase Storage (bucket product-images), bukan
+// Foto produk diambil dari Supabase Storage (bucket product-images), bukan
 // file lokal di public/. Host Storage dihitung dari env, bukan ditulis mati,
 // supaya tidak ikut bocor ke repo kalau project Supabase diganti.
 const supabaseStorageHost = (() => {
@@ -44,22 +44,52 @@ const supabaseStorageHost = (() => {
   }
 })();
 
+/*
+ * Host lain yang boleh dilayani optimizer.
+ *
+ * images.unsplash.com muncul di photo_urls tiket servis pada data demo
+ * (src/lib/mock-data.ts). Foto produk punya filter sendiri di
+ * src/lib/shop.ts yang membuang URL placeholder, tapi photo_urls tiket tidak
+ * lewat filter itu, jadi tanpa daftar di sini optimizer menjawab 400 dan
+ * foto rusak tepat di mode demo lokal, yaitu mode default saat env Supabase
+ * kosong.
+ *
+ * Daftar ditulis utuh supaya satu kali baca cukup untuk melihat semua asal
+ * daya yang diizinkan, sama seperti src/lib/csp.ts.
+ */
+const remotePatterns = [
+  ...(supabaseStorageHost
+    ? [
+        {
+          protocol: "https" as const,
+          hostname: supabaseStorageHost,
+          pathname: "/storage/v1/object/public/product-images/**",
+        },
+      ]
+    : []),
+  {
+    protocol: "https" as const,
+    hostname: "images.unsplash.com",
+    pathname: "/**",
+  },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  ...(supabaseStorageHost
-    ? {
-        images: {
-          remotePatterns: [
-            {
-              protocol: "https" as const,
-              hostname: supabaseStorageHost,
-              pathname: "/storage/v1/object/public/product-images/**",
-            },
-          ],
-        },
-      }
-    : {}),
+  // Key images selalu ditulis, walau daemonnya kosong. Kalau bloknya
+  // dikondisikan seperti sebelumnya, environment tanpa NEXT_PUBLIC_SUPABASE_URL
+  // kehilangan seluruh konfigurasi optimizer dan setiap URL absolut ditolak
+  // tanpa sebab yang jelas.
+  images: { remotePatterns },
   experimental: {
+    // 404 global. Aplikasi ini punya dua root layout, satu di route group
+    // (public) dan satu lagi di (portal), jadi tidak ada layout di src/app/
+    // yang bisa diwarisi route /_not-found. Tanpa flag ini Next.js merender
+    // 404 memakai layout bawaannya yang telanjang: HTML tanpa satu pun
+    // stylesheet, tanpa navbar, tanpa footer, dan tanpa font. Flag ini
+    // memindahkan route tersebut ke src/app/global-not-found.tsx, yang
+    // membawa chrome, font, dan token warnanya sendiri.
+    globalNotFound: true,
     // Prarender dibatasi ke dua halaman sekaligus. Default Next memakai jumlah
     // worker sesuai jumlah CPU, dan tiap worker adalah proses Node terpisah
     // yang memuat seluruh graf modul. Di mesin 23 GB yang sudah memakai

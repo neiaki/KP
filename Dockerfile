@@ -36,6 +36,21 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 # Batasi heap build supaya tidak keluar jalur heap default yang boros.
 ENV NODE_OPTIONS=--max-old-space-size=3072
+
+# Variabel NEXT_PUBLIC_* dibaca Next.js saat `next build` dan NILAI-NYA
+# dibekukan ke dalam bundle JavaScript. Kalau env ini tidak ada di tahap build,
+# process.env.NEXT_PUBLIC_SENTRY_DSN di src/instrumentation-client.ts akan
+# bernilai undefined saat browser memuat skrip, dan Sentry tidak akan pernah
+# menyala sama sekali di produksi meski DSN-nya sudah diisi di Coolify.
+#
+# Build Image workflow mengirim kedua nilai ini lewat build-args. Keduanya
+# kosong kalau belum diisi, dan kode sudah ditulis supaya env kosong berarti
+# Sentry dilewati tanpa error.
+ARG NEXT_PUBLIC_SENTRY_DSN=""
+ARG NEXT_PUBLIC_COMMIT_SHA=""
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
+
 RUN npm run build -- --webpack
 
 # ---------- runner ----------
