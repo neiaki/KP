@@ -1,0 +1,273 @@
+name: Database contract tests
+
+# Test yang butuh database sungguhan.
+#
+# Enam test di suite skipped selama `npm test` di CI karena mereka memakai
+# DATABASE_URL. Dua di antaranya menjaga hal yang tidak bisa dijaga test biasa:
+#
+#   migration-ledger  membandingkan supabase_migrations.schema_migrations
+#                     dengan nama file di supabase/migrations/. Ketidakcocokan
+#                     di sini membuat `supabase db push` ditolak dan check
+#                     Preview Supabase gagal tanpa penjelasan.
+#   audit-trail-db    menjalankan mutasi status sungguhan lalu membaca baris
+#                     audit yang ditulis trigger database. Menjalankannya
+#                     terhadap database kosong tidak akan menguji apa pun,
+#                     karena trigger-nya belum ada.
+#
+# Yang di bawah menjalankan keduanya di PostgreSQL polos. Ini BUKAN replika
+# Supabase: database di sini tidak punya Row Level Security, dan test yang
+# bergantung pada RLS tidak ikut dijalankan. Yang diuji adalah trigger,
+# fungsi, constraint, dan konsistensi ledger, yang semuanya ada di dalam
+# migrasi repo.
+#
+# Penting: database di sini dibuat dari nol setiap run, dan tidak pernah
+# menyentuh Supabase production. Garis DATABASE_URL dari step lain
+# disetel eksplisit ke localhost supaya tidak mungkin salah membaca kredensial
+# dari secret.
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "src/db/**"
+      - "src/lib/actions/**"
+      - "tests/**"
+      - "scripts/restore-target-bootstrap.sql"
+      - ".github/workflows/database-tests.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  database-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: atcell_test
+        ports:
+          - 5432:5432
+        # Health check wajib. Tanpa ini, step migrasi bisa mulai sebelum
+        # PostgreSQL siap menerima koneksi, dan hasilnya kelihatan seperti
+        # kegagalan migrasi.
+        options: >-
+          --health-cmd "pg_isready -U postgres -d atcell_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Bootstrap Supabase surface yang dipakai migrasi
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d atcell_test -v ON_ERROR_STOP=1 <<'SQL'
+          -- Migrasi repo menulis policy RLS yang merujuk roles dan fungsi
+          -- milik Supabase. PostgreSQL polos tidak punya satupun itu, jadi
+          -- perintah di bawah dibuat di sini supaya
+          -- migrasi bisa diterapkan. Auth dan Storage sengaja hanya
+          -- dibuat seperlunya: yang dipakai migrasi adalah auth.uid() dan
+          -- nama tabelnya, bukan implementasi Supabase sebenarnya.
+          create schema if not exists auth;
+          create schema if not exists storage;
+
+          do $$ begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin noinherit bypassrls;
+            end if;
+          end $$;
+
+          -- auth.users: hanya id dan email yang dibutuhkan trigger
+          -- handle_new_user. Bentuknya dibuat sama dengan versi Supabase
+          -- supaya migrasi tidak perlu tahu bahwa ini tiruan.
+          create table if not exists auth.users (
+            id uuid primary key,
+            email text unique,
+            raw_user_meta_data jsonb default '{}'::jsonb,
+            created_at timestamptz not null default now()
+          );
+
+          -- auth.uid() adalah fungsi yang selalu mengembalikan NULL di
+          -- koneksi langsung, sama seperti di Supabase ketika RLS tidak
+          -- punya sesi JWT. Nilai NULL justru yang exercising jalur
+          -- production: setiap Server Action lewat koneksi Drizzle punya
+          -- auth.uid() NULL, dan itu yang membuat actor_id ikut NULL kalau
+          -- set_config tidak dipakai.
+          create or replace function auth.uid() returns uuid
+            language sql stable as $$ select null::uuid $$;
+
+          -- storage.objects dipakai policy dan test storage-hardening.
+          -- Kolom bucket di bawah bukan pilihan implementasi Supabase: storage.buckets
+          -- punya file_size_limit, allowed_mime_types, created_at, dan
+          -- updated_at yang dipakai migrasi 20260927130000 dan
+          -- 20260927160000. Tanpa kolom itu, kedua migrasi itu gagal dengan
+          -- "column file_size_limit of relation buckets does not exist",
+          -- dan karena Runner memakai set -e, seluruh job berhenti di sana
+          -- tanpa pernah menyentuh test.
+          create table if not exists storage.buckets (
+            id text primary key,
+            name text,
+            public boolean default false,
+            file_size_limit bigint,
+            allowed_mime_types text[],
+            created_at timestamptz default now(),
+            updated_at timestamptz default now()
+          );
+          create table if not exists storage.objects (
+            id uuid primary key default gen_random_uuid(),
+            bucket_id text,
+            name text,
+            owner uuid
+          );
+          SQL
+
+      - name: Terapkan seluruh migrasi sesuai abjad nama berkas
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for f in supabase/migrations/*.sql; do
+            echo "  applying $(basename "$f")"
+            # ON_ERROR_STOP=1 wajib: tanpa itu psql keluar 0 walau ada
+            # pernyataan yang gagal, dan test berikutnya berjalan di atas
+            # schema yang tidak lengkap tanpa ada yang memberitahu.
+            psql -h 127.0.0.1 -U postgres -d atcell_test -v ON_ERROR_STOP=1 \
+              --single-transaction -q -f "$f"
+          done
+
+      - name: Isi ledger dari snapshot production
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Ledger diisi dari supabase/migrations-ledger.snapshot, yaitu salinan
+          # nilai yang benar-benar ada di production. Mengisinya dengan iterasi
+          # atas nama berkas akan membuat test tautologis: ledger dan berkas
+          # berasal dari sumber yang sama, jadi tidak ada yang bisa gagal
+          # kecuali skripnya salah. Dengan snapshot, begitu ada migrasi baru
+          # yang belum tercatat, atau versi yang hilang dari production, job
+          # ini yang memberi tahu.
+          psql -h 127.0.0.1 -U postgres -d atcell_test -v ON_ERROR_STOP=1 <<'SQL'
+          create schema if not exists supabase_migrations;
+          create table if not exists supabase_migrations.schema_migrations (
+            version text primary key,
+            statements text[] default '{}',
+            name text
+          );
+          SQL
+
+          entri=0
+          while IFS=$'\t' read -r version name; do
+            # Skip komentar dan baris kosong.
+            case "$version" in ''|'#'*) continue ;; esac
+            psql -h 127.0.0.1 -U postgres -d atcell_test -v ON_ERROR_STOP=1 -q \
+              -c "insert into supabase_migrations.schema_migrations (version, name) values ('$version', '$name')"
+            entri=$((entri + 1))
+          done < supabase/migrations-ledger.snapshot
+
+          total=$(psql -h 127.0.0.1 -U postgres -d atcell_test -tAc \
+            'select count(*) from supabase_migrations.schema_migrations')
+          echo "  ledger: $entri entri dari snapshot, $total entri di database"
+          [ "$entri" -gt 0 ] || { echo "snapshot ledger kosong"; exit 1; }
+
+      # audit-trail-db.test.ts butuh baris nyata untuk dimutasi: satu profil
+      # untuk jadi aktor, dan satu inventory_units yang statusnya bukan sold
+      # (trigger trg_prevent_sold_reactivation menolak perubahan apa pun dari
+      # status sold, jadi unit sold tidak bisa dipakai untuk menguji transisi).
+      # Tanpa seed, test gagal dengan "perlu minimal satu inventory_units
+      # non-sold" dan job ikut merah walaupun trigger-nya sebenarnya benar.
+      #
+      # Seed ini hanya untuk database sekali pakai di runner. Baris auth.users
+      # sengaja dihapus sesudahnya supaya test tidak bisa mengandalkannya
+      # ada: auth.users di sini hanya bentuk minimal yang dibutuhkan trigger
+      # handle_new_user, bukan data pelanggan sungguhan.
+      - name: Seed data minimum untuk test audit trail
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d atcell_test -v ON_ERROR_STOP=1 -q <<'SQL'
+          insert into auth.users (id, email, raw_user_meta_data)
+          values (
+            '00000000-0000-4000-8000-000000000001',
+            'ci-seed@atcell.test',
+            '{"full_name":"CI Seed","username":"ci-seed"}'::jsonb
+          );
+
+          -- profiles dibuat oleh trigger handle_new_user, jadi auth.users di
+          -- atas harus lebih dulu.
+          insert into public.inventory_units (product_id, imei, condition, status, purchase_cost, selling_price)
+          values (null, '350000000000001', 'new', 'available', 0, 0);
+
+          -- Satu unit sold untuk memeriksa trigger penolak reaktivasi, dan
+          -- satu tiket untuk transisi status tiket.
+          insert into public.inventory_units (product_id, imei, condition, status, purchase_cost, selling_price)
+          values (null, '350000000000002', 'new', 'sold', 0, 0);
+
+          insert into public.service_tickets (
+            ticket_code, customer_name, customer_phone, device_model,
+            imei_or_sn, issue_notes, repair_status
+          ) values (
+            'SRV-20260101-SEEDTST1', 'CI Seed', '080000000000',
+            'Unit CI', '350000000000003', 'seed untuk test audit', 'received'
+          );
+          SQL
+
+      - name: Pastikan tabel audit benar-benar ada sebelum test
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # Kalau migrasi 0007 tidak diterapkan, test audit akan gagal dengan
+          # pesan yang tidak menyebut migrasi sama sekali. Cek di sini
+          # membuat penyebabnya jelas di log job.
+          for t in unit_status_audit service_ticket_audit; do
+            psql -h 127.0.0.1 -U postgres -d atcell_test -v ON_ERROR_STOP=1 -tAc \
+              "select to_regclass('public.$t') is not null" | grep -q t \
+              || { echo "tabel $t tidak ada: migrasi 0007 belum diterapkan"; exit 1; }
+            echo "  $t ada"
+          done
+
+      - name: Test audit trail dan ledger migrasi terhadap database
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/atcell_test
+        run: |
+          # Daftar file ini discovers sendiri, bukan ditulis manual. Test yang
+          # butuh database memakai pola `const skip = !url`, jadi file
+          # tambahan yang ikut memakai pola itu otomatis ikut dijalankan.
+          # Kalau daftarnya ditulis mati, file test baru yang butuh database
+          # akan diam-diam selalu skip tanpa ada yang memberitahu.
+          mapfile -t db_tests < <(
+            grep -lE 'const skip = !url|!url.*skip|process\.env\.DATABASE_URL' tests/*.test.ts \
+              | grep -vE 'restore-sigpipe|backup-safety|db-client-recovery|db-backlog-replay' \
+              | sort
+          )
+          printf '  test dengan database: %s\n' "${db_tests[*]}"
+          [ "${#db_tests[@]}" -gt 0 ] || { echo "tidak ada test database ditemukan"; exit 1; }
+          node --experimental-strip-types --test "${db_tests[@]}"
+
+      - name: Pastikan test yang tidak butuh database tetap hijau
+        run: npm test

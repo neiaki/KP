@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
 import { Product } from "@/types";
@@ -200,11 +201,12 @@ export default function MasterProductsPage() {
             >
               {/* h-32 di HP: h-44 memakai hampir separuh layar pertama di
                   812px hanya untuk satu foto produk. */}
-              <div className="h-32 overflow-hidden rounded-t-xl bg-paper sm:h-44">
-                <img
+              <div className="relative h-32 overflow-hidden rounded-t-xl bg-paper sm:h-44">
+                <Image
+                  fill
+                  sizes={"(max-width: 640px) 50vw, 20vw"}
                   src={p.image_url || PLACEHOLDER_IMAGE}
                   alt={p.model_name}
-                  loading="lazy"
                   className="h-full w-full object-cover"
                 />
               </div>

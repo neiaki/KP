@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * Fallback terakhir saat root layout sendiri crash. File ini menggantikan
@@ -19,6 +20,12 @@ export default function GlobalError({
   const tryAgain = retry ?? reset;
 
   useEffect(() => {
+    // Global error boundary menangkap error yang membuat root layout sendiri crash, jadi
+    // server tidak pernah sempat melaporkannya. Capture di sini satu-satunya
+    // kesempatan mendapatkannya ke Sentry.
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      Sentry.captureException(error, { tags: { boundary: "global" } });
+    }
     console.error(error);
   }, [error]);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
@@ -452,18 +453,22 @@ export function LandingContent({
               {"photo" in f && f.photo ? (
                 <div className={`flex h-full flex-col ${"wide" in f && f.wide ? "sm:grid sm:grid-cols-5 sm:flex-row" : ""}`}>
                   <div
-                    className={`relative overflow-hidden bg-paper ${
-                      "wide" in f && f.wide ? "min-h-56 sm:col-span-2 sm:min-h-full" : ""
+                    className={`relative overflow-hidden bg-paper aspect-[4/3] ${
+                      "wide" in f && f.wide ? "sm:col-span-2 sm:aspect-auto sm:min-h-56 sm:min-h-full" : ""
                     }`}
                   >
-                    <img
+                    <Image
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       src={imageUrls[f.photo] ?? `/${f.photo}`}
                       alt={f.photoAlt}
-                      loading="lazy"
+                      // Rasio 4/3 di sini yang memberi tinggi ke wrapper, bukan
+                      // ke gambar: anak yang position absolute tidak
+                      // berkontribusi ke layout induknya, jadi aspect-ratio di
+                      // gambar tidak akan membuat wrapper ini punya tinggi
+                      // dan kartu non-wide akan runtuh jadi 0 px.
                       className={`w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${
-                        "wide" in f && f.wide
-                          ? "aspect-[4/3] sm:absolute sm:inset-0 sm:aspect-auto sm:h-full"
-                          : "aspect-[4/3]"
+                        "wide" in f && f.wide ? "sm:absolute sm:inset-0 sm:h-full" : ""
                       }`}
                     />
                   </div>

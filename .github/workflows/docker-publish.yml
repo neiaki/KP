@@ -80,3 +80,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # NEXT_PUBLIC_* dibekukan nilainya ke dalam bundle JavaScript saat
+          # `next build`, jadi keduanya harus ada sebagai ARG di tahap builder
+          # (lihat Dockerfile). Tanpa ini, Sentry di browser tidak akan
+          # pernah menyala di produksi meski DSN-nya sudah diisi di Coolify.
+          #
+          # Keduanya dibaca dari secrets, bukan dari env repository, supaya
+          # fork dan pull request dari luar tidak bisa membaca nilainya.
+          # Secret yang kosong tetap aman: ARG default-nya kosong dan kode
+          # Sentry.init dilewati saat DSN kosong.
+          build-args: |
+            NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_COMMIT_SHA=${{ github.sha }}

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -88,13 +89,12 @@ export function ErrorState({
 
         <div className="md:col-span-5">
           <Card className="overflow-hidden">
-            <img
-              src={image}
-              alt={imageAlt}
-              loading="lazy"
+            <Image
               width={800}
               height={600}
-              className="aspect-[4/3] w-full object-cover"
+              src={image}
+              alt={imageAlt}
+              className="aspect-[4/3] h-auto w-full object-cover"
             />
             <p className="border-t border-line px-5 py-3 text-[13px] leading-relaxed text-muted">
               {imageCaption}

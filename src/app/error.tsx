@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { RotateCcw } from "lucide-react";
 import { ErrorState } from "@/components/error-state";
 
@@ -15,6 +16,13 @@ export default function SegmentError({ error, retry, reset }: SegmentErrorProps)
   const tryAgain = retry ?? reset;
 
   useEffect(() => {
+    // Dilaporkan ke Sentry kalau DSN-nya terpasang, kalau tidak tetap ke
+    // console supaya error terlihat di log browser saat development.
+    // Sentry.init() tidak dijalankan sama sekali tanpa DSN, jadi pemanggilan
+    // di sini aman di demo lokal.
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      Sentry.captureException(error, { tags: { boundary: "segment" } });
+    }
     console.error(error);
   }, [error]);
 

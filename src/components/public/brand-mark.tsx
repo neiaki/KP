@@ -1,5 +1,25 @@
 import React from "react";
+import Image from "next/image";
 
+/*
+ * Logo brand diambil dari Simple Icons CDN dan selalu berukuran 16px (h-4 w-4)
+ * atau kelipatan thereof. Dua alasan kenapa bukan <img> biasa:
+ *
+ * 1. Lint. @next/next/no-img-element muncul karena <img> melewatkan
+ *    optimizer, dan untuk foto produk itu memang kerugian nyata. Untuk ikon
+ *    sekecil ini, optimizer justru pure overhead: ia menambah satu
+ *    round-trip ke /_next/image untuk mengubah SVG 1 KB yang sudah
+ *    dioptimalkan menjadi raster satu warna.
+ * 2. Layout stability. Logo dimuat dari domain luar, jadi tanpa dimensi
+ *    yang dipesan browser, chip filter akan bergeser saat SVG tiba.
+ *    width dan height di bawah itulah yang mencegahnya; keduanya hanya
+ *    dipakai untuk menghitung rasio, karena ukuran sebenarnya dikendalikan
+ *    className h-full w-full.
+ *
+ * unoptimized: yang dikirim ke browser adalah SVG asli dari CDN, bukan
+ * turunan yang sudah di-decode ulang. Itu yang membuat warna logo tetap
+ * persis seperti Simple Icons menetapkannya.
+ */
 const SLUGS: Record<string, string> = {
   Apple: "apple",
   Samsung: "samsung",
@@ -80,10 +100,12 @@ export function BrandLogo({
     const hex = BRAND_COLORS[brand];
     return (
       <span className={box} aria-hidden="true">
-        <img
+        <Image
           src={`https://cdn.simpleicons.org/${slug}/${hex}`}
           alt=""
-          loading="lazy"
+          width={24}
+          height={24}
+          unoptimized
           className={img}
         />
       </span>
@@ -93,16 +115,20 @@ export function BrandLogo({
   if (active) {
     return (
       <span className={box} aria-hidden="true">
-        <img
+        <Image
           src={`https://cdn.simpleicons.org/${slug}/101828`}
           alt=""
-          loading="lazy"
+          width={24}
+          height={24}
+          unoptimized
           className={`${img} dark:hidden`}
         />
-        <img
+        <Image
           src={`https://cdn.simpleicons.org/${slug}/ffffff`}
           alt=""
-          loading="lazy"
+          width={24}
+          height={24}
+          unoptimized
           className={`hidden ${img} dark:block`}
         />
       </span>
@@ -111,16 +137,20 @@ export function BrandLogo({
 
   return (
     <span className={box} aria-hidden="true">
-      <img
+      <Image
         src={`https://cdn.simpleicons.org/${slug}/475467`}
         alt=""
-        loading="lazy"
+        width={24}
+        height={24}
+        unoptimized
         className={`${img} dark:hidden`}
       />
-      <img
+      <Image
         src={`https://cdn.simpleicons.org/${slug}/A8B0C0`}
         alt=""
-        loading="lazy"
+        width={24}
+        height={24}
+        unoptimized
         className={`hidden ${img} dark:block`}
       />
     </span>
