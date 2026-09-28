@@ -41,6 +41,12 @@ NEXT_PUBLIC_SITE_URL=
 SITE_URL=
 SERVER_ACTIONS_ALLOWED_ORIGINS=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Pemantauan error, opsional semua. NEXT_PUBLIC_* wajib ada saat build image.
+SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_DSN=
+NEXT_PUBLIC_COMMIT_SHA=
+VERCEL_GIT_COMMIT_SHA=
 ```
 
 Wajib ada di production:
@@ -75,6 +81,30 @@ Opsional, tapi kosong berarti fitur tertentu mati:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` hanya untuk kompatibilitas project lama
   yang belum memakai publishable key.
 
+Pemantauan error, semua opsional dan tidak saling terkait:
+
+- `SENTRY_DSN` untuk sisi server, dibaca `src/instrumentation.ts`. Kosong
+  berarti `register()` keluar di baris 16 tanpa menginisialisasi SDK sama
+  sekali: tidak ada request ke pihak ketiga dan tidak ada overhead. Isi kalau
+  error produksi perlu terlihat di dashboard.
+- `NEXT_PUBLIC_SENTRY_DSN` untuk sisi browser, dibaca
+  `src/instrumentation-client.ts` dan kedua error boundary
+  (`src/app/error.tsx:23`, `src/app/global-error.tsx:26`). Kosong berarti
+  `Sentry.init()` dilewati dan `captureException()` tidak dijalankan, jadi
+  error browser tidak terkirim. Nilai DSN memang muncul di HTML yang dikirim
+  ke browser dan itu wajar; yang harus tetap server-only adalah Sentry Auth
+  Token, yang tidak pernah memakai prefix `NEXT_PUBLIC_`.
+- `NEXT_PUBLIC_COMMIT_SHA` dan `VERCEL_GIT_COMMIT_SHA` hanya untuk tag
+  `release` di dashboard, bukan untuk logika aplikasi. Kosong berarti event
+  tanpa release dan Sentry mengelompokkannya sebagai "latest".
+
+Catatan build untuk dua variabel `NEXT_PUBLIC_`: Next.js menyalin
+`NEXT_PUBLIC_*` ke dalam bundle saat build, jadi Coolify yang hanya menyetel
+environment saat container berjalan TIDAK akan mengirim DSN ke browser. Kalau
+pemantauan error browser dibutuhkan, `NEXT_PUBLIC_SENTRY_DSN` dan
+`NEXT_PUBLIC_COMMIT_SHA` wajib ada di environment build image. Server-side
+(`SENTRY_DSN`) tidak punya batasan ini karena dibaca saat runtime.
+
 `DATABASE_URL` harus menunjuk ke connection pooler Supabase production, bukan
 ke `localhost` VPS. `SUPABASE_SECRET_KEY` hanya boleh tersedia sebagai secret
 server. Jangan memakai legacy `anon` atau `service_role` untuk release baru.
@@ -86,13 +116,13 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 
 | Berkas | Isi |
 |--------|-----|
-| `0001_atcell_schema.sql` | Tabel, enum, RLS, trigger, view, bucket Storage, grant Data API, dan seed `store_settings` |
+| `0001_atcell_schema.sql` | Tabel, enum, RLS, trigger, view, bucket Storage, grant Data API, dan seed `store_settings`. Aman di-replay: tidak memberi `EXECUTE` ke browser role |
 | `0002_harden_atcell_schema.sql` | Helper private, grant minimum, trigger anti-double-sell, `security_invoker` pada view |
-| `0003_lock_legacy_helpers.sql` | Menutup helper legacy di schema `public` |
+| `0003_lock_legacy_helpers.sql` | Menutup helper legacy di schema `public` sehingga tidak bisa dipanggil lewat Data API |
 | `0004_align_schema_contract.sql` | Menyelaraskan FK, index performa, dan singleton `store_settings` dengan hasil audit production |
 | `0005_username_login.sql` | Login berbasis username, bukan email |
 | `0006_store_social_urls.sql` | Akun media sosial toko |
-| `0007_audit_trail.sql` | Riwayat audit untuk mutasi data sensitif |
+| `0007_audit_trail.sql` | Riwayat audit untuk mutasi data sensitif, lengkap dengan identitas pelaku (lihat "Aktor di audit trail") |
 | `20260926025406_index_public_foreign_keys.sql` | Index untuk seluruh foreign key di schema `public` |
 | `20260926103000_strengthen_ticket_codes.sql` | Format kode tiket servis 8 karakter base32 plus validasi transisi status |
 | `20260927120000_auto_enable_rls_on_new_tables.sql` | RLS otomatis aktif pada tabel baru |
@@ -103,6 +133,58 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20260927170000_demo_ticket_for_tracking_example.sql` | Tiket contoh supaya kode contoh di halaman lacak benar-benar berfungsi |
 | `20260927180000_nullable_inventory_unit_product.sql` | `inventory_units.product_id` jadi nullable untuk unit trade-in, etalase publik hanya menampilkan unit berkatalog, plus catatan perbaikan baris lama |
 | `20260927190000_close_browser_role_write_grants.sql` | Menutup hak tulis `authenticated` di `product_images` dan hak tulis `anon`/`authenticated` di `storage.buckets`, mencabut `EXECUTE` publik dari `rls_auto_enable()`, dan revoke default privilege tabel di schema `public` supaya tabel baru tidak lagi mewarisi grant tulis |
+
+`0001` aman dijalankan ulang kapan saja, termasuk `supabase db push` yang
+terhenti di tengah lalu diulang. Rananya sudah dibetulkan pada 27 Sep 2026:
+versi lama `0001` memberi `EXECUTE` pada `public.get_my_role()` dan
+`public.is_staff()` ke `anon` dan `authenticated`, lalu `0002` dan `0003`
+mencabutnya. Kalau `0001` dijalankan lagi "untuk jaga-jaga", kedua helper itu
+terbuka kembali sampai migrasi berikutnya dijalankan. Keduanya
+`SECURITY DEFINER`, jadi ini jalur privilege escalation lewat Data API, bukan
+sekadar kosmetik. Grant itu sekarang tidak ada di `0001` sama sekali, dan status
+akhirnya dibuat `0002` lalu dikunci `0003`: hanya `postgres` dan
+`service_role` boleh memanggilnya.
+
+Kalau perlu memastikan, cek ACL-nya tanpa mengubah apa pun:
+
+```sql
+select proname, proacl::text
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname in ('get_my_role', 'is_staff');
+```
+
+Hasil yang benar hanya memuat `postgres` dan `service_role`. Kalau `anon` atau
+`authenticated` muncul, `0003` belum terpasang.
+
+### Aktor di audit trail
+
+`0007` mencatat siapa yang mengubah status unit dan tiket servis, sesuai
+NFR-07. Mekanismenya bukan `auth.uid()`: `src/db/client.ts` memakai koneksi
+Postgres langsung sehingga `auth.uid()` selalu NULL di jalur itu. Aktor
+dikirim lewat setting transaction-local `atcell.actor_id`, diisi oleh
+`setAuditActor()` di dalam transaction yang sama dengan `UPDATE`-nya, lalu
+dibaca trigger lewat `private.current_actor_id()`. Parameter `is_local` membuat
+nilainya hilang begitu transaction selesai, jadi tidak bocor ke request
+berikutnya.
+
+Konsekuensinya harus diketahui operator sebelum membaca hasil audit:
+
+- `actor_id` terisi hanya untuk perubahan yang lewat Server Action
+  (`updateUnitStatus` dan `updateTicket`). Perubahan lewat SQL Editor atau
+  psql tercatat dengan `actor_id` NULL.
+- Baris `actor_id` NULL bukan kegagalan pencatatan. Itu justru penanda
+  perubahan yang perlu ditinjau, karena pelakunya tidak diketahui:
+
+```sql
+select created_at, actor_id, old_status, new_status
+  from public.unit_status_audit
+ where actor_id is null
+ order by created_at desc;
+```
+
+- Kalau Server Action baru menulis tanpa `setAuditActor`, audit tetap terisi
+  tapi kolomnya NULL. Rekap per aktor ada di bagian 5 berkas `0007`.
 
 Setiap migrasi baru wajib ditambah ke tabel ini. `tests/deployment-runbook.test.ts`
 memeriksa dua arah: berkas yang sudah di-commit tapi belum disebut akan
@@ -162,9 +244,24 @@ tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
 terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
 
 `supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
-satu berkas urut untuk project yang belum punya skema sama sekali. Isinya
-harus identik dengan berkas aslinya, dan `tests/run-all-pending.test.ts`
-menjaga hal itu. Jangan menjalankan kedua sumber sekaligus.
+satu berkas urut, tujuh belas bagian, untuk project yang belum punya skema
+sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya: bagian 1
+(`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket Storage.
+Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali paste
+mengisi project kosong" di kepalanya tidak terpenuhi: paste ke project baru
+menghasilkan nol tabel, nol enum, dan nol RLS. Bagian 1 sampai 3 ditambahkan
+pada 27 Sep 2026 dan seluruh penandanya ditulis ulang dari "dari 14" menjadi
+"dari 17".
+
+Isi tiap bagian harus identik dengan berkas aslinya, dan
+`tests/run-all-pending.test.ts` menjaga dua hal: tiap bagian sama dengan
+migrasi sumbernya, dan **setiap** berkas di `supabase/migrations/` muncul
+tepat sekali sebagai bagian. Dahulu test itu punya pengecualian
+`ALREADY_PROVISIONED = ["0001", "0002", "0003"]`, jadi assertion "tidak ada
+migrasi yang tertinggal" selalu hijau secara konstruksi, bukan karena benar.
+Pengecualian itu dihapus,
+karena berkas gabungan harus benar-benar bisa dipakai dari nol. Jangan
+menjalankan kedua sumber sekaligus.
 
 Jangan menjalankan `supabase/drizzle/0000_*.sql` sebagai migration production
 karena file tersebut tidak mencakup RLS, trigger, view, Storage, dan grant.

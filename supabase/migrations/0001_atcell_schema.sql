@@ -375,12 +375,18 @@ returns boolean language sql stable security definer set search_path = public as
   select coalesce(public.get_my_role() in ('admin','sales','technician'), false);
 $$;
 
--- Helper hanya dipakai oleh policy. Tutup default EXECUTE PUBLIC dan
--- berikan hak eksplisit kepada role yang memang menjalankan policy.
+-- Helper hanya dipakai oleh policy. Tutup default EXECUTE PUBLIC.
+--
+-- PENTING: JANGAN pernah memberi EXECUTE public.get_my_role() atau
+-- public.is_staff() ke anon/authenticated. Keduanya SECURITY DEFINER, jadi
+-- grant ke browser role di sini membuka privilege escalation lewat Data API.
+-- Status akhir yang benar dibuat 0002 lalu dikunci 0003: hanya postgres dan
+-- service_role boleh memanggilnya, dan 0003 mencabutnya dari public, anon,
+-- dan authenticated. Grant browser role sengaja tidak ada di berkas ini
+-- supaya 0001 aman di-replay: menjalankan ulang berkas ini tidak lagi
+-- membuka kembali dua helper itu ke publik.
 revoke execute on function public.get_my_role() from public;
 revoke execute on function public.is_staff() from public;
-grant execute on function public.get_my_role() to anon, authenticated, service_role;
-grant execute on function public.is_staff() to anon, authenticated, service_role;
 
 -- profiles: user boleh baca dirinya; staf boleh baca semua; admin kelola semua.
 drop policy if exists profiles_self on public.profiles;

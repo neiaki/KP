@@ -25,7 +25,7 @@ const url = process.env.DATABASE_URL;
 // env itu pipeline merah tanpa ada yang rusak. Karena itu koneksi dicoba sekali
 // dulu, dan semua test dilewati kalau gagal.
 async function canConnect(target: string): Promise<boolean> {
-  const probe = postgres(target, { max: 1, connect_timeout: 5, onnotice: () => {} });
+  const probe = postgres(target, { max: 1, prepare: false, connect_timeout: 5, onnotice: () => {} });
   try {
     await probe`select 1`;
     return true;
@@ -45,7 +45,20 @@ const skip = !url
 
 // max: 1 supaya semua test memakai connection yang sama. Ini yang membuat uji
 // kebocoran di bawah benar-benar menguji connection pool, bukan kebetulan.
-const sql = reachable && url ? postgres(url, { max: 1, onnotice: () => {} }) : null;
+//
+// prepare: false WAJIB dan jangan dibersihkan. production lewat Supabase
+// connection pooler mode transaction: begitu transaction selesai, backend
+// dikembalikan ke pool dan named prepared statement ikut hilang bersama
+// backend itu. Eksekusi berikutnya lalu gagal dengan SQLSTATE 26000
+// (invalid_sql_statement_name / FetchPreparedStatement). Selama file ini satu-
+// satunya yang menyentuh database, pgbouncer kebetulan memberi backend yang
+// sama lagi dan test hijau; begitu ada satu klien kedua yang
+// muncul, test ini gagal. src/db/client.ts sudah memakai prepare: false
+// dengan alasan yang sama persis, jadi test harus meniru production, bukan
+// menyimpang darinya.
+const sql = reachable && url
+  ? postgres(url, { max: 1, prepare: false, onnotice: () => {} })
+  : null;
 
 /**
  * Jalankan `fn` di dalam transaction, lalu batalkan semua perubahannya dengan

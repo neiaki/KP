@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * supabase/RUN-ALL-PENDING.sql menggabungkan empat belas migrasi supaya
+ * supabase/RUN-ALL-PENDING.sql menggabungkan tujuh belas migrasi supaya
  * project baru cukup di-paste sekali lewat SQL Editor. File itu dibangun
  * dengan skrip di luar repo, jadi tidak ada yang menahan isinya tetap sama
  * dengan migrasi aslinya.
@@ -22,6 +22,9 @@ const combined = readFileSync(repoFile("../supabase/RUN-ALL-PENDING.sql"), "utf8
 
 /** Urutan bagian di file gabungan, mengikuti ketergantungan antar migrasi. */
 const SECTIONS: { label: string; source: string }[] = [
+  { label: "0001_atcell_schema", source: "0001_atcell_schema.sql" },
+  { label: "0002_harden_atcell_schema", source: "0002_harden_atcell_schema.sql" },
+  { label: "0003_lock_legacy_helpers", source: "0003_lock_legacy_helpers.sql" },
   { label: "0004_align_schema_contract", source: "0004_align_schema_contract.sql" },
   {
     label: "20260926025406_index_public_foreign_keys",
@@ -68,8 +71,10 @@ const SECTIONS: { label: string; source: string }[] = [
   },
 ];
 
-/** Migrasi yang sudah ada sebelum file gabungan dibuat, jadi tidak ada di dalamnya. */
-const ALREADY_PROVISIONED = ["0001", "0002", "0003"];
+/** Setiap berkas di supabase/migrations/ wajib muncul, tanpa kecuali. */
+const MIGRASI = readdirSync(repoFile("../supabase/migrations"))
+  .filter((f) => f.endsWith(".sql"))
+  .sort();
 
 /**
  * Badan migrasi adalah semua baris setelah blok header `-- ====`.
@@ -78,7 +83,7 @@ const ALREADY_PROVISIONED = ["0001", "0002", "0003"];
  *
  * Blok komentar di awal badan sengaja tidak dibandingkan: saat digabung,
  * pembatas bagian di dalam migrasi jadi berlebihan karena penanda
- * `-- BAGIAN n dari 14` sudah melakukan hal yang sama. Yang wajib identik
+ * `-- BAGIAN n dari 17` sudah melakukan hal yang sama. Yang wajib identik
  * adalah setiap baris SQL-nya, dan itu yang dicek di sini.
  */
 /**
@@ -153,18 +158,29 @@ test("setiap bagian identik dengan migrasi sumbernya", () => {
     assert.ok(fromCombined.length > 0, `bagian ${label} tidak boleh kosong`);
   }
 });
-
 test("tidak ada migrasi yang tertinggal di luar file gabungan", () => {
   // Kalau ada migrasi baru yang tidak dimasukkan ke file gabungan, orang yang
   // provision project baru akan mendapat database yang kurang dari satu bagian.
-  const inCombined = SECTIONS.map((s) => s.label);
-  for (const prefix of ALREADY_PROVISIONED) {
-    assert.equal(
-      inCombined.some((label) => label.startsWith(prefix)),
-      false,
-      `${prefix} sudah ada di project lama, tidak boleh ikut di file gabungan`
-    );
-  }
+  // Daftar SECTIONS di atas adalah daftar putih: ia harus memuat SETIAP berkas
+  // di supabase/migrations/. Tidak ada lagi migrasi yang dikecualikan "karena
+  // sudah ada di project lama", karena file gabungan harus bisa dipakai untuk
+  // project yang benar-benar kosong.
+  const inCombined = SECTIONS.map((s) => s.source);
+  const missing = MIGRASI.filter((f) => !inCombined.includes(f));
+  assert.deepEqual(
+    missing,
+    [],
+    `migrasi ini tidak ada di RUN-ALL-PENDING.sql: ${missing.join(", ")}. ` +
+      "File gabungan harus dibangun ulang."
+  );
+
+  const unknown = inCombined.filter((f) => !MIGRASI.includes(f));
+  assert.deepEqual(
+    unknown,
+    [],
+    `RUN-ALL-PENDING.sql merujuk berkas migrasi yang tidak ada: ${unknown.join(", ")}`
+  );
+
   assert.equal(
     new Set(inCombined).size,
     inCombined.length,

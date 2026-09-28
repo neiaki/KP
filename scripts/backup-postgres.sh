@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # Dump logis At Cell tanpa mencetak URL/password database.
 # Backup Auth dan Storage dikelola oleh layanan Supabase secara terpisah.
+# Script ini memakai construct khusus bash: opsi 'set -E' dan 'set -o pipefail',
+# serta process substitution 'done < <(find ...)' pada blok rotasi di bawah.
+# Keduanya tidak dijamin ada di /bin/sh. Pada image postgres berbasis Debian,
+# /bin/sh adalah dash: 'set -o pipefail' ditolak dan blok rotasi mati dengan
+# "Syntax error: redirection unexpected", sehingga dump lama diam-diam tidak
+# pernah dihapus sementara wrapper tetap melaporkan 'pg_dump gagal' padahal
+# dump sudah berhasil dibuat. Guard di bawah menghentikan script dengan pesan
+# yang jelas, bukan membiarkan rotasi mati tanpa suara.
+if [ -z "${BASH_VERSION:-}" ]; then
+  echo "ERROR: script ini wajib dijalankan dengan bash, bukan sh. Gunakan: bash $0" >&2
+  exit 64
+fi
 set -Eeuo pipefail
 umask 077
 
