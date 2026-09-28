@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
 import { Locale } from "@/lib/translations";
 
@@ -88,13 +89,15 @@ export function HeroCarousel({
             </p>
           </div>
         ) : (
-          <img
+          <Image
             key={slide.src}
+            width={800}
+            height={600}
+            priority
             src={slide.src}
             alt={slide.alt}
             onError={() => setFailed((f) => ({ ...f, [current]: true }))}
             className="aspect-[4/3] w-full object-cover"
-            loading="eager"
           />
         )}
         {total > 1 && (

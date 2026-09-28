@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { cleanWaNumber } from "@/lib/wa";
@@ -90,15 +91,16 @@ export function AboutContent({
 
         <figure className="mt-6">
           <div className="overflow-hidden rounded-xl border border-line bg-card">
-            <img
+            <Image
+              width={1280}
+              height={720}
               src={imageUrls[COUNTER_PHOTO] ?? `/${COUNTER_PHOTO}`}
               alt={
-                locale === "en"
-                  ? "A phone unit displayed at the At Cell counter"
-                  : "Unit HP yang dipajang di konter At Cell"
+              locale === "en"
+              ? "A phone unit displayed at the At Cell counter"
+              : "Unit HP yang dipajang di konter At Cell"
               }
               className="aspect-[16/9] w-full object-cover"
-              loading="lazy"
             />
           </div>
           <figcaption className="mt-2 text-[13px] text-muted">

@@ -352,6 +352,14 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                     <div className="mb-2 grid grid-cols-4 gap-2" role="group" aria-labelledby="tt-photos">
                       {photos.map((p) => (
                         <div key={p.url} className="relative aspect-square overflow-hidden rounded-lg border border-line bg-card">
+                          {/* p.url adalah object URL dari
+                              URL.createObjectURL(file) di browser, jadi
+                              optimizer server tidak pernah bisa menjangkaunya:
+                              URL itu hanya hidup di satu tab. Memaksanya lewat
+                              /_next/image akan menambah satu round-trip dan
+                              satu request yang pasti gagal. <img> adalah
+                              alat yang tepat di sini, bukan kelalaian. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={p.url} alt={en ? "Condition photo preview" : "Pratinjau foto kondisi"} className="h-full w-full object-cover" />
                           <button
                             type="button"

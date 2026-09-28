@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
@@ -112,12 +113,13 @@ export function CatalogContent({ locale }: { locale: Locale }) {
                     key={p.id}
                     className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
                   >
-                    <div className="aspect-[4/3] overflow-hidden bg-paper">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-paper">
                       {img && (
-                        <img
+                        <Image
+                          fill
+                          sizes={"(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"}
                           src={img}
                           alt={`${p.brand} ${p.model_name}`}
-                          loading="lazy"
                           className="h-full w-full object-cover"
                         />
                       )}
