@@ -40,23 +40,46 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
-      # Toolchain styling dan ORM rides dapat satu PR karena sama-sama
-      # sering punya dependensi bersama.
+      # Toolchain styling dan ORM mendapat satu PR karena sama-sama sering
+      # punya dependensi bersama.
       styling-and-orm:
         patterns:
           - "tailwindcss"
           - "@tailwindcss/postcss"
           - "drizzle-orm"
           - "drizzle-kit"
-      # Temuan moderate terhadap rantai dev (GHSA-67mh-4wv8-2f99 di esbuild
-      # yang ditarik drizzle-kit) hanya bisa hilang kalau drizzle-kit naik ke
-      # major yang menghapus @esbuild-kit. Kelompokkan supaya PR itu terlihat
-      # sebagai satu perubahan yang bisa diuji, bukan beberapa PR terpisah
-      # yang saling menunggu.
-      dev-toolchain:
+      # Sisanya satu per satu, bukan satu grup.
+      #
+      # Versi pertama memakai pola "*" untuk semua devDependency, dan
+      # hasilnya satu PR yang menaikkan typescript 5 ke 7 dan eslint 9 ke 10
+      # sekaligus. Keduanya lompatan mayor, dan keduanya gagal bersama:
+      # typescript-eslint yang dipakai eslint-config-next belum mendukung
+      # TS 7, jadi lint mati sebelum sempat memeriksa apa pun.
+      #
+      # typescript dan eslint tidak bisa dinaikkan bersama, dan tidak bisa
+      # dinaikkan satu per satu lewat bot pun: yang salah urutan akan
+      # menggagalkan build, dan yang benar urutan butuh perubahan manual pada
+      # file konfigurasi eslint. Keduanya diabaikan di sini supaya
+      # lompatan mayor terjadi sebagai keputusan sadar, bukan efek samping
+      # jadwal mingguan.
+      #
+      # Sisanya (@types/node, drizzle-kit, dan seterusnya) tetap dipantau,
+      # satu per satu. PR kecil lebih mudah ditinjau daripada satu PR berisi
+      # lima perubahan yang harus diuji sebagai satu kesatuan.
+      dev-types:
+        dependency-type: development
+        patterns:
+          - "@types/*"
+      dev-build:
         dependency-type: development
         patterns:
           - "*"
+        exclude-patterns:
+          #/type definitions, sudah punya kelompok sendiri
+          - "@types/*"
+          # Lompatan mayor, lihat penjelasan di atas
+          - "typescript"
+          - "eslint"
 
   # GitHub Actions. Workflow di repo memakai tag mayor (@v4), yang bisa naik
   # ke versi mayor baru tanpa ada commit di repo.
