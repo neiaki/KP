@@ -95,9 +95,22 @@ test("host Storage masuk ke img-src hanya dari URL yang valid", () => {
   assert.equal(ambil(rusak, "default-src").join(" "), "'self'");
 });
 
-test("connect-src dikunci ke diri sendiri karena browser tidak bicara ke Supabase", () => {
+test("connect-src mengizinkan diri sendiri dan transport Sentry, tapi tidak Supabase", () => {
   const csp = buildContentSecurityPolicy({ nonce: "n", supabaseUrl: HOST });
-  assert.deepEqual(ambil(csp, "connect-src"), ["'self'"]);
+  const connectSrc = ambil(csp, "connect-src");
+  // createBrowserClient tidak punya pemanggil, semua akses lewat server
+  // action, jadi host Supabase tetap harus tertutup di connect-src.
+  assert.ok(
+    !connectSrc.some((h) => h.includes("supabase")),
+    `connect-src tidak boleh dibuka ke host Storage: ${connectSrc.join(" ")}`
+  );
+  // Pengecualian Sentry hanya untuk transport ke host ingest, detail dan
+  // alasannya dijaga di tests/csp-sentry-connect-src.test.ts.
+  assert.equal(connectSrc[0], "'self'");
+  assert.ok(
+    connectSrc.includes("https://*.ingest.sentry.io"),
+    `SDK Sentry harus bisa mengirim envelope: ${connectSrc.join(" ")}`
+  );
 });
 
 test("asal wajib untuk gambar, peta, dan gaya tetap ada", () => {

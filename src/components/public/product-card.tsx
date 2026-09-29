@@ -209,7 +209,11 @@ export function ProductCard({
             Tanya stok
           </ButtonLink>
           <ButtonLink
-            href={`/${locale}/trade-in`}
+            // ?unit= membawa unit etalase yang sedang dilihat ke halaman
+            // trade-in. Tanpa itu, isi pengajuan yang dikirim ke WhatsApp
+            // hanya menyebut HP lama milik pelanggan, jadi counter tidak
+            // pernah tahu produk mana yang ditanyakan.
+            href={`/${locale}/trade-in?unit=${item.unitId}`}
             variant="outline"
             size="sm"
             className="w-full"

@@ -303,8 +303,15 @@ export function PortalSidebar({
       {/* h-[100dvh], bukan 100dvh-3rem. Sidebar ini sticky di top-0, jadi saat
           halaman sudah digulir ke bawah header publik 3rem ikut keluar layar.
           Kalau tingginya disisakan 3rem, ada strip putih setinggi 3rem di
-          dasar sidebar dan kolom gelapnya terlihat melayang. */}
-      <aside className="sticky top-0 hidden h-[100dvh] w-64 shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
+          dasar sidebar dan kolom gelapnya terlihat melayang.
+
+          overflow-y-auto tetap dipakai supaya menu panjang di layar pendek
+          masih bisa digulir di sidebar. overscroll-contain justru dihapus:
+          di layar normal daftar menu lebih pendek dari 100dvh, jadi sidebar
+          tidak punya yang digulir, dan contain membuat wheel serta gestur
+          touchpad di atas 256px kolom gelap itu hilang tanpa ada arah. Rantai
+          gulir harus boleh lanjut ke dokumen, sama seperti area publik. */}
+      <aside className="sticky top-0 hidden h-[100dvh] w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-slate-900 text-slate-300 lg:flex">
         {body}
       </aside>
 

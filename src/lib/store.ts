@@ -199,6 +199,23 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
   );
   const loadRequestId = useRef(0);
 
+  /*
+   * Yang menentukan hasil loadLiveData hanya dua hal: apakah halaman ini
+   * halaman login, dan apakah ini area portal. Keduanya dihitung di luar
+   * callback supaya identity useCallback tidak ikut berubah setiap kali
+   * pathname berubah.
+   *
+   * Sebelumnya dependensinya `pathname` mentah, jadi effect di bawah ikut
+   * jalan lagi pada setiap perpindahan halaman, termasuk saat hanya segmen
+   * locale yang berubah dari /id ke /en. Snapshot publik maupun portal tidak
+   * punya parameter bahasa sama sekali, sehingga hasil bacaannya untuk kedua
+   * locale itu identik byte per byte, jadi pemanggilan ulang hanya mengulang
+   * query yang jawabannya sudah ada: satu permintaan jaringan dan satu putaran
+   * tiga query Postgres yang tidak menghasilkan apa pun.
+   */
+  const isLoginPath = pathname.endsWith("/login") || pathname === "/portal/login";
+  const isPortalPath = pathname.startsWith("/portal");
+
   const loadLiveData = useCallback(async () => {
     if (!liveBackendEnabled) return;
     const requestId = ++loadRequestId.current;
@@ -206,7 +223,6 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     setIsHydrating(true);
     setBackendError(null);
 
-    const isLoginPath = pathname.endsWith("/login") || pathname === "/portal/login";
     const isPortalHost =
       typeof window !== "undefined" &&
       /^(login|portal)\./i.test(window.location.hostname);
@@ -219,10 +235,10 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return;
     }
 
-    const isPortalPath = pathname.startsWith("/portal") || isPortalHost;
+    const bacaSnapshotPortal = isPortalPath || isPortalHost;
     let result: SnapshotResult;
     try {
-      result = isPortalPath ? await getPortalSnapshot() : await getPublicSnapshot();
+      result = bacaSnapshotPortal ? await getPortalSnapshot() : await getPublicSnapshot();
     } catch {
       if (requestId !== loadRequestId.current) return;
       setBackendError("Backend sedang tidak dapat dihubungi. Coba lagi sebentar.");
@@ -270,7 +286,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
 
     setMounted(true);
     setIsHydrating(false);
-  }, [pathname]);
+  }, [isLoginPath, isPortalPath]);
 
   useEffect(() => {
     if (liveBackendEnabled) {
