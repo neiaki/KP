@@ -164,7 +164,7 @@ function onePengguna(socket: net.Socket, jawab: (sql: string, socket: net.Socket
   let statement = "";
 
   socket.on("data", (data) => {
-    buf = Buffer.concat([buf, data]);
+    buf = Buffer.concat([buf, Buffer.from(data as Uint8Array)]);
     for (;;) {
       if (masihSapaan) {
         // StartupMessage: int32 panjang, lalu isi tanpa byte tipe.
