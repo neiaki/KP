@@ -48,7 +48,7 @@ async function startServer(): Promise<ServerTiruan> {
     sockets.add(socket);
     let buf = Buffer.alloc(0);
     socket.on("data", (c) => {
-      buf = Buffer.concat([buf, c]);
+      buf = Buffer.concat([buf, Buffer.from(c as Uint8Array)]);
       if (buf.length < 4) return;
       const panjang = buf.readInt32BE(0);
       if (buf.length < panjang) return;
