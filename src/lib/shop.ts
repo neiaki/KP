@@ -1,4 +1,4 @@
-import { formatIDR } from "./utils";
+import { formatIDR } from "./utils.ts";
 import type { InventoryUnit, Product, UnitTag } from "@/types";
 import type { ProductCardItem } from "@/components/public/product-card";
 
@@ -135,6 +135,19 @@ export function tagForUnit(
   ).length;
   if (availableCount === 1) return "laststock";
   return undefined;
+}
+
+/* Produk yang tidak punya unit sama sekali (belum pernah ada available
+   maupun sold) tidak pernah muncul di etalase unit-driven. Helper ini
+   memastikan produk baru tetap terlihat dengan label Stok Habis agar staf
+   tahu produk sudah masuk katalog walau unit belum didaftarkan. */
+export function listProductsWithoutUnits(
+  products: Product[],
+  allUnits: InventoryUnit[]
+): Product[] {
+  return products.filter(
+    (p) => !allUnits.some((u) => u.product_id === p.id)
+  );
 }
 
 export function filterItems(

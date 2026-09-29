@@ -51,8 +51,20 @@ export default function PortalLayout({
         </div>
         {/* pb-extra + safe-area: keypad HP dan garis gestur iOS bisa menutup
             baris terakhir / tombol submit kalau halaman tidak menyisakan
-            ruang tambahan di bawah. */}
-        <main className="flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:p-6 lg:p-8">
+            ruang tambahan di bawah.
+
+            <main> sengaja TIDAK diberi overflow-y-auto atau overscroll-
+            contain. Kolomnya tinggi mengikuti isi (induknya flex-col tanpa
+            tinggi pasti), jadi <main> tidak pernah bisa menggulir: ia cuma
+            deklarasi dirinya kotak gulir. Akibatnya overscroll-contain
+            memutus rantai gulir tepat di <main>, sehingga wheel dan gestur
+            touchpad berhenti di sana dan tidak pernah sampai ke dokumen yang
+            sebenarnya bisa digulir. Gejalanya: sidebar masih menggulir kalau
+            menu panjang, scrollbar dokumen masih bisa ditarik, tapi gesture
+            dua jari mati total. Area publik sudah benar begini juga
+            (src/app/(public)/[locale]/layout.tsx, <main className="flex-1">)
+            dan di situ trackpad normal. */}
+        <main className="flex-1 p-3 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:p-6 lg:p-8">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>

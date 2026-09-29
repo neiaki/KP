@@ -14,6 +14,7 @@ import {
   toCardItem,
   filterItems,
   sortItems,
+  listProductsWithoutUnits,
   type SortOrder,
 } from "@/lib/shop";
 
@@ -45,6 +46,12 @@ export function CatalogContent({ locale }: { locale: Locale }) {
     })
     .filter((g) => g.sold.length > 0 && g.availableCount === 0)
     .sort((a, b) => b.sold[0].created_at.localeCompare(a.sold[0].created_at));
+
+  // Produk baru yang belum punya unit sama sekali tidak pernah masuk
+  // etalase unit-driven di atas dan tidak masuk "Baru saja habis" karena
+  // belum ada riwayat terjual. Tanpa bagian ini produk baru tidak terlihat
+  // di mana pun sampai staf mendaftarkan unit pertamanya.
+  const newProducts = listProductsWithoutUnits(products, inventoryUnits);
 
   const items = sortItems(
     filterItems(
@@ -138,6 +145,69 @@ export function CatalogContent({ locale }: { locale: Locale }) {
                       <a
                         href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
                           `Halo At Cell, kabari saya kalau ada ${p.brand} ${p.model_name} lagi.`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        {locale === "en" ? "Notify me" : "Kabari saya"}
+                      </a>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {newProducts.length > 0 && (
+          <section aria-label={locale === "en" ? "Coming soon" : "Segera hadir"} className="mt-10">
+            <h2 className="max-w-xl text-2xl font-extrabold tracking-tight text-ink">
+              {locale === "en" ? "New in catalog" : "Baru masuk katalog"}
+            </h2>
+            <p className="mt-1 max-w-xl text-[13px] text-muted">
+              {locale === "en"
+                ? "No unit registered yet. Ask to be notified when the first unit arrives."
+                : "Unitnya belum didaftarkan. Minta dikabari saat unit pertama masuk."}
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {newProducts.map((p) => {
+                const img =
+                  (p.official_images && p.official_images[0]) || p.image_url;
+                return (
+                  <article
+                    key={p.id}
+                    className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden bg-paper">
+                      {img && (
+                        <Image
+                          fill
+                          sizes={"(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"}
+                          src={img}
+                          alt={`${p.brand} ${p.model_name}`}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="flex flex-1 flex-col p-4">
+                      <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
+                        {locale === "en" ? "Sold out" : "Stok habis"}
+                      </p>
+                      <h3 className="text-[15px] font-extrabold leading-snug text-ink">
+                        {p.brand} {p.model_name}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
+                        {p.specs}
+                      </p>
+                      <p className="mt-1 text-[13px] font-bold text-muted">
+                        {locale === "en" ? "Catalog price" : "Harga katalog"}{" "}
+                        {formatIDR(p.default_price)}
+                      </p>
+                      <a
+                        href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
+                          `Halo At Cell, kabari saya kalau ${p.brand} ${p.model_name} sudah ada unitnya.`
                         )}`}
                         target="_blank"
                         rel="noreferrer"

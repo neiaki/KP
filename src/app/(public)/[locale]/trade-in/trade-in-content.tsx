@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Locale } from "@/lib/translations";
 import { cn, formatIDR } from "@/lib/utils";
 import { cleanWaNumber } from "@/lib/wa";
@@ -9,6 +10,11 @@ import { Smartphone, ShieldCheck, Send, BadgeCheck, AlertCircle, Upload, X, Info
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  buildTradeInMessage,
+  conditionLabel,
+  resolveTradeInTarget,
+} from "@/lib/trade-in-request";
 import {
   IPHONE_LINEUP,
   basePriceOf,
@@ -39,7 +45,16 @@ function SectionTitle({ className, children }: { className?: string; children: R
 type Photo = { url: string; name: string };
 
 export function TradeInContent({ locale }: { locale: Locale }) {
-  const { storeSettings } = useStore();
+  const { storeSettings, products, inventoryUnits } = useStore();
+  const searchParams = useSearchParams();
+  // Handset etalase yang sedang dilihat sebelum menekan "Tukar tambah" di
+  // kartu produk. Null kalau halaman dibuka dari navbar atau footer, yang
+  // memang tidak punya unit etalase di belakangnya.
+  const target = resolveTradeInTarget(
+    searchParams.get("unit"),
+    inventoryUnits,
+    products
+  );
   const en = locale === "en";
 
   const [deviceModel, setDeviceModel] = useState("iPhone 12");
@@ -183,18 +198,16 @@ export function TradeInContent({ locale }: { locale: Locale }) {
     }
     setError("");
     const cleanWa = cleanWaNumber(storeSettings.whatsapp_number);
-    const text = en
-      ? `Hello At Cell, I want to trade in my ${deviceLabel} (estimate ${formatIDR(estimatedValue)}, ${grade}). Which replacement stock is available?`
-      : `Halo At Cell, saya mau tukar tambah ${deviceLabel} (taksiran ${formatIDR(estimatedValue)}, ${grade}). Stok penggantinya apa saja?`;
-    const withImei = cleanImei !== "" ? `${text}\nIMEI: ${cleanImei}` : text;
-    // Link WA tidak bisa membawa file, jadi foto dikirim manual di chat.
-    const withPhotos =
-      photos.length > 0
-        ? en
-          ? `${withImei}\nCondition photos: I will send ${photos.length} photo(s) in this chat.`
-          : `${withImei}\nFoto kondisi: ${photos.length} foto saya kirim di chat ini.`
-        : withImei;
-    window.open(`https://wa.me/${cleanWa}?text=${encodeURIComponent(withPhotos)}`, "_blank");
+    const text = buildTradeInMessage({
+      locale,
+      oldPhone: deviceLabel,
+      estimate: estimatedValue,
+      grade,
+      imei: cleanImei,
+      photoCount: photos.length,
+      target,
+    });
+    window.open(`https://wa.me/${cleanWa}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   return (
@@ -437,6 +450,19 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                     {deviceLabel} · {grade}
                   </p>
                 </div>
+                {target !== null && (
+                  <div className="rounded-lg border border-line bg-paper px-3 py-2.5 text-left">
+                    <p className="text-[11px] font-bold text-muted">
+                      {en ? "Trading up to" : "Tukar ke"}
+                    </p>
+                    <p className="text-sm font-extrabold leading-snug text-ink">
+                      {target.brand} {target.modelName}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted">
+                      {conditionLabel(target.condition, locale)} · {formatIDR(target.price)}
+                    </p>
+                  </div>
+                )}
                 {error !== "" && (
                   <p role="alert" className="flex items-start gap-1.5 rounded-lg bg-bad-bg p-2.5 text-left text-[11px] font-bold leading-relaxed text-bad">
                     <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

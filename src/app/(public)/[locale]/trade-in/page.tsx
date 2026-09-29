@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import { buildRouteMetadata } from "@/app/sitemap";
 import { TradeInContent } from "./trade-in-content";
@@ -21,5 +21,12 @@ export default async function TradeInPage({
   const resolvedParams = await params;
   const locale: Locale = resolvedParams.locale === "en" ? "en" : "id";
 
-  return <TradeInContent locale={locale} />;
+  // useSearchParams() harus berada di dalam batas Suspense, sama seperti
+  // katalog. Halaman ini membaca ?unit= supaya isi pengajuan yang dikirim
+  // ke WhatsApp menyebut handset etalase yang sedang dilihat.
+  return (
+    <Suspense>
+      <TradeInContent locale={locale} />
+    </Suspense>
+  );
 }

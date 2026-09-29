@@ -11,11 +11,41 @@
 /*
  * Host yang boleh dimuat oleh halaman. Semuanya ditulis utuh, bukan dari
  * pola, supaya mudah diaudit: satu kali baca cukup untuk melihat semua asal
- * daya yang diizinkan.
+ * daya yang diizinkan. Satu-satunya pengecualian ada di bawah, dan
+ * alasannya dijelaskan di situ.
  */
 const ASAL_GAMBAR_MEJA = "https://cdn.simpleicons.org";
 const ASAL_GAMBAR_CONTOH = "https://images.unsplash.com";
 const ASAL_PETA_EMBED = "https://www.google.com";
+
+/*
+ * Host ingest Sentry, satu-satunya alasan connect-src tidak cuma 'self'.
+ *
+ * Bentuknya wildcard, bukan daftar host, dan itu bukan sekadar malas menulis.
+ * SDK browser menghitung URL envelope dari DSN: `getEnvelopeEndpointWithUrlEncodedAuth`
+ * di @sentry/core mengembalikan `tunnel ? tunnel : <host DSN>/api/<projectId>/envelope/`.
+ * Repo ini tidak pernah menyetel `tunnel`, jadi host yang dihubungi adalah
+ * host yang tertulis di DSN, yaitu `o<orgid>.ingest.sentry.io`. Angka
+ * `<orgid>` datang dari env `NEXT_PUBLIC_SENTRY_DSN`, jadi daftar eksplisit
+ * akan mengunci kebijakan ke satu organisasi dan diam-diam rusak begitu DSN
+ * dipindah. Wildcard-nya dibatasi ke namespace ingest Sentry: host lain di
+ * bawah sentry.io tetap tertutup, dan tidak ada asal lain yang ikut terbuka.
+ *
+ * Batasnya: ini hanya mengizinkan transport, tidak memuat skrip apa pun.
+ * Sentry tetap di-load sebagai modul bundel biasa lewat modul Next, bukan
+ * inline, jadi script-src tidak perlu dilonggarkan dan masih tetap
+ * nonce + 'strict-dynamic'.
+ *
+ * Kalau nanti Sentry pindah ke host ingest regional seperti
+ * `o<orgid>.ingest.us.sentry.io`, wildcard di bawah tidak ikut menutupnya
+ * dan harus ditambah eksplisit. Bentuk regional itu memang dikenali SDK,
+ * tapi DSN At Cell sekarang tidak punya bagian region itu.
+ *
+ * Kalau `NEXT_PUBLIC_SENTRY_DSN` kosong, `Sentry.init` dilewati seluruhnya
+ * (lihat src/instrumentation-client.ts), tidak ada envelope yang dibuat, dan
+ * allowance ini tidak punya efek di deployment yang tidak memakai Sentry.
+ */
+const ASAL_INGEST_SENTRY = "https://*.ingest.sentry.io";
 
 export type CspOptions = {
   /*
@@ -102,7 +132,7 @@ export function buildContentSecurityPolicy({
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": imgSrc,
     "font-src": ["'self'"],
-    "connect-src": ["'self'"],
+    "connect-src": ["'self'", ASAL_INGEST_SENTRY],
     "frame-src": [ASAL_PETA_EMBED],
     "media-src": ["'self'"],
     "manifest-src": ["'self'"],

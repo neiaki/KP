@@ -96,7 +96,7 @@ group.
 | `style-src` | `'self'`, `'unsafe-inline'` | Nonce tidak pernah berlaku untuk atribut `style`, dan tiga berkas memakainya. |
 | `img-src` | `'self'`, `data:`, `blob:`, Simple Icons, Unsplash, host Storage | Logo merek, foto mode mock, dan foto produk. |
 | `font-src` | `'self'` | Font lewat `next/font` di-host sendiri, bukan dari CDN. |
-| `connect-src` | `'self'` | Browser tidak pernah bicara langsung ke Supabase. |
+| `connect-src` | `'self'`, `https://*.ingest.sentry.io` | Browser tidak pernah bicara langsung ke Supabase, tapi SDK browser Sentry mengirim envelope galat ke host ingest Sentry. |
 | `frame-src` | `https://www.google.com` | Peta kontak di halaman kaki. |
 | `media-src` | `'self'` | Tidak ada media dari luar. |
 | `manifest-src` | `'self'` | Manifest dibuat sendiri. |
@@ -106,6 +106,49 @@ Host Storage diambil dari `NEXT_PUBLIC_SUPABASE_URL` lewat `hostStorage()`,
 bukan ditulis mati. Kalau project Supabase diganti, semua host lama hilang dari
 kebijakan dan foto produk ikut rusak, jadi test memeriksa kedua arah: env terisi
 harus masuk, env kosong atau rusak tidak boleh dikarang.
+
+## Kenapa Sentry boleh lewat di `connect-src`
+
+SDK browser Sentry tidak mengirim apa pun ke server sendiri. Dia menghitung
+URL envelope dari DSN, dan `getEnvelopeEndpointWithUrlEncodedAuth` di
+[`@sentry/core`](https://github.com/getsentry/sentry-javascript) mengembalikan
+`tunnel ? tunnel : <host DSN>/api/<projectId>/envelope/`. Repo ini tidak
+pernah menyetel `tunnel`, jadi host yang dihubungi adalah host yang tertulis
+di DSN, yaitu `o<orgid>.ingest.sentry.io`.
+
+Dulu `connect-src` hanya berisi `'self'`. Akibatnya SDK tetap
+berinialisasi, tidak ada yang kelihatan rusak, dan setiap envelope ditolak
+sebelum keluar browser. Pelaporan galat di browser mati total tanpa pesan.
+Contoh ini sebabnya kebijakan yang terlalu ketat berbahaya: yang rusak tidak
+selalu kelihatan, dan gejalanya bisa berupa "tidak ada data" yang disangka
+bukan bug.
+
+Host itu ditulis sebagai `https://*.ingest.sentry.io`, bukan
+`https://o451234.ingest.sentry.io` hasil salin dari DSN. Alasannya, angka
+`<orgid>` datang dari env `NEXT_PUBLIC_SENTRY_DSN`, jadi daftar eksplisit
+akan mengunci kebijakan ke satu organisasi lalu diam-diam rusak begitu DSN
+dipindah. Wildcard-nya tetap dibatasi ke namespace ingest Sentry, jadi host
+lain di bawah `sentry.io` tetap tertutup dan tidak ada asal lain yang ikut
+terbuka.
+
+Batasnya penting: mengizinkan `connect-src` hanya mengizinkan **transport**,
+itulah `fetch` dan `XHR` milik SDK ke host yang sudah disebut. Directive itu
+tidak memuat skrip apa pun. Sentry sendiri tetap di-load sebagai modul bundel
+biasa lewat modul Next, bukan skrip inline, jadi `script-src` tidak perlu
+dilonggarkan sama sekali dan masih tetap `nonce` + `'strict-dynamic'`. Kalau
+pengecualian ini sebenarnya butuh `script-src` yang dilonggarkan, berarti cara
+menyelesaikan masalahnya salah dan harus dihitung ulang, bukan membuka
+`script-src`.
+
+Kalau `NEXT_PUBLIC_SENTRY_DSN` kosong, `Sentry.init` dilewati seluruhnya di
+[`src/instrumentation-client.ts`](../src/instrumentation-client.ts), tidak ada
+envelope yang dibuat, dan allowance ini tidak punya efek di deployment yang
+tidak memakai Sentry.
+
+Satu hal yang belum ditangani: kalau Sentry nanti pindah ke host ingest
+regional seperti `o<orgid>.ingest.us.sentry.io`, wildcard di atas tidak ikut
+mencakupnya dan harus ditambah eksplisit. Bentuk regional itu memang
+dikenali SDK, tapi DSN At Cell sekarang tidak punya bagian region itu.
 
 ## Yang sengaja tidak dipakai
 
@@ -118,6 +161,10 @@ harus masuk, env kosong atau rusak tidak boleh dikarang.
   [`src/lib/supabase/client.ts`](../src/lib/supabase/client.ts) tidak punya
   pemanggil, semua akses lewat server action. Kalau nanti ada pemanggil, host itu
   wajib ditambahkan beserta test-nya.
+- Host ingest Sentry tidak ditutup. Alasannya ada di bagian
+  "Kenapa Sentry boleh lewat di `connect-src`" di atas, dan
+  `tests/csp-sentry-connect-src.test.ts` menjaga agar exception itu tidak
+  hilang diam-diam.
 - Nonce untuk `style-src` tidak dicoba. Aturan CSP tidak menyediakan nonce untuk
   atribut `style`, jadi hasilnya hanya rasa aman semu.
 - Daftar host skrip yang panjang tidak dipakai sebagai pengganti nonce. Setiap
@@ -127,7 +174,10 @@ harus masuk, env kosong atau rusak tidak boleh dikarang.
 ## Menambah asal baru
 
 1. Tambah hostnya di [`src/lib/csp.ts`](../src/lib/csp.ts), ditulis utuh sebagai
-   konstanta bernama, bukan hasil pola.
+   konstanta bernama, bukan hasil pola. Pola hanya boleh kalau nama hostnya
+   benar-benar tidak bisa ditulis utuh, misalnya host ingest Sentry yang
+   berisi nomor organisasi dari env; kasus itu harus dijelaskan di depan
+   konstantanya.
 2. Tambah test di [`tests/csp.test.ts`](../tests/csp.test.ts) yang memaksa host
    itu ada di directive yang tepat.
 3. Kalau host-nya berasal dari env, test juga harus memeriksa arah sebaliknya,

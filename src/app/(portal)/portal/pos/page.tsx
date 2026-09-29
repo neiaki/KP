@@ -783,8 +783,15 @@ export default function SalesPosPage() {
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <h3 className="text-xl font-black text-ink">Transaksi Berhasil Diproses!</h3>
+              {/* Nomor faktur adalah kode nota. Ditebalkan supaya dibaca
+                  lebih dulu daripada tanggal, sama seperti IMEI terikat di
+                  bawahnya yang juga jadi penanda sah. */}
               <p className="text-xs text-muted font-mono">
-                No. Faktur: {completedInvoice.invoice_number ?? `INV-${completedInvoice.id}`} • {formatDate(completedInvoice.created_at)}
+                No. Faktur:{" "}
+                <span className="font-bold text-ink">
+                  {completedInvoice.invoice_number ?? `INV-${completedInvoice.id}`}
+                </span>{" "}
+                • {formatDate(completedInvoice.created_at)}
               </p>
             </div>
 
