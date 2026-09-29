@@ -203,9 +203,12 @@ export function buildServiceNotaHtml(params: {
     .join("");
   return (
     storeHead(params.storeName, params.address, params.phone) +
-    "<div class=\"center\"><strong>NOTA TERIMA SERVIS</strong><br><span class=\"mono\">" +
+    // Kode nota ditebalkan: nota ini dipegang pelanggan dan footer di bawah
+    // menyuruhnya menunjukkan kode ini saat mengambil unit, jadi kode
+    // harus terbaca sekilas, sama seperti IMEI penanda sah di nota POS.
+    "<div class=\"center\"><strong>NOTA TERIMA SERVIS</strong><br><span class=\"mono\"><strong>" +
     esc(ticket.ticket_code) +
-    " / " +
+    "</strong> / " +
     esc(formatDate(ticket.created_at)) +
     "</span></div><hr>" +
     "<table>" +

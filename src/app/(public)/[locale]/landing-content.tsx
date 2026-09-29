@@ -8,11 +8,13 @@ import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
 import { cleanWaNumber } from "@/lib/wa";
+import { formatIDR } from "@/lib/utils";
 import {
   toCardItem,
   filterItems,
   sortItems,
   shortIDR,
+  listProductsWithoutUnits,
   type SortOrder,
 } from "@/lib/shop";
 import {
@@ -74,6 +76,9 @@ export function LandingContent({
     ),
     sortOrder
   );
+
+  // Sama seperti katalog: produk tanpa unit tidak boleh hilang dari beranda.
+  const newProducts = listProductsWithoutUnits(products, inventoryUnits);
 
   /* Foto slide memakai copy yang dikurasi manusia, jadi daftarnya tetap di
      sini. Yang diambil dari database hanya lokasi filenya: photo adalah kunci
@@ -363,6 +368,65 @@ export function LandingContent({
             {catalogList.map((item) => (
               <ProductCard key={item.unitId} item={item} locale={locale} waNumber={waNumber} />
             ))}
+          </div>
+        )}
+        {newProducts.length > 0 && (
+          <div className="mt-8">
+            <h3 className="max-w-xl text-xl font-extrabold tracking-tight text-ink">
+              {locale === "en" ? "New in catalog" : "Baru masuk katalog"}
+            </h3>
+            <p className="mt-1 max-w-xl text-[13px] text-muted">
+              {locale === "en"
+                ? "No unit registered yet. Ask to be notified when the first unit arrives."
+                : "Unitnya belum didaftarkan. Minta dikabari saat unit pertama masuk."}
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {newProducts.map((p) => {
+                const img =
+                  (p.official_images && p.official_images[0]) || p.image_url;
+                return (
+                  <article
+                    key={p.id}
+                    className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden bg-paper">
+                      {img && (
+                        <Image
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          src={img}
+                          alt={`${p.brand} ${p.model_name}`}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="flex flex-1 flex-col p-4">
+                      <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
+                        {locale === "en" ? "Sold out" : "Stok habis"}
+                      </p>
+                      <h4 className="text-[15px] font-extrabold leading-snug text-ink">
+                        {p.brand} {p.model_name}
+                      </h4>
+                      <p className="mt-1 text-[13px] font-bold text-muted">
+                        {locale === "en" ? "Catalog price" : "Harga katalog"}{" "}
+                        {formatIDR(p.default_price)}
+                      </p>
+                      <a
+                        href={`https://wa.me/${waNumber}?text=${encodeURIComponent(
+                          `Halo At Cell, kabari saya kalau ${p.brand} ${p.model_name} sudah ada unitnya.`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        {locale === "en" ? "Notify me" : "Kabari saya"}
+                      </a>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         )}
         <div className="mt-5">
