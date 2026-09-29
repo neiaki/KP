@@ -30,6 +30,11 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SECRET_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+# SUPABASE_SERVICE_ROLE_KEY adalah nama lama yang masih diterima sebagai
+# cadangan dari SUPABASE_SECRET_KEY, jadi wajib ikut diisi kalau project
+# masih memakai kunci service_role. src/lib/supabase/config.ts membaca
+# SUPABASE_SECRET_KEY dulu, lalu SUPABASE_SERVICE_ROLE_KEY. requireRole() dan
+# health check menolak jalan kalau keduanya kosong.
 SUPABASE_COOKIE_DOMAIN=.atcell.my.id
 DATABASE_URL=
 
@@ -41,6 +46,24 @@ NEXT_PUBLIC_SITE_URL=
 SITE_URL=
 SERVER_ACTIONS_ALLOWED_ORIGINS=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Batas koneksi dan query database. Opsional, ada bawaannya.
+#
+# STATEMENT_TIMEOUT_MS = 8000 (bawaan), rentang 1000 sampai 30000. Batas
+# ini yang mencegah satu query yang menggantung menahan seluruh pool
+# koneksi. Nilai yang bukan integer positif, atau di luar rentang, diabaikan
+# dan bawaannya yang dipakai, jadi salah ketik di dashboard tidak membuat
+# seluruh aplikasi gagal terhubung.
+#
+# DB_POOL_MAX = 12 (bawaan), rentang 1 sampai 50. Jumlah koneksi per
+# instance aplikasi. Lima terlalu kecil untuk halaman publik: satu render
+# halaman berat memakai lima sampai tujuh query, jadi dengan lima koneksi
+# dua pengunjung yang membuka beranda bersamaan sudah menghabiskan pool.
+# Gejalanya di produksi pada 29 September 2026: halaman ringan tetap 0,1
+# detik, sementara halaman berat semuanya timeout bersamaan, lalu container
+# ditandai unhealthy dan Traefik membalas 503 selama sekitar 90 detik.
+STATEMENT_TIMEOUT_MS=8000
+DB_POOL_MAX=12
 
 # Pemantauan error, opsional semua. NEXT_PUBLIC_* wajib ada saat build image.
 SENTRY_DSN=
@@ -80,6 +103,18 @@ Opsional, tapi kosong berarti fitur tertentu mati:
   domain apex sebagai bawaan.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` hanya untuk kompatibilitas project lama
   yang belum memakai publishable key.
+- `STATEMENT_TIMEOUT_MS` untuk batas waktu satu query lewat koneksi Drizzle,
+  dibaca `src/db/client.ts`. Bawaannya 8000 milidetik, hanya bilangan
+  bulat positif yang dipakai, dan nilai di atas 30000 dipangkas ke 30000.
+  Naikkan lewat environment kalau query etalase di VPS produksi sering
+  terpotong, karena jalur ini tidak butuh build image baru sementara pin
+  image di `Dockerfile.coolify` punya keterlambatan satu commit. Nilai yang
+  kosong, nol, atau bukan angka diam-diam dinonaktifkan oleh driver
+  postgres, jadi kode mengembalikan bawaannya, bukan meneruskan apa adanya.
+  Jangan lewat `DATABASE_URL`, karena klausa `options` pada connection
+  string ditimpa `src/db/client.ts`. Jangan naikkan melewati kebutuhan: di
+  Vercel `max` cuma 1 koneksi, jadi satu statement panjang menahan seluruh
+  instance dan request lain antre di belakang socket yang sama.
 
 Pemantauan error, semua opsional dan tidak saling terkait:
 
@@ -423,6 +458,42 @@ Urutan pemeriksaan saat hitungannya 0:
    yaitu pesan kegagalan snapshot. Pesan ini hanya ada di log, tidak pernah
    tampil di halaman, jadi halaman kosong tanpa penjelasan itu sendiri.
 
+#### Produk baru tidak muncul padahal etalase tidak kosong
+
+Gejalanya mirip dengan yang di atas, tapi bedanya ada di bagian yang dihitung:
+`select count(*) from public.v_public_inventory` mengembalikan lebih dari 0
+dan halaman tidak kosong, sedangkan satu produk yang baru ditambahkan lewat
+`/portal/products` tetap tidak ada di katalog.
+
+Bukan cache. Halaman area publik tidak memakai cache sama sekali:
+`getPublicSnapshot()` dipanggil ulang di dalam jalur render pada tiap
+permintaan (`src/app/(public)/[locale]/layout.tsx`), tidak ada `revalidate`
+atau `unstable_cache` di jalur itu, jadi tidak ada jeda refresh yang bisa
+menahan data baru lebih dari satu permintaan.
+
+Penyebabnya lebih muda: etalase dibangun dari unit, bukan dari katalog.
+`v_public_inventory` hanya memuat baris `inventory_units` yang punya
+`product_id` dan `status = 'available'`, dan setiap kartu katalog dibangun
+dari satu unit. Konsekuensinya:
+
+- Produk yang sudah masuk ke `products` tapi belum punya unit berstatus
+  `available` tidak punya satu pun kartu, karena belum ada yang bisa dijual.
+- Produk yang unitnya sudah `sold` atau `reserved` juga tidak muncul.
+
+Jadi menambah katalog belum cukup; unit fisiknya harus didaftarkan juga
+lewat `/portal/inventory` dengan IMEI 15 digit. Untuk memastikan satu produk
+tertentu benar-benar punya unit siap jual:
+
+```sql
+select p.brand, p.model_name, v.unit_id, v.condition, v.selling_price
+  from public.v_public_inventory v
+  join public.products p on p.id = v.product_id
+ where p.model_name ilike '%Galaxy S26%';
+```
+
+Baris yang keluar berarti produk itu tampil di etalase. Hasil kosong berarti
+unitnya belum terdaftar sebagai `available`.
+
 ### Verifikasi lokal memakai database yang sama
 
 Kalau `DATABASE_URL` lokal menunjuk pooler Supabase yang sama dengan production,
@@ -430,7 +501,8 @@ jalankan hanya satu proses Next.js di mesin lokal. Tiap proses menahan sampai 5
 koneksi (`max` di `src/db/client.ts`), sehingga `next dev` di repo utama
 bersamaan dengan `next start` di worktree, ditambah beberapa permintaan curl
 bersamaan, bisa membuat antrean menumpuk di belakang
-`statement_timeout` 2500 milidetik.
+`statement_timeout` 8000 milidetik, atau lebih tinggi kalau
+`STATEMENT_TIMEOUT_MS` dinaikkan.
 
 Gejalanya halaman publik yang menggantung, yaitu melewati batas waktu curl,
 sementara `/robots.txt` dan `/api/health/live` tetap menjawab dalam sepersekian
