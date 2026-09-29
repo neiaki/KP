@@ -57,6 +57,55 @@ const MAX_LIFETIME_SECONDS = 300;
  */
 const IDLE_TIMEOUT_SECONDS = 20;
 
+/** Bawaan batas statement, dalam milidetik. */
+const STATEMENT_TIMEOUT_BAWAAN = 8000;
+/** Di bawah ini query etalase yang sehat ikut terpotong. */
+const STATEMENT_TIMEOUT_MINIMUM = 1000;
+/** Di atas ini satu query menahan pool terlalu lama. */
+const STATEMENT_TIMEOUT_MAKSIMUM = 30_000;
+
+/**
+ * Batas waktu satu query, dibaca dari STATEMENT_TIMEOUT_MS.
+ *
+ * Nilai tidak bisa dipakai apa adanya. Driver postgres.js menyaring opsi
+ * `connection` dengan filter yang membuang nilai falsy, jadi 0 dan NaN
+ * bukan "batas waktu nol" melainkan tidak adanya statement_timeout sama
+ * sekali, tanpa satu galat pun yang bisa dilihat operator. Yang paling
+ * mungkin terjadi di produksi justru operator mengosongkan fieldnya di
+ * dashboard Coolify, jadi kosong harus diperlakukan sebagai bawaan dan
+ * bukan diteruskan.
+ *
+ * Batas bawah dan atas bukan hiasan. statement_timeout adalah parameter
+ * integer, jadi negatif atau pecahan ditolak server saat koneksi dibentuk
+ * dan seluruh aplikasi tidak bisa terhubung karena satu salah ketik. Di
+ * sisi lain, statement yang menahan sepuluh menit menahan seluruh instance
+ * dan membuat request berikutnya antre di belakang socket yang sama.
+ */
+const STATEMENT_TIMEOUT_MS = (() => {
+  const mentah = Number(process.env.STATEMENT_TIMEOUT_MS);
+  if (!Number.isInteger(mentah)) return STATEMENT_TIMEOUT_BAWAAN;
+  if (mentah < STATEMENT_TIMEOUT_MINIMUM) return STATEMENT_TIMEOUT_BAWAAN;
+  if (mentah > STATEMENT_TIMEOUT_MAKSIMUM) return STATEMENT_TIMEOUT_MAKSIMUM;
+  return mentah;
+})();
+
+/**
+ * Jumlah koneksi per instance.
+ *
+ * DB_POOL_MAX dibaca dari env karena batas sebenarnya ada di sisi Supabase
+ * (max_connections) dan di trafik, sedangkan repo tidak bisa mengetahuinya
+ * tanpaDUCTION getter. Nilai tidak bisa dipakai apa adanya juga jatuh ke
+ * bawaan, dengan alasan yang sama seperti STATEMENT_TIMEOUT_MS di atas.
+ */
+const POOL_MAX_BAWAAN = 12;
+
+const POOL_MAX = (() => {
+  const mentah = Number(process.env.DB_POOL_MAX);
+  if (!Number.isInteger(mentah) || mentah < 1) return POOL_MAX_BAWAAN;
+  if (mentah > 50) return POOL_MAX_BAWAAN;
+  return mentah;
+})();
+
 /** Kode galat yang berarti jalurnya rusak, bukan query-nya. */
 const KODE_KONEKSI: Record<string, true> = {
   CONNECTION_CLOSED: true,
@@ -72,6 +121,18 @@ const KODE_KONEKSI: Record<string, true> = {
   EHOSTUNREACH: true,
   ENETUNREACH: true,
   ENETDOWN: true,
+  /*
+   * SQLSTATE kelas 08 = Connection Exception. 08006 adalah connection_failure
+   * dan paling sering muncul bukan dari Postgres langsung, melainkan dari
+   * pooler yang menutup koneksi di tengah transaksi. Bentuk itu yang dipakai
+   * executeSale: seluruh badan transaksi berhasil, tidak ada satu pun query
+   * di dalam callback yang gagal, dan yang putus adalah statement commit.
+   * Karena query di dalam transaksi berjalan di klien milik driver, satu-
+   * satunya yang terlihat dari lapisan kita adalah promise balik dari
+   * .begin, jadi tanpa kode ini di daftar galat commit itu tidak pernah
+   * membangun ulang cache.
+   */
+  "08006": true,
 };
 
 /**
@@ -92,7 +153,15 @@ export function isConnectionFailure(err: unknown): boolean {
     pesan.includes("socket hang up") ||
     pesan.includes("premature close") ||
     pesan.includes("not connected") ||
-    pesan.includes("write after end")
+    pesan.includes("write after end") ||
+    // Dua kalimat berikut milik driver pg sekeluarga, yang berdiri di
+    // depan socket kita kalau deployment pernah memakai PgBouncer atau
+    // Postgres.app alih-alih postgres.js. Repo ini sendiri hanya memakai
+    // postgres.js, jadi keduanya Predictive eksploratif. Kalimat pertama berasal
+    // dari libpq saat koneksi hilang tanpa orderly close, dan yang kedua
+    // dari pg-pool saat kl unusable setelah reconnect gagal.
+    pesan.includes("connection terminated unexpectedly") ||
+    pesan.includes("connection error and is not queryable")
   );
 }
 
@@ -131,10 +200,25 @@ function withConnectionGuard(sql: Sql, onConnectionFailure: () => void): Sql {
     },
     get(target, prop) {
       const nilai = Reflect.get(target, prop);
-      if (prop === "unsafe" && typeof nilai === "function") {
+      if (typeof nilai !== "function") return nilai;
+
+      // .begin wajib diawasi, bukan hanya .unsafe dan tagged template.
+      //
+      // db.transaction() tidak memakai keduanya. Driver memanggil .begin,
+      // dan di dalam postgres 3.4.9 begin membangun klien sendiri lewat
+      // Sql(handler) untuk query di dalam callback transaksi. Klien kedua
+      // itu tidak pernah melewati proxy, jadi satu-satunya yang masih
+      // terlihat dari sini adalah promise balik dari .begin.
+      //
+      // Tanpa penjaga di sini, satu kegagalan koneksi di dalam transaksi
+      // tidak membuang cache, dan request berikutnya memakai klien yang
+      // tidak berguna itu lagi sampai kebetulan ada query biasa yang
+      // menyadarinya. executeSale, updateUnitStatus, dan updateTicket
+      // semuanya memakai db.transaction(), jadi jalurnya produksi.
+      if (prop === "unsafe" || prop === "begin") {
         return (...args: unknown[]) => pantau(nilai.apply(target, args));
       }
-      return typeof nilai === "function" ? nilai.bind(target) : nilai;
+      return nilai.bind(target);
     },
   }) as Sql;
 }
@@ -154,7 +238,29 @@ function buildDb(url: string): Db {
       // Vercel dapat membuat banyak instance serverless. Batasi setiap
       // instance ke satu koneksi; Coolify yang long-lived boleh memakai
       // pool kecil. Supabase pooler tetap menjadi pembatas utama.
-      max: process.env.VERCEL ? 1 : 5,
+      //
+      // Nilai 5 terlalu kecil untuk halaman publik. Satu render halaman
+      // berat memakai lima sampai tujuh query: snapshot etalase tiga
+      // query, StoreJsonLd dua, dan satu lagi untuk kode resi. Dengan max
+      // 5, dua pengunjung yang membuka beranda bersamaan sudah menghabiskan
+      // pool, dan request ketiga menunggu tanpa batas sampai statement
+      // timeout.
+      //
+      // Gejalanya tercatat di produksi pada 29 September 2026 dan bukan
+      // sekadar halaman lambat: /robots.txt dan /api/health/live tetap 0,1
+      // detik, sementara /id, /en, /id/about, dan /id/warranty semuanya
+      // timeout bersamaan begitu ada lebih dari satu request. Setelah tiga
+      // kegagalan health check berturut-turut, container ditandai unhealthy
+      // dan Traefik membalas 503 "no available server" selama sekitar 90
+      // detik, lalu pulih sendiri.
+      //
+      // 12 dipilih karena cukup untuk menyerap burst kecil tanpa naik ke
+      // angka yang bisa membuat pooler Supabase menolak koneksi. Batas
+      // sesungguhnya tetap max_connections di sisi Supabase, yaitu 60 pada
+      // paket yang sedang dipakai. Koneksi yang menganggur hampir tidak
+      //menggunakan memori, karena yang benar-benar aktif hanya
+      // koneksi yang sedang menjalankan query.
+      max: process.env.VERCEL ? 1 : POOL_MAX,
       // Socket harus ditutup sendiri sebelum pooler atau server punya alasan
       // untuk membuangnya, lihat catatan insiden di atas file ini.
       max_lifetime: MAX_LIFETIME_SECONDS,
@@ -162,7 +268,7 @@ function buildDb(url: string): Db {
       connect_timeout: 3,
       connection: {
         // Health probe tidak boleh menumpuk query lambat di pool kecil.
-        statement_timeout: 2500,
+        statement_timeout: STATEMENT_TIMEOUT_MS,
         lock_timeout: 2000,
       },
     }),

@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { headers } from "next/headers";
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
@@ -151,8 +152,29 @@ export async function getPublicInventory(opts?: {
   );
 }
 
-/** Profil toko publik untuk landing page (FR-D-01). Tanpa login. */
-export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettings>> {
+/*
+ * Pengaturan toko dibaca dua kali dalam satu render: sekali oleh
+ * getPublicSnapshot untuk seed etalase, sekali lagi oleh StoreJsonLd untuk
+ * structured data. Keduanya mengembalikan baris yang sama, jadi tanpa cache
+ * satu render halaman publik menjalankan lebih dari lima query database.
+ * Dengan max 5 koneksi di src/db/client.ts, dua render yang datang
+ * bersamaan menghabiskan seluruh pool dan request berikutnya menunggu
+ * tanpa batas.
+ *
+ * Gejalanya terlihat di produksi pada 29 September: halaman ringan seperti
+ * /robots.txt dan /api/health/live tetap 0,1 detik, sementara /id, /en,
+ * /id/about, dan /id/warranty semuanya timeout bersamaan begitu ada lebih
+ * dari satu pengunjung. Setelah tiga kegagalan health check berturut-turut,
+ * container ditandai unhealthy dan Traefik membalas 503 "no available
+ * server" selama sekitar 90 detik.
+ *
+ * cache() React dipakai, bukan Map global: Map global akan menahan data
+ * yang bisa diubah Admin lebih lama dari satu request, sedangkan cache
+ * React lahir dan mati bersama render yang memakainya. Admin mengubah
+ * pengaturan lalu muat ulang, dan halaman berikutnya langsung membaca
+ * nilai baru tanpa perlu menunggu waktu kedaluwarsa.
+ */
+const cacheStoreSettings = cache(async (): Promise<ActionResult<StoreSettings>> => {
   const db = getDb();
   if (!db) return backendOffline();
   try {
@@ -162,6 +184,11 @@ export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettin
   } catch {
     return fail("Pengaturan toko sedang tidak dapat dimuat.");
   }
+});
+
+/** Profil toko publik untuk landing page (FR-D-01). Tanpa login. */
+export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettings>> {
+  return cacheStoreSettings();
 }
 
 /**
@@ -189,10 +216,7 @@ export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettin
  * Kegagalan di sini sengaja tidak fatal: pemanggil memakai path lokal sebagai
  * cadangan, jadi lebih baik peta kosong daripada halaman depan tidak termuat.
  */
-export async function getPublicImageUrls(): Promise<Record<string, string>> {
-  // Kuota habis diperlakukan sama dengan kegagalan biasa di bawah: peta
-  // kosong, bukan halaman depan yang tidak termuat.
-  if (await consumePublicQuota()) return {};
+const cacheImageUrls = cache(async (): Promise<Record<string, string>> => {
   const db = getDb();
   if (!db) return {};
   try {
@@ -206,6 +230,20 @@ export async function getPublicImageUrls(): Promise<Record<string, string>> {
   } catch {
     return {};
   }
+});
+
+export async function getPublicImageUrls(): Promise<Record<string, string>> {
+  // Kuota diperiksa di sini, di luar cache, dan hanya sekali per render.
+  //
+  // Urutannya penting. consumePublicQuota() membaca header permintaan, jadi
+  // ia harus dipanggil satu kali per request, bukan sekali per pemanggil.
+  // Halaman depan memanggil fungsi ini dua kali dalam satu render, dari
+  // page.tsx dan dari StoreJsonLd. Kalau kuota dicek di dalam cache, satu
+  // request memakai dua kuota dan batasnya jadi setengah dari yang
+  // dimaksud. Kalau dicek seperti di bawah, request kedua membaca hasil
+  // cache dan tidak menambah pemakaian.
+  if (await consumePublicQuota()) return {};
+  return cacheImageUrls();
 }
 
 export type PublicSnapshot = {
