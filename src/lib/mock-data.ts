@@ -1,4 +1,4 @@
-import {
+import type {
   Profile,
   StoreSettings,
   Product,
@@ -6,7 +6,7 @@ import {
   Transaction,
   ServiceTicket,
 } from "@/types";
-import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
+import { TICKET_CODE_EXAMPLE } from "./validations.ts";
 
 export const initialProfiles: Profile[] = [
   {
@@ -144,12 +144,13 @@ export const initialProducts: Product[] = [
     specs: "Awesome Iceblue, Super AMOLED 6.6\" 120Hz, Exynos 1480, 50MP OIS",
     default_price: 5999000,
     image_url: "/products/a55-1.jpg",
+    // a55-3 dan a55-5 adalah potongan dari a55-1, a55-4 potongan dari
+    // a55-2: lima foto itu sebenarnya dua render berbeda. Shopper yang
+    // menekan tombol foto berikutnya hanya melihat pola yang sama
+    // berulang, jadi yang ditampilkan cukup dua render aslinya.
     official_images: [
       "/products/a55-1.jpg",
       "/products/a55-2.jpg",
-      "/products/a55-3.jpg",
-      "/products/a55-4.jpg",
-      "/products/a55-5.jpg",
     ],
     second_images: [
       "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=600&auto=format&fit=crop&q=80",
@@ -188,9 +189,11 @@ export const initialProducts: Product[] = [
     specs: "Wave Green, AMOLED 6.7\" 120Hz, Dimensity 8200, 50MP OIS, 67W SUPERVOOC",
     default_price: 5999000,
     image_url: "/products/oppo-reno11-1.png",
+    // oppo-reno11-2.jpg sengaja tidak dipakai: frame itu hanya laut dan
+    // langit tanpa perangkat di dalamnya, jadi shopper yang membukanya
+    // tidak mendapat informasi produk apa pun.
     official_images: [
       "/products/oppo-reno11-1.png",
-      "/products/oppo-reno11-2.jpg",
       "/products/oppo-reno11-3.png",
       "/products/oppo-reno11-4.jpg",
     ],

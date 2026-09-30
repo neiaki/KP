@@ -206,15 +206,16 @@ test("label inventaris memakai model asli unit trade-in", () => {
 
 test("jalur demo juga menulis product_id null, bukan menyalin katalog unit baru", () => {
   // Demo harus menunjukkan perilaku yang sama dengan live, kalau tidak demo
-  // compelled menampilkan bug yang sudah diperbaiki. store.ts tidak bisa
-  // diimpor di test node (JSX dan import next/*), jadi yang diperiksa adalah
-  // source-nya, mengikuti tests/tracking-safety.test.ts.
-  const storeSource = readFileSync(new URL("../src/lib/store.ts", import.meta.url), "utf8");
+  // compelled menampilkan bug yang sudah diperbaiki. Cabang demo tinggal di
+  // src/lib/store-demo.ts sejak pemisahan mode live/demo (src/lib/store.ts
+  // tidak lagi memuat satu pun cabang demo), jadi yang diperiksa adalah
+  // source modul itu, mengikuti tests/tracking-safety.test.ts.
+  const storeSource = readFileSync(new URL("../src/lib/store-demo.ts", import.meta.url), "utf8");
   const demoBranch = storeSource.slice(
     storeSource.indexOf("if (params.tradeIn) {"),
     storeSource.indexOf("const newTransaction: Transaction")
   );
-  assert.ok(demoBranch.length > 0, "cabang trade-in demo harus ditemukan di store.ts");
+  assert.ok(demoBranch.length > 0, "cabang trade-in demo harus ditemukan di store-demo.ts");
   assert.match(demoBranch, /product_id:\s*null/);
   assert.doesNotMatch(demoBranch, /product_id:\s*unit\.product_id/);
   // Label harus ikut ditulis, kalau tidak tabel inventaris demo kolomnya kosong.

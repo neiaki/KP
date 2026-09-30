@@ -12,17 +12,7 @@ import {
   UserRole,
   UnitStatus,
   UnitCondition,
-  PaymentMethod,
-  TradeInRecord,
 } from "@/types";
-import {
-  initialProfiles,
-  initialStoreSettings,
-  initialProducts,
-  initialInventoryUnits,
-  initialTransactions,
-  initialServiceTickets,
-} from "./mock-data";
 import { getPortalSnapshot, type PortalSnapshot } from "@/lib/actions/portal";
 import { getPublicSnapshot, type PublicSnapshot } from "@/lib/actions/public";
 import { resolveSeed } from "@/lib/public-seed";
@@ -34,26 +24,24 @@ import {
   updateTicket as updateTicketAction,
 } from "@/lib/actions/service";
 import {
-  generateTicketSuffix,
-  isAllowedTransition,
-  registerUnitsSchema,
-} from "@/lib/validations";
+  demoAddInventoryUnits,
+  demoAddProduct,
+  demoAddStaff,
+  demoCreateServiceTicket,
+  demoExecutePosSale,
+  demoInitialState,
+  demoResetToDefault,
+  demoUpdateProduct,
+  demoUpdateRole,
+  demoUpdateServiceTicket,
+  demoUpdateStoreSettings,
+  demoUpdateUnitStatus,
+  hydrateDemoFromLocalStorage,
+  type DemoPosSaleParams,
+  type DemoTicketData,
+} from "./store-demo.ts";
 import { updateStoreSettings as updateStoreSettingsAction } from "@/lib/actions/settings";
 import { inviteStaff as inviteStaffAction } from "@/lib/actions/auth";
-
-// Helper untuk local storage persistence. Data live tidak pernah ditulis ke
-// localStorage karena browser adalah cache, bukan sumber kebenaran.
-const DATA_VERSION = "2";
-const VERSION_KEY = "atcell_data_version";
-const STORAGE_KEYS = {
-  CURRENT_ROLE: "atcell_current_role",
-  STORE_SETTINGS: "atcell_store_settings",
-  PRODUCTS: "atcell_products",
-  INVENTORY: "atcell_inventory_units",
-  TRANSACTIONS: "atcell_transactions",
-  TICKETS: "atcell_service_tickets",
-  PROFILES: "atcell_profiles",
-} as const;
 
 const liveBackendEnabled =
   process.env.NODE_ENV === "production" ||
@@ -91,10 +79,6 @@ type SnapshotResult =
 function unwrap<T>(result: BackendResult<T>): T {
   if (!result.ok) throw new Error(result.error);
   return result.data;
-}
-
-function clearLocalData() {
-  Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
 }
 
 function clearProtectedState(
@@ -171,7 +155,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     liveBackendEnabled ? "customer" : "admin"
   );
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(
-    liveBackendEnabled ? null : initialProfiles[0] ?? null
+    liveBackendEnabled ? null : demoInitialState.profile
   );
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(
     resolveSeed(
@@ -179,23 +163,23 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       liveBackendEnabled,
       (s) => s.storeSettings,
       emptyStoreSettings,
-      initialStoreSettings
+      demoInitialState.storeSettings
     )
   );
   const [products, setProducts] = useState<Product[]>(
-    resolveSeed(seed, liveBackendEnabled, (s) => s.products, [], initialProducts)
+    resolveSeed(seed, liveBackendEnabled, (s) => s.products, [], demoInitialState.products)
   );
   const [inventoryUnits, setInventoryUnits] = useState<InventoryUnit[]>(
-    resolveSeed(seed, liveBackendEnabled, (s) => s.inventoryUnits, [], initialInventoryUnits)
+    resolveSeed(seed, liveBackendEnabled, (s) => s.inventoryUnits, [], demoInitialState.inventoryUnits)
   );
   const [transactions, setTransactions] = useState<Transaction[]>(
-    liveBackendEnabled ? [] : initialTransactions
+    liveBackendEnabled ? [] : demoInitialState.transactions
   );
   const [serviceTickets, setServiceTickets] = useState<ServiceTicket[]>(
-    liveBackendEnabled ? [] : initialServiceTickets
+    liveBackendEnabled ? [] : demoInitialState.serviceTickets
   );
   const [profiles, setProfiles] = useState<Profile[]>(
-    liveBackendEnabled ? [] : initialProfiles
+    liveBackendEnabled ? [] : demoInitialState.profiles
   );
   const loadRequestId = useRef(0);
 
@@ -297,36 +281,16 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     }
 
     const frame = window.requestAnimationFrame(() => {
-      try {
-        if (localStorage.getItem(VERSION_KEY) !== DATA_VERSION) {
-          clearLocalData();
-          localStorage.setItem(VERSION_KEY, DATA_VERSION);
-        }
-        const savedRole = localStorage.getItem(STORAGE_KEYS.CURRENT_ROLE);
-        if (savedRole) setCurrentRole(savedRole as UserRole);
-
-        const savedSettings = localStorage.getItem(STORAGE_KEYS.STORE_SETTINGS);
-        if (savedSettings) setStoreSettings(JSON.parse(savedSettings));
-
-        const savedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-        if (savedProducts) setProducts(JSON.parse(savedProducts));
-
-        const savedInventory = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-        if (savedInventory) setInventoryUnits(JSON.parse(savedInventory));
-
-        const savedTransactions = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-        if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-
-        const savedTickets = localStorage.getItem(STORAGE_KEYS.TICKETS);
-        if (savedTickets) setServiceTickets(JSON.parse(savedTickets));
-
-        const savedProfiles = localStorage.getItem(STORAGE_KEYS.PROFILES);
-        if (savedProfiles) setProfiles(JSON.parse(savedProfiles));
-      } catch (error) {
-        console.warn("Gagal membaca data demo dari localStorage:", error);
-      } finally {
-        setMounted(true);
-      }
+      hydrateDemoFromLocalStorage({
+        setCurrentRole,
+        setStoreSettings,
+        setProducts,
+        setInventoryUnits,
+        setTransactions,
+        setServiceTickets,
+        setProfiles,
+        setMounted,
+      });
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -338,9 +302,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
 
   const updateRole = (newRole: UserRole) => {
     if (liveBackendEnabled) return;
-    setCurrentRole(newRole);
-    setCurrentProfile(profiles.find((profile) => profile.role === newRole) ?? null);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_ROLE, newRole);
+    demoUpdateRole(profiles, newRole, setCurrentRole, setCurrentProfile);
   };
 
   const updateStoreSettings = async (newSettings: Partial<StoreSettings>) => {
@@ -370,14 +332,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return updated;
     }
 
-    const updated: StoreSettings = {
-      ...storeSettings,
-      ...newSettings,
-      updated_at: new Date().toISOString(),
-    };
-    setStoreSettings(updated);
-    localStorage.setItem(STORAGE_KEYS.STORE_SETTINGS, JSON.stringify(updated));
-    return updated;
+    return demoUpdateStoreSettings(storeSettings, newSettings, setStoreSettings);
   };
 
   const addProduct = async (
@@ -400,17 +355,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return created;
     }
 
-    const product: Product = {
-      ...newProduct,
-      id: Date.now(),
-      created_at: new Date().toISOString(),
-    };
-    setProducts((prev) => {
-      const updated = [product, ...prev];
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
-      return updated;
-    });
-    return product;
+    return demoAddProduct(newProduct, setProducts);
   };
 
   const updateProduct = async (
@@ -433,17 +378,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return updated;
     }
 
-    let updatedProduct: Product | undefined;
-    setProducts((prev) => {
-      const updated = prev.map((product) => {
-        if (product.id !== id) return product;
-        updatedProduct = { ...product, ...updates };
-        return updatedProduct;
-      });
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
-      return updated;
-    });
-    return updatedProduct;
+    return demoUpdateProduct(id, updates, setProducts);
   };
 
   const addInventoryUnits = async (
@@ -467,39 +402,15 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return created;
     }
 
-    const parsed = registerUnitsSchema.safeParse({
+    return demoAddInventoryUnits(
+      inventoryUnits,
       productId,
       condition,
       purchaseCost,
       sellingPrice,
       imeis,
-    });
-    if (!parsed.success) {
-      throw new Error(parsed.error.issues[0]?.message ?? "Data IMEI tidak valid.");
-    }
-    const normalizedImeis = parsed.data.imeis;
-    const existingImeis = new Set(inventoryUnits.map((unit) => unit.imei));
-    if (normalizedImeis.some((imei) => existingImeis.has(imei))) {
-      throw new Error("IMEI sudah terdaftar di inventaris.");
-    }
-
-    const newUnits: InventoryUnit[] = normalizedImeis.map((imei, index) => ({
-      id: Date.now() + index,
-      product_id: productId,
-      imei,
-      condition,
-      purchase_cost: purchaseCost,
-      selling_price: sellingPrice,
-      status: "available" as UnitStatus,
-      created_at: new Date().toISOString(),
-    }));
-
-    setInventoryUnits((prev) => {
-      const updated = [...newUnits, ...prev];
-      localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updated));
-      return updated;
-    });
-    return newUnits;
+      setInventoryUnits
+    );
   };
 
   const addBatchIMEI = (
@@ -520,43 +431,10 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return;
     }
 
-    const current = inventoryUnits.find((unit) => unit.id === unitId);
-    if (!current) throw new Error("Unit tidak ditemukan.");
-    if (status === "sold") {
-      throw new Error("Status sold hanya boleh lewat transaksi POS agar nota tercatat.");
-    }
-    if (current.status === "sold") {
-      throw new Error("Unit sudah sold dan tidak dapat dikembalikan menjadi available.");
-    }
-
-    setInventoryUnits((prev) => {
-      const updated = prev.map((unit) => (unit.id === unitId ? { ...unit, status } : unit));
-      localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updated));
-      return updated;
-    });
+    return demoUpdateUnitStatus(inventoryUnits, unitId, status, setInventoryUnits);
   };
 
-  const executePosSale = async (params: {
-    /**
-     * Hanya dipakai mode lokal (localStorage) yang tidak punya sesi auth.
-     * Di mode live purposefully diabaikan: executeSaleAction memakai
-     * guard.profile.id, jadi penjual selalu akun yang benar-benar login
-     * dan tidak bisa dipalsukan dari browser.
-     */
-    salesId?: string;
-    unitId: number;
-    customerName: string;
-    customerPhone: string;
-    paymentMethod: PaymentMethod;
-    warrantyDurationMonths: number;
-    tradeIn?: {
-      originalBrandModel: string;
-      imei: string;
-      gradingDetails: TradeInRecord["grading_details"];
-      offeredPrice: number;
-      photoUrls: string[];
-    };
-  }): Promise<Transaction> => {
+  const executePosSale = async (params: DemoPosSaleParams): Promise<Transaction> => {
     if (liveBackendEnabled) {
       const transaction = unwrap(
         await executeSaleAction({
@@ -586,105 +464,12 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return transaction;
     }
 
-    const unit = inventoryUnits.find((u) => u.id === params.unitId);
-    if (!unit) throw new Error("Unit fisik tidak ditemukan!");
-    if (unit.status !== "available") {
-      throw new Error(
-        `Unit ${unit.imei} sudah berstatus "${unit.status}" dan tidak bisa dijual lagi. Pilih unit lain yang tersedia.`
-      );
-    }
-    const tradeIn = params.tradeIn;
-    if (tradeIn) {
-      if (!/^\d{15}$/.test(tradeIn.imei.trim())) {
-        throw new Error("Nomor IMEI unit tukar tambah wajib tepat 15 digit angka!");
-      }
-      if (inventoryUnits.some((u) => u.imei === tradeIn.imei.trim())) {
-        throw new Error("IMEI unit tukar tambah sudah terdaftar di inventaris!");
-      }
-    }
-
-    const tradeInVal = params.tradeIn?.offeredPrice || 0;
-    const finalPayment = Math.max(0, unit.selling_price - tradeInVal);
-    const transactionId = Date.now();
-    let tradeInRecord: TradeInRecord | undefined;
-    const nextInventory = inventoryUnits.map((u) =>
-      u.id === params.unitId ? { ...u, status: "sold" as UnitStatus } : u
-    );
-
-    if (params.tradeIn) {
-      const secondHandUnit: InventoryUnit = {
-        id: transactionId + 99,
-        // product_id null, sama seperti jalur live di src/lib/actions/pos.ts.
-        // Menyalin unit.product_id mendaftarkan handset pelanggan ke katalog
-        // unit baru, dan demo lalu menampilkan bug yang sudah diperbaiki.
-        // Deskripsinya ada di trade_in_model supaya tabel inventaris tetap
-        // bisa dibaca.
-        product_id: null,
-        trade_in_model: params.tradeIn.originalBrandModel,
-        imei: params.tradeIn.imei,
-        condition: "second",
-        status: "available",
-        purchase_cost: tradeInVal,
-        selling_price: Math.round(tradeInVal * 1.25),
-        created_at: new Date().toISOString(),
-      };
-      nextInventory.unshift(secondHandUnit);
-      tradeInRecord = {
-        id: transactionId + 50,
-        transaction_id: transactionId,
-        resulting_unit_id: secondHandUnit.id,
-        original_brand_model: params.tradeIn.originalBrandModel,
-        imei: params.tradeIn.imei,
-        grading_details: params.tradeIn.gradingDetails,
-        photo_urls: params.tradeIn.photoUrls,
-        offered_price: tradeInVal,
-        created_at: new Date().toISOString(),
-      };
-    }
-
-    const newTransaction: Transaction = {
-      id: transactionId,
-      sales_id: params.salesId ?? "local-sales",
-      customer_id: null,
-      customer_name: params.customerName,
-      customer_phone: params.customerPhone,
-      total_amount: unit.selling_price,
-      trade_in_deduction: tradeInVal,
-      final_payment: finalPayment,
-      payment_method: params.paymentMethod,
-      created_at: new Date().toISOString(),
-      items: [
-        {
-          id: transactionId + 1,
-          transaction_id: transactionId,
-          unit_id: unit.id,
-          unit_price: unit.selling_price,
-          warranty_duration_months: params.warrantyDurationMonths,
-          unit,
-        },
-      ],
-      trade_in: tradeInRecord,
-    };
-
-    setInventoryUnits(nextInventory);
-    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(nextInventory));
-    setTransactions((prev) => {
-      const updated = [newTransaction, ...prev];
-      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(updated));
-      return updated;
-    });
-    return newTransaction;
+    return demoExecutePosSale(inventoryUnits, params, setInventoryUnits, setTransactions);
   };
 
-  const createServiceTicket = async (ticketData: {
-    customerName: string;
-    customerPhone: string;
-    deviceModel: string;
-    imeiOrSn: string;
-    issueNotes: string;
-    technicianId?: string;
-    photoUrls?: string[];
-  }): Promise<ServiceTicket> => {
+  const createServiceTicket = async (
+    ticketData: DemoTicketData
+  ): Promise<ServiceTicket> => {
     if (liveBackendEnabled) {
       const created = unwrap(
         await createTicketAction({
@@ -701,44 +486,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return created;
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const existingCodes = new Set(serviceTickets.map((ticket) => ticket.ticket_code));
-    let ticketCode = "";
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const candidate = `SRV-${todayStr}-${generateTicketSuffix()}`;
-      if (!existingCodes.has(candidate)) {
-        ticketCode = candidate;
-        break;
-      }
-    }
-    if (!ticketCode) throw new Error("Gagal membuat kode tiket unik, silakan coba lagi.");
-
-    const now = new Date().toISOString();
-    const newTicket: ServiceTicket = {
-      id: Date.now(),
-      ticket_code: ticketCode,
-      customer_id: null,
-      technician_id: ticketData.technicianId || "prof-tech-01",
-      customer_name: ticketData.customerName,
-      customer_phone: ticketData.customerPhone,
-      device_model: ticketData.deviceModel,
-      imei_or_sn: ticketData.imeiOrSn,
-      issue_notes: ticketData.issueNotes,
-      repair_status: "received",
-      photo_urls: ticketData.photoUrls || [],
-      sparepart_fee: 0,
-      labor_fee: 100000,
-      total_fee: 100000,
-      warranty_days: 30,
-      created_at: now,
-      updated_at: now,
-    };
-    setServiceTickets((prev) => {
-      const updated = [newTicket, ...prev];
-      localStorage.setItem(STORAGE_KEYS.TICKETS, JSON.stringify(updated));
-      return updated;
-    });
-    return newTicket;
+    return demoCreateServiceTicket(serviceTickets, ticketData, setServiceTickets);
   };
 
   const updateServiceTicket = async (
@@ -768,34 +516,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return;
     }
 
-    const current = serviceTickets.find((ticket) => String(ticket.id) === String(ticketId));
-    if (!current) throw new Error("Tiket servis tidak ditemukan.");
-    if (
-      updates.repair_status &&
-      updates.repair_status !== current.repair_status &&
-      !isAllowedTransition(current.repair_status, updates.repair_status)
-    ) {
-      throw new Error(
-        `Transisi ${current.repair_status} ke ${updates.repair_status} tidak diizinkan. Ikuti alur reparasi resmi.`
-      );
-    }
-
-    setServiceTickets((prev) => {
-      const updated = prev.map((ticket) => {
-        if (String(ticket.id) !== String(ticketId)) return ticket;
-        const totalFee =
-          (updates.sparepart_fee ?? ticket.sparepart_fee) +
-          (updates.labor_fee ?? ticket.labor_fee);
-        return {
-          ...ticket,
-          ...updates,
-          total_fee: totalFee,
-          updated_at: new Date().toISOString(),
-        };
-      });
-      localStorage.setItem(STORAGE_KEYS.TICKETS, JSON.stringify(updated));
-      return updated;
-    });
+    return demoUpdateServiceTicket(serviceTickets, ticketId, updates, setServiceTickets);
   };
 
   const addStaff = async (
@@ -840,34 +561,21 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return undefined;
     }
 
-    const newStaff: Profile = {
-      id: `prof-${Date.now()}`,
-      full_name: name,
-      role,
-      phone_number: phone,
-      email,
-      created_at: new Date().toISOString(),
-    };
-    setProfiles((prev) => {
-      const updated = [...prev, newStaff];
-      localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(updated));
-      return updated;
-    });
-    return newStaff;
+    return demoAddStaff(name, role, phone, email, password, username, setProfiles);
   };
 
   const resetToDefault = () => {
     if (liveBackendEnabled) return;
-    clearLocalData();
-    localStorage.setItem(VERSION_KEY, DATA_VERSION);
-    setCurrentRole("admin");
-    setCurrentProfile(initialProfiles[0] ?? null);
-    setStoreSettings(initialStoreSettings);
-    setProducts(initialProducts);
-    setInventoryUnits(initialInventoryUnits);
-    setTransactions(initialTransactions);
-    setServiceTickets(initialServiceTickets);
-    setProfiles(initialProfiles);
+    demoResetToDefault({
+      setCurrentRole,
+      setCurrentProfile,
+      setStoreSettings,
+      setProducts,
+      setInventoryUnits,
+      setTransactions,
+      setServiceTickets,
+      setProfiles,
+    });
   };
 
   return {
