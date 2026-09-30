@@ -191,7 +191,15 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - sw.js (service worker PWA)
+     *
+     * sw.js dikecualikan karena berkas itu milik service worker, bukan
+     * halaman. Kalau ikut diteruskan di sini, tiap unduhan sw.js akan
+     * triggering refresh sesi Supabase seperti halaman biasa. Itu murni
+     * biaya sia-sia, dan yang lebih buruk: header CSP per permintaan yang
+     * dipasang di sini akan ikut menempel pada skrip service worker,
+     * padahal yang mengatur skrip itu adalah worker-src, bukan script-src.
      */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|sw.js).*)",
   ],
 };

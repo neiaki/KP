@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import React from "react";
 import "../globals.css";
 import { RootProviders, htmlClass, bodyClass } from "@/components/root-shell";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 
 /*
  * Root layout area portal staf. Root layout kedua ini diperlukan oleh route
@@ -18,6 +19,18 @@ export const metadata: Metadata = {
   title: "At Cell: Toko HP Baru, Second dan Servis di Serpong Utara",
   description:
     "At Cell Serpong Utara: jual HP baru dan second bergaransi dengan IMEI terdaftar, terima tukar tambah, dan servis HP. Tanya stok lewat WhatsApp.",
+  /*
+   * iOS tidak membaca manifest untuk ikon layar utama, dan tanpa ini app
+   * portal yang ter-install akan memakai screenshot halaman sebagai ikon.
+   * statusBarStyle translucent membuat bar status menyatu dengan biru
+   * aksen, jadi tidak ada garis putih di atas saat app dibuka.
+   */
+  appleWebApp: {
+    capable: true,
+    title: "At Cell Portal",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
 };
 
 /*
@@ -48,7 +61,10 @@ export default function PortalRootLayout({
       suppressHydrationWarning
     >
       <body className={bodyClass} suppressHydrationWarning>
-        <RootProviders>{children}</RootProviders>
+        <RootProviders>
+          {children}
+          <ServiceWorkerRegistrar />
+        </RootProviders>
       </body>
     </html>
   );

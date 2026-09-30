@@ -472,6 +472,24 @@ export function buildLayoutMetadata(locale: unknown): Metadata {
       title: copy.title,
       description: copy.description,
     },
+    /*
+     * PWA. iOS tidak membaca manifest untuk ikon layar utama dan tidak punya
+     * install prompt, jadi yang bisa membuat beranda jadi app adalah tag
+     * appleWebApp ini. capable diturunkan Next.js menjadi
+     * <meta name="apple-mobile-web-app-capable">, yang masih dibaca iOS
+     * terbaru.
+     *
+     * formatDetection dimatikan supaya nomor telepon dan IMEI di halaman tidak
+     * berubah jadi tautan tel: yang salah jenis dan tidak bisa disalin.
+     * Nomor toko tetap bisa dihubungi lewat tombol WA dan tombol telepon yang
+     * memang dibuat untuk itu.
+     */
+    appleWebApp: {
+      capable: true,
+      title: "At Cell",
+      statusBarStyle: "default",
+    },
+    formatDetection: { telephone: false },
   };
 }
 
