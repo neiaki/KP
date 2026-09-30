@@ -111,6 +111,27 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
+        /*
+         * Service worker tidak boleh disimpan HTTP cache.
+         *
+         * Browser mengevaluasi service worker dari salinan yang tersimpan,
+         * jadi sw.js yang di-cache membuat perubahan yang baru deploy tidak
+         * pernah sampai ke perangkat yang sudah memasang app. no-store
+         * membuat browser selalu meminta ulang, dan max-age=0 menutup jalur
+         * cache intermediary yang biasanya lebih longgar. Service-Worker-
+         * Allowed mengizinkan service worker mengklaim seluruh origin dari
+         * root, yang memang scope yang dipakai manifest.
+         */
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
         // Foto produk dan logo QRIS adalah berkas statis di public/ yang
         // namanya tidak pernah diubah place-nya: mengganti foto memakai nama
         // baru, bukan menimpa berkas lama. Tanpa header di bawah, Next

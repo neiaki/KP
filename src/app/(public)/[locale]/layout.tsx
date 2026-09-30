@@ -7,6 +7,7 @@ import { PublicFooter } from "@/components/public/footer";
 import { LiveChatWidget } from "@/components/chat/live-chat-widget";
 import { StoreJsonLd } from "@/components/public/store-json-ld";
 import { RootProviders, htmlClass, bodyClass } from "@/components/root-shell";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 import { buildLayoutMetadata, isSupportedLocale } from "@/app/sitemap";
 import { Locale } from "@/lib/translations";
 import { getPublicSnapshot } from "@/lib/actions/public";
@@ -101,6 +102,7 @@ export default async function PublicRootLayout({
             </main>
             <PublicFooter locale={locale} />
             <LiveChatWidget />
+            <ServiceWorkerRegistrar />
           </div>
         </RootProviders>
       </body>
