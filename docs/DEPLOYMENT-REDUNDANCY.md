@@ -70,6 +70,17 @@ SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
 NEXT_PUBLIC_COMMIT_SHA=
 VERCEL_GIT_COMMIT_SHA=
+
+# Backup off-site, opsional semua. Tanpa passphrase script keluar 0 tanpa
+# mengirim apa pun. Isi passphrase plus satu tujuan untuk mengaktifkan.
+OFFSITE_PASSPHRASE=
+OFFSITE_PASSPHRASE_FILE=
+OFFSITE_RCLONE_REMOTE=
+OFFSITE_PUT_URL=
+OFFSITE_PUT_TOKEN=
+OFFSITE_PUT_TOKEN_FILE=
+OFFSITE_STAGING_DIR=
+OFFSITE_KEEP_ENCRYPTED=
 ```
 
 Wajib ada di production:
@@ -571,7 +582,8 @@ Urutan backup yang aman:
 1. Ambil dump logis dari Supabase dengan format custom. Script backup mencakup
    schema `public` dan `private`; data Auth dan Storage tetap menjadi backup
    layanan Supabase.
-2. Hitung checksum dump dan simpan ke storage off-site.
+2. Hitung checksum dump, enkripsi, dan kirim ke storage off-site
+   (`npm run backup:offsite`; berjalan otomatis lewat cron harian).
 3. Salin dump ke restore target Coolify saat jadwal restore test.
 4. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
    `scripts/restore-target-bootstrap.sql`. Bootstrap membuat role Data API
@@ -662,8 +674,13 @@ aplikasi, jadi ia melindungi dari kerusakan data, migration yang salah, atau
 `drop` yang tidak disengaja, dan memperpendek RTO karena tidak perlu install
 apa pun untuk memulihkan. Ia **tidak** melindungi dari kehilangan VPS, dari
 akun Supabase yang dikompromikan, atau dari ransomware di host yang sama.
-Salinan terenkripsi off-host tetap wajib dan belum ada; sampai itu dibuat,
-dump di `/data/backups/atcell` masih hidup dan mati di tempat yang sama.
+Salinan terenkripsi off-host dibuat oleh `scripts/backup-offsite.sh`
+(`npm run backup:offsite`): dump terbaru diverifikasi checksum-nya, dienkripsi
+AES-256-CBC dengan PBKDF2, lalu dikirim ke tujuan rclone atau HTTP PUT. Tanpa
+passphrase dan tanpa tujuan, script keluar 0 tanpa mengirim apa pun, jadi cron
+hariannya aman dipasang sebelum konfigurasi selesai. Cara dekripsi dan daftar
+variabel ada di `scripts/backup-offsite.sh` dan `.env.example` (awalan
+`OFFSITE_`).
 
 
 ### Backup otomatis di VPS
