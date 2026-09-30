@@ -45,6 +45,26 @@ const serviceAction = readFileSync(
   "utf8"
 );
 
+/*
+ * Cabang demo createServiceTicket tinggal di src/lib/store-demo.ts sejak
+ * pemisahan mode live/demo. src/lib/store.ts hanya memuat cabang live
+ * (dispatch ke demoCreateServiceTicket), jadi assertion demo di bawah
+ * membaca modul demo, bukan store.
+ */
+const storeDemo = readFileSync(
+  new URL("../src/lib/store-demo.ts", import.meta.url),
+  "utf8"
+);
+
+/** Badan fungsi demoCreateServiceTicket di store-demo. */
+function demoCreateTicketBody(): string {
+  const start = storeDemo.indexOf("export function demoCreateServiceTicket");
+  assert.notEqual(start, -1, "demoCreateServiceTicket tidak ditemukan di store-demo");
+  const end = storeDemo.indexOf("export function demoUpdateServiceTicket", start);
+  assert.notEqual(end, -1, "penutup demoCreateServiceTicket tidak ditemukan");
+  return storeDemo.slice(start, end);
+}
+
 /** Badan fungsi createServiceTicket di store, dari deklarasi sampai penutupnya. */
 function createServiceTicketBody(): string {
   const start = store.indexOf("const createServiceTicket = async");
@@ -86,16 +106,16 @@ test("createServiceTicket menaruh tiket baru di depan daftar seketika", () => {
     "cabang live wajib prepend tiket hasil createTicketAction, kalau tidak " +
       "tiket baru hanya terlihat setelah ada refetch"
   );
-  // Cabang demo: prepend yang sama, sekaligus menulis ke localStorage.
+  // Cabang demo (di store-demo.ts): prepend yang sama.
   assert.match(
-    body,
+    demoCreateTicketBody(),
     /const updated = \[newTicket, \.\.\.prev\]/,
     "cabang demo wajib menaruh tiket baru di depan array yang ada"
   );
 });
 
 test("tiket baru juga disimpan ke localStorage pada cabang demo", () => {
-  const body = createServiceTicketBody();
+  const body = demoCreateTicketBody();
   assert.match(
     body,
     /localStorage\.setItem\(\s*STORAGE_KEYS\.TICKETS,\s*JSON\.stringify\(updated\)\s*\)/,
