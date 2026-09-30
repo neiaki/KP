@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Empat shortcut yang sama persis dengan yang ada di manifest web
+    (src/app/manifest.ts). Bubblewrap biasanya membangkitkan berkas ini dari
+    build.gradle; di sini ditulis tangan supaya isinya bisa direview dan
+    tidak berubah diam-diam saat build.
+
+    android:icon wajib diisi dan harus menunjuk drawable yang ada. Ikon
+    shortcut memakai bentuk bundar At Cell, sama seperti launcher icon.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="stok"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_stok"
+        android:shortcutShortLabel="@string/shortcut_short_name_0"
+        android:shortcutLongLabel="@string/shortcut_name_0">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="my.id.atcell"
+            android:targetClass="my.id.atcell.AtCellLauncherActivity"
+            android:data="https://atcell.my.id/id/catalog" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="servis"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_servis"
+        android:shortcutShortLabel="@string/shortcut_short_name_1"
+        android:shortcutLongLabel="@string/shortcut_name_1">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="my.id.atcell"
+            android:targetClass="my.id.atcell.AtCellLauncherActivity"
+            android:data="https://atcell.my.id/id/tracking" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="tukar"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_tukar"
+        android:shortcutShortLabel="@string/shortcut_short_name_2"
+        android:shortcutLongLabel="@string/shortcut_name_2">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="my.id.atcell"
+            android:targetClass="my.id.atcell.AtCellLauncherActivity"
+            android:data="https://atcell.my.id/id/trade-in" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="portal"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_portal"
+        android:shortcutShortLabel="@string/shortcut_short_name_3"
+        android:shortcutLongLabel="@string/shortcut_name_3">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="my.id.atcell"
+            android:targetClass="my.id.atcell.AtCellLauncherActivity"
+            android:data="https://atcell.my.id/portal" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+    </shortcut>
+</shortcuts>

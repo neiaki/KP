@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="shortcut_background">#e9effa</color>
+    <!--
+        Warna ini harus sama dengan resValue di app/build.gradle. Menaruhnya di
+        dua tempat adalah error compile, jadi hanya nama shortcut_background
+        yang didefinisikan di sini; warna lain datang dari resValue.
+    -->
+</resources>

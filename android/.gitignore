@@ -1,0 +1,20 @@
+# Kredensial dan kunci tanda tangan TIDAK BOLEH masuk git. Kalau file ini
+# hilang, build release berhenti dengan pesan jelas, bukan menandatangani APK
+# dengan kunci debug yang bisa dianggap mencurigakan oleh Play Protect.
+gradle/signing.properties
+*.jks
+*.keystore
+
+# Kredensial keytool dan keystore lain
+*.p12
+
+# Output Android Studio dan Gradle
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.idsig

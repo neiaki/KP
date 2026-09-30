@@ -1,0 +1,155 @@
+// Build modul aplikasi At Cell.
+//
+// Ini Trusted Web Activity: aplikasi Android-nya sendiri tidak punya UI apa
+// pun, hanya WebView Chrome yang menampilkan https://atcell.my.id. Seluruh
+// isi, termasuk login portal dan etalase, datang dari web. Itu sebabnya
+// seluruh dependensi native yang ditambahkan di sini sengaja
+// dijaga seminimal mungkin.
+
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'my.id.atcell'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'my.id.atcell'
+        // minSdk 24 (Android 7.0). Bubblewrap dan TWA butuh WebView yang
+        // mendukung SplitCompat tanpa polyfill, dan pengguna yang masih di
+        // bawah 7.0 tinggal memakai PWA lewat browser.
+        minSdk 24
+        // Play Store mewajibkan targetSdk terbaru. Target 36 juga yang
+        // dipakai untuk penilaian Play Protect dan Play Integrity terbaru.
+        targetSdk 36
+
+        versionCode 1
+        versionName '1.0.0'
+
+        resValue 'string', 'appName', 'At Cell'
+        resValue 'string', 'launcherName', 'At Cell'
+        resValue 'string', 'hostName', 'atcell.my.id'
+        resValue 'string', 'launchUrl', 'https://atcell.my.id/id'
+        resValue 'string', 'webManifestUrl', 'https://atcell.my.id/manifest.webmanifest'
+        resValue 'string', 'generatorApp', 'atcell-android'
+        resValue 'string', 'fallbackType', 'customtabs'
+        resValue 'bool', 'enableSiteSettingsShortcut', 'false'
+        resValue 'string', 'orientation', 'portrait'
+        resValue 'string', 'providerAuthority', 'my.id.atcell.fileprovider'
+        resValue 'integer', 'splashScreenFadeOutDuration', '0'
+
+        // Warna diambil dari token yang sama dengan src/app/globals.css di
+        // web: --accent dan --paper.
+        resValue 'color', 'colorPrimary', '#0b4ed8'
+        resValue 'color', 'colorPrimaryDark', '#0b4ed8'
+        resValue 'color', 'navigationColor', '#ffffff'
+        resValue 'color', 'navigationColorDark', '#121a2e'
+        resValue 'color', 'navigationDividerColor', '#e5e7eb'
+        resValue 'color', 'navigationDividerColorDark', '#1f2937'
+        resValue 'color', 'backgroundColor', '#f4f5f7'
+
+        // Notifikasi dimatikan lewat DelegationService. PWA At Cell belum
+        // punya push, jadi mengaktifkan DelegationService hanya menambah
+        // service yang berjalan tanpa fungsi. Ihzanimal, service-nya dibuat
+        // android:enabled=false di manifest.
+        resValue 'bool', 'enableNotification', 'false'
+
+        // Empat shortcut yang sama dengan yang ada di manifest web.
+        resValue 'string', 'shortcut_name_0', 'Lihat stok'
+        resValue 'string', 'shortcut_short_name_0', 'Stok'
+        resValue 'string', 'shortcut_name_1', 'Lacak servis'
+        resValue 'string', 'shortcut_short_name_1', 'Servis'
+        resValue 'string', 'shortcut_name_2', 'Tukar tambah'
+        resValue 'string', 'shortcut_short_name_2', 'Tukar'
+        resValue 'string', 'shortcut_name_3', 'Portal staf'
+        resValue 'string', 'shortcut_short_name_3', 'Portal'
+    }
+
+    signingConfigs {
+        // Signing config diambil dari gradle/signing.properties yang TIDAK
+        // pernah masuk git. Kalau berkasnya tidak ada, build release berhenti
+        // dengan pesan jelas, bukan menghasilkan APK yang ditandatangani
+        // dengan kunci debug dan dianggap app mencurigakan oleh Play Protect.
+        release {
+            def propsFile = rootProject.file('gradle/signing.properties')
+            if (propsFile.exists()) {
+                def props = new Properties()
+                propsFile.withInputStream { props.load(it) }
+                storeFile file(props['storeFile'])
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+                /*
+                 * Skema tanda tangan ditulis semua, bukan menerima default.
+                 * Default AGP hanya menghasilkan v2 untuk minSdk 24, sedangkan
+                 * v3 memberi rotasi kunci dan v4 memberi tanda tangan per
+                 * berkas. Play Store mengunggah lewat v2/v3, dan hp yang lebih
+                 * baru butuh v3 untuk mengaktifkan verifikasi dengan
+                 * Play Integrity.
+                 *
+                 * v1 sengaja mati: hanya dibutuhkan Android 6 ke bawah, dan
+                 * minSdk repo ini 24. Mengaktifkannya menambah blok MZ yang
+                 * bisa disalahpahami sebagai mencurigakan tanpa manfaat nyata.
+                 */
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Kalau gradle/signing.properties belum ada, jangan diam-diam
+            // menandatangani APK dengan kunci debug. Play Protect menandai
+            // build yang ditandatangani kunci debug sebagai mencurigakan.
+            signingConfig rootProject.file('gradle/signing.properties').exists()
+                ? signingConfigs.release
+                : null
+            // Skema tanda tangan ditulis eksplisit di sini, bukan hanya di
+            // signingConfigs, karena AGP membaca properties ini saat
+            // buildType selesai dikonfigurasi. v1 tidak dipakai: minSdk 24
+            // tidak membutuhkannya, dan blok MZ tambahan itu bisa
+            // disalahpahami sebagai sesuatu yang mencurigakan.
+            signingConfig?.enableV1Signing = false
+            signingConfig?.enableV2Signing = true
+            signingConfig?.enableV3Signing = true
+            signingConfig?.enableV4Signing = true
+        }
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
+
+    lint {
+        // Play Store menyaring APK dengan Android Lint. Error diblokir,
+        // warning tidak, supaya build tidak putus hanya karena peringatan
+        // gaya.
+        abortOnError true
+        warningsAsErrors false
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+    // Nama artefaknya androidbrowserhelper, bukan browser-helper. Yang
+    // kedua tidak pernah ada di Google's Maven dan build akan gagal dengan
+    // pesan "Could not find" yang tidak menjelaskan bahwaDependensi-nya salah
+    // nama.
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.3'
+    implementation 'androidx.browser:browser:1.8.0'
+    implementation 'androidx.core:core:1.13.1'
+}
