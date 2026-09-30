@@ -238,19 +238,41 @@ test("kunci tanda tangan dan kredensial tidak boleh masuk git", () => {
 });
 
 test("jcenter tidak dipakai karena sudah mati sejak 2022", () => {
-  // Komentar dibuang dulu. Tanpa itu, penyebutan jcenter() di komentar penjelas
-  // akan membuat test ini gagal terus padahal repository-nya memang sudah
-  // bersih.
-  const tanpaKomentar = baca("android/build.gradle").replace(
-    /^\s*\/\/.*$/gm,
-    ""
+  // Komentar dibuang dulu. Tanpa itu, penyebutan jcenter() di komentar
+  // penjelas akan membuat test ini gagal terus padahal repository-nya
+  // memang sudah bersih.
+  const tanpaKomentar = (rel: string) =>
+    baca(rel).replace(/^\s*\/\/.*$/gm, "");
+
+  for (const rel of [
+    "android/build.gradle",
+    "android/settings.gradle",
+    "android/app/build.gradle",
+  ]) {
+    assert.ok(
+      !tanpaKomentar(rel).includes("jcenter()"),
+      rel + " masih memakai jcenter(), yang sudah ditutup JFrog pada 2022"
+    );
+  }
+  /*
+   * Repository hanya boleh dideklarasikan di settings.gradle. Gradle hanya
+   * mengizinkan pluginManagement, buildscript, dan plugins sebelum blok
+   * plugins, jadi repositories di build.gradle root menggagalkan build dengan
+   * pesan yang tidak menyebut file mana yang bermasalah.
+   */
+  const settings = tanpaKomentar("android/settings.gradle");
+  assert.ok(settings.includes("mavenCentral()"));
+  assert.ok(settings.includes("google()"));
+
+  const rootBuild = tanpaKomentar("android/build.gradle");
+  assert.ok(
+    !/^repositories\s*\{/m.test(rootBuild),
+    "android/build.gradle tidak boleh punya blok repositories, supaya hanya settings.gradle yang mengelola repository"
   );
   assert.ok(
-    !tanpaKomentar.includes("jcenter()"),
-    "jcenter() sudah ditutup JFrog, build akan gagal dengan pesan yang tidak menjelaskan penyebab"
+    /^\s*plugins\s*\{/m.test(rootBuild),
+    "android/build.gradle harus punya blok plugins"
   );
-  assert.ok(tanpaKomentar.includes("mavenCentral()"));
-  assert.ok(tanpaKomentar.includes("google()"));
 });
 
 test("shortcut di APK sama dengan shortcut di manifest web", () => {
