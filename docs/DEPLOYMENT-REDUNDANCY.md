@@ -81,6 +81,10 @@ OFFSITE_PUT_TOKEN=
 OFFSITE_PUT_TOKEN_FILE=
 OFFSITE_STAGING_DIR=
 OFFSITE_KEEP_ENCRYPTED=
+
+# Verifikasi aplikasi Android. Wajib diisi kalau my.id.atcell sudah ada
+# release, kosongkan kalau belum pernah ada APK.
+NEXT_PUBLIC_ANDROID_APP_SHA256=
 ```
 
 Wajib ada di production:

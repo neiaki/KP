@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!--
+    Tema transparan tanpa ActionBar. TWA butuh activities-nya transparan,
+    kalau tidak ada flash putih antara splash screen dan halaman web yang
+    sedang dimuat. Warna status bar diambil dari resValue colorPrimary.
+  -->
+  <style name="AppTheme" parent="@android:style/Theme.Translucent.NoTitleBar">
+    <item name="android:windowBackground">@android:color/transparent</item>
+    <item name="android:statusBarColor">@color/colorPrimary</item>
+    <item name="android:navigationBarColor">@color/navigationColor</item>
+  </style>
+</resources>

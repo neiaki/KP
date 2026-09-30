@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!--
+    Pernyataan hubungan app dengan situs. Android membacanya untuk memeriksa
+    Digital Asset Links, dan nilainya harus sama persis dengan yang ada di
+    /.well-known/assetlinks.json di web. app-id yang diisi di sana adalah
+    nama paket, bukan nama host.
+  -->
+  <string name="assetStatements">
+    [{
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+            \"namespace\": \"android_app\",
+            \"package_name\": \"my.id.atcell\",
+            \"sha256_cert_fingerprints\": [\"__ATCELL_SHA256__\"]
+        }
+    },{
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+            \"namespace\": \"web\",
+            \"site\": \"https://atcell.my.id\"
+        }
+    }]
+  </string>
+</resources>

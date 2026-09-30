@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Aturan ekstraksi data untuk Android 12 dan seterusnya.
+
+    Tidak ada data aplikasi yang perlu dicadangkan. At Cell menyimpan cookie
+    sesi portal Supabase, dan menyalinnya lewat Android Backup atau transfer
+    perangkat ke perangkat lain berarti memindahkan sesi staf ke orang lain.
+    Jadi kedua jalur dicoret, cloud dan device-to-device.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

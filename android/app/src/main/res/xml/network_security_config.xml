@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Config.
+
+    Trusted Web Activity hanya boleh berbicara lewat HTTPS. Aturan di bawah
+    menutup HTTP biasa untuk semua domain, termasuk 127.0.0.1 dan localhost,
+    yang kalau tidak dimatikan tetap boleh dibuka oleh WebView. Localhost
+    diizinkan karena Chrome memakai loopback internally untuk beberapa hal,
+    tapi tetap tanpa cleartext.
+
+    Ini salah satu pengeras yang paling EFFECTIF untuk Play Protect: APK yang
+    bisa dialihkan ke host lain lewat HTTP atau lewat cleartext traffic
+    adalah salah satu tanda yang paling sering dibaca sebagai perilaku
+    berbahaya.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
