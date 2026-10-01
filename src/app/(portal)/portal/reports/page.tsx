@@ -4,22 +4,14 @@ import React from "react";
 import { useStore } from "@/context/store-context";
 import { formatIDR, formatDate } from "@/lib/utils";
 import {
-  FileSpreadsheet,
-  CheckCircle2,
-  Clock,
-  Wrench,
-  TrendingUp,
   UserCheck,
-  Calendar,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "@/components/portal/role-badge";
 
 export default function TechnicianReportsPage() {
-  const { serviceTickets, profiles, currentRole } = useStore();
-
-  const technicians = profiles.filter((p) => p.role === "technician");
+  const { serviceTickets, currentRole } = useStore();
 
   const completedTickets = serviceTickets.filter(
     (t) => t.repair_status === "completed" || t.repair_status === "picked_up"

@@ -5,12 +5,12 @@ import Image from "next/image";
 import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
 import { Product } from "@/types";
-import { Boxes, Plus, Search, Edit2, CheckCircle2, AlertCircle, Smartphone, X } from "lucide-react";
+import { Boxes, Plus, Search, Edit2, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "@/components/portal/role-badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 // Dipakai kalau produk belum punya foto. Foto stok pihak ketiga tidak pernah
 // dipakai karena modelnya bisa tidak cocok dengan produk yang sedang disimpan.
