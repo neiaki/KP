@@ -87,10 +87,19 @@ test("langkah yang menggantung ditolak, bukan dibiarkan mengunci antrean", async
   assert.ok(DB_BATCH_STEP_TIMEOUT_MS > 0, "batas waktu langkah harus bernilai");
 
   const macet = () => new Promise<never>(() => {});
-  await assert.rejects(
-    () => dbBatchStep(macet, 0, 30),
-    /lewat 30 ms tanpa jawaban/
-  );
+  // Timer batas waktu di client.ts memang unref, supaya tidak menahan proses.
+  // Di test justru itu masalahnya: tanpa satu pegangan hidup, event loop
+  // habis sebelum timer itu berbunyi dan test.runner melaporkan "Promise
+  // resolution is still pending but the event loop has already resolved".
+  const jagaLoop = setInterval(() => {}, 20);
+  try {
+    await assert.rejects(
+      () => dbBatchStep(macet, 0, 30),
+      /lewat 30 ms tanpa jawaban/
+    );
+  } finally {
+    clearInterval(jagaLoop);
+  }
 
   // Setelah langkahnya ditolak, antrean harus tetap bisa dipakai.
   assert.deepEqual(await dbBatch([async () => "setelah timeout"]), ["setelah timeout"]);
