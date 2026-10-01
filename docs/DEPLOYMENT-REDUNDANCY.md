@@ -193,6 +193,7 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20260930102000_catalogue_xiaomi_14.sql` | Baris katalog Xiaomi 14 tanpa unit dengan tiga foto yang memang bingkai berbeda. Baris Xiaomi `iphone 16` yang rusak tidak disentuh, itu keputusan staf |
 | `20260930103000_catalogue_vivo_v30.sql` | Baris katalog Vivo V30 tanpa unit. Banner promosi `vivo-v30-1.jpg` tidak dipakai karena fine print-nya menyebut V30 Pro. Tidak menambah unit |
 | `20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9.sql` | Membuat baris katalog Apple iPhone 14 Plus tanpa storage di namanya, lalu menautkan `inventory_units` id 9 ke baris itu. **Satu-satunya penulisan ke `inventory_units` di seluruh perluasan katalog ini, dan hanya mengubah `product_id`.** IMEI, condition, status, dan harganya tidak disentuh. Jalankan hanya setelah unit 9 dicek fisik, dan perhatikan syarat `product_id is null` supaya berkas ini tidak merebut tautan yang sudah dibuat staf |
+| `20261001120000_hide_unidentified_product_6.sql` | Menonaktifkan produk id 6 yang brand 'Xiaomi' dan model_name 'iphone 16' saling bertentangan, jadi etalase publik tidak menampilkan identitas yang belum dipastikan. Merek dan modelnya tidak diubah: itu keputusan staf yang harus melihat unit fisiknya, unit 10 masih di konter. Aktifkan lagi lewat portal Master Produk setelah identitasnya benar |
 `0001` aman dijalankan ulang kapan saja, termasuk `supabase db push` yang
 terhenti di tengah lalu diulang. Rananya sudah dibetulkan pada 27 Sep 2026:
 versi lama `0001` memberi `EXECUTE` pada `public.get_my_role()` dan
@@ -303,7 +304,7 @@ tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
 terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
 
 `supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
-satu berkas urut, dua puluh lima bagian, untuk project yang belum punya skema
+satu berkas urut, dua puluh enam bagian, untuk project yang belum punya skema
 sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya: bagian 1
 (`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket Storage.
 Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali paste
