@@ -23,6 +23,29 @@ import { toPublicSeed } from "@/lib/public-seed";
  * lagi dipakai karena src/proxy.ts sudah menangani "/" lebih dulu.
  */
 
+/*
+ * Batas durasi fungsi untuk seluruh halaman publik.
+ *
+ * Ditaruh di layout, bukan di tiap page, karena route segment config di layout
+ * berlaku untuk semua segmen di bawahnya. Semua halaman /id dan /en dirender
+ * per request dan membaca database lewat dbBatch, jadi semuanya punya risiko
+ * yang sama.
+ *
+ * Angka 30 detik dipilih dari dua pengamatan:
+ *   - Diperukur di deployment Vercel, /id butuh sekitar 1,9 detik, sedangkan
+ *     halaman lain 0,1 sampai 0,3 detik. Landing paling lambat karena juga
+ *     membaca produk dan unit inventaris.
+ *   - dbBatch punya batas waktu internal sendiri, jadi satu request bisa
+ *     ditolak setelah menunggu 10 detik ketika database sedang sibuk, bukan
+ *     menggantung selamanya.
+ *
+ * Default Vercel Hobby hanya 10 detik. Kalau tidak dinaikkan, request yang
+ * tertunda karena database lambat akan dibunuh platform tanpa sempat menulis
+ * error, sehingga penyebabnya hilang. 30 detik memberi ruang untuk batas
+ * internal dbBatch tanpa meminta kuota maksimum Hobby.
+ */
+export const maxDuration = 30;
+
 export async function generateMetadata({
   params,
 }: {
