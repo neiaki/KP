@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { filterFotoMilikSendiri } from "../src/lib/validations.ts";
+import { readFileSync } from "node:fs";
+import {
+  BATAS_PATH_FOTO,
+  filterFotoMilikSendiri,
+  objectKeyBentukSah,
+} from "../src/lib/validations.ts";
 
 /*
  * Bucket privat service-photos dan trade-in-photos memuat IMEI, nama pelanggan,
@@ -23,8 +27,8 @@ import { filterFotoMilikSendiri } from "../src/lib/validations.ts";
 const STAF_A = "8f14e45f-ceea-467a-9575-2b8a1a2f4c11";
 const STAF_B = "3c59dc04-8e88-4a1c-9a1e-6f2b7c5d0e33";
 
-async function bacaBerkas(rel: string): Promise<string> {
-  return readFile(new URL(rel, import.meta.url), "utf8");
+function bacaBerkas(rel: string): string {
+  return readFileSync(new URL(rel, import.meta.url), "utf8");
 }
 
 test("path milik staf lain tidak pernah ikut ditandatangani", () => {
@@ -95,11 +99,11 @@ test("folder yang tidak aman membuat hasilnya kosong, bukan error", () => {
   }
 });
 
-test("action memakai filter pemanggil, bukan filter longgar", async () => {
-  const action = await bacaBerkas("../src/lib/actions/storage.ts");
+test("action memakai filter pemanggil, bukan filter longgar", () => {
+  const action = bacaBerkas("../src/lib/actions/storage.ts");
   assert.match(
     action,
-    /filterFotoMilikSendiri\(guard\.profile\.id, paths\)/,
+    /filterFotoMilikSendiri\(guard\.profile\.id, kandidat\)/,
     "signPhotoPaths harus menyaring path ke folder staf pemanggil"
   );
   assert.doesNotMatch(
@@ -109,10 +113,133 @@ test("action memakai filter pemanggil, bukan filter longgar", async () => {
   );
 });
 
-test("bucket katalog publik tetap terjangkau tanpa signed URL", async () => {
+/* -------------------------------------------------------------------------- */
+/* Foto milik staf lain yang sudah tersimpan di tiket                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Aturan folder sendiri saja menutup satu masalah dan membuka yang lain.
+ * Foto progres servis diunggah siapa pun yang menerima unit di konter, lalu
+ * dibaca teknisi lain yang mengerjakan perbaikan. Kalau hanya folder sendiri
+ * yang boleh ditandatangani, teknisi itu tidak bisa melihat foto yang
+ * sondernu diunggah kasir, padahal keduanya sudah boleh membuka tiket yang
+ * sama.
+ *
+ * Batas yang benar bukan "siapa yang mengunggah", tapi "path-nya benar-benar
+ * menempel pada data yang boleh dilihat pemanggil". Setiap foto privat masuk
+ * ke database sebagai bagian dari photo_urls pada service_tickets atau
+ * trade_in_records, jadi itulah yang dicek.
+ *
+ * Test di bawah membaca sumber action-nya, karena signPhotoPaths tidak bisa
+ * diimpor di runner Node: berkasnya "use server" dan menarik next/cache.
+ */
+
+test("foto yang terpakai di tiket tetap boleh ditandatangani", () => {
+  const action = bacaBerkas("../src/lib/actions/storage.ts");
+  // Dua gerbang, dan keduanya harus ada: folder sendiri untuk foto yang baru
+  // diunggah, dan database untuk foto yang sudah tersimpan.
+  assert.match(
+    action,
+    /const terpakai = await pathsYangTerpakai\(kandidat\)/,
+    "path harus dicek terhadap foto yang benar-benar terpakai di data"
+  );
+  assert.match(
+    action,
+    /const boleh = kandidat\.filter\(\(p\) => terpakai\.has\(p\) \|\| milikSendiri\.has\(p\)\)/,
+    "path yang terpakai di tiket atau milik sendiri boleh lewat"
+  );
+});
+
+test("pencarian foto terpakai hanya membaca tabel yang ditulis mati", () => {
+  const action = bacaBerkas("../src/lib/actions/storage.ts");
+  // Nama tabel tidak boleh datang dari input. Kalau nanti disambung dari
+  // nilai kiriman, ini jadi SQL injection.
+  assert.match(
+    action,
+    /const BAHAN_FOTO = \["service_tickets", "trade_in_records"\] as const;/,
+    "daftar tabel foto harus ditulis mati"
+  );
+  assert.doesNotMatch(action, /\$\{tabel\}/, "nama tabel tidak boleh disambung dari input");
+});
+
+test("daftar path dikirim sebagai parameter, bukan dirangkai jadi SQL", () => {
+  const action = bacaBerkas("../src/lib/actions/storage.ts");
+  // Path datang dari HTTP dan bebas berisi tanda kutip, jadi harus jadi
+  // parameter. Operator ?| jsonb menutup seluruh daftar dalam satu query.
+  assert.match(action, /photo_urls \?\| \$\{paths\}/);
+  assert.doesNotMatch(
+    action,
+    /ARRAY\[\$\{/,
+    "merangkai array path jadi teks SQL membuka jalan injeksi"
+  );
+});
+
+test("hasil query disaring ulang terhadap daftar yang diminta", () => {
+  // Operator jsonb membandingkan sebagai teks, jadi baris yang kembali bisa
+  // punya entri yang tidak diminta. Tanpa penyaringan ulang, semua foto di
+  // satu tiket bisa ikut keluar hanya karena satu path-nya cocok.
+  const action = bacaBerkas("../src/lib/actions/storage.ts");
+  assert.match(
+    action,
+    /if \(typeof p === "string" && paths\.includes\(p\)\) boleh\.add\(p\);/,
+    "hanya path yang benar-benar ada di daftar permintaan yang boleh lewat"
+  );
+});
+
+test("bentuk object key diperiksa sebelum masuk query", () => {
+  // Gerbang pertama: nilai yang tidak bisa jadi object key tidak perlu sampai
+  // ke database maupun Storage. typeof diperiksa lebih dulu, jadi accessor
+  // milik pemanggil tidak pernah tersentuh.
+  const action = bacaBerkas("../src/lib/actions/storage.ts");
+  assert.match(
+    action,
+    /typeof p === "string" && objectKeyBentukSah\(p\)[\s\S]*?slice\(0, BATAS_PATH_FOTO\)/
+  );
+  // Sisa input yang bukan string tidak boleh diteruskan ke mana pun: bukan ke
+  // query, bukan ke Storage. Ini yang membuat daftar dari HTTP aman dimakan.
+  assert.doesNotMatch(
+    action,
+    /paths\.filter\(Boolean\)|paths\.filter\(\(p\) => p\)/,
+    "input mentah tidak boleh diteruskan lewat filter longgar"
+  );
+});
+
+test("object key yang tidak berbentuk ditolak", () => {
+  // Fungsi ini adalah gerbang pertama sebelum query dan Storage, jadi ia harus
+  // menolak bentuk yang tidak mungkin jadi kunci objek: tanpa garis miring,
+  // memanjai prefix dengan "..", dan karakter di luar yang diizinkan.
+  for (const buruk of [
+    "tanpa-folder.jpg",
+    "../naik.jpg",
+    "staf-a/../staf-b/foto.jpg",
+    "https://contoh.supabase.co/storage/v1/object/public/x.jpg",
+    "",
+  ]) {
+    assert.equal(objectKeyBentukSah(buruk), false, `${JSON.stringify(buruk)} harus ditolak`);
+  }
+  for (const sah of [
+    "8f14e45f-ceea-467a-9575-2b8a1a2f4c11/kondisi-depan.jpg",
+    "staf-a/foto_1.png",
+  ]) {
+    assert.equal(objectKeyBentukSah(sah), true, `${JSON.stringify(sah)} harus diterima`);
+  }
+});
+
+test("batas jumlah path dipakai dari modul yang sama", () => {
+  // Action mengambil BATAS_PATH_FOTO dari validations, bukan angka yang
+  // ditulis ulang, jadi batas yang dijalankan dan batas yang diuji tidak
+  // bisa berbeda.
+  assert.equal(typeof BATAS_PATH_FOTO, "number");
+  assert.ok(BATAS_PATH_FOTO > 0 && BATAS_PATH_FOTO <= 200);
+  const action = readFileSync(new URL("../src/lib/actions/storage.ts", import.meta.url), "utf8");
+  assert.match(action, /slice\(0, BATAS_PATH_FOTO\)/);
+  assert.doesNotMatch(action, /slice\(0, 50\)/, "angka batas tidak boleh ditulis ulang");
+});
+
+test("bucket katalog publik tetap terjangkau tanpa signed URL", () => {
   // product-images sengaja publik dan dibaca lewat getPublicUrl, jadi jalur itu
   // tidak boleh ikut tersaring oleh filter folder staf.
-  const action = await bacaBerkas("../src/lib/actions/storage.ts");
+  const action = bacaBerkas("../src/lib/actions/storage.ts");
   assert.match(
     action,
     /if \(!perluTandaTangan\(bucket\)\) return ok\(\{\}\)/,

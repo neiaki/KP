@@ -2,9 +2,10 @@
 
 import { cache } from "react";
 import { headers } from "next/headers";
-import { eq, sql } from "drizzle-orm";
+import { eq, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
+  inventoryUnits as inventoryUnitsTable,
   productImages as productImagesTable,
   products as productsTable,
   storeSettings,
@@ -262,7 +263,7 @@ const PESAN_GAGAL_SNAPSHOT = "Data publik sedang tidak dapat dimuat.";
  * lempar yang sama, sehingga semuanya bisa diulang dengan aturan yang sama.
  */
 async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
-  const [settingsResult, inventoryResult, productRows] = await Promise.all([
+  const [settingsResult, inventoryResult, productRows, everHadRows] = await Promise.all([
     getPublicStoreSettings(),
     getPublicInventory({ limit: 500 }),
     db
@@ -270,9 +271,33 @@ async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
       .from(productsTable)
       .where(eq(productsTable.isActive, true))
       .orderBy(productsTable.createdAt),
+    /*
+     * Product mana yang punya atau pernah punya unit, apa pun statusnya.
+     *
+     * Query ini menjawab pertanyaan yang tidak bisa dijawab dari hasil
+     * query lain di fungsi ini. getPublicInventory membaca
+     * v_public_inventory, dan view itu difilter status = 'available', jadi
+     * unit sold dan in_service tidak pernah sampai ke browser. Tanpa query ini
+     * produk yang unitnya sudah terjual atau sedang diservis terlihat identik
+     * dengan produk yang belum pernah didaftarkan, dan etalase_thenampilkan
+     * label "belum ada unit" untuk barang yang jelas pernah ada di rak.
+     *
+     * Yang dibaca hanya product_id. Tidak ada IMEI, tidak ada harga beli,
+     * tidak ada nama pelanggan, jadi yang terkirim ke browser tetap tidak
+     * memuat PII unit.
+     */
+    db
+      .selectDistinct({ productId: inventoryUnitsTable.productId })
+      .from(inventoryUnitsTable)
+      .where(isNotNull(inventoryUnitsTable.productId)),
   ]);
   if ("error" in settingsResult) throw new Error(settingsResult.error);
   if ("error" in inventoryResult) throw new Error(inventoryResult.error);
+
+  const pernahPunyaUnit = new Set<number>();
+  for (const row of everHadRows) {
+    if (row.productId !== null) pernahPunyaUnit.add(Number(row.productId));
+  }
 
   const productMap = new Map<number, Product>();
   for (const row of productRows) {
@@ -286,6 +311,7 @@ async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
       official_images: row.officialImages ?? [],
       second_images: row.secondImages ?? [],
       created_at: toISO(row.createdAt),
+      pernah_punya_unit: pernahPunyaUnit.has(row.id),
     });
   }
 
@@ -301,6 +327,10 @@ async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
         official_images: item.officialImages,
         second_images: item.secondImages,
         created_at: item.createdAt,
+        // Produk ini masuk lewat v_public_inventory, jadi jelas punya unit
+        // available. Penanda ini tidak mungkin salah: produk yang tidak punya
+        // unit apa pun tidak akan pernah muncul di view tersebut.
+        pernah_punya_unit: true,
       });
     }
     return {

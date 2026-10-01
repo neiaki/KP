@@ -1,62 +1,24 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
-import { formatIDR } from "@/lib/utils";
 import { cleanWaNumber } from "@/lib/wa";
-import { Smartphone, MessageCircle } from "lucide-react";
+import { MessageCircle, Smartphone } from "lucide-react";
 import { ProductCard } from "@/components/public/product-card";
+import { NotifyCard } from "@/components/public/notify-card";
 import { StockFilter } from "@/components/public/stock-filter";
 import {
   toCardItem,
   filterItems,
   sortItems,
   listProductsWithoutUnits,
+  listSoldOutProducts,
   sellableUnits,
-  isRealPhoto,
   type SortOrder,
 } from "@/lib/shop";
-import {
-  buildNotifyMeHref,
-  noUnitSectionCopy,
-  notifyMeTargetFrom,
-  referencePriceNote,
-} from "@/lib/catalogue-notify";
-import type { Product } from "@/types";
-
-/**
- * Foto kartu produk yang tidak punya unit: kartu "Belum ada unit" dan kartu
- * "Baru saja habis".
- *
- * Aturannya sama persis dengan toCardItem, yang hanya dipakai untuk unit yang
- * masih bisa dijual: official_images yang lolos isRealPhoto menang, lalu
- * image_url, lalu tidak ada foto sama sekali. Nilai mentah dari database
- * tidak pernah masuk ke atribut src, termasuk "javascript:", "//host", dan
- * string "undefined/storage/..." yang dulu ikut terkirim ke setiap pengunjung.
- */
-function cardPhoto(p: Product): string | undefined {
-  const official = (p.official_images ?? []).filter(isRealPhoto);
-  if (official.length > 0) return official[0];
-  return isRealPhoto(p.image_url) ? p.image_url : undefined;
-}
-
-/**
- * Kartu tanpa foto yang bisa dirender. Sama persis dengan fallback di
- * ProductCard supaya kedua jalur etalase tidak berbeda tampilan.
- */
-function PhotoFallback({ locale }: { locale: Locale }) {
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted">
-      <Smartphone className="h-10 w-10" strokeWidth={1.25} />
-      <p className="text-[11px] font-bold">
-        {locale === "en" ? "Photo coming soon" : "Foto menyusul"}
-      </p>
-    </div>
-  );
-}
+import { noUnitSectionCopy, soldOutSectionCopy } from "@/lib/catalogue-notify";
 
 export function CatalogContent({ locale }: { locale: Locale }) {
   const { products, inventoryUnits, storeSettings } = useStore();
@@ -75,23 +37,18 @@ export function CatalogContent({ locale }: { locale: Locale }) {
   const availableUnits = sellableUnits(inventoryUnits);
   const noUnitCopy = noUnitSectionCopy(locale);
 
-  const soldOutProducts = products
-    .map((p) => {
-      const sold = inventoryUnits
-        .filter((u) => u.product_id === p.id && u.status === "sold")
-        .sort((a, b) => b.created_at.localeCompare(a.created_at));
-      const availableCount = inventoryUnits.filter(
-        (u) => u.product_id === p.id && u.status === "available"
-      ).length;
-      return { product: p, sold, availableCount };
-    })
-    .filter((g) => g.sold.length > 0 && g.availableCount === 0)
-    .sort((a, b) => b.sold[0].created_at.localeCompare(a.sold[0].created_at));
+  // Dua kelompok yang tidak boleh tertukar.
+  //
+  // soldOutProducts adalah model yang pernah punya unit tapi sekarang tidak ada
+  // yang bisa dijual. Dulu bagian ini disaring dari unit berstatus "sold",
+  // padahal v_public_inventory hanya mengirim unit available, jadi di produksi
+  // daftar ini selalu kosong dan bagian "Baru saja habis" tidak pernah muncul.
+  // Sekarang sumbernya perproduk, bukan perunit.
+  const soldOutProducts = listSoldOutProducts(products, inventoryUnits);
+  const soldOutCopy = soldOutSectionCopy(locale);
 
-  // Produk baru yang belum punya unit sama sekali tidak pernah masuk
-  // etalase unit-driven di atas dan tidak masuk "Baru saja habis" karena
-  // belum ada riwayat terjual. Tanpa bagian ini produk baru tidak terlihat
-  // di mana pun sampai staf mendaftarkan unit pertamanya.
+  // Produk yang belum pernah punya unit satu pun. Batteri mana pun: bukan
+  // sold, bukan in_service, bukan reserved.
   const newProducts = listProductsWithoutUnits(products, inventoryUnits);
 
   const items = sortItems(
@@ -142,62 +99,27 @@ export function CatalogContent({ locale }: { locale: Locale }) {
         )}
 
         {soldOutProducts.length > 0 && (
-          <section aria-label={locale === "en" ? "Sold out" : "Stok habis"} className="mt-10">
+          <section aria-label={soldOutCopy.heading} className="mt-10">
             <h2 className="max-w-xl text-2xl font-extrabold tracking-tight text-ink">
-              {locale === "en" ? "Just sold out" : "Baru saja habis"}
+              {soldOutCopy.heading}
             </h2>
             <p className="mt-1 max-w-xl text-[13px] text-muted">
-              {locale === "en"
-                ? "Gone from the shelf. Ask to be notified when a matching unit arrives."
-                : "Sudah turun dari rak. Minta dikabari kalau unit sejenis masuk."}
+              {soldOutCopy.intro}
+            </p>
+            <p className="mt-1 max-w-xl text-[13px] text-muted">
+              {soldOutCopy.requestNote}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {soldOutProducts.map(({ product: p, sold }) => {
-                const img = cardPhoto(p);
-                const lastPrice = sold[0].selling_price;
-                return (
-                  <article
-                    key={p.id}
-                    className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-paper">
-                      {!img && <PhotoFallback locale={locale} />}
-                      {img && (
-                        <Image
-                          fill
-                          sizes={"(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"}
-                          src={img}
-                          alt={`${p.brand} ${p.model_name}`}
-                          className="h-full w-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="flex flex-1 flex-col p-4">
-                      <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
-                        {locale === "en" ? "Sold out" : "Stok habis"}
-                      </p>
-                      <h3 className="text-[15px] font-extrabold leading-snug text-ink">
-                        {p.brand} {p.model_name}
-                      </h3>
-                      <p className="mt-1 text-[13px] font-bold text-muted">
-                        {locale === "en" ? "Last sold" : "Terakhir terjual"}{" "}
-                        {formatIDR(lastPrice)}
-                      </p>
-                      <a
-                        href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
-                          `Halo At Cell, kabari saya kalau ada ${p.brand} ${p.model_name} lagi.`
-                        )}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        {locale === "en" ? "Notify me" : "Kabari saya"}
-                      </a>
-                    </div>
-                  </article>
-                );
-              })}
+              {soldOutProducts.map((p) => (
+                <NotifyCard
+                  key={p.id}
+                  product={p}
+                  locale={locale}
+                  waNumber={cleanWa}
+                  copy={soldOutCopy}
+                  alasan="sold_out"
+                />
+              ))}
             </div>
           </section>
         )}
@@ -214,66 +136,16 @@ export function CatalogContent({ locale }: { locale: Locale }) {
               {noUnitCopy.requestNote}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {newProducts.map((p) => {
-                const img = cardPhoto(p);
-                const target = notifyMeTargetFrom(p);
-                const harga = referencePriceNote(p.default_price, locale);
-                return (
-                  <article
-                    key={p.id}
-                    className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-paper">
-                      {!img && <PhotoFallback locale={locale} />}
-                      {img && (
-                        <Image
-                          fill
-                          sizes={"(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"}
-                          src={img}
-                          alt={`${p.brand} ${p.model_name}`}
-                          className="h-full w-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="flex flex-1 flex-col p-4">
-                      <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
-                        {noUnitCopy.badge}
-                      </p>
-                      <h3 className="text-[15px] font-extrabold leading-snug text-ink">
-                        {p.brand} {p.model_name}
-                      </h3>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
-                        {p.specs}
-                      </p>
-                      {harga && (
-                        <>
-                          <p className="mt-1 text-[13px] font-bold text-muted">
-                            {harga}
-                          </p>
-                          <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
-                            {noUnitCopy.priceCaveat}
-                          </p>
-                        </>
-                      )}
-                      {target && (
-                        <a
-                          href={buildNotifyMeHref({
-                            locale,
-                            waNumber: cleanWa,
-                            target,
-                          })}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          {noUnitCopy.notifyLabel}
-                        </a>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+              {newProducts.map((p) => (
+                <NotifyCard
+                  key={p.id}
+                  product={p}
+                  locale={locale}
+                  waNumber={cleanWa}
+                  copy={noUnitCopy}
+                  alasan="never_had_unit"
+                />
+              ))}
             </div>
           </section>
         )}

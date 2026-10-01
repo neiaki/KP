@@ -1,18 +1,40 @@
 -- Pangkas foto galeri Galaxy A55 yang saling potongan.
 --
 -- Latar: audit visual mengukur kemiripan antara foto resmi Galaxy A55 5G.
--- Hasilnya: a55-3.jpg potongan rapat dari a55-1.jpg, a55-4.jpg potongan dari
--- a55-2.jpg, dan a55-5.jpg nyaris sama dengan a55-3.jpg. Jadi lima
--- official photos itu sebenarnya hanya dua render berbeda.
+-- a55-1.jpg dan a55-2.jpg adalah dua render penuh yang berbeda: a55-1.jpg
+-- unit warna iceblue, a55-2.jpg unit warna merah muda. Tiga berkas sisanya
+-- bukan angle baru, semuanya potongan dari salah satu dari dua render itu.
 --
--- Dampaknya ke pembeli nyata. Tombol foto berikutnya pada kartu A55
--- menampilkan iceblue, pink, iceblue, pink, iceblue, dan pengulangan itu
--- terbaca sebagai galeri foto yang rusak, bukan sebagai lima angle produk.
+-- Pengukuran ulang 1 Oktober 2026 mengoreksi kesimpulan audit sebelumnya.
+-- Header versi pertama menuliskan a55-4.jpg sebagai potongan dari a55-2.jpg
+-- dan a55-5.jpg sebagai nyaris sama dengan a55-3.jpg. Keduanya salah:
 --
--- Yang dipangkas hanya foto yang terbukti potongan. Dua render aslinya
--- a55-1.jpg dan a55-2.jpg tetap di tempat, jadi kartu produknya masih punya
+--   a55-3.jpg  potongan dari a55-1.jpg  (korelasi silang 0,912 pada skala 1,35)
+--   a55-4.jpg  potongan dari a55-1.jpg  juga, dan isinya nyaris sama dengan
+--              a55-3.jpg: korelasi 0,9966, beda rata-rata 1,8 per kanal, dan
+--              cuma 1,39% piksel yang beda lebih dari 32. Jadi a55-4.jpg bukan
+--              potongan dari a55-2.jpg, tapi salinan a55-3.jpg.
+--   a55-5.jpg  potongan dari a55-2.jpg  (korelasi 0,868 pada skala 1,35), bukan
+--              salinan a55-3.jpg yang korelasinya cuma 0,775 dengan 27% piksel
+--              beda lebih dari 20.
+--
+-- Yang dipangkas tetap tiga berkas yang sama, jadi hasil migrasi tidak
+-- berubah sama sekali; hanya penjelasannya yang dikoreksi. Berkas ini sudah
+-- tercatat di ledger production, jadi jangan dipakai sebagai bukti apa pun
+-- selain catatan asal-usul pemangkasan.
+--
+-- Dampaknya ke pembeli nyata. Urutan warna yang sebenarnya di galeri lama
+-- adalah iceblue, merah muda, iceblue, iceblue, merah muda: a55-1 dan a55-2
+-- bergantian, lalu a55-3 dan a55-4 mengulang render iceblue dua kali berturut,
+-- lalu a55-5 kembali ke merah muda. Pengulangan itu terbaca sebagai galeri
+-- foto yang rusak, bukan sebagai lima angle produk. (Header versi pertama
+-- menuliskan "iceblue, pink, iceblue, pink, iceblue"; dua elemen terakhirnya
+-- terbalik dan posisi keempat salah.)
+--
+-- Dua render penuhnya tetap di tempat, jadi kartu produknya masih punya
 -- sampul dan masih punya tombol foto berikutnya yang berguna. src/lib/mock-data.ts
--- sudah disinkronkan dengan hasil ini.
+-- memakai daftar galeri yang sama; hanya penjelasannya di file itu yang ikut
+-- dikoreksi.
 --
 -- Berkas gambar tidak dihapus dari public/products/ maupun dari bucket
 -- Storage. Pemotret atau staf mungkin masih memakainya untuk keperluan lain.

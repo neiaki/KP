@@ -37,8 +37,8 @@ export default function MasterProductsPage() {
   const [brand, setBrand] = useState("Apple");
   const [modelName, setModelName] = useState("");
   const [specs, setSpecs] = useState("");
-  // Mulai dari 0, bukan angka tebakan. Harga acuan tiap model berbeda jauh
-  // dan hanya staf yang tahu, jadi form memaksa diisi.
+  // Mulai dari 0, bukan angka tebakan. Harga acuan tiap model berbeda jauh dan
+  // hanya staf yang tahu, jadi 0 berarti "belum diisi", bukan tebakan.
   const [defaultPrice, setDefaultPrice] = useState<number>(0);
   const [imageUrl, setImageUrl] = useState("");
 
@@ -80,8 +80,14 @@ export default function MasterProductsPage() {
       setNotice({ type: "error", text: "Nama model handphone wajib diisi!" });
       return;
     }
-    if (!Number.isFinite(defaultPrice) || defaultPrice <= 0) {
-      setNotice({ type: "error", text: "Harga acuan wajib diisi lebih dari nol." });
+    // Nol itu sah, negatif dan kosong tidak. default_price 0 berarti "belum
+    // ada harga acuan yang bisa dipertanggungjawabkan", bukan harga Rp0, dan
+    // etalase publik menyembunyikan baris harga saat angkanya nol. Menolak nol
+    // di sini membuat produk yang sengaja dibiarkan tanpa harga mustahil
+    // disimpan dari portal, jadi satu-satunya jalan untuk memperbaikinya
+    // adalah SQL.
+    if (!Number.isFinite(defaultPrice) || defaultPrice < 0) {
+      setNotice({ type: "error", text: "Harga acuan tidak boleh negatif." });
       return;
     }
 
@@ -365,6 +371,10 @@ export default function MasterProductsPage() {
                   className="font-bold text-accent-deep sm:text-xs"
                   required
                 />
+                <span className="mt-1 block text-[11px] font-semibold text-muted">
+                  Isi 0 kalau harga acuannya belum tahu. Baris harganya tidak
+                  tampil di etalase selama angkanya 0.
+                </span>
               </div>
 
               <div>

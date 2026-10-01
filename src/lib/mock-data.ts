@@ -144,10 +144,12 @@ export const initialProducts: Product[] = [
     specs: "Awesome Iceblue, Super AMOLED 6.6\" 120Hz, Exynos 1480, 50MP OIS",
     default_price: 5999000,
     image_url: "/products/a55-1.jpg",
-    // a55-3 dan a55-5 adalah potongan dari a55-1, a55-4 potongan dari
-    // a55-2: lima foto itu sebenarnya dua render berbeda. Shopper yang
-    // menekan tombol foto berikutnya hanya melihat pola yang sama
-    // berulang, jadi yang ditampilkan cukup dua render aslinya.
+    // a55-1 adalah render penuh warna iceblue, a55-2 render penuh warna
+    // merah muda. a55-3 dan a55-4 keduanya potongan dari a55-1 (a55-4
+    // bahkan salinan a55-3), dan a55-5 potongan dari a55-2. Jadi lima
+    // foto itu sebenarnya dua render berbeda. Shopper yang menekan
+    // tombol foto berikutnya hanya melihat pola yang sama berulang,
+    // jadi yang ditampilkan cukup dua render aslinya.
     official_images: [
       "/products/a55-1.jpg",
       "/products/a55-2.jpg",
