@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as nodeModule from "node:module";
+import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve as resolvePath } from "node:path";
 import {
@@ -197,5 +198,63 @@ test("filterProducts mengabaikan kondisi, karena produk tanpa unit tidak punya s
     second.length,
     semua.length,
     "kondisi tidak boleh menyembunyikan produk dari daftar tanpa unit"
+  );
+});
+/*
+ * Test kelima: filter harus sinkron dua arah antara URL dan tampilan.
+ *
+ * Temuan CodeRabbit di PR #59, sudah dibuktikan sendiri di browser pada build
+ * lokal. Arah state ke URL sudah ada sejak PR #56, tapi arah URL ke state tidak
+ * pernah ada: `useState(searchParams.get(...))` hanya berjalan di render
+ * pertama, dan efek yang ada hanya menulis state ke URL.
+ *
+ * Gejalanya bukan cuma tombol Back yang tidak berfungsi. Navigasi klien yang
+ * mengganti query string, misalnya tautan katalog di navbar yang menuju
+ * `/id/catalog` tanpa filter, membuat address bar dan tampilan berbeda:
+ * address bar menulis `/id/catalog` tanpa filter sementara etalase masih
+ * menampilkan hanya Apple. Alamat yang di-bookmark atau dibagikan membuka
+ * tampilan yang tidak sama dengan yang dilihat pengguna.
+ *
+ * Komponen ini tidak bisa diimpor ke runner test karena butuh konteks Next.js,
+ * jadi test ini mengunci bentuk kodenya: harus ada ref yang mencatat query
+ * string yang ditulis efek sendiri, dan harus ada efek kedua yang membaca
+ * `searchParams` balik ke state. Tanpa penjaga ref, kedua efek akan saling
+ * memanggil tanpa berhenti.
+ */
+test("filter katalog membaca URL balik ke state, bukan hanya menulis ke URL", () => {
+  const src = readFileSync(
+    resolvePath(srcRoot, "app/(public)/[locale]/catalog/catalog-content.tsx"),
+    "utf8"
+  );
+
+  // Arah URL ke state harus ada.
+  assert.ok(
+    /const\s+KunciUrl\s*=\s*searchParams\.toString\(\)/.test(src),
+    "harus ada kunci yang dibaca dari searchParams untuk membedakan navigasi"
+  );
+  assert.ok(
+    /setSelectedBrand\(/.test(src) && /setSelectedCondition\(/.test(src) &&
+      /setSortOrder\(/.test(src) && /setSearch\(/,
+    "efek pembacaan URL harus menulis kembali keempat nilai filter ke state"
+  );
+
+  // Dan harus ada penjaga supaya kedua arah tidak saling menimpa.
+  assert.ok(
+    /const\s+DitulisSendiri\s*=\s*useRef/.test(src),
+    "harus ada ref yang mencatat query string yang ditulis efek sendiri"
+  );
+  assert.ok(
+    /DitulisSendiri\.current\s*=/.test(src),
+    "ref harus diisi sebelum router.replace, supaya tulisan sendiri bisa dikenali"
+  );
+  assert.ok(
+    /KunciUrl\s*===\s*DitulisSendiri\.current/.test(src),
+    "efek pembacaan URL harus melewati perubahan yang memang ditulis efek itu sendiri"
+  );
+
+  // Penulisan ke URL tetap harus memakai replace supaya riwayat tidak menumpuk.
+  assert.ok(
+    /router\.replace\(/.test(src),
+    "penulisan filter ke URL harus tetap memakai router.replace"
   );
 });
