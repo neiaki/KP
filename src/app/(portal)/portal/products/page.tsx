@@ -6,6 +6,7 @@ import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
 import { Product } from "@/types";
 import { Boxes, Plus, Search, Edit2, CheckCircle2, AlertCircle, Smartphone, X } from "lucide-react";
+import { hargaAcuanLayak } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -86,7 +87,12 @@ export default function MasterProductsPage() {
     // di sini membuat produk yang sengaja dibiarkan tanpa harga mustahil
     // disimpan dari portal, jadi satu-satunya jalan untuk memperbaikinya
     // adalah SQL.
-    if (!Number.isFinite(defaultPrice) || defaultPrice < 0) {
+    //
+    // Aturannya datang dari hargaAcuanLayak supaya bisa diuji. Versi
+    // pertamanya inline di sini, dan tidak ada test yang mengunci `< 0`, jadi
+    // satu karakter yang berubah menjadi `<= 0` akan lolos tanpa ada yang
+    // memberitahu, dan produk tanpa harga kembali mustahil disimpan.
+    if (!hargaAcuanLayak(defaultPrice)) {
       setNotice({ type: "error", text: "Harga acuan tidak boleh negatif." });
       return;
     }
