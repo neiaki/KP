@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { count, desc, eq } from "drizzle-orm";
-import { getDb } from "@/db/client";
+import { getDb, dbBatch } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -264,13 +264,14 @@ async function cekSisaAdmin(
 ): Promise<{ adminCount: number; targetIsAdmin: boolean } | null> {
   const db = getDb();
   if (!db) return null;
-  const [target, total] = await Promise.all([
-    db
-      .select({ role: profiles.role })
-      .from(profiles)
-      .where(eq(profiles.id, userId))
-      .limit(1),
-    db.select({ total: count() }).from(profiles).where(eq(profiles.role, "admin")),
+  const [target, total] = await dbBatch([
+    () =>
+      db
+        .select({ role: profiles.role })
+        .from(profiles)
+        .where(eq(profiles.id, userId))
+        .limit(1),
+    () => db.select({ total: count() }).from(profiles).where(eq(profiles.role, "admin")),
   ]);
   const row = target[0];
   if (!row) return null;

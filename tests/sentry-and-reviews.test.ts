@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { getGoogleReviews } from "../src/lib/reviews.ts";
+import { getSnapshotUlasan } from "../src/lib/ulasan-manual.ts";
 
 /*
  * Penjaga untuk dua hal yang bisa kembali rusak tanpa deploy gagal.
@@ -48,21 +50,74 @@ test("reviews.ts tidak memuat blok data manual yang bisa dilayani sebagai data a
   );
 });
 
-test("tanpa GOOGLE_PLACES_API_KEY, getGoogleReviews mengembalikan null", async () => {
+test("tanpa GOOGLE_PLACES_API_KEY, getGoogleReviews tidak pernah mengarang ulasan", async () => {
   // Simpan dan kembalikan nilai aslinya supaya test ini tidak merusak
   // environment Developing yang kebetulan punya key.
   const sebelumnya = process.env.GOOGLE_PLACES_API_KEY;
   delete process.env.GOOGLE_PLACES_API_KEY;
   try {
+    const hasil = await getGoogleReviews();
+    const snapshot = getSnapshotUlasan();
+
+    if (snapshot.status === "siap") {
+      // Snapshot yang masih layak juga bukan sumber yang boleh diubah seenaknya:
+      // yang dilayani harus persis isi src/lib/ulasan-manual.ts, supaya angka di
+      // halaman selalu bisa dibandingkan dengan salinan di file itu. url boleh
+      // berbeda karena snapshot tidak wajib mengisinya.
+      assert.deepEqual({ ...hasil, url: null }, { ...snapshot.data, url: null });
+      assert.ok(
+        String(hasil?.url).startsWith("https://"),
+        "tautan ke Google Maps harus terisi, tombol ReviewsSection memakainya sebagai href"
+      );
+      return;
+    }
+
     // null, bukan object dengan rating 0: null membuat ReviewsSection memakai
     // fallback "Pernah belanja di sini?" dan buildAggregateRating membuang
     // properti rating dari structured data. Object kosong akan memancarkan
     // LocalBusiness tanpa rating tapi tetap dengan reviews: [].
-    assert.equal(await getGoogleReviews(), null);
+    assert.equal(hasil, null);
   } finally {
     if (sebelumnya === undefined) delete process.env.GOOGLE_PLACES_API_KEY;
     else process.env.GOOGLE_PLACES_API_KEY = sebelumnya;
   }
+});
+
+test("kegagalan ulasan selalu menyebut alasannya di log server", async () => {
+  // Gejalanya di produksi: bagian ulasan di beranda berubah jadi kartu "Tulis
+  // Review" tanpa penjelasan, dan tidak ada yang tahu itu karena key-nya
+  // kosong di Coolify. Fallback yang jujur itu memang benar, tapi ia harus
+  // bersamaan dengan catatan yang menyebut variabel mana yang salah.
+  //
+  // Key dummy dipakai supaya jalur yang diuji adalah jalur API yang gagal
+  // (REQUEST_DENIED atau jaringan), bukan jalur snapshot. Jalur snapshot
+  // memang tidak boleh mencatat apa pun saat snapshot-nya masih layak, jadi
+  // cara mengujinya lewat key kosong akan salah begitu snapshot diisi.
+  //
+  // Proses terpisah dipakai karena getGoogleReviews() sengaja melapor sekali
+  // per proses: kalau test ini memakai modul yang sudah dipakai test di atas,
+  // laporkan() sudah pernah dipanggil dan barisnya memang tidak keluar lagi.
+  const reviewsUrl = new URL("../src/lib/reviews.ts", import.meta.url).href;
+  const env = { ...process.env, GOOGLE_PLACES_API_KEY: "kunci-untuk-uji" };
+
+  const hasil = spawnSync(
+    process.execPath,
+    [
+      "--experimental-strip-types",
+      "--input-type=module",
+      "-e",
+      `const { getGoogleReviews } = await import(${JSON.stringify(reviewsUrl)});
+       await getGoogleReviews();`,
+    ],
+    { env, encoding: "utf8" }
+  );
+
+  const gabung = `${hasil.stderr ?? ""}${hasil.stdout ?? ""}`;
+  assert.match(
+    gabung,
+    /\[reviews]/,
+    "setiap kegagalan mengambil ulasan harus menulis alasannya ke log server"
+  );
 });
 
 test("reviews.ts hanya mengirim ulasan yang punya teks", async () => {
@@ -77,6 +132,62 @@ test("reviews.ts hanya mengirim ulasan yang punya teks", async () => {
     "reviews.ts harus memfilter ulasan tanpa teks sebelum dikirim ke komponen"
   );
 });
+
+// --- reviews: snapshot manual sebagai ganti sementara API key ---------------
+
+test("snapshot manual tidak boleh memuat ulasan kosong atau tanggal basi", async () => {
+  const { SNAPSHOT, DIAMBIL_PADA, getSnapshotUlasan } = await import(
+    "../src/lib/ulasan-manual.ts"
+  );
+
+  for (const [i, ulasan] of SNAPSHOT.reviews.entries()) {
+    assert.ok(
+      ulasan.text.trim().length > 0,
+      `ulasan ke-${i + 1} (${ulasan.author}) tidak punya teks. ReviewsSection `
+        + "merender {r.text || \" \"} jadi yang kosong jadi kartu hampa."
+    );
+    assert.ok(
+      ulasan.rating >= 1 && ulasan.rating <= 5,
+      `rating ulasan ${ulasan.author} di luar 1..5`
+    );
+    assert.ok(ulasan.author.trim().length > 0, `ulasan ke-${i + 1} tidak punya nama`);
+  }
+
+  // Snapshot yang masih kosong itu sah (beranda tinggal menampilkan fallback),
+  // tapi begitu ada isinya, tanggal-ms obligatory: tanpa tanggal, snapshot
+  // tidak punya umur dan akan bertahan selamanya sebagai angka yang sudah
+  // tidak benar.
+  if (SNAPSHOT.reviews.length > 0) {
+    assert.match(
+      DIAMBIL_PADA,
+      /^\d{4}-\d{2}-\d{2}$/,
+      "DIAMBIL_PADA harus tanggal YYYY-MM-DD saat snapshot sudah berisi ulasan"
+    );
+    assert.equal(getSnapshotUlasan(new Date(`${DIAMBIL_PADA}T00:00:00Z`)).status, "siap");
+  }
+});
+
+test("snapshot yang lewat batas umur tidak boleh dipakai sebagai rating resmi", async () => {
+  const { SNAPSHOT, DIAMBIL_PADA, SNAPSHOT_MAKS_UMUR_HARI } =
+    await import("../src/lib/ulasan-manual.ts");
+
+  if (SNAPSHOT.reviews.length === 0) {
+    // Belum diisi, jadi tidak ada yang perlu diuji basinya.
+    return;
+  }
+
+  const diambil = new Date(`${DIAMBIL_PADA}T00:00:00Z`);
+  const lama = new Date(diambil.getTime() + (SNAPSHOT_MAKS_UMUR_HARI + 1) * 86_400_000);
+  const hasil = getSnapshotUlasan(lama);
+  assert.equal(
+    hasil.status,
+    "gagal",
+    "snapshot yang sudah melewati batas umur harus ditolak supaya aggregateRating "
+      + "tidak memancarkan angka lama ke Google"
+  );
+});
+
+
 
 // --- Sentry: opt-in lewat DSN -------------------------------------------------
 

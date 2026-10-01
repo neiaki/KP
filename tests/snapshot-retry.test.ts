@@ -123,7 +123,16 @@ test("pesan galat diteruskan kalau ada, cadangan dipakai kalau tidak ada", () =>
  */
 test("getPublicSnapshot memakai percobaan ulang, bukan gagal langsung", async () => {
   const isi = await readFile(new URL("../src/lib/actions/public.ts", import.meta.url), "utf8");
-  assert.match(isi, /attemptWithRetry\(\(\) => bacaSnapshot\(db\)\)/);
+  // Pokoknya attemptWithRetry tetap membungkus pembacaan snapshot. Nama yang
+  // dibungkus boleh berubah: sekarang pembacaannya lebih dulu disimpan di
+  // variabel berjalan supaya permintaan yang datang bersamaan ikut memakainya,
+  // lalu attemptWithRetry melingkupi variabel itu.
+  assert.match(isi, /attemptWithRetry\(\(\) => berjalan\)/);
+  assert.match(
+    isi,
+    /const berjalan = bacaSnapshotBerjalan \?\? \(bacaSnapshotBerjalan = bacaSnapshot\(db\)\);/,
+    "pembacaan bersama harus dibuat dari bacaSnapshot(db), bukan dari sumber lain"
+  );
   // Jalur gagal lama: Promise.all yang ditelan diam-diam tanpa mengulang.
   assert.ok(
     !/\)\)\s*\.catch\(\(\) => null\)/.test(isi),

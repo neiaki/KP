@@ -106,6 +106,161 @@ const POOL_MAX = (() => {
   return mentah;
 })();
 
+/**
+ * Ukuran pool yang benar-benar dipakai.
+ *
+ * Nilainya pernah dipatok jadi satu koneksi di Vercel, dengan alasan jumlah
+ * instance serverless tidak bisa dibatasi sehingga total koneksi ke Supabase
+ * harus dijaga. Angka itu terlihat hemat, tapi membuat pool postgres.js tidak
+ * bisa dipakai lagi, dan itu terbaca di produksi sebagai 504
+ * FUNCTION_INVOCATION_TIMEOUT di kp-rust-five.vercel.app: setiap halaman di
+ * bawah /[locale] timeout, sementara /api/health/ready tetap 200 dalam 0,3
+ * detik karena hanya memakai satu koneksi pada satu waktu.
+ *
+ * Penyebabnya ada di driver, di node_modules/postgres 3.4.9:
+ *
+ *   - src/index.js:65 membuat tepat options.max objek Connection, sekali saja
+ *     selama proses hidup. Tidak ada Connection kedua yang bisa dibuat belakangan.
+ *   - src/index.js:329-342 handler() mencari koneksi di antrean open, closed,
+ *     lalu busy. Kalau ketiganya kosong, query masuk ke antrean queries.
+ *   - src/index.js:344-348 go() memakai hasil Connection.execute(), yang false
+ *     kalau socket kena backpressure (src/connection.js:246-259) atau ketika
+ *     sent.length sudah mencapai max_pipeline. Kalau false, koneksinya
+ *     dipindahkan ke antrean full.
+ *   - Antrean full tidak pernah dikuras di mana pun di driver. Pencarian "full"
+ *     di src/*.js hanya menemukan deklarasinya dan tiga tempat move(c, full);
+ *     tidak ada full.shift() maupun move() yang keluar dari sana.
+ *   - Antrean queries hanya dikuras di onopen (src/index.js:401-419) dan onclose
+ *     (src/index.js:421-427), yaitu saat socket connect atau socket ditutup.
+ *
+ * Jadi dengan max 1, begitu query kedua mengantre, tidak ada socket kedua yang
+ * bisa connect, dan query itu menggantung tanpa galat: tidak kena
+ * statement_timeout, tidak kena lock_timeout, dan tidak ada yang membangunkannya.
+ * Instance serverless tidak pernah dimatikan, jadi begitu satu request begitu,
+ * semua request berikutnya di instance itu ikut menggantung.
+ *
+ * Ukuran yang dipakai sekarang adalah POOL_MAX untuk semua platform. Dengan max
+ * lebih dari satu, satu koneksi bisa busy sementara yang lain open, sehingga
+ * query tidak perlu masuk antrean queries sama sekali.
+ *
+ * dbBatch di bawah bukan yang membuat ini aman. Dia pengaman kalau pool pernah
+ * dipatok satu koneksi lagi: jalannya berurutan, jadi tidak ada antrean.
+ */
+export const POOL_EFEKTIF = POOL_MAX;
+
+/**
+ * Jalankan beberapa query sebagai satu batch.
+ *
+ * Parallel kalau pool cukup besar. Kalau pool cuma satu koneksi, berurutan dan
+ * di bawah satu gembok, karena dua tahap render bisa berjalan bersamaan: page
+ * dan layout di-render paralel, dan masing-masing bisa menyentuh database.
+ * Mengurutkan di dalam satu batch saja tidak cukup, karena dua batch dari dua
+ * tempat berbeda masih bisa bertumpuk di koneksi yang sama.
+ *
+ * Bentuk pemanggilnya sama di kedua kasus, jadi tidak ada percabangan di setiap
+ * tempat yang memanggil: cukup satu helper yang tahu batasnya.
+ *
+ * Setiap langkah ditulis sebagai fungsi, bukan promise yang sudah dibuat,
+ * supaya di jalur berurutan query kedua belum dibuat sebelum query pertama
+ * selesai. Kalau yang dilepas adalah promise yang sudah berjalan, mengurutkan
+ * hanya mengurutkan penungguannya; antrean sudah terjadi di driver.
+ *
+ * Gemboknya sengaja di modul ini, bukan di tiap pemanggil: aturan ini
+ * berlaku untuk semua jalur yang membaca lewat pool yang sama.
+ */
+let antreanPool: Promise<unknown> = Promise.resolve();
+let diDalamBatch = false;
+
+/**
+ * Batas waktu satu langkah batch.
+ *
+ * STATEMENT_TIMEOUT_MS dan lock_timeout tidak menutup kelas kegagalan ini,
+ * karena keduanya hanya berlaku kalau statement-nya benar-benar sudah sampai
+ * ke server. Kalau yang macet adalah query yang mengantre di sisi pool atau
+ * socket yang sudah tidak ada lagi, tidak ada statement yang sedang berjalan
+ * untuk dipotong, dan tanpa batas di sini satu langkah yang tidak resolve
+ * membekukan seluruh antrean untuk sisa umur instance. Di Vercel instance
+ * tidak pernah dimatikan, jadi "sisa umur instance" itu bisa sangat lama.
+ *
+ * Nilainya 10 detik, bukan 8, supaya tidak memotong query yang memang sah
+ * saja lambat tapi selesai. Setelah lewat, klien postgres dibuang supaya
+ * request berikutnya membangun koneksi baru, sama seperti yang dilakukan
+ * src/app/api/health/db-probe.ts untuk probe yang lewat deadline.
+ */
+export const DB_BATCH_STEP_TIMEOUT_MS = 10_000;
+
+/**
+ * Ekspor untuk test-nya sendiri, seperti withConnectionGuard di bawah.
+ */
+export async function dbBatchStep<T>(
+  langkah: () => Promise<T>,
+  label: number,
+  batasMs: number = DB_BATCH_STEP_TIMEOUT_MS
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      langkah(),
+      new Promise<never>((_, tolak) => {
+        timer = setTimeout(() => {
+          invalidateDb();
+          tolak(
+            new Error(
+              `dbBatch langkah ${label} lewat ${batasMs} ms tanpa jawaban`
+            )
+          );
+        }, batasMs);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export async function dbBatch<T extends readonly unknown[]>(
+  langkah: { readonly [K in keyof T]: () => Promise<T[K]> }
+): Promise<{ -readonly [K in keyof T]: Awaited<T[K]> }> {
+  // Pemanggilan bersarang akan menunggu antrean yang ujungnya adalah dirinya
+  // sendiri, jadi tidak akan pernah keluar. Sekarang ia ditolak di depan
+  // dengan pesan yang jelas, bukan menggantung diam-diam.
+  if (diDalamBatch) {
+    throw new Error("dbBatch tidak boleh dipanggil di dalam dbBatch");
+  }
+
+  const berurutan = async () => {
+    diDalamBatch = true;
+    try {
+      const hasil: unknown[] = [];
+      let nomor = 0;
+      for (const jalan of langkah) {
+        hasil.push(await dbBatchStep(jalan, nomor++));
+      }
+      return hasil;
+    } finally {
+      diDalamBatch = false;
+    }
+  };
+
+  if (POOL_EFEKTIF > 1) {
+    return Promise.all(
+      langkah.map((jalan, nomor) => dbBatchStep(jalan, nomor))
+    ) as Promise<{ -readonly [K in keyof T]: Awaited<T[K]> }>;
+  }
+
+  // onRejected menjalankan hal yang sama dengan onFulfilled: antrean harus
+  // jalan lagi meski batch sebelumnya gagal, kalau tidak satu galat akan
+  // membekukan semua batch berikutnya di instance itu.
+  const lanjut = antreanPool.then(berurutan, berurutan) as Promise<{
+    -readonly [K in keyof T]: Awaited<T[K]>;
+  }>;
+  antreanPool = lanjut.then(
+    () => undefined,
+    () => undefined
+  );
+  return lanjut;
+}
+
 /** Kode galat yang berarti jalurnya rusak, bukan query-nya. */
 const KODE_KONEKSI: Record<string, true> = {
   CONNECTION_CLOSED: true,
@@ -385,7 +540,7 @@ function buildDb(url: string): Db {
       // paket yang sedang dipakai. Koneksi yang menganggur hampir tidak
       //menggunakan memori, karena yang benar-benar aktif hanya
       // koneksi yang sedang menjalankan query.
-      max: process.env.VERCEL ? 1 : POOL_MAX,
+      max: POOL_EFEKTIF,
       // Socket harus ditutup sendiri sebelum pooler atau server punya alasan
       // untuk membuangnya, lihat catatan insiden di atas file ini.
       max_lifetime: MAX_LIFETIME_SECONDS,
