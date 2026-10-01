@@ -10,17 +10,11 @@ import {
   Wrench,
   AlertTriangle,
   Boxes,
-  Users,
-  ArrowUpRight,
-  Package,
-  Clock,
   CheckCircle,
   PlusCircle,
-  Smartphone,
   ArrowRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "@/components/portal/role-badge";
 import { ButtonLink } from "@/components/button-link";

@@ -6,14 +6,9 @@ import { useStore } from "@/context/store-context";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { openNotaPrintWindow, buildWarrantyCardHtml } from "@/lib/print-nota";
 import {
-  Receipt,
   ShieldCheck,
-  Smartphone,
   Wrench,
-  Clock,
   Printer,
-  Calendar,
-  AlertCircle,
   ExternalLink,
   Barcode,
   Phone,

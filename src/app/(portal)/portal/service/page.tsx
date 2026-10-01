@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/context/store-context";
-import { formatIDR, formatDate } from "@/lib/utils";
+import { formatIDR } from "@/lib/utils";
 import { RepairStatus, ServiceCostItem, ServiceTicket } from "@/types";
 import { signPhotoPaths, uploadPhoto } from "@/lib/actions/storage";
 import {
@@ -11,23 +11,15 @@ import {
   Plus,
   Search,
   CheckCircle2,
-  Clock,
-  ArrowRight,
-  Printer,
-  FileText,
-  Camera,
-  AlertTriangle,
   User,
-  Smartphone,
   ExternalLink,
-  Phone,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "@/components/portal/role-badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonLink } from "@/components/button-link";
 
 export default function TechnicianServicePage() {

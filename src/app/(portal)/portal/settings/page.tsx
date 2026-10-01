@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "@/context/store-context";
-import { Settings, Save, CheckCircle2, Globe, Clock, MapPin, Phone } from "lucide-react";
+import { Save, CheckCircle2, Globe, Clock, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
