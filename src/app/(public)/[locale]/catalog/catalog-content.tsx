@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
@@ -31,103 +31,63 @@ export function CatalogContent({ locale }: { locale: Locale }) {
   // merek itu benar-benar ada, `sort` hanya menerima nilai yang memang
   // ditawarkan StockFilter, dan `cond` sama. Tanpa penyaringan ini, URL yang diedit
   // tangan bisa membuat etalase tampak rusak padahal server-nya sehat.
-  const BRAND_DARI_URL = (searchParams.get("brand") || "").trim();
-  const COND_DARI_URL = searchParams.get("cond") || "";
-  const SORT_DARI_URL = searchParams.get("sort") || "";
-
-  const [search, setSearch] = useState(searchParams.get("q") || "");
-  const [selectedBrand, setSelectedBrand] = useState(
-    products.some((p) => p.brand === BRAND_DARI_URL) ? BRAND_DARI_URL : "all"
-  );
-  const [selectedCondition, setSelectedCondition] = useState(
-    COND_DARI_URL === "new" || COND_DARI_URL === "second" ? COND_DARI_URL : "all"
-  );
-  const [sortOrder, setSortOrder] = useState<SortOrder>(
-    SORT_DARI_URL === "lowest" || SORT_DARI_URL === "highest" || SORT_DARI_URL === "az"
-      ? SORT_DARI_URL
-      : "newest"
-  );
 
   /*
-   * `DitulisSendiri` menyimpan query string terakhir yang ditulis efek di bawah, jadi
-   * efek pembacaan URL bisa membedakan tulisan kita sendiri dari navigasi yang
-   * datang dari tempat lain.
-   */
-  const DitulisSendiri = useRef<string | null>(null);
-
-  /*
-   * Status filter ditulis balik ke query string.
+   * Query string adalah satu-satunya sumber kebenaran filter.
    *
-   * Sebelumnya `useState(searchParams.get(...))` hanya dibaca satu kali lalu
-   * tidak pernah menulis apa pun, jadi hasil filter hilang saat halaman
-   * dimuat ulang, tidak bisa di-bookmark atau dibagikan, dan tombol Back
-   * browser tidak membataskannya. Padahal footer sudah menautkan
-   * `/id/catalog?cond=new`, jadi mekanismenya sudah ada di sisi lain.
-   *
-   * `replace` dipakai supaya setiap ketukan tidak menumpuk riwayat, dan
-   * `scroll: false` supaya daftar tidak melompat ke atas tiap filter berubah.
-   * Nilai yang sedang default dihapus dari URL, bukan ditulis sebagai
-   * `all`/`newest`, supaya alamat tanpa parameter tetap tanpa parameter.
-   */
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const params = new URLSearchParams(url.search);
-
-    const pasang = (kunci: string, nilai: string, bawaan: string) => {
-      if (nilai === bawaan || nilai === "") params.delete(kunci);
-      else params.set(kunci, nilai);
-    };
-
-    pasang("q", search, "");
-    pasang("brand", selectedBrand, "all");
-    pasang("cond", selectedCondition, "all");
-    pasang("sort", sortOrder, "newest");
-
-    const berikutnya = params.toString();
-    const sekarang = window.location.search;
-    if (berikutnya === sekarang.replace(/^\?/, "")) return;
-    DitulisSendiri.current = berikutnya;
-    router.replace(`${url.pathname}${berikutnya ? `?${berikutnya}` : ""}`, {
-      scroll: false,
-    });
-  }, [search, selectedBrand, selectedCondition, sortOrder, router]);
-
-  /*
-   * Query string dibaca balik ke state.
-   *
-   * `useState(searchParams.get(...))` hanya berjalan di render pertama.
-   * Navigasi klien yang mengganti query string, misalnya tombol Back, tautan
-   * `?cond=new` di footer, atau tautan katalog di navbar, hanya mengubah URL.
-   * Akibatnya state tetap memakai nilai render pertama: address bar menulis
-   * `/id/catalog` tanpa filter, sementara etalase masih menampilkan hanya
+   * Dulu keempat filter disimpan di `useState` yang diinisialisasi sekali dari
+   * `useSearchParams`, lalu satu efek menulis state itu balik ke URL. Arah
+   * URL ke state tidak pernah ada, dan `useState` tidak pernah membaca ulang
+   * `searchParams` setelah render pertama. Navigasi klien yang hanya mengganti
+   * query string, seperti tautan katalog di navbar yang menuju
+   * `/id/catalog`, karena itu hanya mengubah URL: address bar menulis
+   * `/id/catalog` tanpa filter sementara etalase tetap menampilkan hanya
    * Apple. Alamat yang di-bookmark atau dibagikan membuka tampilan yang
    * berbeda dari yang dilihat pengguna, dan tombol Back tidak membatalkan
    * filter.
    *
-   * Arah ini hanya dipakai kalau URL berubah karena navigasi dari luar. Kalau
-   * perubahannya adalah tulisan efek di atas, nilainya dicocokkan dengan
-   * `DitulisSendiri` dan efek ini dilewati, supaya keduanya tidak saling
-   * menimpa.
+   * Simpan filter di state DAN di URL berarti dua sumber kebenaran, dan
+   * keduanya pasti akan berbeda pada satu titik. Jadi sekarang filter dibaca
+   * langsung dari URL, dan satu-satunya cara mengubahnya adalah menulis URL.
+   * Tidak ada efek yang menulis state, jadi tidak ada dua arah yang bisa
+   * saling menimpa.
+   *
+   * `router.replace` dipakai supaya setiap ketukan tidak menumpuk riwayat, dan
+   * `scroll: false` supaya daftar tidak melompat ke atas tiap filter berubah.
+   * Nilai yang sedang default dihapus dari URL, bukan ditulis sebagai
+   * `all`/`newest`, supaya alamat tanpa parameter tetap tanpa parameter.
    */
-  const KunciUrl = searchParams.toString();
-  useEffect(() => {
-    if (KunciUrl === DitulisSendiri.current) {
-      DitulisSendiri.current = null;
-      return;
-    }
+  const params = new URLSearchParams(searchParams.toString());
+  const brandDariUrl = (params.get("brand") || "").trim();
+  const condDariUrl = params.get("cond") || "";
+  const sortDariUrl = params.get("sort") || "";
 
-    const params = new URLSearchParams(KunciUrl);
-    const brand = (params.get("brand") || "").trim();
-    const cond = params.get("cond") || "";
-    const sort = params.get("sort") || "";
+  const search = params.get("q") || "";
+  const selectedBrand = products.some((p) => p.brand === brandDariUrl)
+    ? brandDariUrl
+    : "all";
+  const selectedCondition =
+    condDariUrl === "new" || condDariUrl === "second" ? condDariUrl : "all";
+  const sortOrder: SortOrder =
+    sortDariUrl === "lowest" || sortDariUrl === "highest" || sortDariUrl === "az"
+      ? sortDariUrl
+      : "newest";
 
-    setSearch(params.get("q") || "");
-    setSelectedBrand(products.some((p) => p.brand === brand) ? brand : "all");
-    setSelectedCondition(cond === "new" || cond === "second" ? cond : "all");
-    setSortOrder(
-      sort === "lowest" || sort === "highest" || sort === "az" ? sort : "newest"
-    );
-  }, [KunciUrl, products]);
+  const setFilter = (kunci: string, nilai: string, bawaan: string) => {
+    const berikut = new URLSearchParams(searchParams.toString());
+    if (nilai === bawaan || nilai === "") berikut.delete(kunci);
+    else berikut.set(kunci, nilai);
+
+    const kueri = berikut.toString();
+    const pathname = new URL(window.location.href).pathname;
+    if (kueri === searchParams.toString()) return;
+    router.replace(`${pathname}${kueri ? `?${kueri}` : ""}`, { scroll: false });
+  };
+
+  const setSearch = (nilai: string) => setFilter("q", nilai, "");
+  const setSelectedBrand = (nilai: string) => setFilter("brand", nilai, "all");
+  const setSelectedCondition = (nilai: string) => setFilter("cond", nilai, "all");
+  const setSortOrder = (nilai: SortOrder) => setFilter("sort", nilai, "newest");
 
   const availableUnits = sellableUnits(inventoryUnits);
   const noUnitCopy = noUnitSectionCopy(locale);

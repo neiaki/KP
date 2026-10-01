@@ -221,40 +221,54 @@ test("filterProducts mengabaikan kondisi, karena produk tanpa unit tidak punya s
  * `searchParams` balik ke state. Tanpa penjaga ref, kedua efek akan saling
  * memanggil tanpa berhenti.
  */
-test("filter katalog membaca URL balik ke state, bukan hanya menulis ke URL", () => {
-  const src = readFileSync(
+test("filter katalog membaca dari URL, bukan dari state terpisah", () => {
+  const mentah = readFileSync(
     resolvePath(srcRoot, "app/(public)/[locale]/catalog/catalog-content.tsx"),
     "utf8"
   );
+  // Komentar sengaja dihapus dulu. Penjelasan kenapa dulu memakai useState ada
+  // di dalam berkas, jadi menguji mentah akan salah hitung kata itu sebagai
+  // pemakaian nyata.
+  const src = mentah
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^[ \t]*\/\/.*$/gm, "");
 
-  // Arah URL ke state harus ada.
+  // Filter harus dibaca dari query string.
   assert.ok(
-    /const\s+KunciUrl\s*=\s*searchParams\.toString\(\)/.test(src),
-    "harus ada kunci yang dibaca dari searchParams untuk membedakan navigasi"
+    /const\s+params\s*=\s*new URLSearchParams\(searchParams\.toString\(\)\)/.test(src),
+    "filter harus dibaca dari query string"
   );
   assert.ok(
-    /setSelectedBrand\(/.test(src) && /setSelectedCondition\(/.test(src) &&
-      /setSortOrder\(/.test(src) && /setSearch\(/,
-    "efek pembacaan URL harus menulis kembali keempat nilai filter ke state"
-  );
-
-  // Dan harus ada penjaga supaya kedua arah tidak saling menimpa.
-  assert.ok(
-    /const\s+DitulisSendiri\s*=\s*useRef/.test(src),
-    "harus ada ref yang mencatat query string yang ditulis efek sendiri"
-  );
-  assert.ok(
-    /DitulisSendiri\.current\s*=/.test(src),
-    "ref harus diisi sebelum router.replace, supaya tulisan sendiri bisa dikenali"
-  );
-  assert.ok(
-    /KunciUrl\s*===\s*DitulisSendiri\.current/.test(src),
-    "efek pembacaan URL harus melewati perubahan yang memang ditulis efek itu sendiri"
+    /const\s+search\s*=\s*params\.get\("q"\)/.test(src),
+    "kata kunci harus dibaca dari query string"
   );
 
-  // Penulisan ke URL tetap harus memakai replace supaya riwayat tidak menumpuk.
+  // Dan tidak boleh ada state terpisah yang bisa melenceng dari URL.
+  assert.ok(
+    !/useState/.test(src),
+    "filter tidak boleh disimpan di useState, karena itu sumber kebenaran kedua yang bisa melenceng dari URL"
+  );
+  assert.ok(
+    !/useEffect/.test(src),
+    "tidak boleh ada efek yang menulis state filter ke URL, karena URL sudah sumber kebenarannya"
+  );
+
+  // Satu-satunya jalan mengubah filter adalah menulis URL.
+  assert.ok(
+    /const\s+setFilter\s*=/.test(src),
+    "perubahan filter harus lewat satu fungsi yang menulis ke URL"
+  );
   assert.ok(
     /router\.replace\(/.test(src),
-    "penulisan filter ke URL harus tetap memakai router.replace"
+    "penulisan filter ke URL harus memakai router.replace supaya riwayat tidak menumpuk"
   );
+
+  // Nilai dari URL tetap harus disaring, jangan dipercaya mentah.
+  assert.ok(
+    /products\.some\(\(p\) => p\.brand === brandDariUrl\)/.test(src),
+    "merek dari URL hanya diterima kalau benar-benar ada"
+  );
+  for (const nilai of ['condDariUrl === "new"', 'sortDariUrl === "lowest"']) {
+    assert.ok(src.includes(nilai), `nilai dari URL harus divalidasi (${nilai})`);
+  }
 });
