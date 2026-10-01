@@ -74,12 +74,15 @@ test("dokumen acuan ditautkan dari README root", () => {
 });
 
 test("setiap sumber PlantUML punya render PNG dan SVG", async () => {
-  // UC-AtCell.md menyisipkan gambar dengan jalur tetap. Kalau sumbernya
-  // ditambah tanpa dirender, tautan gambar di dokumen itu rusak tanpa error
-  // build, karena Markdown tidak ikut divalidasi.
+  // Kalau sumber PlantUML ditambahkan lagi tanpa dirender, tautan gambarnya
+  // rusak tanpa error build, karena Markdown tidak ikut divalidasi.
+  //
+  // repo ini sengaja tidak punya sumber PlantUML sama sekali sejak 1 Oktober
+  // 2026: diagram use case dihapus, dan yang jadi acuan adalah daftar use case
+  // di UC-AtCell.md. Karena itu test ini tidak lagi menuntut sumbernya ada;
+  // yang dijaga hanya bahwa tidak ada sumber yang menggantung.
   const isi = await readdir(docsUrl);
   const sumber = isi.filter((f) => f.endsWith(".puml"));
-  assert.ok(sumber.length > 0, "tidak ada sumber PlantUML di docs/");
   const tanpaRender = sumber
     .filter((f) => {
       const stem = f.replace(/\.puml$/, "");
@@ -90,6 +93,28 @@ test("setiap sumber PlantUML punya render PNG dan SVG", async () => {
     tanpaRender,
     [],
     `sumber diagram ini belum dirender ke PNG dan SVG: ${tanpaRender.join(", ")}`
+  );
+});
+
+test("dokumen tidak menunjuk gambar yang tidak ada di docs/", async () => {
+  // Tautan gambar Markdown tidak divalidasi oleh build mana pun. Berkas yang
+  // dihapus tapi rujukannya masih ada akan muncul sebagai gambar rusak di
+  // GitHub, dan tidak ada apa pun yang gagal.
+  const isi = new Set(await readdir(docsUrl));
+  const bermasalah: string[] = [];
+
+  for (const nama of ["UC-AtCell.md", "PRD-AtCell.md", "README.md"]) {
+    const isiDokumen = await readFile(new URL(`./${nama}`, docsUrl), "utf8");
+    for (const cocok of isiDokumen.matchAll(/!\[[^\]]*\]\(\.\/([^)\s]+)\)/g)) {
+      const target = cocok[1];
+      if (!isi.has(target)) bermasalah.push(`${nama} -> ./${target}`);
+    }
+  }
+
+  assert.deepEqual(
+    bermasalah,
+    [],
+    `dokumen menunjuk gambar yang sudah dihapus: ${bermasalah.join(", ")}`
   );
 });
 

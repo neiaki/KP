@@ -123,15 +123,35 @@ test("pesan galat diteruskan kalau ada, cadangan dipakai kalau tidak ada", () =>
  */
 test("getPublicSnapshot memakai percobaan ulang, bukan gagal langsung", async () => {
   const isi = await readFile(new URL("../src/lib/actions/public.ts", import.meta.url), "utf8");
-  // Pokoknya attemptWithRetry tetap membungkus pembacaan snapshot. Nama yang
-  // dibungkus boleh berubah: sekarang pembacaannya lebih dulu disimpan di
-  // variabel berjalan supaya permintaan yang datang bersamaan ikut memakainya,
-  // lalu attemptWithRetry melingkupi variabel itu.
-  assert.match(isi, /attemptWithRetry\(\(\) => berjalan\)/);
+  // Pokoknya attemptWithRetry tetap membungkus pembacaan snapshot.
+  assert.match(isi, /attemptWithRetry\(\(\) => \{/);
+
+  // Pembacaan bersama harus dibuat dari bacaSnapshot dengan klien yang diambil
+  // ulang lewat getDb(), supaya percobaan kedua memakai klien yang masih hidup
+  // kalau yang pertama sudah dibuang.
   assert.match(
     isi,
-    /const berjalan = bacaSnapshotBerjalan \?\? \(bacaSnapshotBerjalan = bacaSnapshot\(db\)\);/,
-    "pembacaan bersama harus dibuat dari bacaSnapshot(db), bukan dari sumber lain"
+    /const dbSekarang = getDb\(\);[\s\S]*?bacaSnapshot\(dbSekarang\)/,
+    "pembacaan bersama harus dibuat dari bacaSnapshot dengan klien dari getDb()"
+  );
+
+  // Pembacaan yang gagal tidak boleh tinggal di slot: penumpangnya akan ikut
+  // gagal semua, padahal permintaan berikutnya bisa berhasil dengan bacaan sendiri.
+  assert.match(
+    isi,
+    /berjalan\.catch\(\(\) => \{\s*if \(bacaSnapshotBerjalan === berjalan\) bacaSnapshotBerjalan = undefined;\s*\}\);/,
+    "slot pembacaan bersama harus dikosongkan begitu pembacaannya ditolak"
+  );
+
+  // Ini yang sempat salah: kalau percobaan kedua memakai promise yang sama,
+  // retry hanya menambah jeda tanpa membaca ulang sama sekali, dan
+  // attemptWithRetry jadi tidak berguna untuk balapan cache kolom Drizzle
+  // yang justru menjadi alasan tool itu ada.
+  assert.match(
+    isi,
+    /if \(percobaan\+\+ > 0\) bacaSnapshotBerjalan = undefined;/,
+    "percobaan ulang harus membaca ulang. Menunggu promise yang sama "
+      + "yang sudah gagal tidak mengulang apa pun"
   );
   // Jalur gagal lama: Promise.all yang ditelan diam-diam tanpa mengulang.
   assert.ok(
