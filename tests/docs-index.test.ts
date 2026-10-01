@@ -5,8 +5,7 @@ import { access, readdir, readFile } from "node:fs/promises";
 /*
  * Indeks docs/ dijaga karena isinya sudah basi tanpa ada yang memperingatkan.
  * Saat audit, docs/README.md masih berhenti di empat dokumen pertama:
- * UC-AtCell.md, SECRET-ROTATION.md, dan berkas diagram sama sekali tidak
- * disebut. Dokumen yang tidak disebut di indeks docs sama saja tidak ada bagi
+ * SECRET-ROTATION.md dan berkas diagram sama sekali tidak disebut. Dokumen yang tidak disebut di indeks docs sama saja tidak ada bagi
  * pembaca yang mencari lewat README, padahal dua di antaranya adalah acuan
  * operasional yang wajib dibaca sebelum menyentuh production.
  *
@@ -59,7 +58,6 @@ test("dokumen acuan ditautkan dari README root", () => {
   );
   const aktif = [
     "PRD-AtCell.md",
-    "UC-AtCell.md",
     "requirement-2.0.md",
     "DEPLOYMENT-REDUNDANCY.md",
     "SECRET-ROTATION.md",
@@ -77,10 +75,12 @@ test("setiap sumber PlantUML punya render PNG dan SVG", async () => {
   // Kalau sumber PlantUML ditambahkan lagi tanpa dirender, tautan gambarnya
   // rusak tanpa error build, karena Markdown tidak ikut divalidasi.
   //
-  // repo ini sengaja tidak punya sumber PlantUML sama sekali sejak 1 Oktober
-  // 2026: diagram use case dihapus, dan yang jadi acuan adalah daftar use case
-  // di UC-AtCell.md. Karena itu test ini tidak lagi menuntut sumbernya ada;
-  // yang dijaga hanya bahwa tidak ada sumber yang menggantung.
+  // repo ini sengaja tidak punya sumber PlantUML maupun diagram use case
+  // sama sekali sejak 1 Oktober 2026: seluruh diagram dihapus, termasuk
+  // diagram.mmd, karena tidak ada lagi yang memakainya di dalam repo. Karena
+  // itu test ini tidak lagi menuntut sumbernya ada; yang dijaga hanya bahwa
+  // tidak ada sumber yang menggantung, jadi berkasnya tidak ditambahkan
+  // diam-diam tanpa render.
   const isi = await readdir(docsUrl);
   const sumber = isi.filter((f) => f.endsWith(".puml"));
   const tanpaRender = sumber
@@ -103,7 +103,7 @@ test("dokumen tidak menunjuk gambar yang tidak ada di docs/", async () => {
   const isi = new Set(await readdir(docsUrl));
   const bermasalah: string[] = [];
 
-  for (const nama of ["UC-AtCell.md", "PRD-AtCell.md", "README.md"]) {
+  for (const nama of ["PRD-AtCell.md", "README.md"]) {
     const isiDokumen = await readFile(new URL(`./${nama}`, docsUrl), "utf8");
     for (const cocok of isiDokumen.matchAll(/!\[[^\]]*\]\(\.\/([^)\s]+)\)/g)) {
       const target = cocok[1];

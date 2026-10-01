@@ -36,16 +36,31 @@ const ASAL_PETA_EMBED = "https://www.google.com";
  * inline, jadi script-src tidak perlu dilonggarkan dan masih tetap
  * nonce + 'strict-dynamic'.
  *
- * Kalau nanti Sentry pindah ke host ingest regional seperti
- * `o<orgid>.ingest.us.sentry.io`, wildcard di bawah tidak ikut menutupnya
- * dan harus ditambah eksplisit. Bentuk regional itu memang dikenali SDK,
- * tapi DSN At Cell sekarang tidak punya bagian region itu.
+ * Host ingest harus ditulis dalam dua bentuk, karena Sentry punya dua topologi
+ * dan wildcard `*.` hanya menutup satu label di depan.
+ *
+ * Bentuk lama: `o<orgid>.ingest.sentry.io`, ditutup oleh `*.ingest.sentry.io`.
+ * Bentuk regional: `o<orgid>.ingest.<region>.sentry.io`. Untuk yang ini
+ * `*.ingest.sentry.io` justru tidak berlaku, karena label `<region>` ada di
+ * antara `ingest` dan `sentry.io`. Kalau hanya bentuk lama yang ditulis,
+ * connect-src tetap hijau dan browser tetap membuang setiap envelope tanpa
+ * pesan, persis seperti tidak ada Sentry sama sekali.
+ *
+ * DSN At Cell sekarang memakai bentuk regional dengan region `us`, jadi
+ * `*.ingest.us.sentry.io` yang benar-benar menutupnya. Region `de` ikut
+ * ditulis supaya perpindahan region tidak menggagalkan pelaporan diam-diam,
+ * dan karena keduanya tetap berada di bawah namespace ingest Sentry, bukan
+ * membuka host lain.
  *
  * Kalau `NEXT_PUBLIC_SENTRY_DSN` kosong, `Sentry.init` dilewati seluruhnya
  * (lihat src/instrumentation-client.ts), tidak ada envelope yang dibuat, dan
  * allowance ini tidak punya efek di deployment yang tidak memakai Sentry.
  */
-const ASAL_INGEST_SENTRY = "https://*.ingest.sentry.io";
+const ASAL_INGEST_SENTRY = [
+  "https://*.ingest.sentry.io",
+  "https://*.ingest.us.sentry.io",
+  "https://*.ingest.de.sentry.io",
+] as const;
 
 export type CspOptions = {
   /*
@@ -132,7 +147,7 @@ export function buildContentSecurityPolicy({
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": imgSrc,
     "font-src": ["'self'"],
-    "connect-src": ["'self'", ASAL_INGEST_SENTRY],
+    "connect-src": ["'self'", ...ASAL_INGEST_SENTRY],
     "frame-src": [ASAL_PETA_EMBED],
     "media-src": ["'self'"],
     "manifest-src": ["'self'"],

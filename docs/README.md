@@ -9,7 +9,6 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | File | Isi | Status |
 |------|-----|--------|
 | `PRD-AtCell.md` | Product Requirements Document: overview, fitur inti, user flow, arsitektur Next.js + Supabase | Rencana jangka panjang |
-| `UC-AtCell.md` | Spesifikasi use case per aktor (18 UC) plus diagram PlantUML per modul | **Acuan alur** |
 | `requirement.md` | SRS v1 awal: aktor Sales/Teknisi/Pelanggan, modul IMEI, servis, trade-in | Digantikan v2 |
 | `requirement-2.0.md` | SRS v2 At Cell: tambah aktor Admin/Owner, FR-xxx/NFR-xxx, modul etalase publik multibahasa + dashboard | **Acuan kebutuhan** |
 | `DEPLOYMENT-REDUNDANCY.md` | Runbook Coolify, Supabase, health check, backup, dan rollout | **Acuan operasional** |
@@ -19,12 +18,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |
 | `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unit pertama arrive | **Acuan operasional** |
 | `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
-
-## Diagram
-
-| File | Isi |
-|------|-----|
-| `diagram.mmd` | Diagram alur aktor dan use case dalam sintaks Mermaid. Diagram PlantUML sudah dihapus; daftar use case ada di `UC-AtCell.md` |
+| `STATUS-PEKERJAAN-AT-CELL.md` | Peta posisi pekerjaan: apa yang selesai dengan buktinya, apa yang masih dikerjakan, apa yang menunggu keputusan manusia, dan batasan operasional SSH, migrasi, backup | **Acuan operasional** |
 
 ## Catatan
 

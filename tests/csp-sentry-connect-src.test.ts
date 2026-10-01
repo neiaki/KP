@@ -35,9 +35,22 @@ const ASAL_SENDIRI = "https://atcell.my.id";
  * di dua test: kalau connect-src nanti ditulis daftar eksplisit per
  * organisasi, salah satu dari dua test ini harus gagal. Itu memang risikonya,
  * karena nomor organisasi datang dari env dan bisa diganti.
+ *
+ * Bentuk hostnya juga sengaja varied. Sentry punya dua topologi ingest:
+ * `o<orgid>.ingest.sentry.io` dan `o<orgid>.ingest.<region>.sentry.io`.
+ * Wildcard `*.` hanya menutup satu label di depan, jadi `*.ingest.sentry.io`
+ * tidak menutup host yang punya label region di antaranya. DSN At Cell yang
+ * dipakai produksi adalah bentuk regional dengan region `us`. Kalau test ini
+ * hanya memakai bentuk lama, connect-src tetap hijau sementara browser tetap
+ * membuang setiap envelope tanpa pesan. itu persis bug yang sudah pernah
+ * terjadi, jadi kedua bentuk diuji.
  */
 const DSN_ORG_A = "https://aaaa1111bbbb2222cccc3333dddd4444@o451234.ingest.sentry.io/451234";
 const DSN_ORG_B = "https://eeee5555ffff6666aaaa7777bbbb8888@o987654.ingest.sentry.io/987654";
+const DSN_ORG_C_REGION_US =
+  "https://1111222233334444aaaa5555bbbb6666@o4511269966905344.ingest.us.sentry.io/4512180640743424";
+const DSN_ORG_D_REGION_DE =
+  "https://7777888899990000cccc1111dddd2222@o4511269966905344.ingest.de.sentry.io/4512180640743424";
 
 /*
  * URL envelope yang benar-benar dikirim SDK: DSN dihitung jadi
@@ -91,7 +104,7 @@ const connectSrc = (): string[] =>
 test("connect-src mengizinkan URL envelope Sentry yang dihitung SDK", () => {
   // Tanpa test ini, connect-src hanya 'self' tetap hijau dan browser tetap
   // membuang setiap envelope tanpa pesan.
-  for (const dsn of [DSN_ORG_A, DSN_ORG_B]) {
+  for (const dsn of [DSN_ORG_A, DSN_ORG_B, DSN_ORG_C_REGION_US, DSN_ORG_D_REGION_DE]) {
     const tujuan = urlEnvelope(dsn);
     const sumber = connectSrc();
     const boleh = sumber.some((s) => sumberMencocokkan(s, tujuan));
@@ -124,7 +137,35 @@ test("allowance Sentry sesempit mungkin dan self tetap yang pertama", () => {
     "request ke server sendiri harus selalu diizinkan lebih dulu"
   );
   // Dikenai yang boleh: server sendiri dan namespace ingest Sentry saja.
-  assert.deepEqual(sumber, ["'self'", "https://*.ingest.sentry.io"]);
+  // Dua bentuk ingest wajib ikut tertulis, bukan hanya bentuk non-regional.
+  assert.deepEqual(sumber, [
+    "'self'",
+    "https://*.ingest.sentry.io",
+    "https://*.ingest.us.sentry.io",
+    "https://*.ingest.de.sentry.io",
+  ]);
+});
+
+test("host ingest regional tertutup oleh connect-src", () => {
+  // Test ini menjaga bug yang sudah terjadi. DSN produksi punya label region
+  // (`o<orgid>.ingest.us.sentry.io`), dan `*.ingest.sentry.io` tidak menutup
+  // host itu karena ada label tambahan di tengah. connect-src tetap hijau,
+  // browser tetap membuang envelope, tidak ada yang gagal keras.
+  const tujuan = new URL(urlEnvelope(DSN_ORG_C_REGION_US).origin);
+  const sumber = connectSrc();
+  assert.ok(
+    sumber.some((s) => sumberMencocokkan(s, tujuan)),
+    `connect-src ${sumber.join(" ")} menolak envelope regional ke ${tujuan.origin}. ` +
+      "Perhatikan hanya bentuk non-regional yang tertulis."
+  );
+
+  // Region yang tidak terdaftar harus tetap tertutup, jadi daftar ini bukan
+  // jalan pintas ke seluruh sentry.io.
+  const regionAwal = new URL("https://o451234.ingest.ap.sentry.io/");
+  assert.ok(
+    !sumber.some((s) => sumberMencocokkan(s, regionAwal)),
+    `connect-src ${sumber.join(" ")} seharusnya menolak region yang tidak terdaftar`
+  );
 });
 
 test("wildcard ingest tidak membuka host Sentry lain", () => {
@@ -135,6 +176,7 @@ test("wildcard ingest tidak membuka host Sentry lain", () => {
     "https://sentry.io/",
     "https://ingest.sentry.io/",
     "https://451234.ingest.sentry.io.evil.example/",
+    "https://o451234.ingest.us.sentry.io.evil.example/",
     "https://evil.example/",
   ];
   for (const alamat of tertutup) {
