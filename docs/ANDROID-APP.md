@@ -88,9 +88,12 @@ keytool -list -v -keystore atcell-release.jks -storepass '<password>'
 Salin baris `SHA-256:`, buang titik duanya, lalu taruh di environment web:
 
 ```
-NEXT_PUBLIC_ANDROID_APP_SHA256=5a62b44ad0408aedd1df23174f219cfe25cbcac6d8e28ed3e5023fe5c659a9e3
+ANDROID_APP_SHA256=5a62b44ad0408aedd1df23174f219cfe25cbcac6d8e28ed3e5023fe5c659a9e3
 ```
 
+Namanya sengaja tidak memakai prefix `NEXT_PUBLIC_`. Prefix itu membuat Next.js
+meng-inline nilai ke dalam bundle begitu variabelnya ada saat `next build`, dan
+sidik jari yang diperbarui di environment tidak akan terbaca tanpa build ulang.
 Route-nya dilayani oleh `src/app/.well-known/assetlinks.json/route.ts` dan
 selalu `no-store`, supaya sidik jari baru langsung terbaca. Bentuk sidik jarinya
 dikunci `tests/assetlinks.test.ts`.

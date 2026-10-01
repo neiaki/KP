@@ -16,7 +16,7 @@
  * dan dikunci test. Jangan menambah daftar baru tanpa mengubah test itu.
  */
 
-const CACHE_NAME = "atcell-v1";
+const CACHE_NAME = "atcell-v2";
 const PRECACHE_URLS = ["/manifest.webmanifest", "/payments/qris.svg"];
 
 /* Pola yang boleh dilayani dari cache, hanya aset statis. */
@@ -24,6 +24,7 @@ const CACHEABLE_PATHS = [
   /^\/products\//,
   /^\/payments\//,
   /^\/_next\/static\//,
+  /^\/_next\/image$/,
   /^\/icon\//,
   /^\/apple-icon/,
 ];
@@ -44,9 +45,6 @@ const NEVER_CACHE_PATHS = [/^\/portal(\/|$)/, /^\/api(\/|$)/, /^\/(id|en)\/login
 function isCacheableAsset(url, request) {
   if (request.method !== "GET") return false;
   if (url.origin !== self.location.origin) return false;
-  if (request.headers.get("accept") && request.headers.get("accept").includes("image/avif")) {
-    return false;
-  }
   for (const pattern of NEVER_CACHE_PATHS) {
     if (pattern.test(url.pathname)) return false;
   }

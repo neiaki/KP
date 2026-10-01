@@ -263,23 +263,77 @@ const productSpecs = z.string().trim();
  * ".." ditolak pada bentuk path supaya tidak ada kunci yang keluar dari direktori
  * aset, meski isUsablePhoto tidak memeriksanya.
  */
+/**
+ * Bentuk satu alamat foto, dipakai bersama oleh image_url, official_images,
+ * dan second_images.
+ *
+ * Satu fungsi, bukan tiga. Sebelumnya hanya image_url yang diperiksa, jadi
+ * official_images dan second_images menerima "javascript:alert(1)",
+ * "//evil.example/x.jpg", dan "../../etc/passwd" apa adanya. Sisi baca
+ * menyaringnya sebelum menulis ke src, jadi tidak ada yang bisa dirender dari
+ * nilai-nilai itu, tapi aturan yang berbeda antara sisi tulis dan sisi baca
+ * adalah bug, bukan pilihan: begitu sisi baca berubah, nilai yang dulu ditolak
+ * diam-diam ikut lolos.
+ *
+ * Bentuk yang sah sama persis dengan isUsablePhoto di src/lib/shop.ts: path
+ * same-origin yang diawali satu garis miring, atau URL http/https absolut.
+ * "//host/path" tidak sah karena browser membacanya sebagai protocol-relative
+ * URL ke host lain, bukan path di server sendiri.
+ */
+function alamatFotoSah(v: string): boolean {
+  if (v === "") return false;
+  if (v.startsWith("//")) return false;
+  if (v.startsWith("/")) return !v.includes("..");
+  try {
+    const url = new URL(v);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * image_url produk: kosong berarti tidak ada foto, atau nilai yang benar-benar
+ * bisa dirender.
+ *
+ * Schema ini sengaja satu sumber kebenaran yang sama dengan sisi baca.
+ * src/lib/shop.ts (isUsablePhoto) sudah memutuskan bentuk yang sah: path
+ * same-origin yang diawali satu garis miring, atau URL http/https absolut,
+ * dan TIDAK "//host/path" karena browser membacanya sebagai protocol-relative
+ * URL ke host lain. Migrasi 20260927201000_clear_unparseable_product_image_url.sql
+ * membersihkan nilai di luar bentuk yang sama.
+ *
+ * Sebelumnya schema ini z.string().trim() polos, jadi "products/foo.jpg" tanpa
+ * garis miring dan string "undefined/..." hasil template literal yang gagal
+ * semuanya diterima, lalu dibersihkan belakangan oleh migrasi. Menulis lalu
+ * menghapus adalah dua langkah; lebih baik nilainya tidak bisa ditulis.
+ *
+ * ".." ditolak pada bentuk path supaya tidak ada kunci yang keluar dari direktori
+ * aset, meski isUsablePhoto tidak memeriksanya.
+ */
 const productImage = z
   .string()
   .trim()
   .max(2048, "Alamat foto terlalu panjang.")
-  .refine((v) => {
-    if (v === "") return true;
-    if (v.startsWith("//")) return false;
-    if (v.startsWith("/")) return !v.includes("..");
-    try {
-      const url = new URL(v);
-      return url.protocol === "http:" || url.protocol === "https:";
-    } catch {
-      return false;
-    }
-  }, "Foto harus berupa URL http/https atau path yang diawali /.");
-const productOfficialImages = z.array(z.string()).max(10);
-const productSecondImages = z.array(z.string()).max(10);
+  .refine((v) => v === "" || alamatFotoSah(v), "Foto harus berupa URL http/https atau path yang diawali /.");
+
+/**
+ * Satu entri galeri foto produk.
+ *
+ * Bentuknya sama dengan image_url dan tidak boleh lebih longgar: galeri dan
+ * sampul berakhir di atribut src yang sama, jadi perbedaan aturan di sini
+ * hanya akan berarti satu jalur bisa ditulis nilai yang di jalur lain ditolak.
+ * Entri kosong juga ditolak supaya galeri tidak punya lubang yang dirender
+ * sebagai fotorusak.
+ */
+const productGalleryImage = z
+  .string()
+  .trim()
+  .max(2048, "Alamat foto terlalu panjang.")
+  .refine(alamatFotoSah, "Foto harus berupa URL http/https atau path yang diawali /.");
+
+const productOfficialImages = z.array(productGalleryImage).max(10);
+const productSecondImages = z.array(productGalleryImage).max(10);
 
 export const productSchema = z.object({
   brand: productBrand,
@@ -415,8 +469,28 @@ export function buildPhotoObjectKey(
   return `${parsed.data}/${randomPart}-${safeName}`;
 }
 
-/** Batas jumlah path foto yang ditandatangani dalam satu permintaan. */
-const BATAS_PATH_FOTO = 50;
+/**
+ * Batas jumlah path foto yang ditandatangani dalam satu permintaan.
+ *
+ * Diekspor karena action signPhotoPaths ikut memakainya, supaya batas di
+ * modul ini dan batas yang benar-benar dijalankan tidak bisa berbeda.
+ */
+export const BATAS_PATH_FOTO = 50;
+
+/**
+ * Bentuk yang harus dimiliki sebuah object key Storage.
+ *
+ * Dipakai sebagai gerbang pertama di signPhotoPaths, sebelum nama path
+ * apa pun masuk ke query atau Storage. Nilai yang tidak berbentuk object key
+ * tidak mungkin jadi hasil filterFotoMilikSendiri maupun hasil pencarian foto yang
+ * terpakai, jadi memfilternya di sini tidak mengubah apa pun yang boleh
+ * ditandatangani, hanya menghemat pekerjaan.
+ */
+export function objectKeyBentukSah(v: string): boolean {
+  if (v === "") return false;
+  if (v.includes("..")) return false;
+  return /^[A-Za-z0-9._\-/]+$/.test(v) && v.includes("/");
+}
 
 /**
  * Ambil hanya path foto yang benar-benar ada di folder staf pemanggil.
@@ -427,6 +501,12 @@ const BATAS_PATH_FOTO = 50;
  * menandatangani foto milik staf lain, dan dua bucket privat itu memuat IMEI,
  * nama pelanggan, serta foto layar perangkat.
  *
+ * Sisi lain yang sudah ada: filterFotoMilikSendiri bukan lagi satu-satunya
+ * gerbang di signPhotoPaths. Foto yang diunggah staf lain dan sudah tersimpan
+ * ke photo_urls tiket memang boleh ditandatangani, karena foto itu bagian
+ * dari tiket yang sedang dibuka pemanggil. Yang tetap ditolak di sini adalah
+ * folder orang lain yang tidak pernah muncul di data mana pun.
+ *
  * Masukan diketik unknown karena pemanggilnya Server Action, jadi daftar path
  * datang langsung dari HTTP dan isinya bisa apa saja. Nilai bukan string
  * dibuang, bukan dibaca, supaya tidak ada accessor yang dipanggil di luar
@@ -436,8 +516,8 @@ const BATAS_PATH_FOTO = 50;
  * Bentuk path diperiksa dengan photoRefBentukSah yang sama dengan sisi tulis,
  * jadi ".." yang bisa memanjai prefix seolah-olah folder lain ikut ditolak di sini
  * juga. Prefix saja tidak cukup: `<id-saya>/../<id-lain>/foto.jpg` memang
- * diawali folder pemanggil, tapi Storage akan menafsirkannya sebagai folder
- * milik orang lain.
+ * diawali folder pemanggil, tapi Storage akan menafsirkan object key itu sebagai
+ * folder milik orang lain.
  */
 export function filterFotoMilikSendiri(
   folder: string,

@@ -127,15 +127,65 @@ test("hanya GET same-origin yang boleh di-cache", () => {
   );
 });
 
-test("negosiasi avif tidak di-cache supaya satu URL tidak melayani dua format", () => {
+test("negosiasi avif tetap di-cache karena Cache API menghormati Vary", () => {
+  // Dulu ada aturan yang mengembalikan false kalau Accept memuat image/avif,
+  // dengan alasan satu URL bisa dilayani avif atau jpeg tergantung browser.
+  // Alasan itu salah hitung: /_next/image memang menjawab `Vary: Accept`, dan
+  // Cache API hanya mencocokkan entri tersimpan untuk permintaan dengan Accept
+  // yang sama seperti yang menghasilkannya. Aturan lama tidak mencegah gambar
+  // rusak, hanya mematikan caching-nya karena hampir semua browser modern
+  // mengirim image/avif.
   assert.equal(
     isCacheableAsset(new URL("/products/a.jpg", ORIGIN), {
       method: "GET",
       headers: headers({ accept: "image/avif,image/webp,*/*" }),
     }, ORIGIN),
-    false,
-    "URL yang sama dilayani avif atau jpeg tergantung browser, jadi tidak boleh disimpan"
+    true,
+    "penolakan berbasis Accept tidak lagi boleh mematikan caching aset statis"
   );
+
+  // Yang menentukan boleh atau tidak tetap aturan aslinya: pola path dan
+  // daftar yang tidak boleh disentuh.
+  assert.equal(
+    isCacheableAsset(new URL("/portal/reports", ORIGIN), {
+      method: "GET",
+      headers: headers({ accept: "image/avif,image/webp,*/*" }),
+    }, ORIGIN),
+    false,
+    "portal tetap tidak boleh masuk cache meski tidak ada Accepted avif"
+  );
+  assert.equal(
+    isCacheableAsset(new URL("/id/catalog", ORIGIN), {
+      method: "GET",
+      headers: headers({ accept: "image/avif,image/webp,*/*" }),
+    }, ORIGIN),
+    false,
+    "halaman HTML tetap tidak boleh masuk cache meski tidak ada Accepted avif"
+  );
+});
+
+test("foto produk lewat optimizer ikut ter-cache", () => {
+  // next/image meneruskan foto produk ke /_next/image, bukan /products/nama.jpg.
+  // Polanya dulu hanya punya /products/, jadi pathname yang benar-benar diminta
+  // browser tidak cocok dengan pola mana pun dan tidak ada foto produk yang
+  // pernah ter-cache sama sekali.
+  const optimizerUrl =
+    "/_next/image?url=https%3A%2F%2Fexample.supabase.co%2Fstorage%2F" +
+    "product-images%2Fproducts%2Fa55-1.jpg&w=640&q=75";
+  for (const accept of [
+    "image/avif,image/webp,image/apng,*/*",
+    "image/jpeg,*/*",
+    "*/*",
+  ]) {
+    assert.equal(
+      isCacheableAsset(new URL(optimizerUrl, ORIGIN), {
+        method: "GET",
+        headers: headers({ accept }),
+      }, ORIGIN),
+      true,
+      `permintaan optimizer dengan Accept "${accept}" harus bisa di-cache`
+    );
+  }
 });
 
 test("cache addAll hanya berisi URL yang dijamin ada", () => {

@@ -15,15 +15,9 @@ import {
   shortIDR,
   listProductsWithoutUnits,
   sellableUnits,
-  isRealPhoto,
   type SortOrder,
 } from "@/lib/shop";
-import {
-  buildNotifyMeHref,
-  noUnitSectionCopy,
-  notifyMeTargetFrom,
-  referencePriceNote,
-} from "@/lib/catalogue-notify";
+import { noUnitSectionCopy } from "@/lib/catalogue-notify";
 import {
   Wrench,
   ShieldCheck,
@@ -37,11 +31,11 @@ import {
   ExternalLink,
   ReceiptText,
   ClipboardCheck,
-  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductCard } from "@/components/public/product-card";
+import { NotifyCard } from "@/components/public/notify-card";
 import { Reveal } from "@/components/public/reveal";
 import { ReviewsSection } from "@/components/public/reviews-section";
 import { HeroCarousel, type HeroSlide } from "@/components/public/hero-carousel";
@@ -49,36 +43,6 @@ import { StockFilter } from "@/components/public/stock-filter";
 import { StoreMap } from "@/components/public/store-map";
 import { BrandMarquee } from "@/components/public/brand-marquee";
 import { ButtonLink } from "@/components/button-link";
-import type { Product } from "@/types";
-
-/**
- * Foto kartu produk yang tidak punya unit. Aturannya sama persis dengan
- * toCardItem, yang hanya dipakai untuk unit yang masih bisa dijual:
- * official_images yang lolos isRealPhoto menang, lalu image_url, lalu tidak
- * ada foto sama sekali. Nilai mentah dari database tidak pernah masuk ke
- * atribut src, termasuk "javascript:", "//host", dan string
- * "undefined/storage/..." yang dulu ikut terkirim ke setiap pengunjung.
- */
-function cardPhoto(p: Product): string | undefined {
-  const official = (p.official_images ?? []).filter(isRealPhoto);
-  if (official.length > 0) return official[0];
-  return isRealPhoto(p.image_url) ? p.image_url : undefined;
-}
-
-/**
- * Kartu tanpa foto yang bisa dirender. Sama persis dengan fallback di
- * ProductCard supaya kedua jalur etalase tidak berbeda tampilan.
- */
-function PhotoFallback({ locale }: { locale: Locale }) {
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted">
-      <Smartphone className="h-10 w-10" strokeWidth={1.25} />
-      <p className="text-[11px] font-bold">
-        {locale === "en" ? "Photo coming soon" : "Foto menyusul"}
-      </p>
-    </div>
-  );
-}
 
 /**
  * Slide hero sebelum alamat filenya diselesaikan. photo adalah kunci di
@@ -413,63 +377,17 @@ export function LandingContent({
               {noUnitCopy.requestNote}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {newProducts.map((p) => {
-                const img = cardPhoto(p);
-                const target = notifyMeTargetFrom(p);
-                const harga = referencePriceNote(p.default_price, locale);
-                return (
-                  <article
-                    key={p.id}
-                    className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-paper">
-                      {!img && <PhotoFallback locale={locale} />}
-                      {img && (
-                        <Image
-                          fill
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          src={img}
-                          alt={`${p.brand} ${p.model_name}`}
-                          className="h-full w-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="flex flex-1 flex-col p-4">
-                      <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
-                        {noUnitCopy.badge}
-                      </p>
-                      <h4 className="text-[15px] font-extrabold leading-snug text-ink">
-                        {p.brand} {p.model_name}
-                      </h4>
-                      {harga && (
-                        <>
-                          <p className="mt-1 text-[13px] font-bold text-muted">
-                            {harga}
-                          </p>
-                          <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
-                            {noUnitCopy.priceCaveat}
-                          </p>
-                        </>
-                      )}
-                      {target && (
-                        <a
-                          href={buildNotifyMeHref({
-                            locale,
-                            waNumber,
-                            target,
-                          })}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          {noUnitCopy.notifyLabel}
-                        </a>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+              {newProducts.map((p) => (
+                <NotifyCard
+                  key={p.id}
+                  product={p}
+                  locale={locale}
+                  waNumber={waNumber}
+                  copy={noUnitCopy}
+                  alasan="never_had_unit"
+                  headingLevel="h4"
+                />
+              ))}
             </div>
           </div>
         )}

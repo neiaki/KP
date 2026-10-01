@@ -28,7 +28,9 @@ Isi formnya seperti ini:
 - **Nama Seri / Model**: nama yang biasa dipakai orang, lengkap dengan
   storage-nya kalau itu yang biasa dicari, misalnya `iPhone 16 Pro 256GB`.
 - **Harga Acuan Dasar (Rp)**: harga patokan model itu. Angka ini muncul di
-  etalase sebagai perkiraan, bukan sebagai harga jual.
+  etalase sebagai perkiraan, bukan sebagai harga jual. Isi `0` kalau harga
+  patokannya belum diketahui: baris harga tidak tampil di etalase selama
+  angkanya 0, jadi tidak ada angka yang mengarang di layar.
 - **Spesifikasi Utama**: chipset, RAM dan storage, kamera, ukuran layar. Ini
   yang dibaca pelanggan di kartu katalog.
 - **URL Foto Produk**: foto resmi model tersebut. Pakai foto di `public/products/`

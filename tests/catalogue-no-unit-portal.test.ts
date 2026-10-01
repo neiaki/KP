@@ -21,12 +21,23 @@ const baca = (rel: string) => readFileSync(new URL(rel, src), "utf8");
 const productsPage = baca("app/(portal)/portal/products/page.tsx");
 const catalogContent = baca("app/(public)/[locale]/catalog/catalog-content.tsx");
 const landingContent = baca("app/(public)/[locale]/landing-content.tsx");
+const notifyCard = baca("components/public/notify-card.tsx");
 const staffDoc = readFileSync(
   new URL("../docs/PUBLIKASI-MODEL-TANPA-STOK.md", import.meta.url),
   "utf8"
 );
 
 const PUBLIK = [catalogContent, landingContent];
+
+/*
+ * Kartu yang akan dirender oleh kedua halaman.
+ *
+ * Aturan badge, tombol, dan harga hidup di satu komponen, jadi diuji di satu
+ * tempat. Halaman hanya wajib meneruskan copy yang tepat dan alasan yang tepat;
+ * kalau kartu ini diuji per halaman, dua salinan aturan akan pernah berbeda
+ * tanpa ada yang gagal.
+ */
+const KARTU = notifyCard;
 
 /* -------------------------------------------------------------------------- */
 /* Form portal                                                                */
@@ -97,37 +108,49 @@ test("form produk tidak mengarahkan staf ke foto stok pihak ketiga", () => {
 /* -------------------------------------------------------------------------- */
 
 test("kedua halaman publik memakai satu sumber copy untuk model tanpa unit", () => {
-  // Bukan sekadar memanggil helper-nya: kalau komponen menimpa hasilnya,
+  // Bukan sekadar memanggil helper-nya: kalau halaman menimpa hasilnya,
   // katalog dan beranda bisa diam-diam tampil beda lagi.
   for (const source of PUBLIK) {
     assert.match(source, /const noUnitCopy = noUnitSectionCopy\(locale\);/);
-    assert.match(source, /noUnitCopy\.badge/);
+    assert.match(source, /copy=\{noUnitCopy\}/);
   }
+  // Badge dibaca dari copy yang diteruskan, bukan ditulis ulang per halaman.
+  assert.match(KARTU, /\{copy\.badge\}/);
+  assert.doesNotMatch(KARTU, /noUnitCopy\.badge/);
+});
+
+test("kedua kelompok produk memakai alasan yang berbeda, dan alasannya diteruskan", () => {
+  // "unitnya belum ada di toko" dan "sekarang tidak ada di rak" itu
+  // pernyataan berbeda. Kalau keduanya memakai kalimat yang sama, pelanggan
+  // yang menekan tombolnya diberi alasan yang salah.
+  assert.match(catalogContent, /listSoldOutProducts\(products, inventoryUnits\)/);
+  assert.match(catalogContent, /alasan="sold_out"/);
+  assert.match(catalogContent, /alasan="never_had_unit"/);
+  assert.match(landingContent, /alasan="never_had_unit"/);
+  // Katalog satu-satunya yang punya kelompok stok habis, beranda tidak. Kalau
+  // beranda ikut menampilkan, kartu yang sama muncul dua kali di dua halaman
+  // dengan kelompok yang berbeda.
+  assert.doesNotMatch(landingContent, /soldOutSectionCopy|alasan="sold_out"/);
 });
 
 test("tombol Minta dikabari dibangun oleh helper yang menyebut model", () => {
-  for (const source of PUBLIK) {
-    assert.match(source, /buildNotifyMeHref\(\{/);
-    assert.match(source, /notifyMeTargetFrom\(p\)/);
-  }
+  assert.match(KARTU, /buildNotifyMeHref\(\{/);
+  assert.match(KARTU, /notifyMeTargetFrom\(product\)/);
   // String pesan yang ditulis tangan di dalam komponen bisa keluar dari sync
-  // dengan modul pengujinya, jadi pola itu tidak boleh ada lagi di halaman.
-  for (const source of PUBLIK) {
-    assert.doesNotMatch(source, /kabari saya kalau \$\{p\.brand\}/);
-  }
-});
-test("kartu model tanpa unit tidak menulis default_price sebagai harga jual", () => {
-  for (const source of PUBLIK) {
-    assert.match(source, /referencePriceNote\(p\.default_price, locale\)/);
-    assert.match(source, /noUnitCopy\.priceCaveat/);
-    assert.doesNotMatch(source, /\{formatIDR\(p\.default_price\)\}/);
+  // dengan modul pengujinya, jadi pola itu tidak boleh ada lagi.
+  for (const source of [...PUBLIK, KARTU]) {
+    assert.doesNotMatch(source, /kabari saya kalau \$\{/);
   }
 });
 
+test("kartu model tanpa unit tidak menulis default_price sebagai harga jual", () => {
+  assert.match(KARTU, /referencePriceNote\(product\.default_price, locale\)/);
+  assert.match(KARTU, /\{copy\.priceCaveat\}/);
+  assert.doesNotMatch(KARTU, /formatIDR\(product\.default_price\)/);
+});
+
 test("kartu model tanpa unit menyembunyikan tombol kalau modelnya tidak bernama", () => {
-  for (const source of PUBLIK) {
-    assert.match(source, /\{target && \(/);
-  }
+  assert.match(KARTU, /\{target && \(/);
 });
 
 /* -------------------------------------------------------------------------- */

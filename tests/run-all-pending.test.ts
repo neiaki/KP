@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * supabase/RUN-ALL-PENDING.sql menggabungkan 25 migrasi supaya
+ * supabase/RUN-ALL-PENDING.sql menggabungkan 26 migrasi supaya
  * project baru cukup di-paste sekali lewat SQL Editor. File itu dibangun
  * dengan skrip di luar repo, jadi tidak ada yang menahan isinya tetap sama
  * dengan migrasi aslinya.
@@ -100,6 +100,10 @@ const SECTIONS: { label: string; source: string }[] = [
   {
     label: "20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9",
     source: "20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9.sql",
+  },
+  {
+    label: "20261001120000_hide_unidentified_product_6",
+    source: "20261001120000_hide_unidentified_product_6.sql",
   },
 ];
 

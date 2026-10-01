@@ -30,7 +30,7 @@ export function isServiceWorkerSupported(): boolean {
 
 
 /* Nama cache. Versinya harus naik setiap kali isi cache berubah. */
-export const CACHE_NAME = "atcell-v1";
+export const CACHE_NAME = "atcell-v2";
 
 /*
  * Berkas yang boleh disimpan offline.
@@ -51,6 +51,18 @@ export const CACHEABLE_PATHS = [
   /^\/products\//,
   /^\/payments\//,
   /^\/_next\/static\//,
+  /*
+   * Foto produk TIDAK diminta sebagai /products/nama.jpg. next/image selalu
+   * meneruskannya ke optimizer, jadi pathname yang benar-benar diminta browser
+   * adalah /_next/image dengan url, w, dan q di query string. Tanpa pola ini
+   * di sini, tidak ada satu pun foto produk yang pernah ikut ter-cache, karena
+   * pathname aslinya tidak cocok dengan pola mana pun.
+   *
+   * Query string tidak ikut diuji: pola diuji terhadap url.pathname saja, dan
+   * setiap kombinasi url + lebar + kualitas adalah berkas berbeda yang boleh
+   * disimpan terpisah.
+   */
+  /^\/_next\/image$/,
   /^\/icon\//,
   /^\/apple-icon/,
 ] as const;
@@ -77,9 +89,18 @@ export const NEVER_CACHE_PATHS = [
  * self.location.origin karena di situ memang ada.
  *
  * Hanya GET, hanya same-origin, dan hanya pola yang ada di CACHEABLE_PATHS.
- * Vary pada Accept akibat negosiasi gambar Next.js juga ikut diperiksa:
- * satu URL bisa dilayani sebagai avif oleh browser modern dan sebagai jpeg
- * oleh yang lain, jadi menyimpan tanpa membedakan akan merusak gambar.
+ *
+ * Tidak ada lagi syarat "Accept tidak memuat image/avif" di sini. Dulu ada,
+ * dengan alasan bahwa satu URL bisa dilayani sebagai avif untuk browser
+ * modern dan jpeg untuk yang lain, jadi menyimpan tanpa membedakan akan
+ * merusak gambar. Urusannya sudah diuji ke server produksi: /_next/image
+ * memang menjawab `Vary: Accept` dan benar-benar berganti format (webp untuk
+ * Chrome, jpeg untuk yang hanya menerima jpeg). Tapi Cache API sudah
+ * menghormati header Vary saat match, jadi entri tersimpan hanya dicocokkan
+ * untuk permintaan dengan Accept yang sama seperti yang menghasilkannya.
+ * Aturan lama karena itu tidak mencegah kerusakan gambar, hanya mematikan
+ * caching-nya di setiap browser modern, karena hampir semua browser mengirim
+ * image/avif untuk permintaan gambar.
  */
 export function isCacheableAsset(
   url: URL,
@@ -88,7 +109,6 @@ export function isCacheableAsset(
 ): boolean {
   if (request.method !== "GET") return false;
   if (url.origin !== origin) return false;
-  if (request.headers.get("accept")?.includes("image/avif")) return false;
   if (NEVER_CACHE_PATHS.some((p) => p.test(url.pathname))) return false;
   return CACHEABLE_PATHS.some((p) => p.test(url.pathname));
 }
