@@ -16,15 +16,11 @@ import {
   Landmark,
   ArrowLeftRight,
   Printer,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   Smartphone,
   Sparkles,
   User,
-  Phone,
-  Camera,
-  Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
