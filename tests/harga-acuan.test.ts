@@ -138,7 +138,63 @@ test("harga acuan 0 tetap bisa ditulis tanpa pernah tampil sebagai Rp0", async (
     "baris harga harus hilang, bukan menuliskan Rp0"
   );
 
-  // Hanya angka nol yang behaves khusus. Harga_asli tetap tampil utuh.
+  // Hanya angka nol yang punya perlakuan khusus. Harga asli tetap tampil utuh.
   assert.equal(referencePriceOf(5_999_000), 5_999_000);
   assert.ok(referencePriceNote(5_999_000, "id")?.includes("Rp"));
+});
+
+/*
+ * Test 5: form tambah model tidak boleh mem-prefill harga tebasan.
+ *
+ * Bug ini sudah pernah terjadi dan tidak ketahuan oleh empat test di atas.
+ * `handleOpenAdd` mengisi `setDefaultPrice(10000000)`, jadi staf yang membuka
+ * form, mengetik nama model, lalu menyimpan tanpa menyentuh field harga akan
+ * menyimpan Rp10.000.000 sebagai harga acuan unit yang tidak pernah ia harga.
+ *
+ * Yang membuatnya lolos adalah dua hal yang bertumpuk. Aturan di server
+ * mengizinkan nol, jadi prefill angka tebasan tidak ditolak, dan sisi baca
+ * etalase hanya menyembunyikan baris harga saat nilainya nol, jadi hasil
+ * karangan itu justru tampil penuh seperti harga biasa di halaman publik.
+ *
+ * Test ini membaca body `handleOpenAdd` dan `handleOpenEdit` secara terpisah.
+ * Versi pertama yang hanya cari `setDefaultPrice(` terlalu longgar dan ikut
+ * menangkap `onChange`, jadi testnya hijau tanpa pernah menyentuh prefill.
+ */
+test("form tambah model mulai dari harga kosong, bukan angka tebasan", () => {
+  const bodyOf = (nama: string): string => {
+    const mulai = formSrc.indexOf(`const ${nama} = `);
+    assert.notEqual(mulai, -1, `produk portal harus punya ${nama}`);
+    const selesai = formSrc.indexOf("\n  };", mulai);
+    assert.notEqual(selesai, -1, `body ${nama} tidak ditemukan utuh`);
+    return formSrc.slice(mulai, selesai);
+  };
+
+  const tambah = bodyOf("handleOpenAdd");
+  const ubah = bodyOf("handleOpenEdit");
+
+  // Prefill harus nol, persis seperti useState di awal komponen.
+  assert.ok(
+    /setDefaultPrice\(\s*0\s*\)/.test(tambah),
+    "handleOpenAdd harus prefill setDefaultPrice(0), karena 0 berarti belum diisi"
+  );
+
+  // Setiap angka selain nol di prefill adalah karangan harga.
+  const angkaLain = tambah.match(/setDefaultPrice\(\s*([0-9_]+)\s*\)/g) ?? [];
+  for (const kemunculan of angkaLain) {
+    const angka = kemunculan.replace(/[^\d]/g, "");
+    assert.equal(
+      angka,
+      "0",
+      `handleOpenAdd mem-prefill ${kemunculan}. Angka selain nol di prefill adalah harga yang dikarang.`
+    );
+  }
+
+  // Form ubah tetap memakai harga tersimpan, bukan tebakan.
+  assert.ok(
+    /setDefaultPrice\(\s*p\.default_price\s*\)/.test(ubah),
+    "handleOpenEdit harus memakai p.default_price, bukan angka tetap"
+  );
+
+  // Penjaga yang sama harus berlaku di kedua form: nol sah, negatif tidak.
+  assert.ok(!/setDefaultPrice\(\s*10000000\s*\)/.test(formSrc));
 });
