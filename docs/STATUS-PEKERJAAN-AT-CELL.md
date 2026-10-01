@@ -22,8 +22,8 @@ sha commit atau nomor PR. Jangan menandai sesuatu selesai tanpa bukti.
 | 2 | Sembunyikan produk 6 dari katalog | selesai | `084bd35` |
 | 3 | Izinkan `default_price` bernilai 0 | selesai, **test penjaga belum ada** | `084bd35` |
 | 4 | Deploy `1f2d689` + `166a250` | selesai | `c133442` |
-| 5 | Perbaikan CSP host ingest Sentry regional | selesai, **belum di-push** | `a0933a2` |
-| 6 | Test penjaga validasi harga 0 | selesai | `a0933a2` |
+| 5 | Perbaikan CSP host ingest Sentry regional | selesai, **terverifikasi ke produksi, belum di-merge** | `27749ca` |
+| 6 | Test penjaga validasi harga 0 | selesai | `27749ca` |
 
 ---
 
@@ -131,7 +131,7 @@ tetap ada sebagai jalur cadangan.
 
 ### 5. Perbaikan CSP host ingest Sentry regional
 
-**Status: sudah di-commit sebagai `a0933a2`, belum di-push, belum di-deploy.**
+**Status: sudah di-commit dan di-push ke `fix/csp-sentry-region-harga-acuan-dan-dokumen`, sudah diverifikasi ulang terhadap produksi, belum di-merge ke `main` dan belum ter-deploy.**
 
 DSN Sentry At Cell ternyata regional: hostnya
 `o4511269966905344.ingest.us.sentry.io`. Sebelumnya `connect-src` hanya
@@ -141,6 +141,18 @@ tercakakup. Akibatnya browser membuang setiap envelope tanpa pesan.
 
 Artinya sebelum perbaikan ini, Sentry server-side berjalan tapi browser-side
 mati diam-diam. Itu sebabnya dashboard Sentry kosong.
+
+Bukti langsung dari produksi, diambil 1 Oktober 2026:
+
+- Header yang benar-benar dikirim `atcell.my.id` masih
+  `connect-src 'self' https://*.ingest.sentry.io`, tanpa host `us`
+- Console browser di enam halaman publik plus halaman login selalu memuat dua
+  error: `Connecting to 'https://o4511269966905344.ingest.us.sentry.io/...' violates
+  the following Content Security Policy directive`
+- `src/lib/csp.ts` di branch ini sudah menghasilkan
+  `connect-src 'self' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io`,
+  dan tujuh host uji diklasifikasikan benar: tiga host ingest masuk, empat host
+  di luar namespace itu tetap tertutup
 
 Berkas yang berubah:
 
@@ -156,8 +168,34 @@ memang menangkap bug, hasilnya 3 test gagal.
 `connect-src` hasil build:
 `'self' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io`
 
-**Langkah berikutnya: push, buka PR, lalu deploy.** Tanpa itu, Sentry browser
+**Langkah berikutnya: merge branch ini, lalu deploy.** Tanpa itu, Sentry browser
 tetap mati, karena produksi masih menjalankan versi CSP yang salah.
+
+---
+
+### 7. Dua temuan audit situs langsung (1 Oktober 2026)
+
+Audit fungsional `atcell.my.id` dan portalnya menemukan dua hal yang belum ada
+di daftar mana pun:
+
+1. **Filter katalog tidak berlaku ke dua seksi bawahan.**
+   `catalog-content.tsx` menyaring `items` (unit siap) lewat `filterItems({ brand,
+   condition, query })`, tapi `soldOutProducts` dan `newProducts` dikembalikan
+   polos tanpa filter. Bukti di browser: mencari `zzzztidakadaproduk` membuat grid
+   utama menampilkan "Tidak ada yang cocok" sambil lima kartu produk tetap tampil
+   dari "Baru saja habis" dan "Baru masuk katalog".
+
+2. **State filter katalog tidak sinkron ke URL.**
+   `useState(searchParams.get(...))` dibaca satu kali lalu tidak pernah ditulis
+   balik, jadi tidak ada `router.replace` maupun `useEffect`. Hasil filter tidak
+   bisa di-bookmark atau dibagikan dan tombol Back tidak membatalkannya,
+   padahal footer sudah menautkan `/id/catalog?cond=new`.
+
+Keduanya belum diperbaiki. Terpisah dari itu, halaman 404 global
+(`src/app/global-not-found.tsx`) masih meng-hardcode `lang="id"` dan copy
+Indonesia, jadi `/en/<alamat-salah>` dilayani dalam Bahasa Indonesia.
+`src/proxy.ts` sudah berjalan per-request dan bisa memasang header, jadi
+menebus locale dari sana bukan hal yang mustahil.
 
 ---
 
