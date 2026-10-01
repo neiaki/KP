@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { cleanWaNumber } from "@/lib/wa";
@@ -15,6 +15,7 @@ import {
   sortItems,
   listProductsWithoutUnits,
   listSoldOutProducts,
+  filterProducts,
   sellableUnits,
   type SortOrder,
 } from "@/lib/shop";
@@ -23,16 +24,65 @@ import { noUnitSectionCopy, soldOutSectionCopy } from "@/lib/catalogue-notify";
 export function CatalogContent({ locale }: { locale: Locale }) {
   const { products, inventoryUnits, storeSettings } = useStore();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const cleanWa = cleanWaNumber(storeSettings.whatsapp_number);
 
+  // Nilai dari URL tidak dipercaya begitu saja. `brand` hanya diterima kalau
+  // merek itu benar-benar ada, `sort` hanya menerima nilai yang memang
+  // ditawarkan StockFilter, dan `cond` sama. Tanpa penyaringan ini, URL yang diedit
+  // tangan bisa membuat etalase tampak rusak padahal server-nya sehat.
+  const BRAND_DARI_URL = (searchParams.get("brand") || "").trim();
+  const COND_DARI_URL = searchParams.get("cond") || "";
+  const SORT_DARI_URL = searchParams.get("sort") || "";
+
   const [search, setSearch] = useState(searchParams.get("q") || "");
-  const [selectedBrand, setSelectedBrand] = useState("all");
-  const [selectedCondition, setSelectedCondition] = useState(
-    searchParams.get("cond") === "new" || searchParams.get("cond") === "second"
-      ? (searchParams.get("cond") as string)
-      : "all"
+  const [selectedBrand, setSelectedBrand] = useState(
+    products.some((p) => p.brand === BRAND_DARI_URL) ? BRAND_DARI_URL : "all"
   );
-  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [selectedCondition, setSelectedCondition] = useState(
+    COND_DARI_URL === "new" || COND_DARI_URL === "second" ? COND_DARI_URL : "all"
+  );
+  const [sortOrder, setSortOrder] = useState<SortOrder>(
+    SORT_DARI_URL === "lowest" || SORT_DARI_URL === "highest" || SORT_DARI_URL === "az"
+      ? SORT_DARI_URL
+      : "newest"
+  );
+
+  /*
+   * Status filter ditulis balik ke query string.
+   *
+   * Sebelumnya `useState(searchParams.get(...))` hanya dibaca satu kali lalu
+   * tidak pernah menulis apa pun, jadi hasil filter hilang saat halaman
+   * dimuat ulang, tidak bisa di-bookmark atau dibagikan, dan tombol Back
+   * browser tidak membataskannya. Padahal footer sudah menautkan
+   * `/id/catalog?cond=new`, jadi mekanismenya sudah ada di sisi lain.
+   *
+   * `replace` dipakai supaya setiap ketukan tidak menumpuk riwayat, dan
+   * `scroll: false` supaya daftar tidak melompat ke atas tiap filter berubah.
+   * Nilai yang sedang default dihapus dari URL, bukan ditulis sebagai
+   * `all`/`newest`, supaya alamat tanpa parameter tetap tanpa parameter.
+   */
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
+
+    const pasang = (kunci: string, nilai: string, bawaan: string) => {
+      if (nilai === bawaan || nilai === "") params.delete(kunci);
+      else params.set(kunci, nilai);
+    };
+
+    pasang("q", search, "");
+    pasang("brand", selectedBrand, "all");
+    pasang("cond", selectedCondition, "all");
+    pasang("sort", sortOrder, "newest");
+
+    const berikutnya = params.toString();
+    const sekarang = window.location.search;
+    if (berikutnya === sekarang.replace(/^\?/, "")) return;
+    router.replace(`${url.pathname}${berikutnya ? `?${berikutnya}` : ""}`, {
+      scroll: false,
+    });
+  }, [search, selectedBrand, selectedCondition, sortOrder, router]);
 
   const availableUnits = sellableUnits(inventoryUnits);
   const noUnitCopy = noUnitSectionCopy(locale);
@@ -44,17 +94,24 @@ export function CatalogContent({ locale }: { locale: Locale }) {
   // padahal v_public_inventory hanya mengirim unit available, jadi di produksi
   // daftar ini selalu kosong dan bagian "Baru saja habis" tidak pernah muncul.
   // Sekarang sumbernya perproduk, bukan perunit.
-  const soldOutProducts = listSoldOutProducts(products, inventoryUnits);
+  const filterOpts = { brand: selectedBrand, condition: selectedCondition, query: search };
+  const soldOutProducts = filterProducts(
+    listSoldOutProducts(products, inventoryUnits),
+    filterOpts
+  );
   const soldOutCopy = soldOutSectionCopy(locale);
 
   // Produk yang belum pernah punya unit satu pun. Batteri mana pun: bukan
   // sold, bukan in_service, bukan reserved.
-  const newProducts = listProductsWithoutUnits(products, inventoryUnits);
+  const newProducts = filterProducts(
+    listProductsWithoutUnits(products, inventoryUnits),
+    filterOpts
+  );
 
   const items = sortItems(
     filterItems(
       availableUnits.map((u) => toCardItem(u, products, inventoryUnits)),
-      { brand: selectedBrand, condition: selectedCondition, query: search }
+      filterOpts
     ),
     sortOrder
   );
