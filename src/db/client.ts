@@ -179,13 +179,19 @@ let diDalamBatch = false;
  * ke server. Kalau yang macet adalah query yang mengantre di sisi pool atau
  * socket yang sudah tidak ada lagi, tidak ada statement yang sedang berjalan
  * untuk dipotong, dan tanpa batas di sini satu langkah yang tidak resolve
- * membekukan seluruh antrean untuk sisa umur instance. Di Vercel instance
- * tidak pernah dimatikan, jadi "sisa umur instance" itu bisa sangat lama.
+ * membuat seluruh render menggantung sampai Vercel memutuskan function-nya
+ * terlalu lama.
+ *
+ * Yang SENGAJA tidak dilakukan di sini: invalidateDb() ketika lewat deadline.
+ * Langkah ini menolak dirinya sendiri, itu sudah cukup. Membuang seluruh pool
+ * akan menutup koneksi yang sedang dipakai batch lain, dan karena
+ * invalidateDb() memanggil end() tanpa menunggu, query milik orang lain yang
+ * sedang/antre ikut menggantung tanpa galat. Satu langkah lambat jadi satu
+ * lapisan galat untuk semua pengunjung yang sedang bersamaan. Klien yang
+ * benar-benar rusak sudah dibuang sendiri oleh withConnectionGuard di bawah.
  *
  * Nilainya 10 detik, bukan 8, supaya tidak memotong query yang memang sah
- * saja lambat tapi selesai. Setelah lewat, klien postgres dibuang supaya
- * request berikutnya membangun koneksi baru, sama seperti yang dilakukan
- * src/app/api/health/db-probe.ts untuk probe yang lewat deadline.
+ * saja lambat tapi selesai.
  */
 export const DB_BATCH_STEP_TIMEOUT_MS = 10_000;
 
@@ -202,14 +208,13 @@ export async function dbBatchStep<T>(
     return await Promise.race([
       langkah(),
       new Promise<never>((_, tolak) => {
-        timer = setTimeout(() => {
-          invalidateDb();
-          tolak(
-            new Error(
-              `dbBatch langkah ${label} lewat ${batasMs} ms tanpa jawaban`
-            )
-          );
-        }, batasMs);
+        timer = setTimeout(
+          () =>
+            tolak(
+              new Error(`dbBatch langkah ${label} lewat ${batasMs} ms tanpa jawaban`)
+            ),
+          batasMs
+        );
         timer.unref?.();
       }),
     ]);

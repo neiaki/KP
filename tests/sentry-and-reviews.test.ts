@@ -329,3 +329,70 @@ test("tidak ada nilai Sentry yang ikut ter-commit", async () => {
     ".env.example memuat DSN Sentry nyata. Hanya nama variabel yang boleh ada di sana."
   );
 });
+
+test("snapshot ditolak kalau angkanya tidak masuk akal", async () => {
+  // Cabang validasi di getSnapshotUlasan harus benar-benar bisa gagal. Kalau
+  // tidak, satu ketik nol di reviews-section akan tampil ke semua pengunjung
+  // tanpa galat, dan structured data ikut memancarkan angka yang salah.
+  const sumber = await readFile(
+    new URL("../src/lib/ulasan-manual.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    sumber,
+    /SNAPSHOT\.rating < 1 \|\| SNAPSHOT\.rating > 5/,
+    "rating snapshot harus diperiksa 1..5 sebelum dilayani"
+  );
+  assert.match(
+    sumber,
+    /Number\.isInteger\(SNAPSHOT\.count\)/,
+    "count snapshot harus bilangan bulat sebelum dilayani"
+  );
+  assert.match(
+    sumber,
+    /SNAPSHOT\.count < 1/,
+    "count nol tidak boleh dilayani: ReviewsSection menulis 'Berdasarkan 0 Ulasan'"
+  );
+  assert.match(
+    sumber,
+    /if \(umurHari < 0\)/,
+    "tanggal penyalian di masa depan harus ditolak, bukan lolos karena umur negatif"
+  );
+});
+
+test("batas umur snapshot dijaga di rentang yang masuk akal", async () => {
+  // Batas 180 hari adalah satu-satunya penjaga antara angka lama dan angka
+  // yang dipancarkan ke Google. Satu edit yang menaikkannya jadi 3650
+  // mematikan seluruh mekanisme tanpa apa pun yang gagal, jadi rentangnya
+  // diuji di sini.
+  const { SNAPSHOT_MAKS_UMUR_HARI } = await import("../src/lib/ulasan-manual.ts");
+
+  assert.ok(
+    SNAPSHOT_MAKS_UMUR_HARI >= 30 && SNAPSHOT_MAKS_UMUR_HARI <= 365,
+    `SNAPSHOT_MAKS_UMUR_HARI=${SNAPSHOT_MAKS_UMUR_HARI} di luar 30..365. Batas ini `
+      + "yang mencegah angka basi tetap dipancarkan. Batas yang terlalu besar "
+      + "sama saja dengan tidak ada batas."
+  );
+});
+
+test("snapshot yang sedang dipakai tidak boleh basi pada hari ini", async () => {
+  // Test yang di atas memakai tanggal sintetis, jadi tidak pernah gagal ketika
+  // waktu nyata melewati batas. Yang ini memakai waktu sekarang: begitu
+  // snapshot lewat 180 hari, test ini yang akan memberi tahu, bukan halaman.
+  const { DIAMBIL_PADA, SNAPSHOT_MAKS_UMUR_HARI } = await import("../src/lib/ulasan-manual.ts");
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(DIAMBIL_PADA)) {
+    // Snapshot belum diisi, jadi tidak ada yang bisa basi.
+    return;
+  }
+
+  const umurHari = Math.floor(
+    (Date.now() - new Date(`${DIAMBIL_PADA}T00:00:00Z`).getTime()) / 86_400_000
+  );
+  assert.ok(
+    umurHari <= SNAPSHOT_MAKS_UMUR_HARI,
+    `Salinan ulasan sudah ${umurHari} hari, melewati batas ${SNAPSHOT_MAKS_UMUR_HARI} hari. `
+      + `Salin ulang dari Google Maps dan naikkan DIAMBIL_PADA di src/lib/ulasan-manual.ts.`
+  );
+});

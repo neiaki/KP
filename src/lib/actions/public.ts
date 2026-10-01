@@ -387,19 +387,51 @@ export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>>
    * secara lokal pada 1 Oktober 2026: delapan request bersamaan selesai dalam 10
    * sampai 20 detik, bukan 1 detik seperti satu request.
    *
-   * Di sini permintaan yang datang saat pembacaan masih berjalan ikut memakai
-   * hasilnya. Bedanya cuma beberapa ratus milidetik dan tidak ada data basi
-   * yang dipoleskan; yang hilang hanya query yang tidak perlu diulang.
+   * Pembacaan yang dipakai bersama hanya hidup selama dia belum selesai. begitu
+   * ia ditolak, slot-nya langsung dikosongkan: kalau tidak, semua permintaan
+   * yang kebetulan menumpang akan ikut gagal padahal sebenarnya mereka bisa
+   * berhasil dengan pembacaan sendiri. Percobaan ulang juga mengambil klien
+   * baru dari getDb(), karena klien yang dipakai percobaan pertama bisa sudah
+   * dibuang oleh withConnectionGuard atau dbBatchStep di tengah jalan.
+   *
+   * Soal kesegaran: pada kasus biasa yang dibagikan berjarak beberapa ratus
+   * milidetik. Pada kasus ketika satu langkahnya macet sampai batas 10 detik,
+   * semua penumpang ikut menunggu dan ikut gagal bersama. Itu pilihan yang
+   * disengaja: lebih baik satu proses gagal bersama daripada delapan
+   * pembacaan yang berebut koneksi yang tidak ada.
    */
-  const berjalan = bacaSnapshotBerjalan ?? (bacaSnapshotBerjalan = bacaSnapshot(db));
+  let percobaan = 0;
+  let dipakai: Promise<PublicSnapshot> | undefined;
+  const hasil = await attemptWithRetry(() => {
+    // Percobaan kedua harus membaca ulang. Menunggu promise yang sama yang
+    // sudah gagal hanya menambah jeda tanpa mengulang apa pun, dan retry.ts
+    // justru dibuat untuk kasus balapan cache kolom Drizzle.
+    if (percobaan++ > 0) bacaSnapshotBerjalan = undefined;
+
+    dipakai = bacaSnapshotBerjalan;
+    if (!dipakai) {
+      // getDb() dipanggil ulang, bukan memakai db dari luar, supaya percobaan
+      // kedua memakai klien yang masih hidup kalau yang pertama sudah dibuang.
+      const dbSekarang = getDb();
+      if (!dbSekarang) return Promise.reject(new Error("klien database tidak tersedia"));
+      const berjalan = bacaSnapshot(dbSekarang);
+      bacaSnapshotBerjalan = berjalan;
+      // Jangan simpan pembacaan yang gagal: penumpangnya akan ikut gagal
+      // semua, padahal permintaan berikutnya bisa berhasil dengan bacaan sendiri.
+      berjalan.catch(() => {
+        if (bacaSnapshotBerjalan === berjalan) bacaSnapshotBerjalan = undefined;
+      });
+      dipakai = berjalan;
+    }
+    return dipakai;
+  });
   try {
-    const hasil = await attemptWithRetry(() => berjalan);
     if (!hasil.ok) return fail(pesanError(hasil.error, PESAN_GAGAL_SNAPSHOT));
     return ok(hasil.value);
   } finally {
-    // Hanya pembacaan yang dimulai di sini yang boleh membersihkan cache.
-    // Pembacaan bersama oleh permintaan lain tidak mengosongkan apa pun.
-    if (bacaSnapshotBerjalan === berjalan) bacaSnapshotBerjalan = undefined;
+    // Hanya pembacaan milik permintaan inilah yang boleh dikosongkan. Pembacaan
+    // yang dibuat permintaan lain tetap dibiarkan sampai selesai.
+    if (dipakai && bacaSnapshotBerjalan === dipakai) bacaSnapshotBerjalan = undefined;
   }
 }
 

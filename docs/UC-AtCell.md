@@ -38,43 +38,16 @@
 
 Relasi: `UC-13` **include** validasi IMEI `available`. `UC-14` **extend** `UC-13` (dieksekusi atomik dalam satu RPC). `UC-02` membaca view `v_public_inventory`, bukan tabel langsung.
 
-## 3. Diagram Use Case (gaya Sparx EA, UML standar)
+## 3. Diagram Use Case
 
-> Notasi mengikuti Enterprise Architect: aktor stickman di luar boundary,
-> use case ellipse di dalam `rectangle Sistem At Cell`, relasi `<<extend>>` / `<<use>>` garis putus-putus.
-> Dibagi per modul agar rapi (praktik EA: 1 diagram besar 18 UC tidak terbaca).
-> Sumber PlantUML: `usecase-ea-*.puml`. Render: `plantuml -tpng -tsvg *.puml`.
+Diagram PlantUML (sumber `.puml` beserta render PNG dan SVG) sudah dihapus dari
+repo ini pada 1 Oktober 2026. Yang tersisa sebagai acuan adalah daftar use case
+di bagian 2 dan spesifikasi lengkapnya di bagian 4; kedua bagian itu selalu
+lebih jujur daripada gambar, karena bisa dibaca per(use case), dicari, dan
+diuji, sedangkan render diagram cepat basi begitu ada satu jalur yang berubah.
 
-### 3.1 Publik — `atcell.my.id`
-
-![UC Publik](./usecase-ea-01-publik.png)
-
-Sumber: `usecase-ea-01-publik.puml` | SVG: `usecase-ea-01-publik.svg`
-
-### 3.2 Akses + Admin
-
-![UC Admin](./usecase-ea-02-admin.png)
-
-Sumber: `usecase-ea-02-admin.puml` | SVG: `usecase-ea-02-admin.svg`
-
-### 3.3 POS, Inventaris, Trade-In
-
-![UC POS](./usecase-ea-03-pos.png)
-
-Sumber: `usecase-ea-03-pos.puml` | SVG: `usecase-ea-03-pos.svg`
-Relasi: `UC-13 <.. UC-14 : <<extend>>` — aktor hanya terhubung ke `UC-13`, `UC-14` opsional dan atomik dalam satu RPC.
-
-### 3.4 Servis & Akun Pelanggan
-
-![UC Servis](./usecase-ea-04-servis.png)
-
-Sumber: `usecase-ea-04-servis.puml` | SVG: `usecase-ea-04-servis.svg`
-
-### 3.5 Diagram gabungan 18 UC (arsip)
-
-`usecase-ea.png` / `usecase-ea.svg` dari `usecase-ea.puml` memuat semua UC dalam 1 boundary.
-Layout Smetana (tanpa Graphviz) membuatnya padat dan garis menyilang — disimpan sebagai arsip,
-bukan acuan utama. Untuk 1 diagram rapi butuh `graphviz` (`dot`) + `left to right direction`.
+Diagram Mermaid di bawah tetap ada karena self-contained di dalam Markdown dan
+tidak perlu berkas render terpisah.
 
 <details>
 <summary>Diagram Mermaid lama (arsip, bukan UML EA)</summary>
@@ -150,7 +123,7 @@ flowchart LR
   UC13 -. extend .-> UC14
   UC02 -. view via v_public_inventory .-> UC12
 ```
-Hasil lama: `usecase.png` / `diagram.mmd`.
+Salinannya ada di `diagram.mmd`.
 </details>
 
 ## 4. Spesifikasi Detail
@@ -268,46 +241,23 @@ Hasil lama: `usecase.png` / `diagram.mmd`.
 - **Aktor:** Pelanggan login.
 - **Alur utama:** Buka `/account` → daftar `transactions` + `transaction_items` (unit, IMEI, `warranty_duration_months`) → unduh faktur ulang.
 
-## 5. Cara Melihat & Mengedit Gambar (gaya EA)
+## 5. Diagram yang Tersisa
 
-### Lihat cepat
+Hanya ada `diagram.mmd`, sintaks Mermaid untuk pratinjau cepat. GitHub
+merender blok Mermaid langsung dari Markdown, jadi berkasnya tidak perlu
+dirender terpisah.
+
+Untuk melihatnya:
+
 ```bash
 cd /home/neki/Code/KP/docs
-xdg-open usecase-ea-01-publik.png
-xdg-open usecase-ea-02-admin.png
-xdg-open usecase-ea-03-pos.png
-xdg-open usecase-ea-04-servis.png
-# versi vektor (tajam untuk cetak):
-xdg-open usecase-ea-01-publik.svg
+xdg-open diagram.mmd
 ```
-Di VS Code: klik file `.png` / `.svg` langsung. Di Markdown preview file ini, gambar `![UC ...](./usecase-ea-*.png)` tampil otomatis. Di GitHub, PNG ter-render otomatis (PlantUML `.puml` tidak, harus PNG/SVG).
 
-### Edit lalu render ulang (PlantUML, sudah terinstall)
-```bash
-cd /home/neki/Code/KP/docs
-# edit salah satu:
-# usecase-ea-01-publik.puml
-# usecase-ea-02-admin.puml
-# usecase-ea-03-pos.puml
-# usecase-ea-04-servis.puml
-# usecase-ea.puml (gabungan, arsip)
+Di VS Code, pasang ekstensi Mermaid Preview lalu buka berkasnya. Untuk memastikannya
+tetap sinkron dengan daftar use case di bagian 2, ubah `docs/diagram.mmd` di
+waktu yang sama.
 
-plantuml -tpng usecase-ea-01-publik.puml usecase-ea-02-admin.puml usecase-ea-03-pos.puml usecase-ea-04-servis.puml
-plantuml -tsvg usecase-ea-01-publik.puml usecase-ea-02-admin.puml usecase-ea-03-pos.puml usecase-ea-04-servis.puml
-```
-Catatan: render saat ini memakai `!pragma layout smetana` agar jalan tanpa `graphviz`.
-Untuk layout ortogonal rapi 1-diagram-besar ala EA, install `graphviz` (`dot`) lalu pakai `left to right direction` + `linetype ortho` — konfirmasi dulu sebelum saya installkan.
-
-### Bawa ke Sparx EA
-Sparx EA tidak import `.puml` langsung. Cara manual (5 menit):
-1. Di EA: buat Package `At Cell` → 4 Use Case Diagram: `Publik`, `Admin`, `POS`, `Servis`.
-2. Tiap diagram: drag Actor (stickman) + tambahkan UseCase ellipse sesuai `UC-*.puml` (nama sudah `UC-xx + judul`).
-3. Buat Boundary `Sistem At Cell`, masukkan use case ke dalamnya.
-4. Relasi: `Sales → UC-13`, `UC-14 → UC-13` sebagai `Extend` (tanpa aktor langsung ke UC-14), `UC-02 → UC-12` sebagai `Use`.
-5. Untuk dokumen: pakai PNG/SVG di folder ini langsung (sudah putih, tanpa shadow, monokrom ala EA).
-
-File di folder ini:
-- `usecase-ea-01..04-publik/admin/pos/servis.puml` — sumber (edit di sini)
-- `usecase-ea-01..04-*.png` / `.svg` — hasil siap dokumen / EA trace
-- `usecase-ea.puml` / `.png` / `.svg` — gabungan 18 UC, arsip
-- `diagram.mmd` / `usecase.png` / `usecase.svg` — Mermaid lama, arsip
+Kalau diagram UML yang digambar sebagai PNG dibutuhkan lagi, buat dari
+`docs/diagram.mmd` dan simpan hasilnya di `docs/` bersama sumbernya, supaya
+tautan gambarnya tidak pernah menggantung.

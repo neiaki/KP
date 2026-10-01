@@ -24,16 +24,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 
 | File | Isi |
 |------|-----|
-| `diagram.mmd` | Diagram alur aktor dan use case dalam sintaks Mermaid, untuk pratinjau cepat tanpa PlantUML |
-| `usecase-ea*.puml` | Sumber PlantUML diagram use case, baik satu berkas gabungan maupun per modul |
-| `usecase-ea*.png`, `usecase*.png` | Render PNG dari sumber di atas |
-| `usecase-ea*.svg`, `usecase*.svg` | Render SVG dari sumber di atas |
-
-Render ulang diagram PlantUML:
-
-```bash
-plantuml -tpng -tsvg docs/*.puml
-```
+| `diagram.mmd` | Diagram alur aktor dan use case dalam sintaks Mermaid. Diagram PlantUML sudah dihapus; daftar use case ada di `UC-AtCell.md` |
 
 ## Catatan
 
