@@ -1,7 +1,7 @@
 -- ============================================================================
 -- File gabungan untuk Supabase SQL Editor
 --
--- Isi: SELURUH migrasi At Cell, tujuh belas bagian, dari database kosong.
+-- Isi: SELURUH migrasi At Cell, 25 bagian, dari database kosong.
 -- Urutannya mengikuti ketergantungan antar bagian, bukan hanya nomor file.
 -- Menyalin file ini ke project Supabase yang benar-benar kosong sudah cukup:
 -- bagian 1 (0001) yang membuat tabel, enum, RLS, view, trigger, dan bucket
@@ -30,6 +30,14 @@
 --   15 20260927170000_demo_ticket_for_tracking_example tiket contoh supaya halaman lacak berfungsi
 --   16 20260927180000_nullable_inventory_unit_product product_id nullable untuk unit trade-in
 --   17 20260927190000_close_browser_role_write_grants  tutup hak tulis browser + default privileges
+--  18 20260927200000_remove_ocean_photo_from_reno11_gallery keluarkan foto laut dari galeri resmi Oppo Reno 11
+--  19 20260927201000_clear_unparseable_product_image_url bersihkan image_url produk yang bukan alamat foto
+--  20 20260927202000_trim_crop_duplicate_a55_photos     pangkas foto Galaxy A55 yang saling potongan
+--  21 20260930100000_catalogue_apple_iphone_15_pro      katalog Apple iPhone 15 Pro, tanpa unit
+--  22 20260930101000_catalogue_samsung_galaxy_s24_ultra katalog Samsung Galaxy S24 Ultra, tanpa unit
+--  23 20260930102000_catalogue_xiaomi_14                katalog Xiaomi 14, tanpa unit
+--  24 20260930103000_catalogue_vivo_v30                 katalog Vivo V30, tanpa unit
+--  25 20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9 katalog iPhone 14 Plus lalu tautkan unit trade-in id 9
 --
 -- CATATAN soal tabel schema_migrations: project ini tidak memakai Supabase CLI
 -- untuk menjalankan migrasi, dan repo ini tidak punya supabase/config.toml.
@@ -55,7 +63,7 @@
 -- ============================================================================
 
 -- ###########################################################################
--- BAGIAN 1 dari 17: 0001_atcell_schema
+-- BAGIAN 1 dari 25: 0001_atcell_schema
 -- ###########################################################################
 
 do $$ begin create type user_role as enum ('admin','sales','technician','customer');
@@ -586,7 +594,7 @@ values
 on conflict (id) do nothing;
 
 -- ###########################################################################
--- BAGIAN 2 dari 17: 0002_harden_atcell_schema
+-- BAGIAN 2 dari 25: 0002_harden_atcell_schema
 -- ###########################################################################
 
 create schema if not exists private;
@@ -1118,7 +1126,7 @@ grant select on public.v_public_inventory to service_role;
 grant usage, select, update on all sequences in schema public to service_role;
 
 -- ###########################################################################
--- BAGIAN 3 dari 17: 0003_lock_legacy_helpers
+-- BAGIAN 3 dari 25: 0003_lock_legacy_helpers
 -- ###########################################################################
 
 revoke execute on function public.get_my_role() from public, anon, authenticated;
@@ -1127,7 +1135,7 @@ grant execute on function public.get_my_role() to service_role;
 grant execute on function public.is_staff() to service_role;
 
 -- ###########################################################################
--- BAGIAN 4 dari 17: 0004_align_schema_contract
+-- BAGIAN 4 dari 25: 0004_align_schema_contract
 -- ###########################################################################
 
 do $$
@@ -1233,7 +1241,7 @@ on conflict (id) do nothing;
 
 
 -- ###########################################################################
--- BAGIAN 5 dari 17: 20260926025406_index_public_foreign_keys
+-- BAGIAN 5 dari 25: 20260926025406_index_public_foreign_keys
 -- ###########################################################################
 
 create index if not exists service_tickets_customer_id_idx
@@ -1253,7 +1261,7 @@ create index if not exists transactions_customer_id_idx
 
 
 -- ###########################################################################
--- BAGIAN 6 dari 17: 20260926103000_strengthen_ticket_codes
+-- BAGIAN 6 dari 25: 20260926103000_strengthen_ticket_codes
 -- ###########################################################################
 
 create or replace function public.generate_ticket_code()
@@ -1311,7 +1319,7 @@ alter table public.service_tickets
 
 
 -- ###########################################################################
--- BAGIAN 7 dari 17: 0006_store_social_urls
+-- BAGIAN 7 dari 25: 0006_store_social_urls
 -- ###########################################################################
 
 alter table public.store_settings add column if not exists social_facebook text;
@@ -1358,7 +1366,7 @@ end $$;
 
 
 -- ###########################################################################
--- BAGIAN 8 dari 17: 0007_audit_trail
+-- BAGIAN 8 dari 25: 0007_audit_trail
 -- ###########################################################################
 
 create table if not exists public.unit_status_audit (
@@ -1529,7 +1537,7 @@ grant usage, select on all sequences in schema public to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 9 dari 17: 0005_username_login
+-- BAGIAN 9 dari 25: 0005_username_login
 -- ###########################################################################
 
 alter table public.profiles add column if not exists email text;
@@ -1673,7 +1681,7 @@ grant all on public.profiles to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 10 dari 17: 20260927130000_product_image_registry
+-- BAGIAN 10 dari 25: 20260927130000_product_image_registry
 -- ###########################################################################
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -1754,7 +1762,7 @@ create policy product_images_admin_delete
   using ((select private.get_my_role()) = 'admin');
 
 -- ###########################################################################
--- BAGIAN 11 dari 17: 20260927120000_auto_enable_rls_on_new_tables
+-- BAGIAN 11 dari 25: 20260927120000_auto_enable_rls_on_new_tables
 -- ###########################################################################
 CREATE OR REPLACE FUNCTION rls_auto_enable()
 RETURNS EVENT_TRIGGER
@@ -1854,7 +1862,7 @@ EXECUTE FUNCTION rls_auto_enable();
 
 
 -- ###########################################################################
--- BAGIAN 12 dari 17: 20260927140000_store_owner_and_real_contact
+-- BAGIAN 12 dari 25: 20260927140000_store_owner_and_real_contact
 -- ###########################################################################
 alter table public.store_settings
   add column if not exists owner_name text not null default '';
@@ -1874,7 +1882,7 @@ where id = 1;
 
 
 -- ###########################################################################
--- BAGIAN 13 dari 17: 20260927150000_revoke_anon_write_on_product_images
+-- BAGIAN 13 dari 25: 20260927150000_revoke_anon_write_on_product_images
 -- ###########################################################################
 
 -- Hak tulis anon di registry gambar produk.
@@ -1907,7 +1915,7 @@ grant select on public.product_images to anon;
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 14 dari 17: 20260927160000_harden_storage_access
+-- BAGIAN 14 dari 25: 20260927160000_harden_storage_access
 -- ###########################################################################
 
 -- Akses Storage untuk foto pelanggan.
@@ -1988,7 +1996,7 @@ create policy storage_staff_read on storage.objects
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 15 dari 17: 20260927170000_demo_ticket_for_tracking_example
+-- BAGIAN 15 dari 25: 20260927170000_demo_ticket_for_tracking_example
 -- ###########################################################################
 
 -- Tiket demo untuk kode contoh di halaman lacak servis publik.
@@ -2073,7 +2081,7 @@ where ticket_code = 'SRV-20260912-7K4M2QX9' and repair_status = 'in_progress';
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 16 dari 17: 20260927180000_nullable_inventory_unit_product
+-- BAGIAN 16 dari 25: 20260927180000_nullable_inventory_unit_product
 -- ###########################################################################
 
 -- inventory_units.product_id jadi nullable, etalase publik tetap jujur.
@@ -2200,7 +2208,7 @@ select p.brand,
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 17 dari 17: 20260927190000_close_browser_role_write_grants
+-- BAGIAN 17 dari 25: 20260927190000_close_browser_role_write_grants
 -- ###########################################################################
 
 -- Menutup hak tulis yang masih bocor, lalu menutup akar masalahnya.
@@ -2307,4 +2315,921 @@ alter default privileges in schema public revoke all on tables from anon, authen
 -- tabel baru wajib menyebut role-nya eksplisit, dan itu jadi terlihat
 -- di diff.
 alter default privileges in schema public grant select on tables to anon, authenticated;
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 18 dari 25: 20260927200000_remove_ocean_photo_from_reno11_gallery
+-- ###########################################################################
+
+-- Lepaskan foto laut dari galeri resmi Oppo Reno 11.
+--
+-- Latar: audit visual menemukan oppo-reno11-2.jpg tercatat sebagai
+-- official_images produk "Oppo Reno 11 5G 12/256GB" (products id 4), pada
+-- posisi kedua dari empat. Isinya cuma horizon, air, dan langit. Tidak ada
+-- telepon di dalam frame. Berkasnya 4320x4152, paling besar di antara foto
+-- produk, dan ukuran itulah yang membuatnya lolos pemeriksaan kasar.
+--
+-- Produk ini aktif dan unitnya bisa dibeli, jadi pembeli yang menekan tombol
+-- foto berikutnya pada kartunya melihat laut, bukan unit yang dijual.
+--
+-- Keputusan: hapus entry-nya, jangan ganti dengan oppo-reno11-4.jpg.
+--
+-- Alasannya tiga. Pertama, isi oppo-reno11-4.jpg belum dilihat oleh siapa pun
+-- yang menulis migrasi ini, jadi menukarnya hanya memindahkan risiko ke nama
+-- file lain. Kedua, setelah dihapus galerinya masih berisi tiga foto
+-- perangkat, jadi kartu produk tidak kehilangan sampul. Ketiga, menambah
+-- foto yang bagus adalah perubahan satu baris yang kecil dan reversibel,
+-- sedangkan memuat foto yang salah mahal diperbaiki belakangan.
+--
+-- Berkas gambarnya sendiri tidak dihapus dari public/products/ maupun dari
+-- bucket Storage product-images. Foto itu masih dirujuk src/app/global-not-found.tsx
+-- sebagai foto halaman 404, jadi menghapusnya akan merusak halaman itu.
+--
+-- Idempoten: pernyataan di bawah hanya menyentuh baris yang masih memuat
+-- nama file itu. Dijalankan kedua kali tidak ada baris yang cocok.
+--
+-- Pencocokan pakai sufiks nama file, bukan satu bentuk penulisan. Foto
+-- produk bisa tersimpan sebagai path lokal "/products/oppo-reno11-2.jpg"
+-- atau sebagai URL absolut dari Supabase Storage.
+
+-- =============================================================================
+-- 1) official_images: buang entri foto laut, sisa daftar tetap berurutan
+-- =============================================================================
+update public.products p
+   set official_images = (
+         select coalesce(array_agg(u.nama order by u.urutan), '{}'::text[])
+           from unnest(p.official_images) with ordinality as u(nama, urutan)
+          where u.nama not like '%products/oppo-reno11-2.jpg'
+       )
+ where exists (
+         select 1
+           from unnest(p.official_images) as u(nama)
+          where u.nama like '%products/oppo-reno11-2.jpg'
+       );
+
+-- =============================================================================
+-- 2) Registry: alt_text lama menyatakan foto itu unit Oppo Reno 11
+-- =============================================================================
+-- Alt teks ikut dirender jadi atribut alt, jadi klaim yang keluar ke pembaca
+-- dan ke mesin pencari harus jujur walau gambarnya masih dipakai di tempat
+-- lain. Barisnya tidak dihapus di sini: product_images adalah daftar aset,
+-- penghapusannya keputusan staf admin, bukan efek samping migrasi.
+update public.product_images
+   set alt_text = 'Foto laut tanpa perangkat, tidak dipakai di etalase'
+ where path like '%products/oppo-reno11-2.jpg'
+   and alt_text is distinct from 'Foto laut tanpa perangkat, tidak dipakai di etalase';
+
+-- =============================================================================
+-- YANG WAJIB DICEK MANUSIA SEBELUM MENJALANKAN
+-- =============================================================================
+-- Berkas ini memakai kesimpulan audit visual, bukan pembacaan metadata.
+-- Tidak ada satu pun baris di sini yang bisa membuktikan isi gambarnya.
+--
+-- 1. Buka /products/oppo-reno11-2.jpg dan lihat sendiri pikselnya. Kalau
+--    ternyata ada telepon di frame, migrasi ini salah dan jangan dijalankan.
+--
+-- 2. Lihat dulu baris yang akan tersentuh:
+--
+--      select id, brand, model_name, official_images
+--        from public.products
+--       where exists (
+--               select 1 from unnest(official_images) as u(nama)
+--                where u.nama like '%products/oppo-reno11-2.jpg'
+--             );
+--
+--    Kalau yang muncul bukan Oppo Reno 11 yang dimaksud, jangan dijalankan.
+--    Sufiks pencocokan sengaja longgar supaya tahan terhadap perbedaan path
+--    lokal dan URL Storage, jadi hasilnya tetap perlu dilihat manusia.
+--
+-- 3. Setelah dijalankan, buka kartu produknya di beranda dan katalog, lalu
+--    tekan tombol foto berikutnya sampai habis. Sisa fotonya harus perangkat.
+--
+-- Setara lewat aplikasi: updateProduct(id, { official_images: [...] }) di
+-- src/lib/actions/products.ts. Jalur itu requireRole(["admin"]), divalidasi
+-- productUpdateSchema, dan merevalidasi /portal/products serta /id layout.
+-- Pakai jalur itu untuk pengeditan rutin, dan migrasi ini untuk perubahan
+-- yang perlu jejjak yang bisa diaudit ulang.
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 19 dari 25: 20260927201000_clear_unparseable_product_image_url
+-- ###########################################################################
+
+-- Bersihkan image_url produk yang isinya bukan alamat foto.
+--
+-- Asal-usulnya sudah ketemu dan sudah ditutup di sisi kode. Nilai yang
+-- salahnya masih tersimpan di production, jadi berkas ini membersihkan
+-- datanya.
+--
+-- Jalur penulisannya ada di src/app/(portal)/portal/products/page.tsx. Form
+-- master produk memakai konstanta PLACEHOLDER_IMAGE yang dulu dirakit begini:
+--
+--   const PLACEHOLDER_IMAGE =
+--     `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/products/placeholder.svg`;
+--
+-- Template literal tidak pernah gagal diam-diam. Kalau
+-- NEXT_PUBLIC_SUPABASE_URL kosong saat build, Polaris tidak throws. Dia menulis
+-- teks "undefined" di depan path, jadi hasilnya:
+--
+--   undefined/storage/v1/object/public/product-images/products/placeholder.svg
+--
+-- Kolom image_url memakai nilai itu setiap kali kolom foto pada form
+-- dikosongkan, lewat `image_url: imageUrl.trim() || PLACEHOLDER_IMAGE`.
+--
+-- Dua sisi sudah ditutup di kode. Portal sekarang memakai file lokal
+-- /products/placeholder.svg yang ikut ter-commit. isRealPhoto di
+-- src/lib/shop.ts menolak nilai yang tidak bisa di-parse sebagai URL http/https
+-- atau path same-origin.
+--
+-- Yang TIDAK disentuh berkas ini, dan itu disengaja: brand, model_name,
+-- specs, dan default_price. Baris yang tertangkap dilaporkan punya brand
+-- 'Xiaomi' dengan model_name 'iphone 16'. Merek dan model adalah keputusan
+-- merchandising yang hanya bisa dijawab staff yang melihat unit fisiknya,
+-- bukan konsekuensi dari gambar yang salah. Mengubahnya di sini berarti
+-- menebak. Berkas ini hanya emptying kolom foto, lalu menyerahkan sisanya.
+--
+-- Pernyataan di bawah hanya membersihkan nilai yang jelas bukan alamat foto.
+-- image_url kosong berarti tidak ada foto, dan itu memang keadaan default
+-- kolom itu, jadi kartunya dirender tanpa foto, bukan dengan foto rusak.
+-- Bucket product-images tetap bisa menyediakan foto lewat product_images, dan
+-- admin bisa mengisinya kapan saja lewat portal.
+--
+-- Idempoten: baris yang sudah kosong tidak tersentuh lagi, dan URL yang
+-- sah tidak pernah ikut tertimpa.
+
+-- =============================================================================
+-- 1) image_url yang bukan alamat foto dikosongkan
+-- =============================================================================
+update public.products p
+   set image_url = ''
+ where btrim(p.image_url) <> ''
+   and (
+         btrim(p.image_url) like '//%'
+         or (
+              btrim(p.image_url) not like '/%'
+              and btrim(p.image_url) not like 'http://%'
+              and btrim(p.image_url) not like 'https://%'
+            )
+       );
+
+-- =============================================================================
+-- YANG TIDAK BOLEH DIJALANKAN OTOMATIS
+-- =============================================================================
+-- Migrasi ini berhenti di kolom foto. Dua hal lain pada baris yang sama
+-- adalah keputusan manusia, dan keduanya perlu dilihat orang yang tahu
+-- barangnya.
+--
+-- 1. Merek dan modelnya tidak cocok. Baris products id 6 punya brand
+--    'Xiaomi' dengan model_name 'iphone 16'. Pilihannya: perbaiki brand jadi
+--    Apple, perbaiki model jadi tipe Xiaomi yang benar, atau mungkin unit itu
+--    memang tercatat dengan dua nama berbeda. Tidak bisa dijawab tanpa
+--    melihat unit fisiknya.
+--
+-- 2. Baris itu tidak boleh dibuang. Satu-satunya unit-nya berstatus
+--    in_service, punya IMEI asli dan harga jual, jadi itu handset milik
+--    pelanggan yang sedang diservis di konter, bukan sampah. Unit in_service
+--    otomatis tersembunyi dari etalase publik karena v_public_inventory hanya
+--    memfilter status available, jadi membiarkannya tidak berpengaruh ke
+--    pembeli. Yang diputuskan staf adalah merek, model, dan specs-nya
+--    setelah perbaikan selesai, bukan menghapus barisnya.
+--
+-- Cara melihat unitnya sebelum memutuskan:
+--
+--   select u.id, u.imei, u.condition, u.status, u.selling_price,
+--          p.id as product_id, p.brand, p.model_name, p.specs, p.image_url
+--     from public.inventory_units u
+--     left join public.products p on p.id = u.product_id
+--    where p.id = 6;
+--
+-- Setelah memutuskan, perbaikannya lewat updateProduct(id, {...}) di
+-- src/lib/actions/products.ts, yang requireRole(["admin"]) dan divalidasi
+-- productUpdateSchema.
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 20 dari 25: 20260927202000_trim_crop_duplicate_a55_photos
+-- ###########################################################################
+
+-- Pangkas foto galeri Galaxy A55 yang saling potongan.
+--
+-- Latar: audit visual mengukur kemiripan antara foto resmi Galaxy A55 5G.
+-- Hasilnya: a55-3.jpg potongan rapat dari a55-1.jpg, a55-4.jpg potongan dari
+-- a55-2.jpg, dan a55-5.jpg nyaris sama dengan a55-3.jpg. Jadi lima
+-- official photos itu sebenarnya hanya dua render berbeda.
+--
+-- Dampaknya ke pembeli nyata. Tombol foto berikutnya pada kartu A55
+-- menampilkan iceblue, pink, iceblue, pink, iceblue, dan pengulangan itu
+-- terbaca sebagai galeri foto yang rusak, bukan sebagai lima angle produk.
+--
+-- Yang dipangkas hanya foto yang terbukti potongan. Dua render aslinya
+-- a55-1.jpg dan a55-2.jpg tetap di tempat, jadi kartu produknya masih punya
+-- sampul dan masih punya tombol foto berikutnya yang berguna. src/lib/mock-data.ts
+-- sudah disinkronkan dengan hasil ini.
+--
+-- Berkas gambar tidak dihapus dari public/products/ maupun dari bucket
+-- Storage. Pemotret atau staf mungkin masih memakainya untuk keperluan lain.
+--
+-- Idempoten: hanya baris yang masih memuat salah satu dari tiga nama file itu
+-- yang tersentuh, dan sisa daftar tidak diubah urutannya.
+
+-- =============================================================================
+-- 1) official_images Galaxy A55: buang tiga potongan
+-- =============================================================================
+update public.products p
+   set official_images = (
+         select coalesce(array_agg(u.nama order by u.urutan), '{}'::text[])
+           from unnest(p.official_images) with ordinality as u(nama, urutan)
+          where u.nama not like '%products/a55-3.jpg'
+            and u.nama not like '%products/a55-4.jpg'
+            and u.nama not like '%products/a55-5.jpg'
+       )
+ where exists (
+         select 1
+           from unnest(p.official_images) as u(nama)
+          where u.nama like '%products/a55-3.jpg'
+             or u.nama like '%products/a55-4.jpg'
+             or u.nama like '%products/a55-5.jpg'
+       )
+   and exists (
+         select 1
+           from unnest(p.official_images) as u(nama)
+          where u.nama like '%products/a55-1.jpg'
+             or u.nama like '%products/a55-2.jpg'
+       );
+
+-- =============================================================================
+-- YANG TIDAK BOLEH DIJALANKAN OTOMATIS
+-- =============================================================================
+-- Tiga hal lain ditemukan audit yang sama dan sengaja tidak ditangani di sini.
+--
+-- 1. Galaxy S24 Ultra punya pola yang sama. s24-ultra-2.jpg dan
+--    s24-ultra-5.jpg nyaris identik satu sama lain, dan keduanya juga nyaris
+--    identik dengan iphone-15-pro-2.jpg, yaitu foto Galaxy Note yang dipakai
+--    di halaman tentang. s24-ultra-1.jpg dan s24-ultra-3.jpg juga nyaris
+--    identik, dan s24-ultra-4.jpg ternyata juga perangkat Galaxy Note,
+--    bukan S24 Ultra seperti nama filenya. Jadi lima foto S24 Ultra cuma satu
+--    asli. Pemangkasannya keputusan staf, karena audit tidak mengukur
+--    seluruh pasangan file itu.
+--
+-- 2. oppo-reno11-1.png hanya 427x601 piksel, sedangkan lebar foto produk lain
+--    di repo ini sekitar 1000 piksel atau lebih. File itu adalah sampul utama
+--    produk yang aktif, jadi next/image menaikkan ukurannya ke kartu 4:3 dan
+--    hasilnya terlihat lembek.
+--
+--    Perbaikannya BUKAN meng-upscale berkas itu dan BUKAN mengunduh ulang
+--    render promosi. Meningkatkan resolusi butuh sumber yang lebih besar dari
+--    orang yang memotret, dan gambar yang diunduh ulang bukan foto unit yang
+--    toko jual. Berkas ini sengaja tidak disentuh: lebih baik sampul yang
+--    lembut dan jujur daripada sampul tajam yang bukan produk ini.
+--
+-- 3. iphone-duo.jpg sudah tidak dipakai sebagai slide hero. Foto itu
+--    menunjukkan dua iPhone slab tanpa engsel dan tanpa layar dalam, jadi
+--    caption iPhone lipat pertama tidak cocok dengan gambarnya. Berkasnya
+--    tetap ada karena src/app/global-not-found.tsx masih memakainya.
+--
+-- Untuk memeriksa daftar foto setiap produk sebelum memutuskan:
+--
+--   select id, brand, model_name, image_url, official_images
+--     from public.products
+--    where brand in ('Samsung', 'Apple', 'Xiaomi', 'Oppo')
+--    order by id;
+-- ###########################################################################
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 21 dari 25: 20260930100000_catalogue_apple_iphone_15_pro
+-- ###########################################################################
+
+-- Masukkan Apple iPhone 15 Pro ke katalog tanpa membuat unit inventaris.
+--
+-- Latar: katalog production punya satu produk Apple ("iPhone 13 128GB")
+-- dan tidak punya jalur iPhone 15 Pro sama sekali. Toko sudah punya foto
+-- produknya di public/products/, tapi tidak ada baris products yang
+-- merujuk foto itu, jadi foto tersebut tidak pernah tampil di etalase.
+--
+-- Yang TIDAK boleh terjadi di berkas ini: membuat baris inventory_units.
+-- Unit adalah satu handset fisik dengan satu IMEI asli yang tertempel di
+-- cip di dalamnya. IMEI tidak bisa dibuat, dan baris unit yang dikarang
+-- berarti situs mengiklankan perangkat keras yang tidak ada di rak toko.
+-- Karena itu berkas ini hanya menambah baris products tanpa unit sama
+-- sekali. Baris tanpa unit dirender sebagai kartu "Stok Habis" plus tombol
+-- kabari lewat WhatsApp, bukan sebagai stok yang bisa dibeli. Alasan
+-- pemisahan etalase unit dan katalog ada di
+-- 20260927180000_nullable_inventory_unit_product.sql.
+--
+-- Idempoten: products tidak punya constraint UNIQUE pada (brand,
+-- model_name), jadi pola `insert ... select ... where not exists` dipakai
+-- di sini, dikunci pada brand dan model_name. Pencocokan model_name
+-- memakai lower(btrim(...)) supaya perbedaan huruf besar-kecil dan spasi
+-- di tepi tidak menghasilkan baris kembar. Dijalankan kedua kali tidak
+-- ada baris yang cocok, jadi tidak ada duplikat.
+--
+-- Foto dirujuk lewat path lokal /products/..., bukan URL absolut Supabase
+-- Storage. next.config.ts sengaja tidak mengeraskan host Storage supaya
+-- host project tidak bocor ke dalam database, dan berkas gambarnya sudah
+-- ada di public/ sehingga bisa dilayani same-origin tanpa environment
+-- apa pun.
+--
+-- Harga dan spesifikasi disalin apa adanya dari src/lib/mock-data.ts,
+-- initialProducts id 1, baris 77 sampai 79. Angka itu keputusan harga
+-- toko, bukan hasil karangan. Kalau owner mengoreksi harga atau warna,
+-- ubah satu nilai di bawah dan jalankan ulang berkasnya, karena migrasi
+-- ini idempoten.
+
+-- =============================================================================
+-- 1) Apple iPhone 15 Pro 128GB, tanpa unit
+-- =============================================================================
+insert into public.products (
+  brand,
+  model_name,
+  specs,
+  default_price,
+  image_url,
+  official_images,
+  is_active
+)
+select
+  'Apple',
+  'iPhone 15 Pro 128GB',
+  'Titanium Blue, Super Retina XDR OLED 6.1", A17 Pro Chip, 48MP Camera, USB-C 3.0',
+  18499000,
+  '/products/iphone-15-pro-1.jpg',
+  array['/products/iphone-15-pro-1.jpg']::text[],
+  true
+where not exists (
+  select 1
+    from public.products p
+   where p.brand = 'Apple'
+     and lower(btrim(p.model_name)) = lower(btrim('iPhone 15 Pro 128GB'))
+);
+
+-- =============================================================================
+-- YANG WAJIB DICEK MANUSIA SEBELUM MENJALANKAN
+-- =============================================================================
+-- 1. Harga 18499000 disalin dari src/lib/mock-data.ts:79. Angka itu harga
+--    katalog mode seed, belum pernah dikonfirmasi owner ke supplier.
+--    Selain itu angka itu tampil publik sebagai "Harga katalog" pada kartu
+--    Stok Habis, jadi owner wajib mengoreksinya sebelum migrasi ini
+--    dijalankan. Nilai yang tidak terkonfirmasi tidak boleh dipakai diam-diam.
+--
+-- 2. Satu-satunya foto iPhone 15 Pro yang dipakai di sini adalah
+--    iphone-15-pro-1.jpg, dan berkas itu sudah dibuka dan dilihat
+--    langsung: foto keluarga iPhone 15 Pro di atas latar putih, empat
+--    bodi dan satu unit menghadap depan. Empat file lain di kelompok ini
+--    sengaja tidak dipakai, dan alasannya isi gambarnya, bukan sekadar
+--    preferensi:
+--      - iphone-15-pro-2.jpg  Galaxy Note dengan S Pen, bukan iPhone.
+--      - iphone-15-pro-3.jpg  MacBook dan iPhone di atas meja, bukan foto produk.
+--      - iphone-15-pro-4.jpg  orang berenang di kolam, tidak ada telepon.
+--      - iphone-15-pro-5.jpg  orang di malam hari, tidak ada telepon.
+--    src/lib/mock-data.ts baris 81 dan 82 sudah menandai 3, 4, dan 5
+--    sebagai sampel kamera, MacBook, dan perenang. Kalau salah satunya
+--    kelak ditambahkan ke galeri, isi gambarnya dicek ulang lebih dulu.
+--
+-- 3. Karena hanya ada satu foto yang jujur, official_images-nya satu
+--    elemen dan kartu produknya tidak punya tombol foto berikutnya.
+--    Jangan menambah iphone-15-pro-3 atau -4 hanya supaya galerinya
+--    terlihat lengkap: galeri yang berpindah antara potongan dan lifestyle
+--    shot terbaca sebagai galeri rusak, dan itu yang sudah dibetulkan di
+--    20260927202000_trim_crop_duplicate_a55_photos.sql.
+--
+-- 4. Sebelum dijalankan, lihat baris Apple yang sudah ada supaya tidak
+--    ada nama model lain yang sebenarnya menunjuk model yang sama:
+--
+--      select id, brand, model_name, default_price, is_active
+--        from public.products
+--       where lower(brand) = 'apple'
+--       order by id;
+--
+-- 5. Produk ini belum punya baris di registry product_images, jadi foto
+--    resminya belum terdaftar di portal admin. Penambahannya lewat
+--    portal, bukan lewat migrasi, karena tabel itu menyimpan daftar aset
+--    dan path Storage-nya harus diisi lengkap.
+-- ###########################################################################
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 22 dari 25: 20260930101000_catalogue_samsung_galaxy_s24_ultra
+-- ###########################################################################
+
+-- Masukkan Samsung Galaxy S24 Ultra ke katalog tanpa membuat unit inventaris.
+--
+-- Latar: katalog production punya satu produk Samsung ("Galaxy A55 5G
+-- 8/256GB"). Foto Galaxy S24 Ultra sudah lengkap di public/products/
+-- dan sudah ikut terunggah ke bucket product-images, tapi tidak ada baris
+-- products yang memakainya, jadi flagship Samsung tidak pernah tampil di
+-- etalase.
+--
+-- Yang TIDAK boleh terjadi di berkas ini: membuat baris inventory_units.
+-- Unit adalah satu handset fisik dengan satu IMEI asli yang tertempel di
+-- cip di dalamnya. IMEI tidak bisa dibuat, dan baris unit yang dikarang
+-- berarti situs mengiklankan perangkat keras yang tidak ada di rak toko.
+-- Karena itu berkas ini hanya menambah baris products tanpa unit sama
+-- sekali. Baris tanpa unit dirender sebagai kartu "Stok Habis" plus tombol
+-- kabari lewat WhatsApp, bukan sebagai stok yang bisa dibeli. Alasan
+-- pemisahan etalase unit dan katalog ada di
+-- 20260927180000_nullable_inventory_unit_product.sql.
+--
+-- Idempoten: products tidak punya constraint UNIQUE pada (brand,
+-- model_name), jadi pola `insert ... select ... where not exists` dipakai
+-- di sini, dikunci pada brand dan model_name. Pencocokan model_name
+-- memakai lower(btrim(...)) supaya perbedaan huruf besar-kecil dan spasi
+-- di tepi tidak menghasilkan baris kembar. Dijalankan kedua kali tidak
+-- ada baris yang cocok, jadi tidak ada duplikat.
+--
+-- Foto dirujuk lewat path lokal /products/..., bukan URL absolut Supabase
+-- Storage. next.config.ts sengaja tidak mengeraskan host Storage supaya
+-- host project tidak bocor ke dalam database, dan berkas gambarnya sudah
+-- ada di public/ sehingga bisa dilayani same-origin tanpa environment
+-- apa pun.
+--
+-- Harga dan spesifikasi disalin apa adanya dari src/lib/mock-data.ts,
+-- initialProducts id 3, baris 121 sampai 123. Angka itu keputusan harga
+-- toko, bukan hasil karangan. Kalau owner mengoreksi harga atau warna,
+-- ubah satu nilai di bawah dan jalankan ulang berkasnya, karena migrasi
+-- ini idempoten.
+
+-- =============================================================================
+-- 1) Samsung Galaxy S24 Ultra 256GB, tanpa unit
+-- =============================================================================
+insert into public.products (
+  brand,
+  model_name,
+  specs,
+  default_price,
+  image_url,
+  official_images,
+  is_active
+)
+select
+  'Samsung',
+  'Galaxy S24 Ultra 256GB',
+  'Titanium Gray, Dynamic AMOLED 2X 6.8" 120Hz, Snapdragon 8 Gen 3, S-Pen',
+  21999000,
+  '/products/s24-ultra-1.jpg',
+  array['/products/s24-ultra-1.jpg']::text[],
+  true
+where not exists (
+  select 1
+    from public.products p
+   where p.brand = 'Samsung'
+     and lower(btrim(p.model_name)) = lower(btrim('Galaxy S24 Ultra 256GB'))
+);
+
+-- =============================================================================
+-- YANG WAJIB DICEK MANUSIA SEBELUM MENJALANKAN
+-- =============================================================================
+-- 1. Harga 21999000 disalin dari src/lib/mock-data.ts:123. Angka itu harga
+--    katalog mode seed, belum pernah dikonfirmasi owner ke supplier.
+--    Selain itu angka itu tampil publik sebagai "Harga katalog" pada kartu
+--    Stok Habis, jadi owner wajib mengoreksinya sebelum migrasi ini
+--    dijalankan. Nilai yang tidak terkonfirmasi tidak boleh dipakai diam-diam.
+--
+-- 2. Hanya s24-ultra-1.jpg yang dipakai, dan berkas itu sudah dibuka dan
+--    dilihat langsung: bodi titanium dengan S Pen di sisi kanan, satu
+--    bodi ungu dan satu bodi kuning di belakang. Empat file lain di
+--    kelompok ini sengaja tidak dipakai:
+--      - s24-ultra-2.jpg  lifestyle shot Galaxy Note dengan S Pen.
+--      - s24-ultra-3.jpg  bingkai yang sama dengan s24-ultra-1.jpg, hanya
+--                         sedikit lebih rapat. Memakainya berdua membuat
+--                         tombol foto berikutnya mengulang foto yang sama.
+--      - s24-ultra-4.jpg  Galaxy Note di tangan yang sedang memakai
+--                         aplikasi kamera. Fine print di sudut gambarnya
+--                         menulis "S24 Ultra's rear camera rendering",
+--                         jadi teksnya menyesatkan; peralatannya Note.
+--      - s24-ultra-5.jpg  lifestyle shot Galaxy Note dengan S Pen.
+--    Catatan s24-ultra-4.jpg sudah tercatat sebagai belum dinilai di
+--    20260927202000_trim_crop_duplicate_a55_photos.sql. Berkas ini yang
+--    memutuskan, dan keputusannya tidak memakainya.
+--
+-- 3. Karena hanya ada satu foto yang jujur, official_images-nya satu
+--    elemen dan kartu produknya tidak punya tombol foto berikutnya.
+--    Itu lebih baik daripada galeri yang berpindah antara potongan yang
+--    nyaris sama dan lifestyle shot perangkat lain. Pola galeri rusak itu
+--    sudah dibetulkan di 20260927202000_trim_crop_duplicate_a55_photos.sql.
+--
+-- 4. Sebelum dijalankan, lihat baris Samsung yang sudah ada supaya tidak
+--    ada nama model lain yang sebenarnya menunjuk model yang sama:
+--
+--      select id, brand, model_name, default_price, is_active
+--        from public.products
+--       where lower(brand) = 'samsung'
+--       order by id;
+--
+-- 5. Spesifikasi menyebut S-Pen dan "Titanium Gray". Foto s24-ultra-1.jpg
+--    memang menampilkan S Pen, dan bodi abu-abu metalik ada di bingkai
+--    depan. Kalau stok yang akan datang bukan warna itu, koreksi kolom
+--    specs-nya, jangan hanya warnanya di foto.
+--
+-- 6. Produk ini belum punya baris di registry product_images, jadi foto
+--    resminya belum terdaftar di portal admin. Penambahannya lewat
+--    portal, bukan lewat migrasi, karena tabel itu menyimpan daftar aset
+--    dan path Storage-nya harus diisi lengkap.
+-- ###########################################################################
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 23 dari 25: 20260930102000_catalogue_xiaomi_14
+-- ###########################################################################
+
+-- Masukkan Xiaomi 14 ke katalog tanpa membuat unit inventaris.
+--
+-- Latar: katalog production punya "Redmi Note 13 8/256GB" sebagai satu-
+-- satunya produk Xiaomi yang tercatat, dan ada satu baris lain
+-- brand Xiaomi yang rusak (products id 6, model_name "iphone 16", specs
+-- kosong, image_url berisi string "undefined/storage/..."). Baris rusak itu
+-- BUKAN disentuh di sini: merek dan modelnya harus diputuskan staf setelah
+-- unit fisiknya dilihat, dan keputusannya tercatat di
+-- 20260927201000_clear_unparseable_product_image_url.sql.
+--
+-- Toko sudah punya tiga foto Xiaomi 14 di public/products/ dan ketiganya
+-- sudah pernah dipakai sebagai official_images di src/lib/mock-data.ts,
+-- tapi tidak ada baris products di database yang merujuknya.
+--
+-- Yang TIDAK boleh terjadi di berkas ini: membuat baris inventory_units.
+-- Unit adalah satu handset fisik dengan satu IMEI asli yang tertempel di
+-- cip di dalamnya. IMEI tidak bisa dibuat, dan baris unit yang dikarang
+-- berarti situs mengiklankan perangkat keras yang tidak ada di rak toko.
+-- Karena itu berkas ini hanya menambah baris products tanpa unit sama
+-- sekali. Baris tanpa unit dirender sebagai kartu "Stok Habis" plus tombol
+-- kabari lewat WhatsApp, bukan sebagai stok yang bisa dibeli. Alasan
+-- pemisahan etalase unit dan katalog ada di
+-- 20260927180000_nullable_inventory_unit_product.sql.
+--
+-- Idempoten: products tidak punya constraint UNIQUE pada (brand,
+-- model_name), jadi pola `insert ... select ... where not exists` dipakai
+-- di sini, dikunci pada brand dan model_name. Pencocokan model_name
+-- memakai lower(btrim(...)) supaya perbedaan huruf besar-kecil dan spasi
+-- di tepi tidak menghasilkan baris kembar. Dijalankan kedua kali tidak
+-- ada baris yang cocok, jadi tidak ada duplikat.
+--
+-- Foto dirujuk lewat path lokal /products/..., bukan URL absolut Supabase
+-- Storage. next.config.ts sengaja tidak mengeraskan host Storage supaya
+-- host project tidak bocor ke dalam database, dan berkas gambarnya sudah
+-- ada di public/ sehingga bisa dilayani same-origin tanpa environment
+-- apa pun.
+--
+-- Harga dan spesifikasi disalin apa adanya dari src/lib/mock-data.ts,
+-- initialProducts id 5, baris 166 sampai 169. Angka itu keputusan harga
+-- toko, bukan hasil karangan. Kalau owner mengoreksi harga, kapasitas, atau
+-- warna, ubah satu nilai di bawah dan jalankan ulang berkasnya, karena
+-- migrasi ini idempoten.
+
+-- =============================================================================
+-- 1) Xiaomi 14 12/512GB, tanpa unit
+-- =============================================================================
+insert into public.products (
+  brand,
+  model_name,
+  specs,
+  default_price,
+  image_url,
+  official_images,
+  is_active
+)
+select
+  'Xiaomi',
+  '14 12/512GB',
+  'Jade Green, LTPO OLED 6.36" 120Hz, Leica Summilux Lens, Snapdragon 8 Gen 3',
+  11999000,
+  '/products/xiaomi-14-1.jpeg',
+  array[
+    '/products/xiaomi-14-1.jpeg',
+    '/products/xiaomi-14-3.jpg',
+    '/products/xiaomi-14-5.jpg'
+  ]::text[],
+  true
+where not exists (
+  select 1
+    from public.products p
+   where p.brand = 'Xiaomi'
+     and lower(btrim(p.model_name)) = lower(btrim('14 12/512GB'))
+);
+
+-- =============================================================================
+-- YANG WAJIB DICEK MANUSIA SEBELUM MENJALANKAN
+-- =============================================================================
+-- 1. Harga 11999000 disalin dari src/lib/mock-data.ts:169. Angka itu harga
+--    katalog mode seed, belum pernah dikonfirmasi owner ke supplier.
+--    Selain itu angka itu tampil publik sebagai "Harga katalog" pada kartu
+--    Stok Habis, jadi owner wajib mengoreksinya sebelum migrasi ini
+--    dijalankan. Nilai yang tidak terkonfirmasi tidak boleh dipakai diam-diam.
+--
+-- 2. Kapasitas 12/512GB ikut diambil dari nama model di
+--    src/lib/mock-data.ts:167, jadi nama produk dan harganya berasal dari
+--    satu keputusan yang sama. Kalau stok yang akan datang hanya 12/256GB
+--    atau 8/256GB, ubah model_name DAN price-nya, karena keduanya
+--    tertulis di kartu publik.
+--
+-- 3. Ketiga foto sudah dibuka dan dilihat satu per satu. Semuanya memang
+--    Xiaomi 14 warna Jade Green, dan ketiganya bingkai yang berbeda, bukan
+--    potongan satu sama lain:
+--      - xiaomi-14-1.jpeg  badan depan dan belakang di atas latar putih.
+--      - xiaomi-14-3.jpg  potongan rapat badan belakang dan layar.
+--      - xiaomi-14-5.jpg  unit dipegang tangan, latar gelap.
+--    Warna pada specs ("Jade Green") cocok dengan isi ketiga foto.
+--
+-- 4. Perhatikan juga file products id 6 yang sudah ada: brand Xiaomi tapi
+--    model_name "iphone 16". Berkas ini tidak menyentuhnya. Kalau nanti
+--    owner memutuskan baris itu sebenarnya Xiaomi, jalankan
+--    updateProduct(id, {...}) dari portal sesuai catatan di
+--    20260927201000_clear_unparseable_product_image_url.sql.
+--
+-- 5. Sebelum dijalankan, lihat baris Xiaomi yang sudah ada supaya tidak
+--    ada nama model lain yang sebenarnya menunjuk model yang sama:
+--
+--      select id, brand, model_name, default_price, is_active
+--        from public.products
+--       where lower(brand) = 'xiaomi'
+--       order by id;
+--
+-- 6. Produk ini belum punya baris di registry product_images, jadi ketiga
+--    fotonya belum terdaftar di portal admin. Penambahannya lewat portal,
+--    bukan lewat migrasi, karena tabel itu menyimpan daftar aset dan path
+--    Storage-nya harus diisi lengkap.
+
+-- ###########################################################################
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 24 dari 25: 20260930103000_catalogue_vivo_v30
+-- ###########################################################################
+
+-- Masukkan Vivo V30 ke katalog tanpa membuat unit inventaris.
+--
+-- Latar: katalog production punya satu produk Vivo ("Y36 8/256GB") dan
+-- tidak punya jalur Vivo V30 sama sekali. Foto Vivo V30 sudah ada di
+-- public/products/ dan sudah pernah dipakai sebagai official_images di
+-- src/lib/mock-data.ts, tapi tidak ada baris products di database yang
+-- merujuknya.
+--
+-- Yang TIDAK boleh terjadi di berkas ini: membuat baris inventory_units.
+-- Unit adalah satu handset fisik dengan satu IMEI asli yang tertempel di
+-- cip di dalamnya. IMEI tidak bisa dibuat, dan baris unit yang dikarang
+-- berarti situs mengiklankan perangkat keras yang tidak ada di rak toko.
+-- Karena itu berkas ini hanya menambah baris products tanpa unit sama
+-- sekali. Baris tanpa unit dirender sebagai kartu "Stok Habis" plus tombol
+-- kabari lewat WhatsApp, bukan sebagai stok yang bisa dibeli. Alasan
+-- pemisahan etalase unit dan katalog ada di
+-- 20260927180000_nullable_inventory_unit_product.sql.
+--
+-- Idempoten: products tidak punya constraint UNIQUE pada (brand,
+-- model_name), jadi pola `insert ... select ... where not exists` dipakai
+-- di sini, dikunci pada brand dan model_name. Pencocokan model_name
+-- memakai lower(btrim(...)) supaya perbedaan huruf besar-kecil dan spasi
+-- di tepi tidak menghasilkan baris kembar. Dijalankan kedua kali tidak
+-- ada baris yang cocok, jadi tidak ada duplikat.
+--
+-- Foto dirujuk lewat path lokal /products/..., bukan URL absolut Supabase
+-- Storage. next.config.ts sengaja tidak mengeraskan host Storage supaya
+-- host project tidak bocor ke dalam database, dan berkas gambarnya sudah
+-- ada di public/ sehingga bisa dilayani same-origin tanpa environment
+-- apa pun.
+--
+-- Harga dan spesifikasi disalin apa adanya dari src/lib/mock-data.ts,
+-- initialProducts id 7, baris 205 sampai 208. Angka itu keputusan harga
+-- toko, bukan hasil karangan. Kalau owner mengoreksi harga atau kapasitas,
+-- ubah satu nilai di bawah dan jalankan ulang berkasnya, karena migrasi
+-- ini idempoten.
+
+-- =============================================================================
+-- 1) Vivo V30 5G 8/256GB, tanpa unit
+-- =============================================================================
+insert into public.products (
+  brand,
+  model_name,
+  specs,
+  default_price,
+  image_url,
+  official_images,
+  is_active
+)
+select
+  'Vivo',
+  'V30 5G 8/256GB',
+  'Waving Aqua, AMOLED 6.78" 120Hz 3D Curved, Snapdragon 7 Gen 3, 50MP OIS Aura Light',
+  5999000,
+  '/products/vivo-v30-2.jpg',
+  array['/products/vivo-v30-2.jpg']::text[],
+  true
+where not exists (
+  select 1
+    from public.products p
+   where p.brand = 'Vivo'
+     and lower(btrim(p.model_name)) = lower(btrim('V30 5G 8/256GB'))
+);
+
+-- =============================================================================
+-- YANG WAJIB DICEK MANUSIA SEBELUM MENJALANKAN
+-- =============================================================================
+-- 1. Harga 5999000 disalin dari src/lib/mock-data.ts:208. Angka itu harga
+--    katalog mode seed, belum pernah dikonfirmasi owner ke supplier.
+--    Selain itu angka itu tampil publik sebagai "Harga katalog" pada kartu
+--    Stok Habis, jadi owner wajib mengoreksinya sebelum migrasi ini
+--    dijalankan. Nilai yang tidak terkonfirmasi tidak boleh dipakai diam-diam.
+--
+-- 2. Hanya vivo-v30-2.jpg yang dipakai, dan berkas itu sudah dibuka dan
+--    dilihat langsung: dua unit Vivo warna aqua di atas kain dan buku,
+--    satu menghadap depan dengan notch, satu menunjukkan belakang. Warna
+--    pada specs ("Waving Aqua") cocok dengan isi foto.
+--
+-- 3. vivo-v30-1.jpg sengaja tidak dipakai. Berkasnya banner promosi
+--    bergambar dengan teks cetak, dan fine print-nya menyebut V30 Pro,
+--    sedangkan produk ini V30. src/lib/mock-data.ts:210 sudah mencatat
+--    hal yang sama dan hanya memakai foto perangkat bersih.
+--
+-- 4. Foto yang paling rawan salah di brand ini adalah foto Vivo
+--    Y36 (vivo-y36-1.jpg) yang sudah menempel di produk id 5. Audit
+--    sebelumnya tidak berhasil memastikan modelnya dari foto depan saja, dan
+--    berkas ini tidak mengubah apa pun pada baris itu. Kalau owner ingin
+--    memastikan Y36, foto unit fisiknya harus diambil ulang, bukan dibaca
+--    ulang dari gambar yang sekarang.
+--
+-- 5. Sebelum dijalankan, lihat baris Vivo yang sudah ada supaya tidak
+--    ada nama model lain yang sebenarnya menunjuk model yang sama:
+--
+--      select id, brand, model_name, default_price, is_active
+--        from public.products
+--       where lower(brand) = 'vivo'
+--       order by id;
+--
+-- 6. Produk ini belum punya baris di registry product_images, jadi foto
+--    resminya belum terdaftar di portal admin. Penambahannya lewat
+--    portal, bukan lewat migrasi, karena tabel itu menyimpan daftar aset
+--    dan path Storage-nya harus diisi lengkap.
+
+-- ###########################################################################
+-- ###########################################################################
+
+-- ###########################################################################
+-- BAGIAN 25 dari 25: 20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9
+-- ###########################################################################
+
+-- Katalogkan unit trade-in id 9 sebagai Apple iPhone 14 Plus.
+--
+-- Latar: inventory_units id 9 adalah handset milik toko, bukan hasil
+-- karangan. IMEI-nya asli dan sudah tersimpan di cip unit itu, condition
+-- second, status available, purchase_cost 4000000, selling_price 5000000,
+-- dan product_id masih NULL. NULL itu disengaja sejak
+-- 20260927180000_nullable_inventory_unit_product.sql: unit trade-in tidak
+-- boleh tampil di etalase publik sebelum ada katalognya, karena kartu
+-- produknya butuh merek, model, spesifikasi, dan foto, dan keempatnya
+-- milik tabel products.
+--
+-- MODELNYA DISALIN DARI trade_in_records.original_brand_model yang nilainya
+-- "iPhone 14 Plus". Tidak ada penulisan ke kolom IMEI, condition, status,
+-- purchase_cost, atau selling_price. Satu-satunya perubahan pada unit ini
+-- adalah product_id.
+--
+-- KAPASITAS PENYIMPANAN TIDAK DIASERSIKAN. Data tukar tambah toko tidak
+-- mencatat kapasitas, dan mengarang "128GB" hanya supaya barisnya terlihat
+-- rapi akan membuat etalase publik menyebut spesifikasi yang tidak pernah
+-- dikonfirmasi siapa pun. Karena itu model_name ditulis polos, dan
+-- specs-nya menyatakan terus terang bahwa kapasitasnya belum tercatat.
+--
+-- PERINGATAN KERAS DARI PEMILIK TOKO: berkas ini TIDAK BOLEH berisi
+-- INSERT ke inventory_units, dan TIDAK BOLEH membuat IMEI. Satu IMEI 15
+-- digit adalah identitas satu perangkat keras nyata yang tertempel di cip
+-- di dalamnya. Membuat angka IMEI berarti mengiklankan di situs publik
+-- perangkat keras yang tidak ada di rak toko, dan itu kerugian nyata buat
+-- pembeli, bukan kesalahan kosmetik. Kalau katalog ini nanti perlu unit
+-- baru, unit itu harus didaftarkan lewat portal inventaris saat handset
+-- fisiknya benar-benar ada di konter, dengan IMEI yang dibaca dari
+-- perangkatnya.
+--
+-- Idempoten dan atomik, dalam satu statement:
+--   - "baru" hanya meng-insert baris products kalau belum ada baris dengan
+--     brand 'Apple' dan model_name yang sama. Pencocokan memakai
+--     lower(btrim(...)) supaya perbedaan huruf besar-kecil dan spasi di
+--     tepi tidak menghasilkan baris kembar.
+--   - "target" membaca baris produk itu baik yang sudah ada sebelumnya
+--     maupun yang baru dibuat di statement yang sama, jadi jalur update
+--     tetap berjalan saat berkas dijalankan kedua kali.
+--   - Syarat "u.product_id is null" membuat update tidak pernah merebut
+--     unit yang sudah ditautkan ke produk lain. Kalau staf sudah menautkan
+--     unit 9 sendiri lewat portal, berkas ini tidak mengubah apa pun.
+--   - Dua tabel disentuh dalam satu statement, jadi tidak mungkin ada
+--     keadaan setengah jalan di mana baris produk ada tapi unitnya belum
+--     tertaut, atau sebaliknya.
+--
+-- PRODUK INI SATU-SATUNYA hasil migrasi ini yang muncul sebagai stok
+-- sungguhan di etalase, karena unit 9-nya status available. Empat model
+-- lain dari perluasan katalog sengaja dibuat tanpa unit apa pun, jadi
+-- mereka tampil sebagai kartu "Stok Habis" dengan tombol kabari WhatsApp.
+
+-- =============================================================================
+-- 1) Baris produk + penautan unit id 9, satu statement
+-- =============================================================================
+with target as (
+  select p.id
+    from public.products p
+   where p.brand = 'Apple'
+     and lower(btrim(p.model_name)) = lower(btrim('iPhone 14 Plus'))
+   order by p.id
+   limit 1
+), baru as (
+  insert into public.products (
+    brand,
+    model_name,
+    specs,
+    default_price,
+    image_url,
+    official_images,
+    is_active
+  )
+  select
+    'Apple',
+    'iPhone 14 Plus',
+    'Unit second dari tukar tambah, IMEI asli, garansi toko. Kapasitas penyimpanan belum tercatat di data toko, tanyakan dulu ke kasir.',
+    0,
+    '/products/placeholder.svg',
+    '{}'::text[],
+    true
+  where not exists (
+    select 1 from target
+  )
+  returning id
+)
+update public.inventory_units u
+   set product_id = t.id
+  from (
+    select id from target
+    union all
+    select id from baru
+  ) as t
+ where u.id = 9
+   and u.product_id is null
+   and u.status = 'available'
+   and u.condition = 'second';
+
+-- =============================================================================
+-- YANG WAJIB DICEK MANUSIA SEBELUM MENJALANKAN
+-- =============================================================================
+-- 1. Pastikan unit 9 memang unit yang dimaksud. Lihat dulu, jangan
+--    langsung menjalankan:
+--
+--      select u.id, u.imei, u.condition, u.status,
+--             u.purchase_cost, u.selling_price, u.product_id,
+--             t.original_brand_model
+--        from public.inventory_units u
+--        left join public.trade_in_records t on t.resulting_unit_id = u.id
+--       where u.id = 9;
+--
+--    Kalau id, IMEI, atau model di baris itu tidak sama dengan catatan
+--    di atas, JANGAN jalankan berkas ini. Angka 9 ditulis mati di dalam
+--    statement supaya tidak ada baris lain yang ikut tertaut.
+--
+-- 2. default_price sengaja diisi 0, bukan dikarang. Toko tidak menjual
+--    iPhone 14 Plus baru, jadi tidak ada harga baru yang jujur untuk ditulis
+--    di sini. Kalau owner nanti menetapkan harga unit baru, ubah angka 0 itu
+--    lewat portal produk.
+--
+--    Angka 0 itu tidak akan tampil sebagai harga apa pun. Kartu produk untuk
+--    unit second memakai default_price sebagai label "Barunya" yang dicoret,
+--    dan label itu hanya dibuat kalau default_price-nya angka finite yang
+--    positif: referencePriceOf di src/lib/catalogue-notify.ts dipakai bersama
+--    oleh kartu unit second dan kartu model tanpa unit, jadi 0 berarti "belum
+--    ada harga" dan kartu ini tampil tanpa coretan "Barunya" sama sekali,
+--    bukan "Barunya Rp0" di sebelah Rp5.000.000. Aturan itu dikunci
+--    tests/catalogue-reference-price.test.ts.
+--
+--    Perlu diketahui: form master produk di portal menolak menyimpan
+--    default_price nol atau negatif ("Harga acuan wajib diisi lebih dari
+--    nol."). Jadi begitu staf membuka produk ini untuk diedit di portal, form
+--    akan menolak disimpan selama harga acuannya masih kosong. Itu konsekuensi
+--    yang harus disampaikan ke owner, bukan alasan untuk mengarang harga.
+--
+-- 3. Foto produk ini placeholder: public/products/placeholder.svg, yaitu
+--    gambar vektor netral yang menulis "Belum ada foto". public/products/
+--    tidak punya foto iPhone 14 Plus, dan memakai foto iPhone 13 atau
+--    iPhone 15 Pro sebagai gantinya akan menampilkan perangkat yang
+--    berbeda dari yang dijual. Placeholder.svg dilayani same-origin dan,
+--    karena next/image memakai loader bawaan, berkas .svg itu dilayani
+--    apa adanya tanpa melewati optimizer. Setelah unitnya difotret,
+--    ganti image_url-nya lewat portal produk.
+--
+-- 4. Setelah dijalankan, verifikasi hasilnya. Baris produk harus ada,
+--    unit 9 harus tertaut, dan view publik harus memuat satu kartu Apple:
+--
+--      select p.id, p.brand, p.model_name, p.default_price,
+--             u.id as unit_id, u.condition, u.selling_price, u.product_id
+--        from public.products p
+--        join public.inventory_units u on u.product_id = p.id
+--       where u.id = 9;
+--
+--      select brand, model_name, condition, selling_price, imei_tail
+--        from public.v_public_inventory
+--       where brand = 'Apple'
+--       order by model_name;
+--
+--    Kalau baris kedua tidak memuat iPhone 14 Plus, jangan mengedit
+--    produknya. Buka v_public_inventory di
+--    20260927180000_nullable_inventory_unit_product.sql: view itu hanya
+--    menampilkan unit dengan status available dan produk aktif.
+--
+-- 5. Kalau unit 9 ternyata bukan iPhone 14 Plus, jangan mengedit kolom
+--    di unit itu untuk mencocokkan. Namai ulang produknya lewat portal
+--    produk supaya jejak perubahan tercatat, dan kembalikan
+--    product_id unit itu ke NULL lewat updateUnitProduct di portal.
+
 -- ###########################################################################

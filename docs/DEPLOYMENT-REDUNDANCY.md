@@ -183,7 +183,14 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20260927170000_demo_ticket_for_tracking_example.sql` | Tiket contoh supaya kode contoh di halaman lacak benar-benar berfungsi |
 | `20260927180000_nullable_inventory_unit_product.sql` | `inventory_units.product_id` jadi nullable untuk unit trade-in, etalase publik hanya menampilkan unit berkatalog, plus catatan perbaikan baris lama |
 | `20260927190000_close_browser_role_write_grants.sql` | Menutup hak tulis `authenticated` di `product_images` dan hak tulis `anon`/`authenticated` di `storage.buckets`, mencabut `EXECUTE` publik dari `rls_auto_enable()`, dan revoke default privilege tabel di schema `public` supaya tabel baru tidak lagi mewarisi grant tulis |
-
+| `20260927200000_remove_ocean_photo_from_reno11_gallery.sql` | Mengeluarkan foto laut `oppo-reno11-2.jpg` dari galeri resmi Oppo Reno 11, karena shopper yang menekan tombol foto berikutnya melihat laut tanpa perangkat. Alt teks registry-nya diluruskan dan berkasnya tidak dihapus, karena `global-not-found.tsx` masih memakainya |
+| `20260927201000_clear_unparseable_product_image_url.sql` | Mengosongkan `products.image_url` yang isinya bukan alamat foto, terutama string `undefined/storage/...` hasil template literal tanpa host di `portal/products/page.tsx`. Merek, model, specs, dan harga tidak disentuh: itu keputusan merchandising staf |
+| `20260927202000_trim_crop_duplicate_a55_photos.sql` | Memangkas tiga foto Galaxy A55 yang saling potongan, jadi galerinya dua render berbeda bukan lima. Sampul `oppo-reno11-1.png` yang hanya 427x601 piksel tidak disentuh dan butuh sumber resolusi tinggi dari pemotret |
+| `20260930100000_catalogue_apple_iphone_15_pro.sql` | Menambah satu baris katalog Apple iPhone 15 Pro tanpa unit, jadi tampil sebagai kartu "Stok Habis" dengan tombol kabari WhatsApp. Tidak menambah baris `inventory_units` sama sekali. Laporan stafnya di `docs/PERLUASAN-KATALOG-AT-CELL.md` |
+| `20260930101000_catalogue_samsung_galaxy_s24_ultra.sql` | Baris katalog Samsung Galaxy S24 Ultra tanpa unit, foto tunggal `s24-ultra-1.jpg` karena tiga file lain bukan S24 Ultra dan satu lagi potongan dari foto yang sama. Tidak menambah unit |
+| `20260930102000_catalogue_xiaomi_14.sql` | Baris katalog Xiaomi 14 tanpa unit dengan tiga foto yang memang bingkai berbeda. Baris Xiaomi `iphone 16` yang rusak tidak disentuh, itu keputusan staf |
+| `20260930103000_catalogue_vivo_v30.sql` | Baris katalog Vivo V30 tanpa unit. Banner promosi `vivo-v30-1.jpg` tidak dipakai karena fine print-nya menyebut V30 Pro. Tidak menambah unit |
+| `20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9.sql` | Membuat baris katalog Apple iPhone 14 Plus tanpa storage di namanya, lalu menautkan `inventory_units` id 9 ke baris itu. **Satu-satunya penulisan ke `inventory_units` di seluruh perluasan katalog ini, dan hanya mengubah `product_id`.** IMEI, condition, status, dan harganya tidak disentuh. Jalankan hanya setelah unit 9 dicek fisik, dan perhatikan syarat `product_id is null` supaya berkas ini tidak merebut tautan yang sudah dibuat staf |
 `0001` aman dijalankan ulang kapan saja, termasuk `supabase db push` yang
 terhenti di tengah lalu diulang. Rananya sudah dibetulkan pada 27 Sep 2026:
 versi lama `0001` memberi `EXECUTE` pada `public.get_my_role()` dan
@@ -603,8 +610,45 @@ Contoh format dump dan restore:
 ```bash
 SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" npm run backup:postgres
 psql "$RESTORE_DATABASE_URL" -f scripts/restore-target-bootstrap.sql
-ALLOW_RESTORE=YES RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" npm run restore:postgres
+# Cek dulu targetnya tanpa menyentuh database apa pun:
+ALLOW_RESTORE=YES RESTORE_DRY_RUN=1 RESTORE_DATABASE_URL="..." \
+  DUMP_FILE="/path/backup/atcell-....dump" npm run restore:postgres
+# Jalankan sungguhan. Host di bawah harus diizinkan lebih dulu lewat
+# RESTORE_ALLOWED_HOSTS; tanpa itu script berhenti dengan kode 3.
+ALLOW_RESTORE=YES RESTORE_ALLOWED_HOSTS="atcell-restore-local" \
+  RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" \
+  npm run restore:postgres
 ```
+
+Script restore menolak jalan sebelum menyentuh database kalau salah satu hal ini
+tidak terpenuhi:
+
+- `ALLOW_RESTORE=YES` tetap syarat pertama, tapi tidak lagi cukup.
+- Host target harus `localhost`, `127.0.0.1`, atau `::1`, atau hostnya disebut
+  eksplisit di `RESTORE_ALLOWED_HOSTS`. Target restore resmi
+  (`atcell-restore-local` di network Coolify) bukan localhost, jadi operator
+  wajib menyebutnya sekali di environment restore. Drill ke container
+  PostgreSQL sekali pakai di host yang sama tidak butuh flag tambahan.
+- Host produksi ditolak tanpa syarat apa pun. Pola `*.supabase.co`,
+  `*.supabase.com`, dan `*.atcell.my.id` berhenti dengan kode 3, dan tidak ada
+  flag yang membukanya, termasuk saat host itu sengaja ditulis ke
+  `RESTORE_ALLOWED_HOSTS`. Produksi adalah sumber dump, bukan target restore.
+- Tanpa `RESTORE_ASSUME_YES=1`, script meminta konfirmasi di terminal dan hanya
+  melanjutkan kalau nama database target diketik ulang persis. Prompt ditulis
+  ke `/dev/tty`, bukan ke stdout, supaya tidak ikut ter-log tanpa disadari.
+- `RESTORE_DRY_RUN=1` menjalankan seluruh guard, mencetak host dan database
+  target beserta perintah `pg_restore` yang akan dijalankan, lalu berhenti
+  tanpa membuka koneksi.
+
+Yang tidak bisa dilompati adalah daftar host produksi dan daftar host target.
+Yang bisa dilompati hanya prompt, lewat `RESTORE_ASSUME_YES=1`, dan itu tetap
+tunduk pada kedua daftar. Sisa risikonya adalah alamat IP produksi yang ditulis
+manual ke `RESTORE_DATABASE_URL` tanpa nama hostnya, karena itu tidak bisa
+dibedakan dari IP mana pun; karena itu konfirmasi tetap wajib di jalur interaktif.
+
+Script juga menolak dijalankan dengan `sh`. Ia memakai `[[ ]]` dan
+`${var//[[:space:]]/}`, yang tidak dijamin ada di `/bin/sh`; jalankan dengan
+`bash`, seperti `npm run restore:postgres` sudah lakukan.
 
 `KEEP_DAYS` opsional dan default-nya 14. Setelah dump baru ditulis, dump yang
 lebih tua dari `KEEP_DAYS` hari beserta file `.sha256`-nya dihapus, dan hanya

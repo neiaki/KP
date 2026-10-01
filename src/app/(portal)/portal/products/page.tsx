@@ -14,9 +14,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 // Dipakai kalau produk belum punya foto. Foto stok pihak ketiga tidak pernah
 // dipakai karena modelnya bisa tidak cocok dengan produk yang sedang disimpan.
-// Host diambil dari env, bukan ditulis mati, supaya tidak ikut ke repo kalau
-// project Supabase diganti.
-const PLACEHOLDER_IMAGE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/products/placeholder.svg`;
+//
+// Placeholder ini file lokal yang ikut ter-commit, bukan URL yang dirakit dari
+// NEXT_PUBLIC_SUPABASE_URL. Template literal tidak pernah gagal diam-diam:
+// kalau env-nya kosong, Polaris tidak throws, dia menulis teks "undefined" di
+// depan path. Hasilnya kolom image_url tersimpan sebagai
+// "undefined/storage/v1/object/public/product-images/products/placeholder.svg"
+// dan string itu ikut terkirim ke setiap pengunjung. Host Storage juga tidak
+// boleh dikarang di bundle browser: hanya server yang boleh menyusunnya, dan
+// file lokal selalu bisa dilayani apa pun isi env.
+const PLACEHOLDER_IMAGE = "/products/placeholder.svg";
 
 export default function MasterProductsPage() {
   const { products, inventoryUnits, addProduct, updateProduct, currentRole } =
@@ -117,6 +124,19 @@ export default function MasterProductsPage() {
       p.specs.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Satu lintasan atas inventoryUnits untuk semua kartu, bukan satu filter
+  // per kartu per render. Unit trade-in punya product_id null dan tidak boleh
+  // dihitung ke model mana pun.
+  const unitCountByProductId = new Map<number, { total: number; available: number }>();
+  for (const u of inventoryUnits) {
+    if (u.product_id === null) continue;
+    const entry = unitCountByProductId.get(u.product_id) ?? { total: 0, available: 0 };
+    entry.total += 1;
+    if (u.status === "available") entry.available += 1;
+    unitCountByProductId.set(u.product_id, entry);
+  }
+  const productsWithoutUnit = products.filter((p) => !unitCountByProductId.has(p.id)).length;
+
   return (
     <div className="space-y-6 pb-12 sm:space-y-8">
       {/* Header katalog */}
@@ -130,6 +150,9 @@ export default function MasterProductsPage() {
           </div>
           <p className="mt-1 text-sm text-muted">
             Definisi master seri smartphone, spesifikasi acuan, dan harga dasar. Sales meregistrasi IMEI di bawah master ini.
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            Model boleh disimpan tanpa unit. Selama belum ada unit, dia tetap tampil di etalase publik dengan badge &quot;Belum ada unit&quot; dan tombol Minta dikabari, tapi tidak bisa dijual di Kasir POS.
           </p>
         </div>
 
@@ -183,16 +206,15 @@ export default function MasterProductsPage() {
           />
         </div>
         <span className="hidden text-xs font-semibold text-muted sm:inline">
-          Total: {products.length} model terdaftar
+          Total: {products.length} model terdaftar, {productsWithoutUnit} belum ada unit
         </span>
       </div>
 
       {/* Grid katalog */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {filteredProducts.map((p) => {
-          const availableUnitsCount = inventoryUnits.filter(
-            (u) => u.product_id === p.id && u.status === "available"
-          ).length;
+          const counts = unitCountByProductId.get(p.id);
+          const availableUnitsCount = counts?.available ?? 0;
 
           return (
             <Card
@@ -223,6 +245,11 @@ export default function MasterProductsPage() {
                     >
                       {availableUnitsCount} unit siap jual
                     </Badge>
+                    {counts === undefined && (
+                      <Badge variant="warning" className="text-[10px]">
+                        Belum ada unit, tampil di etalase
+                      </Badge>
+                    )}
                   </div>
                   <h3 className="mt-2 text-base font-bold text-ink">{p.model_name}</h3>
                   <p className="mt-1 leading-relaxed text-muted line-clamp-2">{p.specs}</p>
@@ -373,9 +400,20 @@ export default function MasterProductsPage() {
                   spellCheck={false}
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
                   className="sm:text-xs"
                 />
+                <span className="mt-1 block text-[11px] font-semibold text-muted">
+                  Pakai foto resmi model ini. Biarkan kosong dulu kalau fotonya belum ada.
+                </span>
+              </div>
+
+              <div className="rounded-lg border border-warn/30 bg-warn-bg px-3 py-2.5 text-xs leading-relaxed text-warn">
+                <p className="font-bold">Kalau unitnya belum ada, model ini tetap tampil di etalase</p>
+                <ul className="mt-1 list-disc space-y-1 pl-4">
+                  <li>Muncul di katalog publik dengan badge &quot;Belum ada unit&quot; dan tombol Minta dikabari.</li>
+                  <li>Tidak ikut di hitungan &quot;unit ada di toko&quot; di beranda, dan tidak bisa dijual di Kasir POS.</li>
+                  <li>Baru bisa dijual setelah unit pertama didaftarkan di Inventaris Unit IMEI pakai IMEI asli unit itu.</li>
+                </ul>
               </div>
 
               <div className="flex flex-col-reverse gap-2 border-t border-line pt-3 sm:flex-row sm:justify-end">

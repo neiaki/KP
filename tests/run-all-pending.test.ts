@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * supabase/RUN-ALL-PENDING.sql menggabungkan tujuh belas migrasi supaya
+ * supabase/RUN-ALL-PENDING.sql menggabungkan 25 migrasi supaya
  * project baru cukup di-paste sekali lewat SQL Editor. File itu dibangun
  * dengan skrip di luar repo, jadi tidak ada yang menahan isinya tetap sama
  * dengan migrasi aslinya.
@@ -69,6 +69,38 @@ const SECTIONS: { label: string; source: string }[] = [
     label: "20260927190000_close_browser_role_write_grants",
     source: "20260927190000_close_browser_role_write_grants.sql",
   },
+  {
+    label: "20260927200000_remove_ocean_photo_from_reno11_gallery",
+    source: "20260927200000_remove_ocean_photo_from_reno11_gallery.sql",
+  },
+  {
+    label: "20260927201000_clear_unparseable_product_image_url",
+    source: "20260927201000_clear_unparseable_product_image_url.sql",
+  },
+  {
+    label: "20260927202000_trim_crop_duplicate_a55_photos",
+    source: "20260927202000_trim_crop_duplicate_a55_photos.sql",
+  },
+  {
+    label: "20260930100000_catalogue_apple_iphone_15_pro",
+    source: "20260930100000_catalogue_apple_iphone_15_pro.sql",
+  },
+  {
+    label: "20260930101000_catalogue_samsung_galaxy_s24_ultra",
+    source: "20260930101000_catalogue_samsung_galaxy_s24_ultra.sql",
+  },
+  {
+    label: "20260930102000_catalogue_xiaomi_14",
+    source: "20260930102000_catalogue_xiaomi_14.sql",
+  },
+  {
+    label: "20260930103000_catalogue_vivo_v30",
+    source: "20260930103000_catalogue_vivo_v30.sql",
+  },
+  {
+    label: "20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9",
+    source: "20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9.sql",
+  },
 ];
 
 /** Setiap berkas di supabase/migrations/ wajib muncul, tanpa kecuali. */
@@ -83,7 +115,7 @@ const MIGRASI = readdirSync(repoFile("../supabase/migrations"))
  *
  * Blok komentar di awal badan sengaja tidak dibandingkan: saat digabung,
  * pembatas bagian di dalam migrasi jadi berlebihan karena penanda
- * `-- BAGIAN n dari 17` sudah melakukan hal yang sama. Yang wajib identik
+ * `-- BAGIAN n dari 25` sudah melakukan hal yang sama. Yang wajib identik
  * adalah setiap baris SQL-nya, dan itu yang dicek di sini.
  */
 /**

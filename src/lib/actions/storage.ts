@@ -1,7 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { buildPhotoObjectKey, uploadPhotoSchema } from "@/lib/validations";
+import {
+  buildPhotoObjectKey,
+  filterFotoMilikSendiri,
+  uploadPhotoSchema,
+} from "@/lib/validations";
 import { fail, ok, requireRole, type ActionResult } from "./_helpers";
 
 const ALLOWED_BUCKETS = [
@@ -102,6 +106,22 @@ export async function uploadPhoto(
  * signed URL punya masa berlaku dan harus dibuat ulang tiap kali dibutuhkan.
  * Kegagalan di sini tidak merusak apa pun: pemanggil memakainya hanya untuk
  * pratinjau, sedangkan path yang tersimpan tetap utuh.
+ *
+ * Path dibatasi ke folder staf pemanggil oleh filterFotoMilikSendiri, aturan
+ * yang sama dengan yang dipakai uploadPhoto lewat buildPhotoObjectKey. Tanpa
+ * batas itu, action ini menjadi cara menandatangani foto milik staf lain.
+ * Bucket privat service-photos dan trade-in-photos memuat IMEI, nama pelanggan,
+ * dan foto layar perangkat (lihat 20260927160000_harden_storage_access.sql),
+ * jadi signed URL untuk folder orang lain berarti PII pelanggan yang tidak
+ * berkaitan dengan pemanggil keluar dari boundary.
+ *
+ * Konsekuensinya yang perlu diketahui: foto yang diunggah staf lain tidak lagi
+ * bisa dipratinjau di tiket ini, karena path-nya ada di folder staf itu.
+ * Pratinjau di portal/service sudah punya placeholder yang menjelaskan fotonya
+ * ada tapi tidak bisa dimuat, jadi tidak ada data yang hilang, hanya pratinjau.
+ *
+ * Bucket katalog product-images bukan Bucket privat dan tidak pernah memakai
+ * signed URL, jadi jalur publiknya tidak tersentuh oleh pembatasan ini.
  */
 export async function signPhotoPaths(
   bucket: Bucket,
@@ -111,7 +131,13 @@ export async function signPhotoPaths(
   if ("error" in guard) return fail(guard.error);
   if (!ALLOWED_BUCKETS.includes(bucket)) return fail("Bucket tidak dikenal.");
   if (!perluTandaTangan(bucket)) return ok({});
-  const unik = [...new Set(paths.filter(Boolean))].slice(0, 50);
+  // Batas jumlah path masuk bukan hiasan: filter di bawahnya jalan atas
+  // seluruh array, jadi daftar yang sangat panjang adalah beban gratis untuk
+  // pemanggil yang tidak punya hak atas satu pun path di dalamnya.
+  if (!Array.isArray(paths) || paths.length > 200) {
+    return fail("Terlalu banyak referensi foto.");
+  }
+  const unik = filterFotoMilikSendiri(guard.profile.id, paths);
   if (unik.length === 0) return ok({});
   const supabase = await createClient();
   const { data, error } = await supabase.storage

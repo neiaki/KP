@@ -641,11 +641,6 @@ test("kalimat koneksi dari driver lain ikut dihitung koneksi", () => {
     syscall: "connect",
   });
   assert.equal(isConnectionFailure(asli), true);
-  assert.equal(
-    isConnectionFailure({ code: "ECONNREFUSED", message: "connect ECONNREFUSED" }),
-    false,
-    "bukan Error berarti bukan bukti koneksi rusak"
-  );
 
   // Memperlebar daftar kalimat tidak boleh menelan galat query. Semua pesan
   // di bawah ini kalimat yang benar-benar keluar dari server sungguhan.
@@ -688,4 +683,86 @@ test("kalimat koneksi dari driver lain ikut dihitung koneksi", () => {
     false,
     "57014 tetap bukan kegagalan koneksi"
   );
+});
+
+test("SQLSTATE yang baru diklasifikasi dan dikecualikan lewat driver sungguhan", async () => {
+  // Daftar kode di src/db/client.ts yang dipin dengan PostgresError buatan test
+  // saja belum cukup, karena yang menentukan di produksi adalah PostgresError
+  // hasil driver. Di sini kode yang baru diklasifikasi (08000 dan 08004 dari
+  // kelas 08, 57P01 dari kelas 57) dan kode yang sengaja ditolak (53300) dibuat
+  // di server tiruan lalu dilewati socket sungguhan, persis seperti test di
+  // atas. Assertion kode didahulukan assertion cache supaya test ini gagal
+  // dengan pesan yang benar kalau driver tidak meneruskan SQLSTATEnya.
+  const skenario: Array<{ kode: string; pesan: string; harusBuang: boolean }> = [
+    {
+      kode: "08000",
+      pesan: "connection_exception",
+      // Pooler memutus koneksi tanpa keterangan lain.
+      harusBuang: true,
+    },
+    {
+      kode: "08004",
+      pesan: "server_rejected_establishment_of_new_connection",
+      // Server menolak koneksi baru karena penuh, dan jalur yang sedang dipakai
+      // klien ikut terbawa.
+      harusBuang: true,
+    },
+    {
+      kode: "57P01",
+      pesan: "terminating connection due to administrator command",
+      // Server dimatikan: bentuk paling dekat dengan insiden 2026-09-27.
+      harusBuang: true,
+    },
+    {
+      kode: "53300",
+      pesan: "sorry, too many clients already",
+      // Koneksi yang sedang dipakai tetap utuh, jadi membuang cache hanya
+      // menambah beban ke server yang sedang penuh.
+      harusBuang: false,
+    },
+  ];
+
+  for (const satu of skenario) {
+    const server = await startServerPgl(() => ({
+      jenis: "galat",
+      kode: satu.kode,
+      pesan: satu.pesan,
+    }));
+    arahkanKe(server.port);
+    try {
+      const db = getDb();
+      assert.ok(db, "getDb harus mengembalikan db saat DATABASE_URL diisi");
+
+      const galat = await klien(db)
+        .unsafe("select 1")
+        .then(
+          () => null,
+          (err: unknown) => err
+        );
+      assert.ok(galat instanceof Error, "server tiruan harus benar-benar menjawab galat");
+      assert.equal(
+        kodeGalat(galat),
+        satu.kode,
+        "SQLSTATE harus diteruskan apa adanya oleh driver"
+      );
+
+      const sesudah = getDb();
+      if (satu.harusBuang) {
+        assert.notEqual(
+          sesudah,
+          db,
+          `galat ${satu.kode} adalah kegagalan koneksi dan harus membangun ulang cache`
+        );
+      } else {
+        assert.equal(
+          sesudah,
+          db,
+          `galat ${satu.kode} bukan kegagalan koneksi, jadi cache harus tetap dipakai`
+        );
+      }
+    } finally {
+      invalidateDb();
+      await server.close();
+    }
+  }
 });

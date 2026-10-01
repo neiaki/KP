@@ -415,6 +415,7 @@ export default function InventoryManagementPage() {
                         <option value="reserved">reserved</option>
                         <option value="sold">sold</option>
                         <option value="in_service">in_service</option>
+                        <option value="returned">returned</option>
                       </select>
                     </div>
                   </div>
@@ -502,6 +503,7 @@ export default function InventoryManagementPage() {
                             <option value="reserved">reserved</option>
                             <option value="sold">sold</option>
                             <option value="in_service">in_service</option>
+                            <option value="returned">returned</option>
                           </select>
                         </td>
                       </tr>
