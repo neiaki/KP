@@ -179,21 +179,48 @@ export async function getGoogleReviews(): Promise<GoogleReviewsData | null> {
     // Google hanya mengirim maksimal 5 ulasan lewat Places API, dan tidak
     // semuanya punya teks, jadi menyaring di sini lebih baik daripada
     // menampilkan kartu kosong yang muncul di layar.
+    //
+    // Ulasan tanpa rating juga dibuang. Fallback ke bintang 5 adalah klaim
+    // yang tidak didukung data: orang yang menulis ulasan itu jelas sudah
+    // memberikan angka, dan kita hanya tidak membacanya dengan benar.
     const reviews = (Array.isArray(result.reviews) ? result.reviews : [])
       .filter((r) => typeof r.text === "string" && r.text.trim().length > 0)
+      .filter((r) => ratingValid(r.rating))
       .slice(0, 5)
       .map((r) => ({
         author: r.author_name || "Pengunjung",
         avatar: r.profile_photo_url,
-        rating: ratingValid(r.rating) ? r.rating : 5,
+        rating: r.rating as number,
         time: r.relative_time_description || "",
         text: (r.text || "").trim(),
       }));
 
+    // Rating tanpa satu pun ulasan yang bisa ditampilkan tidak boleh keluar.
+    // ReviewsSection butuh reviews.length > 0 untuk menampilkan kartu, jadi
+    // mengirim rating tanpa ulasan berarti structured data memancarkan
+    // aggregateRating untuk halaman yang tidak menampilkan ulasan sama sekali.
+    // Itu kelas ketidaksesuaian yang persis dibatalkan commit d685176.
+    if (reviews.length === 0) {
+      laporkan(
+        "Places API tidak mengirim satu pun ulasan yang punya teks dan rating",
+        `total dari Maps: ${String(result.user_ratings_total ?? "tidak ada")}`
+      );
+      return denganSnapshot();
+    }
+
+    // Count yang tidak masuk akal juga ditolak, bukan diteruskan. ReviewsSection
+    // menulis "Berdasarkan {count} Ulasan" tepat di bawah rating, jadi count 0
+    // tampil sebagai "4,4 Stars / Berdasarkan 0 Ulasan" tanpa galat apa pun.
+    const count = result.user_ratings_total;
+    if (!Number.isInteger(count) || (count as number) < 1) {
+      laporkan("Jumlah ulasan dari Places API bukan bilangan bulat positif", String(count));
+      return denganSnapshot();
+    }
+
     return {
       name: result.name || "at cell",
       rating: result.rating,
-      count: result.user_ratings_total || 0,
+      count: count as number,
       url: result.url || MAPS_URL,
       reviews,
     };

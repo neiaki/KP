@@ -146,7 +146,8 @@ test("snapshot publik dipakai bersama ketika pembacaan sedang berjalan", async (
   );
   assert.match(
     sumber,
-    /if \(bacaSnapshotBerjalan === berjalan\) bacaSnapshotBerjalan = undefined;/,
-    "hanya pembacaan yang dimulai sendiri boleh membersihkan pembacaan bersama"
+    /if \(dipakai && bacaSnapshotBerjalan === dipakai\) bacaSnapshotBerjalan = undefined;/,
+    "hanya pembacaan milik permintaan ini boleh dikosongkan, dan hanya kalau "
+      + "masih sama; permintaan lain yang ikut memakai tidak boleh ikut mengosongkan"
   );
 });
