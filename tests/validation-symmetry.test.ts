@@ -286,17 +286,29 @@ test("harga acuan nol tetap boleh disimpan, negatif tidak", () => {
   assert.equal(productSchema.safeParse({ ...PRODUK, default_price: -1 }).success, false);
 });
 
-test("form portal tidak menolak harga acuan nol", () => {
+test("form portal menolak harga acuan negatif dan bukan nol", () => {
   // Guard di halaman harus setuju dengan schema. Kalau halaman masih menolak
   // 0, produk yang tidak bisa disimpan dari portal tetap tidak bisa.
+  //
+  // Pola yang dikunci di sini berubah bentuk. Guard pertamanya inline
+  // (`Number.isFinite(defaultPrice) || defaultPrice < 0`) dan tidak ada satu pun
+  // test yang memanggil aturannya, jadi bentuk itu tidak bisa dibuktikan benar
+  // atau salah, hanya bisa dicocokkan. Sekarang form memanggil
+  // hargaAcuanLayak dari lib/validations, dan tests/harga-acuan.test.ts
+  // menguji fungsi itu sungguhan: 0 lolos, negatif dan non-number ditolak,
+  // dan penjagaan inline tidak boleh muncul lagi di halaman.
+  //
+  // Test ini sengaja hanya memeriksa pemanggilannya. Aturannya sendiri diuji di
+  // berkas lain supaya tidak ada dua test yang mengklaim hal sama dengan cara
+  // berbeda.
   const productsPage = readFileSync(
     new URL("../src/app/(portal)/portal/products/page.tsx", import.meta.url),
     "utf8"
   );
   assert.match(
     productsPage,
-    /Number\.isFinite\(defaultPrice\) \|\| defaultPrice < 0/,
-    "form harus menolak negatif, bukan nol"
+    /if \(!hargaAcuanLayak\(defaultPrice\)\)/,
+    "form harus menolak lewat hargaAcuanLayak, sumber aturan yang sama dengan schema"
   );
   assert.doesNotMatch(
     productsPage,
