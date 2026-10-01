@@ -97,6 +97,51 @@ function modulStub(isi: Record<string, unknown> = {}): Record<string, unknown> {
   });
 }
 
+/**
+ * Kartu notifikasi dimuat dari berkas aslinya, bukan di-stub.
+ *
+ * Kartu ini yang menulis src, badge, dan tombolnya, jadi meng-stub-nya
+ * membuat seluruh test di berkas ini hijau karena tidak ada yang dirender.
+ * Logikanya tetap modul asli src/lib, jadi aturan foto yang diuji adalah
+ * yang sama dengan yang berjalan di produksi.
+ */
+const NOTIFY_CARD = muatTsx("../src/components/public/notify-card.tsx");
+
+/** Transpile satu .tsx dan jalankan dengan requireStub miliknya sendiri. */
+function muatTsx(berkas: string): Record<string, unknown> {
+  const sumber = readFileSync(new URL(berkas, import.meta.url), "utf8");
+  const { outputText } = ts.transpileModule(sumber, {
+    fileName: berkas,
+    compilerOptions: {
+      jsx: ts.JsxEmit.ReactJSX,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+      isolatedModules: true,
+    },
+  });
+  const requireStub = (id: string): unknown => {
+    if (id in MODUL_ASLI) return MODUL_ASLI[id];
+    if (id.startsWith("@/lib/")) throw new Error(`modul logika di-stub: ${id}`);
+    switch (id) {
+      case "next/image":
+        return modulStub({ default: Gambar, Image: Gambar });
+      default:
+        return modulStub();
+    }
+  };
+  const modul = { exports: {} as Record<string, unknown> };
+  new Function(
+    "exports",
+    "require",
+    "module",
+    "__filename",
+    "__dirname",
+    outputText
+  )(modul.exports, requireStub, modul, "/notif-card.jsx", "/");
+  return modul.exports;
+}
+
 export type Toko = {
   products: Product[];
   inventoryUnits: InventoryUnit[];
@@ -149,6 +194,8 @@ function muat(berkas: string, toko: Toko): Record<string, unknown> {
         return modulStub({ default: Gambar, Image: Gambar });
       case "@/components/public/product-card":
         return modulStub({ ProductCard: KartuProduk });
+      case "@/components/public/notify-card":
+        return NOTIFY_CARD;
       default:
         return modulStub();
     }

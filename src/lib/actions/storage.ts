@@ -1,9 +1,13 @@
 "use server";
 
+import { sql } from "drizzle-orm";
+import { getDb } from "@/db/client";
 import { createClient } from "@/lib/supabase/server";
 import {
+  BATAS_PATH_FOTO,
   buildPhotoObjectKey,
   filterFotoMilikSendiri,
+  objectKeyBentukSah,
   uploadPhotoSchema,
 } from "@/lib/validations";
 import { fail, ok, requireRole, type ActionResult } from "./_helpers";
@@ -17,6 +21,15 @@ const ALLOWED_BUCKETS = [
 ] as const;
 
 type Bucket = (typeof ALLOWED_BUCKETS)[number];
+
+/**
+ * Tabel yang menyimpan photo_urls untuk bucket privat.
+ *
+ * Ditulis mati supaya sql.identifier tidak pernah menerima nama tabel dari
+ * pemanggil, dan supaya menambah sumber foto baru kelihatan sebagai perubahan
+ * di daftar ini.
+ */
+const BAHAN_FOTO = ["service_tickets", "trade_in_records"] as const;
 
 /**
  * Masa berlaku signed URL. Cukup untuk satu sesi kerja di portal. Yang
@@ -100,6 +113,62 @@ export async function uploadPhoto(
 }
 
 /**
+ * Path foto yang benar-benar menempel pada tiket atau transaksi trade-in.
+ *
+ * Setiap foto privat di bucket ini masuk ke database sebagai bagian dari
+ * photo_urls pada satu baris: service_tickets untuk foto servis,
+ * trade_in_records untuk foto kondisi unit tukar tambah. Kalau path-nya ada di
+ * sana, foto itu bagian dari pekerjaan orang yang boleh melihat baris itu, dan
+ * memintanya untuk pratinjau adalah bagian dari pekerjaan itu.
+ *
+ * Batasnya penting: pemanggil tidak boleh memilih baris mana pun. Semua staf
+ * sudah melihat semua tiket lewat getPortalSnapshot, jadi satu query tanpa
+ * filter peran cukup. Yang tidak boleh adalah menebak path di folder staf lain
+ * tanpa pernah menempel pada data mana pun, dan itulah yang dicek di sini:
+ * bukan "path-nya di folder saya", tapi "path-nya benar-benar terpakai".
+ *
+ * Karena itu filterFotoMilikSendiri tidak lagi menjadi satu-satunya gerbang.
+ * Ia tetap dipakai untuk foto yang baru diunggah dan belum disimpan ke
+ * database, karena foto seperti itu belum punya baris pemilik.
+ */
+async function pathsYangTerpakai(paths: string[]): Promise<Set<string>> {
+  const boleh = new Set<string>();
+  if (paths.length === 0) return boleh;
+  const db = getDb();
+  if (!db) return boleh;
+  /*
+   * Operator ?| pada jsonb memeriksa apakah salah satu nilai ada sebagai elemen
+   * array, jadi satu query menutup seluruh daftar dan tidak perlu satu query
+   * per path. Daftar dikirim sebagai parameter dan bukan dirangkai jadi teks
+   * SQL, karena path-nya datang dari HTTP dan bebas berisi tanda kutip.
+   *
+   * Nama tabelnya ditulis mati di daftar BAHAN_FOTO, bukan disambung dari
+   * input, jadi tidak ada identifier yang bisa datang dari pemanggil.
+   */
+  for (const tabel of BAHAN_FOTO) {
+    try {
+      const baris = await db.execute<{ photo_urls: string[] | null }>(sql`
+        select photo_urls from ${sql.identifier(tabel)} where photo_urls ?| ${paths}
+      `);
+      for (const row of baris) {
+        // Disaring ulang di JavaScript: operator jsonb membandingkan sebagai
+        // teks, dan baris yang dikembalikan bisa punya entri lain yang tidak
+        // diminta. Hanya path yang benar-benar ada di daftar permintaan yang
+        // boleh lewat.
+        for (const p of row.photo_urls ?? []) {
+          if (typeof p === "string" && paths.includes(p)) boleh.add(p);
+        }
+      }
+    } catch {
+      // Database tidak bisa dibaca. Tidak ada path yang bisa dibuktikan, jadi
+      // yang lolos tinggal folder sendiri di bawah. Kegagalan di sini tidak
+      // merusak apa pun: pemanggil tetap melihat pratinjau fotonya sendiri.
+    }
+  }
+  return boleh;
+}
+
+/**
  * Ubah daftar path foto menjadi signed URL untuk ditampilkan.
  *
  * Dipanggil saat portal membuka tiket yang fotonya sudah tersimpan, karena
@@ -107,18 +176,25 @@ export async function uploadPhoto(
  * Kegagalan di sini tidak merusak apa pun: pemanggil memakainya hanya untuk
  * pratinjau, sedangkan path yang tersimpan tetap utuh.
  *
- * Path dibatasi ke folder staf pemanggil oleh filterFotoMilikSendiri, aturan
- * yang sama dengan yang dipakai uploadPhoto lewat buildPhotoObjectKey. Tanpa
- * batas itu, action ini menjadi cara menandatangani foto milik staf lain.
+ * Sebuah path ditandatangani kalau salah satu dari dua hal benar:
+ *
+ * 1. Path-nya ada di photo_urls service_tickets atau trade_in_records, jadi
+ *    foto itu benar-benar bagian dari pekerjaan yang sedang dipanggil.
+ * 2. Path-nya ada di folder staf pemanggil, jadi foto itu diunggah oleh
+ *    pemanggil sendiri dan belum sempat tersimpan ke database.
+ *
+ * Dulu aturan kedua saja yang dipakai, dan akibatnya foto progres yang
+ * diunggah kasir tidak bisa dipratinjau teknisi yang menanganinya, padahal
+ * keduanya sudah boleh membuka tiket yang sama. Aturan pertama menutup
+ * jalur di mana pun tanpa kehilangan kegunaannya: path yang tidak menempel
+ * pada data mana pun tidak akan ditandatangani, berapa pun miripnya dengan
+ * folder staf mana pun.
+ *
  * Bucket privat service-photos dan trade-in-photos memuat IMEI, nama pelanggan,
  * dan foto layar perangkat (lihat 20260927160000_harden_storage_access.sql),
- * jadi signed URL untuk folder orang lain berarti PII pelanggan yang tidak
- * berkaitan dengan pemanggil keluar dari boundary.
- *
- * Konsekuensinya yang perlu diketahui: foto yang diunggah staf lain tidak lagi
- * bisa dipratinjau di tiket ini, karena path-nya ada di folder staf itu.
- * Pratinjau di portal/service sudah punya placeholder yang menjelaskan fotonya
- * ada tapi tidak bisa dimuat, jadi tidak ada data yang hilang, hanya pratinjau.
+ * jadi setiap path tetap harus lolos salah satu dari dua pemeriksaan di atas.
+ * Nilai bukan string dan URL penuh tidak pernah ikut, karena keduanya bukan
+ * object key di dalam bucket.
  *
  * Bucket katalog product-images bukan Bucket privat dan tidak pernah memakai
  * signed URL, jadi jalur publiknya tidak tersentuh oleh pembatasan ini.
@@ -132,17 +208,32 @@ export async function signPhotoPaths(
   if (!ALLOWED_BUCKETS.includes(bucket)) return fail("Bucket tidak dikenal.");
   if (!perluTandaTangan(bucket)) return ok({});
   // Batas jumlah path masuk bukan hiasan: filter di bawahnya jalan atas
-  // seluruh array, jadi daftar yang sangat panjang adalah beban gratis untuk
-  // pemanggil yang tidak punya hak atas satu pun path di dalamnya.
+  // seluruh array, dan array ini juga masuk ke query, jadi daftar yang sangat
+  // panjang adalah beban gratis untuk pemanggil yang tidak punya hak atas satu
+  // pun path di dalamnya.
   if (!Array.isArray(paths) || paths.length > 200) {
     return fail("Terlalu banyak referensi foto.");
   }
-  const unik = filterFotoMilikSendiri(guard.profile.id, paths);
-  if (unik.length === 0) return ok({});
+  // Bentuknya diperiksa lebih dulu supaya yang masuk ke query dan ke Storage
+  // hanya nilai yang memang bisa jadi object key.
+  const kandidat = [
+    ...new Set(
+      paths.filter(
+        (p): p is string => typeof p === "string" && objectKeyBentukSah(p)
+      )
+    ),
+  ].slice(0, BATAS_PATH_FOTO);
+  if (kandidat.length === 0) return ok({});
+
+  const terpakai = await pathsYangTerpakai(kandidat);
+  const milikSendiri = new Set(filterFotoMilikSendiri(guard.profile.id, kandidat));
+  const boleh = kandidat.filter((p) => terpakai.has(p) || milikSendiri.has(p));
+  if (boleh.length === 0) return ok({});
+
   const supabase = await createClient();
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrls(unik, SIGNED_URL_TTL_SECONDS);
+    .createSignedUrls(boleh, SIGNED_URL_TTL_SECONDS);
   if (error || !data) return fail("Foto tidak bisa dimuat. Coba lagi sebentar.");
   const peta: Record<string, string> = {};
   for (const item of data) {

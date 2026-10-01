@@ -176,16 +176,65 @@ export function tagForUnit(
   return undefined;
 }
 
-/* Produk yang tidak punya unit sama sekali (belum pernah ada available
-   maupun sold) tidak pernah muncul di etalase unit-driven. Helper ini
-   memastikan produk baru tetap terlihat dengan label Stok Habis agar staf
-   tahu produk sudah masuk katalog walau unit belum didaftarkan. */
+/**
+ * Produk yang belum pernah punya unit satu pun.
+ *
+ * Bedanya dengan "unitnya habis" itu penting dan tidak bisa diabaikan.
+ * Etalase publik hanya menerima unit berstatus available, jadi unit sold dan
+ * in_service tidak pernah sampai ke browser. Kalau helper ini hanya menghitung
+ * unit yang terlihat, produk yang sudah pernah terjual ikut terbaca sebagai
+ * produk yang belum pernah ada, dan label "belum ada unit" jadi pernyataan
+ * yang salah untuk barang yang jelas pernah ada di rak.
+ *
+ * Karena itu sumber kebenarannya_products.pernah_punya_unit, yang diisi
+ * getPublicSnapshot dari seluruh tabel inventory_units. Kalau field itu
+ * undefined, helper jatuh ke menghitung unit yang tersedia di tangan, dan itu
+ * benar untuk portal dan mode demo karena keduanya memang melihat semua unit.
+ */
 export function listProductsWithoutUnits(
   products: Product[],
   allUnits: InventoryUnit[]
 ): Product[] {
+  return products.filter((p) => !pernahPunyaUnit(p, allUnits));
+}
+
+/**
+ * True kalau produk ini punya atau pernah punya unit.
+ *
+ * Aturan pengambilannya satu fungsi supaya tidak bisa berbeda antara bagian
+ * etalase: field dari database menang kalau ada, dan baru kalau tidak ada
+ * baris unit yang cocok di tangan.
+ */
+export function pernahPunyaUnit(
+  product: Product,
+  allUnits: InventoryUnit[]
+): boolean {
+  if (typeof product.pernah_punya_unit === "boolean") {
+    return product.pernah_punya_unit;
+  }
+  return allUnits.some((u) => u.product_id === product.id);
+}
+
+/**
+ * Produk yang pernah punya unit tapi sekarang tidak ada yang bisa dijual.
+ *
+ * Bedanya dengan listProductsWithoutUnits: ini produk yang jelas pernah ada di
+ * rak, jadi label yang tepat adalah "stok habis" dan bukan "belum ada unit".
+ * Unitnya bisa sudah sold, atau sedang in_service, atau semuanya reserved.
+ *
+ * Query publik tidak pernah mengirim unit non-available, jadi membership
+ * "punya unit available" harus dihitung dari allUnits yang benar-benar
+ * diterima browser, bukan dari asumsi.
+ */
+export function listSoldOutProducts(
+  products: Product[],
+  allUnits: InventoryUnit[]
+): Product[] {
+  const adaYangBisaDijual = new Set(
+    allUnits.filter((u) => u.status === "available").map((u) => u.product_id)
+  );
   return products.filter(
-    (p) => !allUnits.some((u) => u.product_id === p.id)
+    (p) => pernahPunyaUnit(p, allUnits) && !adaYangBisaDijual.has(p.id)
   );
 }
 

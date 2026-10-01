@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   filterFotoMilikSendiri,
   productSchema,
@@ -175,4 +176,174 @@ test("path same-origin dengan .. ditolak walau migrasi menyimpannya", () => {
     false,
     "path yang keluar dari direktori aset harus ditolak"
   );
+});
+
+/* -------------------------------------------------------------------------- */
+/* Galeri foto produk                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * official_images dan second_images dulu z.array(z.string()) polos, jadi
+ * menerima "javascript:alert(1)", "//evil.example/x.jpg", dan
+ * "../../etc/passwd". Sisi baca menyaringnya sebelum menulis ke src, jadi
+ * tidak ada yang bisa dirender dari nilai itu, tapi aturan yang berbeda
+ * antara sisi tulis dan sisi baca adalah bug: begitu sisi baca berubah,
+ * nilai yang dulu ditolak ikut lolos tanpa ada yang memberi tahu.
+ *
+ * Galeri dan image_url berakhir di atribut src yang sama, jadi keduanya harus
+ * tunduk pada aturan yang sama. Test di bawah mengunci itu per field, bukan
+ * cuma image_url, supaya penambahan field foto berikutnya tidak bisa membuka
+ * jalan yang sama.
+ */
+
+/** Field galeri foto produk, yang keduanya harus tunduk pada aturan sama. */
+const FIELD_GALERI = ["official_images", "second_images"] as const;
+
+test("galeri foto menolak nilai yang tidak bisa dirender", () => {
+  const nilaiJahat = [
+    "javascript:alert(1)",
+    "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+    "//evil.example/x.jpg",
+    "../../etc/passwd",
+    "/products/../etc/passwd",
+    "products/foo.jpg",
+    "undefined/storage/v1/object/public/product-images/products/placeholder.svg",
+    "notaurl",
+    "ftp://example.com/a.jpg",
+  ];
+  for (const field of FIELD_GALERI) {
+    for (const nilai of nilaiJahat) {
+      assert.equal(
+        productSchema.safeParse({ ...PRODUK, [field]: [nilai] }).success,
+        false,
+        `${field} harus menolak ${JSON.stringify(nilai)}`
+      );
+      assert.equal(
+        productUpdateSchema.safeParse({ [field]: [nilai] }).success,
+        false,
+        `update ${field} harus menolak ${JSON.stringify(nilai)}`
+      );
+    }
+  }
+});
+
+test("galeri foto menolak entri kosong", () => {
+  // Entri kosong di official_images menghasilkan <img src=""> yang rusak
+  // tampil, dan galeri kosong sudah berarti "tidak ada foto" di kolom
+  // image_url, jadi dua bentuk itu tidak perlu dibedakan.
+  for (const field of FIELD_GALERI) {
+    for (const kosong of ["", "   "]) {
+      assert.equal(
+        productSchema.safeParse({ ...PRODUK, [field]: [kosong] }).success,
+        false,
+        `${field} harus menolak entri kosong`
+      );
+    }
+  }
+});
+
+test("galeri foto menerima bentuk yang sah dan daftar kosong", () => {
+  // Bentuk yang ada di produksi harus tetap bisa ditulis, termasuk URL absolut
+  // Supabase Storage dan path lokal. Daftar kosong juga sah: produk tanpa
+  // foto resmi tetap boleh disimpan.
+  for (const field of FIELD_GALERI) {
+    for (const sah of [
+      "/products/iphone-13-1.jpg",
+      "/products/placeholder.svg",
+      "https://contoh.supabase.co/storage/v1/object/public/product-images/products/a.jpg",
+      "http://cdn.example.com/a.jpg",
+    ]) {
+      assert.equal(
+        productSchema.safeParse({ ...PRODUK, [field]: [sah] }).success,
+        true,
+        `${field} harus menerima ${JSON.stringify(sah)}`
+      );
+    }
+    assert.equal(
+      productSchema.safeParse({ ...PRODUK, [field]: [] }).success,
+      true,
+      `${field} kosong harus diterima`
+    );
+  }
+});
+
+test("harga acuan nol tetap boleh disimpan, negatif tidak", () => {
+  // default_price 0 berarti "belum ada harga acuan yang bisa
+  // dipertanggungjawabkan", bukan harga Rp0. Menolaknya di sisi tulis membuat
+  // produk yang sengaja dibiarkan tanpa harga mustahil diperbaiki dari portal,
+  // dan satu-satunya jalan yang tersisa adalah SQL.
+  assert.equal(
+    productSchema.safeParse({ ...PRODUK, default_price: 0 }).success,
+    true,
+    "harga acuan 0 harus bisa disimpan"
+  );
+  assert.equal(
+    productUpdateSchema.safeParse({ default_price: 0 }).success,
+    true,
+    "update dengan harga acuan 0 harus bisa disimpan"
+  );
+  // Batas bawahnya tetap di schema, jadi guard form dan schema tidak berbeda.
+  assert.equal(productSchema.safeParse({ ...PRODUK, default_price: -1 }).success, false);
+});
+
+test("form portal tidak menolak harga acuan nol", () => {
+  // Guard di halaman harus setuju dengan schema. Kalau halaman masih menolak
+  // 0, produk yang tidak bisa disimpan dari portal tetap tidak bisa.
+  const productsPage = readFileSync(
+    new URL("../src/app/(portal)/portal/products/page.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(
+    productsPage,
+    /Number\.isFinite\(defaultPrice\) \|\| defaultPrice < 0/,
+    "form harus menolak negatif, bukan nol"
+  );
+  assert.doesNotMatch(
+    productsPage,
+    /defaultPrice <= 0/,
+    "form tidak boleh menolak harga acuan 0"
+  );
+  // Petunjuk di bawah field supaya 0 terbaca sebagai pilihan yang disengaja.
+  assert.match(productsPage, /Isi 0 kalau harga acuannya belum tahu/);
+});
+
+test("galeri foto dan image_url memakai aturan yang sama", () => {
+  // Kalau ketiganya menangkap fungsi yang sama, daftar ini tidak mungkin
+  // berbeda. Test ini sengaja membandingkan hasilnya per nilai, bukan hanya
+  // menguji image_url seperti test lain di berkas ini.
+  const nilai = [
+    "/products/a.jpg",
+    "https://cdn.example.com/a.jpg",
+    "javascript:alert(1)",
+    "//evil.example/a.jpg",
+    "../../etc/passwd",
+    "products/a.jpg",
+    "notaurl",
+  ];
+  for (const satu of nilai) {
+    // image_url boleh kosong, jadi hanya yang tidak kosong yang dibandingkan.
+    const imageUrl = productSchema.safeParse({ ...PRODUK, image_url: satu }).success;
+    for (const field of FIELD_GALERI) {
+      assert.equal(
+        productSchema.safeParse({ ...PRODUK, [field]: [satu] }).success,
+        imageUrl,
+        `${field} dan image_url harus sepakat soal ${JSON.stringify(satu)}`
+      );
+    }
+  }
+});
+
+test("batas jumlah entri galeri tetap dijaga", () => {
+  for (const field of FIELD_GALERI) {
+    assert.equal(
+      productSchema.safeParse({ ...PRODUK, [field]: Array(10).fill("/products/a.jpg") }).success,
+      true,
+      `${field} harus menerima 10 entri`
+    );
+    assert.equal(
+      productSchema.safeParse({ ...PRODUK, [field]: Array(11).fill("/products/a.jpg") }).success,
+      false,
+      `${field} harus menolak 11 entri`
+    );
+  }
 });

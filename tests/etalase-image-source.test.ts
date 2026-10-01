@@ -200,8 +200,9 @@ test("galeri Oppo Reno 11 masih punya lebih dari satu foto setelah dipangkas", (
 });
 
 test("galeri Galaxy A55 hanya memuat dua render yang berbeda", () => {
-  // a55-3, a55-4, dan a55-5 terbukti potongan dari a55-1 dan a55-2, jadi
-  // lima official photos itu sebenarnya dua gambar.
+  // a55-3 dan a55-4 keduanya potongan dari a55-1 (a55-4 salinan a55-3),
+  // a55-5 potongan dari a55-2, jadi lima official photos itu sebenarnya
+  // dua gambar.
   const galeri = officialImages(mockData, "Galaxy A55 5G 8/256GB");
   assert.deepEqual(galeri, ["/products/a55-1.jpg", "/products/a55-2.jpg"]);
 });

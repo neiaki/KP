@@ -97,18 +97,77 @@ export function noUnitSectionCopy(locale: Locale): NoUnitSectionCopy {
 }
 
 /**
+ * Copy bagian model yang unitnya habis.
+ *
+ * Bagian ini berbeda dari noUnitSectionCopy, dan perbedaannya bukan gaya
+ * bahasa. Di sini tokonya sudah pernah menjual model ini, jadi "belum ada
+ * unit" akan berbohong. Yang jujur adalah modelnya pernah ada di rak dan
+ * sekarang tidak, dan itu juga yang harus dibaca pelanggan: barang ini bukan
+ * barang yang tidak pernah ada di sini.
+ */
+export type SoldOutSectionCopy = {
+  /** Label pada kartu, di atas nama model. */
+  badge: string;
+  heading: string;
+  intro: string;
+  /** Menjelaskan tombol WA bukan tombol beli. */
+  requestNote: string;
+  /** Penjelasan untuk angka default_price di kartu. */
+  priceCaveat: string;
+  /** Teks tombol WA. */
+  notifyLabel: string;
+};
+
+export function soldOutSectionCopy(locale: Locale): SoldOutSectionCopy {
+  return locale === "en"
+    ? {
+        badge: "Sold out",
+        heading: "Just sold out",
+        intro:
+          "The shop has had this model before, but there is no unit on the shelf right now, so it cannot be bought today.",
+        requestNote:
+          "The button only opens a WhatsApp chat. It asks to be told when a unit arrives, it is not an order.",
+        priceCaveat:
+          "A reference price, not the price the last unit went for. The selling price is set when the unit is registered.",
+        notifyLabel: "Ask me to notify",
+      }
+    : {
+        badge: "Stok habis",
+        heading: "Baru saja habis",
+        intro:
+          "Model ini pernah ada di toko, tapi sekarang tidak ada unitnya di rak, jadi hari ini belum bisa dibeli.",
+        requestNote:
+          "Tombolnya cuma membuka chat WhatsApp. Minta dikabari begitu unitnya masuk, bukan pesan beli.",
+        priceCaveat:
+          "Patokan harga acuan, bukan harga jual unit yang terakhir terjual. Harga jualnya baru ditentukan saat unit didaftarkan.",
+        notifyLabel: "Minta dikabari",
+      };
+}
+
+/**
  * Satu pesan chat yang siap dikirim ke nomor WhatsApp toko.
  *
  * Dua hal wajib terbaca oleh counter: model yang ditanyakan, dan bahwa unitnya
  * belum ada. Ditutup kalimat "Belum pesan" supaya chat yang masuk tidak dibaca
  * sebagai pesanan.
+ *
+ * `alasan` memilih kalimat pembuka yang jujur. "never_had_unit" dipakai untuk
+ * model yang belum pernah ada unitnya, "sold_out" untuk model yang pernah ada
+ * lalu habis. Default-nya "never_had_unit" supaya pemanggil yang lupa
+ * mengirim alasannya tetap dapat kalimat yang tidak mengarang.
  */
 export function buildNotifyMeMessage(opts: {
   locale: Locale;
   target: NotifyMeTarget;
+  alasan?: "never_had_unit" | "sold_out";
 }): string {
-  const { locale, target } = opts;
+  const { locale, target, alasan = "never_had_unit" } = opts;
   const model = `${target.brand} ${target.modelName}`;
+  if (alasan === "sold_out") {
+    return locale === "en"
+      ? `Hello At Cell, I saw ${model} in your catalog, but there is no unit of it on the shelf right now. Please notify me when one arrives. Not booking anything, just asking.`
+      : `Halo At Cell, saya lihat ${model} di katalog, tapi sekarang tidak ada unitnya di rak. Tolong kabari saya kalau sudah ada unitnya. Belum pesan, cuma mau tahu.`;
+  }
   return locale === "en"
     ? `Hello At Cell, I saw ${model} in your catalog, but there is no unit of it in the shop yet. Please notify me when one arrives. Not booking anything, just asking.`
     : `Halo At Cell, saya lihat ${model} di katalog, tapi unitnya belum ada di toko. Tolong kabari saya kalau sudah ada unitnya. Belum pesan, cuma mau tahu.`;
@@ -119,8 +178,13 @@ export function buildNotifyMeHref(opts: {
   locale: Locale;
   waNumber: string;
   target: NotifyMeTarget;
+  alasan?: "never_had_unit" | "sold_out";
 }): string {
-  const text = buildNotifyMeMessage({ locale: opts.locale, target: opts.target });
+  const text = buildNotifyMeMessage({
+    locale: opts.locale,
+    target: opts.target,
+    alasan: opts.alasan,
+  });
   return `https://wa.me/${opts.waNumber}?text=${encodeURIComponent(text)}`;
 }
 

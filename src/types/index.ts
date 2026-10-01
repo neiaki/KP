@@ -72,6 +72,20 @@ export interface Product {
   official_images?: string[];
   second_images?: string[];
   created_at: string;
+  /**
+   * True kalau produk ini punya atau pernah punya unit di inventaris,
+   * apa pun statusnya.
+   *
+   * Field ini yang membedakan "sudah pernah ada unitnya" dari "belum pernah
+   * ada unitnya sama sekali". Keduanya harus beda karena etalase publik hanya
+   * menerima unit berstatus available: tanpa penanda ini, produk yang unitnya
+   * sudah sold atau sedang in_service terlihat sama dengan produk yang belum
+   * pernah 등록, dan label "belum ada unit" jadi pernyataan yang salah.
+   *
+   * Wajib diisi di jalur publik (getPublicSnapshot). Di portal dan mode demo
+   * boleh undefined, karena kedua jalur itu memang melihat seluruh unit.
+   */
+  pernah_punya_unit?: boolean;
 }
 
 export interface InventoryUnit {

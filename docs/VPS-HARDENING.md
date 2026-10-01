@@ -44,8 +44,9 @@ ada container yang punya batas.
 |--------|-----|---------------------|
 | 1 | Panel Coolify terbuka ke internet | Satu login memberi akses ke seluruh deployment, env production, dan kunci Supabase. Kerusakan instan dan tidak ada jejak. |
 | 2 | Tidak ada batas resource, sudah 6 OOM kill | Melayani pelanggan, tapi dampaknya menumpuk dan sering baru terasa jauh kemudian. |
-| 3 | Traefik access logging mati | Tidak merusak apa pun hari ini, tapi membuat insiden berikutnya mustahil ditelusuri. |
-| 4 | Rutinitas operasional | Bukan celah keamanan, tapi satu-satunya cara agar tiga isu di atas ketahuan sebelum jadi besar. |
+| 3 | Traefik access logging | Sudah aktif per 2026-10-01, lihat bagian 3. |
+| 4 | Rutinitas operasional | Bukan celah keamanan, tapi satu-satunya cara agar isu di atas ketahuan sebelum jadi besar. |
+| 5 | SSH dijatahi brute-force | Area serang paling aktif di host ini, dan sudah pernah menyebabkan outage nyata. Sudah ditangani per 2026-10-01, lihat bagian 5. |
 
 ---
 
@@ -387,12 +388,53 @@ salah pilih.
 
 ---
 
-## 3. Traefik access logging mati
+## 3. Traefik access logging
 
-### Apa yang hilang
+### Kondisi setelah 2026-10-01: sudah aktif
 
-Access logging Traefik sedang nonaktif, dan tidak ada request log di mana pun
-di host. Akibatnya:
+Sudah diaktifkan dan sudah terbukti menulis. Yang berlaku sekarang:
+
+| Setting | Nilai | Kenapa |
+|---------|-------|--------|
+| Log path di host | `/var/log/traefik/access.log` | Bind mount `ro` dari compose proxy, jadi operator bisa `tail` tanpa `sudo` |
+| Format | `json` | `ClientHost` dan `RequestHost` terbaca tanpa parse teks |
+| Ukuran per baris | sekitar 809 byte, terukur | Dasar hitung biaya disk |
+| Rotasi | harian, `rotate 7`, `maxsize 100M`, kompres | Batas keras, bukan hopes-and-prayers |
+| Isi log | method, path, host, status, IP, ukuran, waktu | **Tidak** ada body request dan **tidak** ada header; sudah diverifikasi dengan `grep -iE 'authorization\|cookie'` yang mengembalikan nol |
+
+Perintah verifikasi, semuanya hanya baca:
+
+```bash
+# Menghitung pertumbuhan log.
+sudo wc -l /var/log/traefik/access.log
+
+# Distribusi status code, sumber utama untuk adjudicating item ini.
+sudo jq -r .OriginStatus /var/log/traefik/access.log | sort | uniq -c | sort -rn
+
+# Router mana yang melayani trafik.
+sudo jq -r .RouterName /var/log/traefik/access.log | sort | uniq -c | sort -rn
+```
+
+### Batasan yang harus diketahui: file compose proxy bisa ditimpa Coolify
+
+Access log adalah konfigurasi **statis** Traefik, jadi tidak bisa ditulis di
+`/data/coolify/proxy/dynamic/`. Flag-nya harus hidup di command container, dan
+command container berasal dari `/data/coolify/proxy/docker-compose.yml`.
+
+Kalau Coolify pernah menulis ulang file itu dari template-nya sendiri, flag
+`--accesslog` hilang dan logging mati lagi tanpa error yang kelihatan. Kalau
+itu terjadi, perbaikannya satu perintah:
+
+```bash
+# Hanya kalau /var/log/traefik/access.log tidak lagi bertambah.
+sudo docker compose -f /data/coolify/proxy/docker-compose.yml up -d
+```
+
+Cadangan compose sebelum perubahan ada di `/data/coolify/proxy/backups/`.
+
+### Apa yang hilang sebelum 2026-10-01
+
+Sebelum logging aktif, dan tidak ada request log di mana pun di host. Akibatnya:
 
 - tidak ada distribusi status code, sehingga tidak ada cara tahu apakah
   `/admin`, `/staff`, atau URL lain yang dulu menjadi soft 404 masih dibaca
@@ -408,10 +450,64 @@ di host. Akibatnya:
 Ini bukan celah yang mengekspos data. Ini kehilangan kemampuan untuk membuktikan
 apa yang terjadi.
 
-### Mengaktifkannya cara Traefik
+### Cara mengaktifkannya, dan apa yang benar-benar dipakai
 
 Traefik v3 mengaktifkan access log lewat konfigurasi **statis**, yaitu flag
-pada command container atau `traefik.yml`, bukan lewat label per-router.
+pada command container, bukan lewat label per-router dan bukan lewat file di
+`/dynamic/`. Yang dipakai di host ini adalah opsi 1, flag pada command
+container, karena itu satu-satunya tempat yang tidak butuh perubahan pada image
+Coolify. Alasannya sudah ditulis di bagian atas bagian ini.
+
+Yang penting dan tidak ada di runbook lama: **jangan pernah meregenerasi
+container proxy tanpa memvalidasi flag-nya lebih dulu, dan jangan pernah
+memvalidasi daftar flag yang ditulis tangan.** Traefik menolak opsi yang tidak
+dikenal dengan `failed to decode configuration from flags`, dan karena
+`restart: unless-stopped` ada di compose, container itu masuk crash-loop dan
+proxy hilang sama sekali. `--accesslog.redactheaders` dan
+`--accesslog.bufferSize` ternyata **tidak** valid di Traefik v3.6, dan
+`--providers.file.executable` juga tidak valid.
+
+Outage 10-10-2026 yang singkat itu **bukan** karena metode validasinya salah.
+Metodenya sudah benar dan sudah dipakai, `check-config` sudah gagal dengan
+menyebut `redactheaders`, tapi dua hal tetap keliru:
+
+1. Hasil validasi **tidak dipakai sebagai gerbang**. `docker compose up -d`
+   jalan tanpa syarat, padahal `rc=1` sudah tercetak di baris sebelumnya.
+2. Daftar flag yang divalidasi **ditulis tangan dan terpisah** dari daftar
+   flag yang benar-benar dipasang. Keduanya sudah berbeda sebelum pengujian,
+   jadi hijau di sana tidak membuktikan compose yang dipasang ikut teruji.
+
+Karena itu validasinya harus dua hal sekaligus: ambil daftar flag dari file
+compose itu sendiri, dan jadikan hasilnya syarat. Ganti seluruh blok
+`command:` dengan hasil ekstraksi:
+
+```bash
+# Flag diambil dari file compose yang nyata, bukan diketik ulang.
+sudo python3 - <<'PY'
+import re, sys
+src = open('/data/coolify/proxy/docker-compose.yml').read()
+block = re.search(r'command:\n((?:\s+-\s.*\n)+)', src).group(1)
+flags = re.findall(r"-\s*'([^']+)'", block)
+open('/tmp/traefik-flags.txt','w').write('\0'.join(flags))
+print(len(flags), 'flags extracted')
+PY
+
+# Validasi di container sekali jalan. Container production tidak tersentuh.
+docker run --rm -v /data/coolify/proxy:/traefik traefik:v3.6 \
+  xargs -0 -a /tmp/traefik-flags.txt check-config
+RC=$?
+
+# GERBANG. Tanpa baris ini validasi cuma saran, dan outage tetap mungkin.
+if [ "$RC" -ne 0 ]; then
+  echo "VALIDASI GAGAL, PROXY TIDAK DI-TOUCH"
+  exit 1
+fi
+
+sudo docker compose -f /data/coolify/proxy/docker-compose.yml up -d
+```
+
+Kalau blok di atas dipakai, daftar flag yang diuji dan yang dipasang dijamin
+sama, dan proxy tidak mungkin dibangun dari konfigurasi yang belum lolos cek.
 
 Lihat dulu konfigurasi yang sedang dipakai:
 
@@ -420,36 +516,25 @@ Lihat dulu konfigurasi yang sedang dipakai:
 docker inspect --format '{{json .Config.Cmd}}' coolify-proxy
 ```
 
-Berdasarkan hasil perintah itu, pilih salah satu:
-
-1. ** Lewat flag pada command container.** Tambahkan `--accesslog=true`,
-   `--accesslog.filepath=/var/log/traefik/access.log`, dan
-   `--accesslog.format=json` pada command Traefik. Cara ini yang paling
-   mudah, tapi hanya berlaku selama Coolify tidak meregenerasi container proxy.
-2. **Lewat `traefik.yml`**, yaitu letakkan konfigurasi statis di file, lalu arahkan
-   Traefik ke sana dengan `--configFile`). Lebih tahan terhadap regenerasi
-   Coolify, tapi perlu tahu di mana Coolify menyimpan file tersebut.
+Opsi kedua yang pernah dicoba di runbook lama, yaitu menaruh konfigurasi
+statis di `traefik.yml` dan mengarahkannya dengan `--configFile`, tidak
+dipakai di sini. Alasannya: flag `--configFile` itu sendiri tetap harus
+menempel di command container, jadi tidak ada yang benar-benar kebal
+regenerasi Coolify. Yang menambah lapisan masalah saja.
 
 Format `json` dipilih supaya log bisa dibaca dengan `jq` saat dicari, dan
-supaya `ClientHost` dan `RequestHost` tidak perlu diparse dari teks. Bandingkan
-dengan format `common` yang lebih murah dan memuat field yang sama dalam bentuk
-teks.
-
-Coolify menyediakan tempat untuk mengubah command container proxy di
-dashboardnya. Nama menu berbeda antar versi, jadi cari bagian container proxy
-atau **Traefik** di environment production, dan pastikan tidak mengubah
-upstream aplikasi saat menyentuh konfigurasi yang sama.
+supaya `ClientHost` dan `RequestHost` tidak perlu diparse dari teks.
 
 Setelah aktif, pastikan benar-benar menulis:
 
 ```bash
 # Membaca saja.
-docker exec coolify-proxy sh -lc 'ls -l /var/log/traefik/' 
-docker exec coolify-proxy sh -lc 'tail -n 3 /var/log/traefik/access.log'
+tail -n 3 /var/log/traefik/access.log
 ```
 
-Kalau file tidak muncul, periksa bahwa flag benar-benar masuk ke command
-container, bukan hanya ke file konfigurasi yang tidak dibaca.
+Kalau file tidak bertambah, periksa dua hal: flag benar-benar masuk ke command
+container, dan `docker ps --filter name=coolify-proxy` tidak sedang
+`Restarting`.
 
 ### Ukur dulu, lalu putuskan rotasi
 
@@ -466,24 +551,28 @@ direklamasi dari image lama plus build cache. Jadi rotasi bukan kondisi
 darurat, tapi logging tanpa rotasi adalah bom waktu yang tidak terlihat,
 karena file log tidak pernah muncul di `du` direktori home.
 
-Rekomendasi rotasi, setelah ukuran harian terukur:
+Rekomendasi rotasi, dan apa yang dipakai di host ini:
 
 - rotasi harian, karena pola trafik toko berubah antara pagi dan malam;
 - simpan 7 sampai 14 hari, cukup untuk menyelidiki insiden minggu lalu tanpa
   menyimpan data pelanggan lebih lama dari yang perlu;
 - kompres file yang sudah dirotasi, dan hapus yang sudah terkompresi lebih tua
   dari 30 hari;
-- salin ke luar host kalauinvestigasi insider menjadi kekhawatiran, karena log
+- salin ke luar host kalau investigasi insider menjadi kekhawatiran, karena log
   di host yang sama bisa ikut hilang bersama mesinnya.
 
-Contoh unit `logrotate`, **hanya sebagai kerangka**. Sesuaikan path dan nilainya
-setelah pengukuran, dan pastikan unit ini tidak ikut memutar log aplikasi yang
-sudah dikelola Coolify:
+Yang benar-benar terpasang ada di `/etc/logrotate.d/traefik`, dengan `rotate 7`
+dan `maxsize 100M`. `maxsize` sengaja ditambahkan di atas `daily`: `daily`
+sendiri tidak membatasi ukuran, jadi satu hari traffic alone bisa menulis
+miliaran byte, dan di host 1,9 GiB itu tidak bisa diasumsikan aman.
+
+Unit `logrotate` yang terpasang persis seperti ini, bukan contoh:
 
 ```text
 /var/log/traefik/access.log {
     daily
-    rotate 14
+    rotate 7
+    maxsize 100M
     compress
     delaycompress
     missingok
@@ -624,12 +713,108 @@ bertekanan dan container yang aktif perlu diperiksa, bukan di-restart.
 - Uptime 15,5 jam saat audit, dan `RestartCount=0` pada container aplikasi.
   Dua angka itu wajar setelah deploy, tapi `RestartCount` yang naik berulang
   tanpa deploy adalah tanda container yang tidak sehat.
+- Tabel `environment_variables` Coolify **tidak** menyimpan setiap variabel
+  production dua kali. Terbukti per 2026-10-01: 14 baris untuk 7 kunci, dan
+  seluruhnya milik satu aplikasi. Pecahnya adalah `is_preview`, yaitu tujuh
+  baris `false` untuk production dan tujuh baris `true` untuk preview.
+  `byte_identical_duplicate_groups` bernilai nol, dan tidak ada satu pun grup
+  dengan owner + kunci + `is_preview` yang sama lebih dari satu baris. Ada
+  laporan sebelumnya yang menyebut ini duplikat; laporan itu salah. Jangan
+  menghapus baris mana pun: baris `false` hilang berarti production kehilangan
+  `DATABASE_URL` dan kunci Supabase, baris `true` hilang berarti preview
+  kehilangan env-nya.
+
+---
+
+## 5. SSH dijatahi brute-force
+
+Sudah ditangani per 2026-10-01. Ini urutan masuknya, karena hampir semua host
+publik punya masalah ini dan hampir tidak ada yang menulis detailnya.
+
+### Gejalanya
+
+Audit dua jam pertama mencatat 202 baris `Failed password` atau
+`Invalid user`, dan `fail2ban` sama sekali tidak terpasang. `sshd` berjalan
+dengan `MaxStartups 10:30:100` dan `PerSourceMaxStartups none`.
+
+`PerSourceMaxStartups none` adalah bagian yang sebenarnya berbahaya. Tanpa itu,
+satu scanner dengan banyak koneksi paralel bisa menghabiskan seluruh
+jendela unautentikasi sendiri, dan setiap koneksi operator yang masuk
+selama itu akan di-drop secara acak. Di host ini sudah sampai ke outage
+nyata sekali.
+
+### Yang dipasang, dan pilihannya
+
+Semua perubahan sshd ada di satu drop-in,
+`/etc/ssh/sshd_config.d/60-bruteforce-resilience.conf`:
+
+| Setting | Nilai | Penalaran |
+|---------|-------|-----------|
+| `PerSourceMaxStartups` | `3` | Satu sumber maksimal punya 3 koneksi di jendela unautentikasi. Cukup untuk manusia, dan membuat sepuluh scanner hanya bisa mencapai 30 slot, bukan seluruh jendela |
+| `MaxStartups` | `50:30:100` | Mulai acak-drop di 50 koneksi unautentikasi, tolak semua di 100. Cukup jauh di atas 10 supaya burst scanner tidak mengunci operator, dan masih wajar untuk host 1,9 GiB |
+
+Nama file drop-in sengaja `60-`, bukan `99-`, karena `Include
+/etc/ssh/sshd_config.d/*.conf` ada di baris 24 `sshd_config`, yaitu **sebelum**
+badan file itu, dan OpenSSH memakai nilai pertama yang dibaca untuk satu
+keyword. Drop-in bernomor kecil menang atas file yang lebih besar.
+
+`fail2ban` dipasang dengan jail `sshd`, jail time 1 jam, find time 10 menit,
+maxretry 5, `backend = systemd`, ban lewat `nftables-multiport`. Ban pertama
+jatuh dalam beberapa menit setelah jail hidup, tanpa tindakan manual.
+
+### Yang melindungi operator, dan kenapa itu bukan kebetulan
+
+IP egress operator ada di `ignoreip` **sebelum** fail2ban dinyalakan:
+
+```bash
+# Membaca saja. Kalau IP operator tidak muncul di sini, ban itu tidak aman.
+sudo fail2ban-client get sshd ignoreip
+```
+
+`ignoreip` dievaluasi sebelum ban apa pun, jadi operator punya jaminan keras
+untuk tidak pernah di-ban, bukan sekadar kemungkinan kecil.
+
+Jangan pernah menjalankan `fail2ban-client` untuk pertama kalinya tanpa
+menulis `ignoreip` lebih dulu. Jail yang aktif dengan `ignoreip` kosong akan
+memban IP operator pada percobaan gagal pertama, dan pemulihannya butuh
+konsol provider.
+
+### Dua jebakan yang sudah memakan waktu sekali
+
+1. **Ekstensi jail.** `jail.conf` memuat `jail.d/*.conf`. File `.local` di
+   direktori yang sama **tidak** dibaca, dan fail2ban tidak complain apa pun
+   soal itu. Jail tetap jalan, dengan default yang salah. Setelah memasang,
+   selalu pastikan `ignoreip` benar-benar terisi di jail yang aktif.
+2. **Reload, jangan restart sshd.** `systemctl reload ssh` mempertahankan
+   sesi yang sedang berjalan, jadi sesi itu tetap lifeline kalau reload
+   ternyata gagal.
+
+### Verifikasi setelah perubahan
+
+```bash
+# Hanya membaca. Effective settings harus MaxStartups 50:30:100 dan
+# PerSourceMaxStartups 3.
+sudo sshd -T | grep -iE 'maxstartups|persourcemaxstartups'
+
+# Validasi selalu mendahului reload.
+sudo sshd -t && sudo systemctl reload ssh
+
+# Jail hidup dan IP operator ada di ignoreip.
+systemctl is-active fail2ban
+sudo fail2ban-client status sshd
+
+# Yang paling penting: buka sesi baru dari mesin operator setelah semua di atas.
+ssh ubuntu@<IP> 'hostname'
+```
+
+Kalau `sudo sshd -t` gagal, **jangan** reload. Hapus drop-in, validasi ulang,
+lalu perbaiki di luar jam sibuk.
 
 ---
 
 ## Belum ditangani dan masih terbuka
 
-Bagian ini sengaja tidak berisi rekomendasi, karena ketiganya butuh keputusan
+Bagian ini sengaja tidak berisi rekomendasi, karena isunya butuh keputusan
 manusia, bukan keputusan teknis yang bisa diambil dari dokumen.
 
 ### 1. Apakah panel Coolify perlu dibatasi sama sekali
@@ -668,9 +853,42 @@ hasil verifikasi skema wajib setelah `pg_restore`. Kalau jawabannya tidak
 ada, anggap rantai backup belum terbukti, dan jadwalkan restore test sebelum
 mempercayai backup untuk perubahan data yang merusak.
 
+### 4. Aplikasi Coolify kedua yang mati tapi masih listens webhook
+
+Ada dua baris di tabel `applications`. Yang kedua, `k-p:main-m4kmotlkecfl9hhudiwismzp`,
+berada di `exited`, tidak punya container, punya nol environment variable, dan
+**tidak pernah** punya satu pun job deploy. FQDN-nya masih berupa
+`sslip.io` yang memuat IP publik host.
+
+Yang membuat ini bukan sekadar sampah: `is_auto_deploy_enabled` untuk kedua
+baris bernilai `true`, dan keduanya naik dari repo dan branch yang sama.
+Coolify meneruskan satu event push ke setiap aplikasi yang cocok, jadi selama
+baris kedua masih ada, satu `git push` ke `main` adalah kandidat untuk memicu
+build di host 1,9 GiB ini, dan build di host inilah penyebab OOM kill
+terbesar di bagian 2. Aplikasi itu sendiri akan gagal start karena nol env,
+tapi build-nya sudah terlanjur berjalan dan sudah mengambil RAM-nya.
+
+Coolify tidak punya konsep "archive" untuk aplikasi. Yang ada hanya
+`deleted_at`, yaitu soft delete: baris tetap ada di database bersama settings
+dan env var-nya, tapi hilang dari dashboard dan tidak lagi dipakai untuk
+deploy. Dua opsi, urut dari paling reversibel:
+
+1. Set `is_auto_deploy_enabled` ke `false` pada baris tersebut. Satu flag,
+   sepenuhnya bisa dibalik, dan langsung menutup jalur yang dijelaskan
+   di atas.
+2. Soft delete lewat dashboard, yang mengisi `deleted_at`.
+
+Hard delete **jangan** dipakai sebelum opsi 1 dicoba, karena baris itu masih
+satu-satunya catatan bahwa pernah ada aplikasi kedua di host ini.
+
+Sebelum memutuskan, yang perlu dipastikan: apakah aplikasi kedua itu pernah
+sengaja dibuat, dan untuk apa. Kalau tidak ada yang mengingat, opsi 1 sudah
+cukup dan tidak ada yang hilang.
+
 ---
 
-Dokumen ini dibuat dari audit read-only. Tidak ada perintah di dalamnya yang
-sudah dijalankan oleh penulisnya. Semua angka runtime di atas berasal dari satu
-waktu pengukuran dan harus diverifikasi ulang sebelum dijadikan dasar
-keputusan.
+Dokumen ini dimulai dari audit read-only. Sebagian perintahnya sudah
+dijalankan sejak itu, dan bagian yang sudah dikerjakan menandainya dengan
+tanggal dan menyebut apa yang benar-benar terpasang. Semua angka runtime di
+atas berasal dari satu waktu pengukuran dan harus diverifikasi ulang sebelum
+dijadikan dasar keputusan.
