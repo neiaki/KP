@@ -301,7 +301,7 @@ tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
 terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
 
 `supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
-satu berkas urut, tujuh belas bagian, untuk project yang belum punya skema
+satu berkas urut, dua puluh lima bagian, untuk project yang belum punya skema
 sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya: bagian 1
 (`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket Storage.
 Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali paste
