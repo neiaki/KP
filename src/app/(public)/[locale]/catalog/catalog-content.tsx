@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
@@ -49,6 +49,13 @@ export function CatalogContent({ locale }: { locale: Locale }) {
   );
 
   /*
+   * `DitulisSendiri` menyimpan query string terakhir yang ditulis efek di bawah, jadi
+   * efek pembacaan URL bisa membedakan tulisan kita sendiri dari navigasi yang
+   * datang dari tempat lain.
+   */
+  const DitulisSendiri = useRef<string | null>(null);
+
+  /*
    * Status filter ditulis balik ke query string.
    *
    * Sebelumnya `useState(searchParams.get(...))` hanya dibaca satu kali lalu
@@ -79,10 +86,48 @@ export function CatalogContent({ locale }: { locale: Locale }) {
     const berikutnya = params.toString();
     const sekarang = window.location.search;
     if (berikutnya === sekarang.replace(/^\?/, "")) return;
+    DitulisSendiri.current = berikutnya;
     router.replace(`${url.pathname}${berikutnya ? `?${berikutnya}` : ""}`, {
       scroll: false,
     });
   }, [search, selectedBrand, selectedCondition, sortOrder, router]);
+
+  /*
+   * Query string dibaca balik ke state.
+   *
+   * `useState(searchParams.get(...))` hanya berjalan di render pertama.
+   * Navigasi klien yang mengganti query string, misalnya tombol Back, tautan
+   * `?cond=new` di footer, atau tautan katalog di navbar, hanya mengubah URL.
+   * Akibatnya state tetap memakai nilai render pertama: address bar menulis
+   * `/id/catalog` tanpa filter, sementara etalase masih menampilkan hanya
+   * Apple. Alamat yang di-bookmark atau dibagikan membuka tampilan yang
+   * berbeda dari yang dilihat pengguna, dan tombol Back tidak membatalkan
+   * filter.
+   *
+   * Arah ini hanya dipakai kalau URL berubah karena navigasi dari luar. Kalau
+   * perubahannya adalah tulisan efek di atas, nilainya dicocokkan dengan
+   * `DitulisSendiri` dan efek ini dilewati, supaya keduanya tidak saling
+   * menimpa.
+   */
+  const KunciUrl = searchParams.toString();
+  useEffect(() => {
+    if (KunciUrl === DitulisSendiri.current) {
+      DitulisSendiri.current = null;
+      return;
+    }
+
+    const params = new URLSearchParams(KunciUrl);
+    const brand = (params.get("brand") || "").trim();
+    const cond = params.get("cond") || "";
+    const sort = params.get("sort") || "";
+
+    setSearch(params.get("q") || "");
+    setSelectedBrand(products.some((p) => p.brand === brand) ? brand : "all");
+    setSelectedCondition(cond === "new" || cond === "second" ? cond : "all");
+    setSortOrder(
+      sort === "lowest" || sort === "highest" || sort === "az" ? sort : "newest"
+    );
+  }, [KunciUrl, products]);
 
   const availableUnits = sellableUnits(inventoryUnits);
   const noUnitCopy = noUnitSectionCopy(locale);
