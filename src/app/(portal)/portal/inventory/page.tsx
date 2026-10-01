@@ -3,24 +3,20 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "@/context/store-context";
 import { unitLabel } from "@/lib/shop";
-import { formatIDR, formatDate } from "@/lib/utils";
+import { formatIDR } from "@/lib/utils";
 import { UnitCondition, UnitStatus } from "@/types";
 import {
   PackagePlus,
   Search,
-  Filter,
-  Layers,
   AlertCircle,
   CheckCircle2,
   Barcode,
-  Smartphone,
-  Plus,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 /* Daftar chip filter status unit.
    Tipenya Record<UnitStatus, string> supaya tsc gagal kalau enum UnitStatus

@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { useStore } from "@/context/store-context";
 import { UserRole } from "@/types";
-import { Users, UserPlus, ShieldCheck, ShoppingBag, Wrench, User, X } from "lucide-react";
+import { UserPlus, ShieldCheck, ShoppingBag, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "@/components/portal/role-badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 /* Nilai enum peran dari database ditampilkan apa adanya, jadi "technician"
    bocor ke layar. Sama seperti peta di portal-sidebar. */
