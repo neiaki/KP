@@ -239,6 +239,42 @@ export function listSoldOutProducts(
 }
 
 /**
+ * Saring daftar produk dengan aturan yang sama seperti `filterItems`.
+ *
+ * `filterItems` menyaring kartu Ready Stock yang basisnya unit, sedangkan
+ * `newProducts` bentuknya `Product[]`, jadi keduanya tidak bisa lewat fungsi itu
+ * dan sebelumnya dikembalikan polos tanpa filter. Akibatnya di katalog memilih
+ * "Apple" masih muncul kartu Samsung, dan pencarian yang tidak cocok apa pun
+ * masih menampilkan "Baru saja habis" serta "Baru masuk katalog" sambil grid
+ * utama menulis "Tidak ada yang cocok".
+ *
+ * Sigunya sengaja dibuat sama persis dengan `filterItems` supaya dua tempat itu
+ * tidak bisa berbeda dalam semantik, dan test bisa memanggil keduanya dengan
+ * argumen yang sama.
+ */
+export function filterProducts(
+  products: Product[],
+  opts: { brand: string; condition: string; query: string }
+): Product[] {
+  const q = opts.query.trim().toLowerCase().replace(/\s+/g, " ");
+  return products.filter((p) => {
+    if (opts.brand !== "all" && p.brand !== opts.brand) return false;
+    // Kondisi tidak bisa ditebak dari produk tanpa unit: yang ada di tangan
+    // hanya `pernah_punya_unit`, bukan status unit Ready Stock. Jadi filter
+    // kondisi sengaja TIDAK berlaku di sini, dan hanya merek serta kata kunci
+    // yang menyaring. Model second hasil tukar tambah dan model baru bisa
+    // sama-sama berada di kedua daftar ini, jadi menerapkan kondisi akan
+    // menyembunyikan produk yang sebenarnya cocok.
+    if (q === "") return true;
+    return (
+      p.model_name.toLowerCase().includes(q) ||
+      p.brand.toLowerCase().includes(q) ||
+      p.specs.toLowerCase().includes(q)
+    );
+  });
+}
+
+/**
  * Unit yang benar-benar bisa dijual hari ini.
  *
  * Halaman yang membuat kartu etalase wajib lewat sini, bukan memfilter
