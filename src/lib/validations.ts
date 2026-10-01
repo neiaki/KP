@@ -90,6 +90,32 @@ export const staffInviteSchema = customerSignUpSchema.extend({
 const rupiah = (label: string) =>
   z.coerce.number().min(0, `${label} tidak boleh negatif.`).max(999_999_999_999, `${label} terlalu besar.`);
 
+/**
+ * Apakah angka ini layak disimpan sebagai `products.default_price`.
+ *
+ * Nol itu sah dan punya arti khusus: "harga acuan model ini belum dikonfirmasi",
+ * bukan "harga Rp0". Produk hasil tukar tambah sering dimulai di kondisi itu karena
+ * angkanya harus diisi staf yang tahu, dan tidak ada yang boleh mengarangnya.
+ * Yang ditolak hanya angka negatif dan nilai yang bukan number finite, karena
+ * keduanya tidak punya makna sebagai harga patokan.
+ *
+ * Fungsi ini dideklarasikan supaya form portal bisa memanggilnya. Sebelumnya
+ * penjagaannya inline di dalam komponen React, jadi tidak ada satu pun test
+ * yang bisa mengunci aturannya, dan mengubah `defaultPrice < 0` menjadi
+ * `defaultPrice <= 0` akan lolos tanpa apa pun yang memberitahu. Gejalanya
+ * persis bug yang sudah pernah terjadi: produk yang sengaja dibiarkan tanpa
+ * harga tidak bisa disimpan dari portal, dan satu-satunya jalan untuk
+ * memperbaikinya adalah SQL.
+ *
+ * Batas atas tidak diperiksa di sini. Schema `productSchema` yang menegakkan
+ * batas 999_999_999_999; fungsi ini hanya menjawab "boleh atau tidak nilai ini
+ * secara bermakna sebagai harga", supaya form bisa menolak lebih dulu tanpa
+ * perlu meniru seluruh aturan schema.
+ */
+export function hargaAcuanLayak(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
 // Registrasi batch IMEI di bawah katalog produk (Sales). FR-A-01.
 export const registerUnitsSchema = z
   .object({
