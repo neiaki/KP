@@ -60,7 +60,13 @@ export default function MasterProductsPage() {
     setBrand("Apple");
     setModelName("");
     setSpecs("");
-    setDefaultPrice(10000000);
+    // Nol, sama seperti useState di atas. Versi lama mengisi 10.000.000, dan
+    // angka itu bukan harga, itu karangan. Staf yang membuka form, mengetik nama
+    // model, lalu menyimpan tanpa menyentuh field harga akan menyimpan
+    // Rp10.000.000 sebagai harga acuan unit yang tidak pernah ia harga.
+    // Tidak ada yang menyadari, karena angkanya terlihat seperti harga asli di
+    // etalase, dan halaman publik hanya menyembunyikan baris harga saat nilainya nol.
+    setDefaultPrice(0);
     setImageUrl("");
     setShowAddModal(true);
   };
