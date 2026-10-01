@@ -3,7 +3,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import { eq, isNotNull, sql } from "drizzle-orm";
-import { getDb } from "@/db/client";
+import { getDb, dbBatch } from "@/db/client";
 import {
   inventoryUnits as inventoryUnitsTable,
   productImages as productImagesTable,
@@ -263,14 +263,15 @@ const PESAN_GAGAL_SNAPSHOT = "Data publik sedang tidak dapat dimuat.";
  * lempar yang sama, sehingga semuanya bisa diulang dengan aturan yang sama.
  */
 async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
-  const [settingsResult, inventoryResult, productRows, everHadRows] = await Promise.all([
-    getPublicStoreSettings(),
-    getPublicInventory({ limit: 500 }),
-    db
-      .select()
-      .from(productsTable)
-      .where(eq(productsTable.isActive, true))
-      .orderBy(productsTable.createdAt),
+  const [settingsResult, inventoryResult, productRows, everHadRows] = await dbBatch([
+    () => getPublicStoreSettings(),
+    () => getPublicInventory({ limit: 500 }),
+    () =>
+      db
+        .select()
+        .from(productsTable)
+        .where(eq(productsTable.isActive, true))
+        .orderBy(productsTable.createdAt),
     /*
      * Product mana yang punya atau pernah punya unit, apa pun statusnya.
      *
@@ -286,10 +287,11 @@ async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
      * tidak ada nama pelanggan, jadi yang terkirim ke browser tetap tidak
      * memuat PII unit.
      */
-    db
-      .selectDistinct({ productId: inventoryUnitsTable.productId })
-      .from(inventoryUnitsTable)
-      .where(isNotNull(inventoryUnitsTable.productId)),
+    () =>
+      db
+        .selectDistinct({ productId: inventoryUnitsTable.productId })
+        .from(inventoryUnitsTable)
+        .where(isNotNull(inventoryUnitsTable.productId)),
   ]);
   if ("error" in settingsResult) throw new Error(settingsResult.error);
   if ("error" in inventoryResult) throw new Error(inventoryResult.error);
@@ -372,7 +374,33 @@ export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>>
   if (kuota) return fail(kuota);
   const db = getDb();
   if (!db) return backendOffline();
-  const hasil = await attemptWithRetry(() => bacaSnapshot(db));
-  if (!hasil.ok) return fail(pesanError(hasil.error, PESAN_GAGAL_SNAPSHOT));
-  return ok(hasil.value);
+
+  /*
+   * Pembacaan yang sama dipakai bersama ketika sedang berjalan.
+   *
+   * Satu render halaman publik memakai delapan query. Kalau delapan pengunjung
+   * datang bersamaan, permintaannya jadi 64 query, dan itu jauh melewati pool
+   * yang tersedia. postgres.js tidak menguras antrean query yang menunggu
+   * koneksi kecuali socket connect atau ditutup, jadi permintaan yang
+   * antre tidak dilayani sampai koneksi berikutnya idle lewat idle_timeout.
+   * Gejalanya terlihat di produksi pada 29 September 2026 dan diuji ulang
+   * secara lokal pada 1 Oktober 2026: delapan request bersamaan selesai dalam 10
+   * sampai 20 detik, bukan 1 detik seperti satu request.
+   *
+   * Di sini permintaan yang datang saat pembacaan masih berjalan ikut memakai
+   * hasilnya. Bedanya cuma beberapa ratus milidetik dan tidak ada data basi
+   * yang dipoleskan; yang hilang hanya query yang tidak perlu diulang.
+   */
+  const berjalan = bacaSnapshotBerjalan ?? (bacaSnapshotBerjalan = bacaSnapshot(db));
+  try {
+    const hasil = await attemptWithRetry(() => berjalan);
+    if (!hasil.ok) return fail(pesanError(hasil.error, PESAN_GAGAL_SNAPSHOT));
+    return ok(hasil.value);
+  } finally {
+    // Hanya pembacaan yang dimulai di sini yang boleh membersihkan cache.
+    // Pembacaan bersama oleh permintaan lain tidak mengosongkan apa pun.
+    if (bacaSnapshotBerjalan === berjalan) bacaSnapshotBerjalan = undefined;
+  }
 }
+
+let bacaSnapshotBerjalan: Promise<PublicSnapshot> | undefined;

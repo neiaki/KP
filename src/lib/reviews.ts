@@ -9,16 +9,31 @@
  * data LocalBusiness ikut memancarkan aggregateRating dari angka yang sama,
  * jadi Google menerima angka lama itu sebagai data resmi toko.
  *
- * Sekarang tidak ada data manual. Tanpa GOOGLE_PLACES_API_KEY, fungsi ini
- * mengembalikan null, dan ReviewsSection memakai fallback yang jujur
- * ("Pernah belanja di sini? Ceritakan") plus tombol menuju Google Maps.
- * buildAggregateRating() di src/app/sitemap.ts sudah Discard nilai null
- * begitu juga, jadi tanpa key halaman tidak memancarkan rating apa pun.
+ * Sekarang tidak ada data manual di berkas ini. Tanpa GOOGLE_PLACES_API_KEY,
+ * fungsi ini memakai snapshot di src/lib/ulasan-manual.ts; kalau snapshotnya
+ * kosong atau sudah basi, hasilnya null dan ReviewsSection memakai fallback
+ * yang jujur ("Pernah belanja di sini? Ceritakan") plus tombol menuju Google
+ * Maps. buildAggregateRating() di src/app/sitemap.ts membuang nilai null begitu
+ * juga, jadi tanpa sumber yang bisa dipercaya halaman tidak memancarkan
+ * rating apa pun.
  *
  * Konsekuensinya bagian ulasan di beranda menjadi lebih sedikit. Itu pilihan
  * yang benar: angka yang benar lebih berharga daripada angka yang bagus tapi
  * salah.
+ *
+ * Yang berubah lagi: semua jalur yang mengembalikan null sekarang menulis
+ * alasannya ke log server. Tanpa itu, "ulasan hilang" terlihat persis seperti
+ * "belum ada ulasan", dan tidak ada yang tahu env var-nya salah. Satu kali per
+ * proses, bukan satu kali per request, supaya log tidak dibanjiri: setiap
+ * halaman publik dan sitemap memanggil fungsi ini.
+ *
+ * Fallback tanpa API key bukan blok data yang ditulis mati di berkas ini,
+ * tapi snapshot di src/lib/ulasan-manual.ts: ulasannya asli, ada tanggal
+ * penyalinannya, dan ada batas umur. API key yang aktif selalu menang, jadi
+ * begitu Places API siap, file snapshot tinggal ditinggalkan.
  */
+
+import { getSnapshotUlasan } from "./ulasan-manual.ts";
 
 export interface GoogleReview {
   author: string;
@@ -54,18 +69,77 @@ function ratingValid(rating: unknown): rating is number {
   return typeof rating === "number" && Number.isFinite(rating) && rating >= 1 && rating <= 5;
 }
 
+/*
+ * Alasan kegagalan dilaporkan sekali per proses. Env container dibaca sekali
+ * juga, jadi kalau GOOGLE_PLACES_API_KEY kosong, setiap render beranda akan
+ * mengambil jalur yang sama dan log akan penuh dengan baris yang sama tanpa
+ * menambah informasi apa pun. Di Vercel satu proses hanya melayani satu
+ * request, jadi satu baris per request justru yang diinginkan: log tidak
+ * hilang bersama instance.
+ */
+const sudahDilaporkan = new Set<string>();
+
+function laporkan(alasan: string, detail?: string): null {
+  if (sudahDilaporkan.has(alasan)) return null;
+  sudahDilaporkan.add(alasan);
+  console.warn(`[reviews] ${alasan}${detail ? `: ${detail}` : ""}`);
+  return null;
+}
+
+/**
+ * Snapshot manual dipakai baik saat key tidak ada maupun saat key ada tapi
+ * Places API sedang bermasalah. Alasan keduanya sama saja: yang penting angka
+ * di halaman tetap berasal dari salinan Google Maps, bukan dari karangan, dan
+ * snapshot itu sendiri sudah dating serta ada batas umurnya.
+ *
+ * Bentuk balikannya discriminated supaya pemanggil bisa menulis alasan
+ * kegagalan ke log tanpa memanggil getSnapshotUlasan() dua kali.
+ */
+function snapshotJikaSiap(): { data: GoogleReviewsData } | { alasan: string } {
+  const snapshot = getSnapshotUlasan();
+  if (snapshot.status !== "siap") return { alasan: snapshot.alasan };
+  // url dari Google hanya ada kalau snapshot mengisinya. Kalau kosong,
+  // ReviewsSection memakai tautan "Google Reviews" sebagai href, dan href
+  // kosong membuat tombolnya tidak mengarah ke mana pun.
+  return { data: { ...snapshot.data, url: snapshot.data.url || MAPS_URL } };
+}
+
+/** Fallback diam-diam untuk jalur API yang gagal: null kalau tidak ada snapshot. */
+function denganSnapshot(): GoogleReviewsData | null {
+  const hasil = snapshotJikaSiap();
+  return "data" in hasil ? hasil.data : null;
+}
+
 export async function getGoogleReviews(): Promise<GoogleReviewsData | null> {
   const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) return null;
+  if (!key) {
+    // Tanpa API key, snapshot manual yang dipakai. Kalau snapshotnya kosong
+    // atau sudah lewat batas umur, hasilnya tetap null supaya ReviewsSection
+    // menampilkan fallback yang jujur, bukan angka yang sudah tidak benar.
+    const snapshot = snapshotJikaSiap();
+    if ("data" in snapshot) return snapshot.data;
+    return laporkan(
+      `GOOGLE_PLACES_API_KEY kosong, jadi memakai ulasan manual. ${snapshot.alasan}`,
+      `PLACE_ID=${PLACE_ID}`
+    );
+  }
 
   try {
     const res = await fetch(
       `${API}/details/json?place_id=${encodeURIComponent(PLACE_ID)}` +
         `&fields=name,rating,user_ratings_total,reviews,url&language=id&key=${key}`,
-      { next: { revalidate: 86400 } }
+      {
+        next: { revalidate: 86400 },
+        // Tanpa batas waktu, satu koneksi ke Google yang lambat menahan
+        // render halaman ini sampai Vercel memutuskan function-nya terlalu
+        // lama. statement_timeout tidak menutup ini karena tidak ada statement
+        // yang sedang berjalan.
+        signal: AbortSignal.timeout(8000),
+      }
     );
     const json = (await res.json()) as {
       status?: string;
+      error_message?: string;
       result?: {
         name?: string;
         rating?: number;
@@ -81,9 +155,24 @@ export async function getGoogleReviews(): Promise<GoogleReviewsData | null> {
       };
     };
 
-    if (json?.status !== "OK" || !json.result) return null;
+    if (json?.status !== "OK" || !json.result) {
+      // Status Places API yang sering muncul: REQUEST_DENIED (API belum
+      // diaktifkan, billing mati, atau kunci dibatasi), NOT_FOUND (Place ID
+      // salah), ZERO_RESULTS, OVER_QUERY_LIMIT.
+      laporkan(
+        `Google Places API tidak mengembalikan OK (status=${json?.status ?? "tidak ada"})`,
+        json?.error_message
+      );
+      return denganSnapshot();
+    }
     const result = json.result;
-    if (!ratingValid(result.rating)) return null;
+    if (!ratingValid(result.rating)) {
+      laporkan(
+        "Rating dari Places API di luar rentang 1..5, jadi dibuang",
+        String(result.rating)
+      );
+      return denganSnapshot();
+    }
 
     // Ulasan tanpa teks tidak pernah ditampilkan: ReviewsSection memakai
     // {r.text || " "} dan itu merender kartu kosong tanpa informasi apa pun.
@@ -108,9 +197,12 @@ export async function getGoogleReviews(): Promise<GoogleReviewsData | null> {
       url: result.url || MAPS_URL,
       reviews,
     };
-  } catch {
-    // Jaringan atau parsing gagal. Null membuat halaman jatuh ke fallback
-    // yang jujur, sama seperti saat API key belum diisi.
-    return null;
+  } catch (error) {
+    // Jaringan atau parsing gagal.
+    laporkan(
+      "Gagal menghubungi Google Places API",
+      error instanceof Error ? error.message : String(error)
+    );
+    return denganSnapshot();
   }
 }

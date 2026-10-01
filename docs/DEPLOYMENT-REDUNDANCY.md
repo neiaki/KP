@@ -108,11 +108,24 @@ Wajib ada di production:
 
 Opsional, tapi kosong berarti fitur tertentu mati:
 
-- `GOOGLE_PLACES_API_KEY` untuk sync ulasan Google. Kosong hanya mematikan
-  auto-sync, bukan halaman ulasan.
+- `GOOGLE_PLACES_API_KEY` untuk sync ulasan Google. Kosong **matikan bagian
+  ulasan sepenuhnya**, bukan cuma auto-sync: `getGoogleReviews()` langsung
+  mengembalikan null, jadi beranda menampilkan kartu "Tulis Review" dan
+  structured data berhenti memancarkan `aggregateRating`. Gejalanya sama
+  dengan "belum ada ulasan", jadi diagnosisnya selalu cek dua tempat:
+  `curl https://atcell.my.id/api/reviews` harus mengembalikan
+  `{"ok":true,...}`, dan `docker logs` memuat baris `[reviews] ...` yang
+  menyebut variabel atau status Places API yang salah. Ini yang terjadi di
+  produksi pada 1 Oktober 2026: key tidak pernah diisi di Coolify.
 - `GOOGLE_PLACE_ID` untuk memilih toko yang diulas. Ada nilai bawaan di
   `src/lib/reviews.ts`, jadi tidak wajib diisi kalau toko tidak pernah
   berubah.
+- Tanpa `GOOGLE_PLACES_API_KEY`, ulasannya diambil dari snapshot manual di
+  `src/lib/ulasan-manual.ts`: salinan dari halaman Google Maps, bertanggal, dan
+  punya batas umur `SNAPSHOT_MAKS_UMUR_HARI` (180 hari). Lewat batas itu
+  snapshot diabaikan, kartu "Tulis Review" muncul lagi, dan `aggregateRating`
+  berhenti dipancarkan, supaya angka lama tidak bertahan sebagai data resmi.
+  Cara memperbaruinya ada di komentar berkas itu.
 - `NEXT_PUBLIC_SITE_URL` atau `SITE_URL` untuk URL kanonik di `sitemap.ts`.
   Kosong membuat sitemap memakai URL yang dikarang, bukan domain produksi.
 - `SERVER_ACTIONS_ALLOWED_ORIGINS` untuk origin tambahan Server Actions,

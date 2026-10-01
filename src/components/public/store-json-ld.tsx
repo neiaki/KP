@@ -1,6 +1,7 @@
 import React from "react";
 import { getPublicImageUrls, getPublicStoreSettings } from "@/lib/actions/public";
 import { getGoogleReviews } from "@/lib/reviews";
+import { dbBatch } from "@/db/client";
 import { SITE_ORIGIN, STORE_IMAGE_PATH, buildLocalBusinessJsonLd } from "@/app/sitemap";
 
 /*
@@ -21,14 +22,37 @@ import { SITE_ORIGIN, STORE_IMAGE_PATH, buildLocalBusinessJsonLd } from "@/app/s
  */
 
 export async function StoreJsonLd() {
-  const [settingsResult, reviews, imageUrls] = await Promise.all([
-    // getPublicStoreSettings() mengembalikan { ok: false } saat backend mati,
-    // bukan melempar, tapi panggilan tetap dibungkus catch supaya satu
-    // kegagalan jaringan tidak menjatuhkan seluruh render layout.
-    getPublicStoreSettings().catch(() => null),
-    getGoogleReviews().catch(() => null),
-    getPublicImageUrls().catch((): Record<string, string> => ({})),
-  ]);
+  // Ulasan diambil di luar batch dengan sengaja: getGoogleReviews() bicara
+  // dengan Google lewat jaringan, bukan dengan database. Kalau ikut di dalam
+  // batch, satu fetch yang lambat ke Google menahan antrean database instance
+  // itu tanpa batas, dan tidak ada penjaga yang memotongnya.
+  const reviewsP = getGoogleReviews().catch(() => null);
+
+  // dbBatch, bukan Promise.all: komponen ini dirender bersamaan dengan page
+  // dan layout, jadi dua dari dua panggilan di bawah bisa menyentuh database
+  // pada waktu yang sama.
+  //
+  // try/catch di luar bukan hiasan. catch di dalam langkah hanya menutup galat
+  // yang dilempar langkah itu sendiri; langkah yang ditolak karena batas waktu
+  // dbBatch melempar dari luar langkah, jadi tanpa try di sini satu markup
+  // JSON-LD yang bersifat tambahan bisa menjatuhkan seluruh halaman. Komponen
+  // ini memang wajar mengembalikan null: tanpa structured data, halaman tetap
+  // benar, hanya Google yang tidak membaca nomor tokomu.
+  let settingsResult: Awaited<ReturnType<typeof getPublicStoreSettings>> | null = null;
+  let imageUrls: Record<string, string> = {};
+  try {
+    [settingsResult, imageUrls] = await dbBatch([
+      // getPublicStoreSettings() mengembalikan { ok: false } saat backend mati,
+      // bukan melempar, tapi panggilan tetap dibungkus catch supaya satu
+      // kegagalan jaringan tidak menjatuhkan seluruh render layout.
+      () => getPublicStoreSettings().catch(() => null),
+      () => getPublicImageUrls().catch((): Record<string, string> => ({})),
+    ]);
+  } catch {
+    settingsResult = null;
+    imageUrls = {};
+  }
+  const reviews = await reviewsP;
 
   const settings = settingsResult?.ok ? settingsResult.data : null;
   if (!settings) return null;
