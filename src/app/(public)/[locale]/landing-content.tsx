@@ -8,15 +8,22 @@ import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
 import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
 import { cleanWaNumber } from "@/lib/wa";
-import { formatIDR } from "@/lib/utils";
 import {
   toCardItem,
   filterItems,
   sortItems,
   shortIDR,
   listProductsWithoutUnits,
+  sellableUnits,
+  isRealPhoto,
   type SortOrder,
 } from "@/lib/shop";
+import {
+  buildNotifyMeHref,
+  noUnitSectionCopy,
+  notifyMeTargetFrom,
+  referencePriceNote,
+} from "@/lib/catalogue-notify";
 import {
   Wrench,
   ShieldCheck,
@@ -30,6 +37,7 @@ import {
   ExternalLink,
   ReceiptText,
   ClipboardCheck,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +49,36 @@ import { StockFilter } from "@/components/public/stock-filter";
 import { StoreMap } from "@/components/public/store-map";
 import { BrandMarquee } from "@/components/public/brand-marquee";
 import { ButtonLink } from "@/components/button-link";
+import type { Product } from "@/types";
+
+/**
+ * Foto kartu produk yang tidak punya unit. Aturannya sama persis dengan
+ * toCardItem, yang hanya dipakai untuk unit yang masih bisa dijual:
+ * official_images yang lolos isRealPhoto menang, lalu image_url, lalu tidak
+ * ada foto sama sekali. Nilai mentah dari database tidak pernah masuk ke
+ * atribut src, termasuk "javascript:", "//host", dan string
+ * "undefined/storage/..." yang dulu ikut terkirim ke setiap pengunjung.
+ */
+function cardPhoto(p: Product): string | undefined {
+  const official = (p.official_images ?? []).filter(isRealPhoto);
+  if (official.length > 0) return official[0];
+  return isRealPhoto(p.image_url) ? p.image_url : undefined;
+}
+
+/**
+ * Kartu tanpa foto yang bisa dirender. Sama persis dengan fallback di
+ * ProductCard supaya kedua jalur etalase tidak berbeda tampilan.
+ */
+function PhotoFallback({ locale }: { locale: Locale }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted">
+      <Smartphone className="h-10 w-10" strokeWidth={1.25} />
+      <p className="text-[11px] font-bold">
+        {locale === "en" ? "Photo coming soon" : "Foto menyusul"}
+      </p>
+    </div>
+  );
+}
 
 /**
  * Slide hero sebelum alamat filenya diselesaikan. photo adalah kunci di
@@ -66,8 +104,9 @@ export function LandingContent({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
-  const availableInventory = inventoryUnits.filter((u) => u.status === "available");
+  const availableInventory = sellableUnits(inventoryUnits);
   const waNumber = cleanWaNumber(storeSettings.whatsapp_number);
+  const noUnitCopy = noUnitSectionCopy(locale);
 
   const catalogList = sortItems(
     filterItems(
@@ -103,22 +142,14 @@ export function LandingContent({
           ? "Hello At Cell, notify me when the iPhone 18 Pro is ready."
           : "Halo At Cell, kabari saya kalau iPhone 18 Pro sudah ready.",
     },
-    {
-      photo: "products/iphone-duo.jpg",
-      alt:
-        locale === "en"
-          ? "iPhone Duo, the first foldable iPhone, coming soon"
-          : "iPhone Duo, iPhone lipat pertama, segera hadir",
-      model: "iPhone Duo",
-      fact:
-        locale === "en"
-          ? "First foldable iPhone, 7.6 inch inner display. Pre-order Oct 16, Indonesia later."
-          : "iPhone lipat pertama, layar dalam 7,6 inci. Pre-order 16 Okt, Indonesia menyusul.",
-      waMessage:
-        locale === "en"
-          ? "Hello At Cell, notify me when the iPhone Duo is ready."
-          : "Halo At Cell, kabari saya kalau iPhone Duo sudah ready.",
-    },
+    // Slide "iPhone Duo" sengaja tidak ada. Satu-satunya foto untuk nama itu
+    // menunjukkan dua iPhone slab biasa: tidak ada engsel dan tidak ada layar
+    // dalam, jadi caption "iPhone lipat pertama, layar dalam 7,6 inci" tidak
+    // cocok dengan yang terlihat. Menukar captionnya jadi "dua iPhone biasa"
+    // membuat slide segera hadir yang tidak menjelaskan produk apa pun, sedangkan
+    // mengganti fotonya berarti mengarang gambar perangkat lipat yang belum ada
+    // di repo. Slot perangkat lipat sudah dipakai Galaxy Z Fold 8 dan
+    // Galaxy Z Flip 8. Berkasnya tetap ada di public/products/.
     {
       photo: "products/galaxy-s26.jpg",
       alt:
@@ -373,23 +404,26 @@ export function LandingContent({
         {newProducts.length > 0 && (
           <div className="mt-8">
             <h3 className="max-w-xl text-xl font-extrabold tracking-tight text-ink">
-              {locale === "en" ? "New in catalog" : "Baru masuk katalog"}
+              {noUnitCopy.heading}
             </h3>
             <p className="mt-1 max-w-xl text-[13px] text-muted">
-              {locale === "en"
-                ? "No unit registered yet. Ask to be notified when the first unit arrives."
-                : "Unitnya belum didaftarkan. Minta dikabari saat unit pertama masuk."}
+              {noUnitCopy.intro}
+            </p>
+            <p className="mt-1 max-w-xl text-[13px] text-muted">
+              {noUnitCopy.requestNote}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {newProducts.map((p) => {
-                const img =
-                  (p.official_images && p.official_images[0]) || p.image_url;
+                const img = cardPhoto(p);
+                const target = notifyMeTargetFrom(p);
+                const harga = referencePriceNote(p.default_price, locale);
                 return (
                   <article
                     key={p.id}
                     className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
                   >
                     <div className="relative aspect-[4/3] overflow-hidden bg-paper">
+                      {!img && <PhotoFallback locale={locale} />}
                       {img && (
                         <Image
                           fill
@@ -402,26 +436,36 @@ export function LandingContent({
                     </div>
                     <div className="flex flex-1 flex-col p-4">
                       <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
-                        {locale === "en" ? "Sold out" : "Stok habis"}
+                        {noUnitCopy.badge}
                       </p>
                       <h4 className="text-[15px] font-extrabold leading-snug text-ink">
                         {p.brand} {p.model_name}
                       </h4>
-                      <p className="mt-1 text-[13px] font-bold text-muted">
-                        {locale === "en" ? "Catalog price" : "Harga katalog"}{" "}
-                        {formatIDR(p.default_price)}
-                      </p>
-                      <a
-                        href={`https://wa.me/${waNumber}?text=${encodeURIComponent(
-                          `Halo At Cell, kabari saya kalau ${p.brand} ${p.model_name} sudah ada unitnya.`
-                        )}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        {locale === "en" ? "Notify me" : "Kabari saya"}
-                      </a>
+                      {harga && (
+                        <>
+                          <p className="mt-1 text-[13px] font-bold text-muted">
+                            {harga}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
+                            {noUnitCopy.priceCaveat}
+                          </p>
+                        </>
+                      )}
+                      {target && (
+                        <a
+                          href={buildNotifyMeHref({
+                            locale,
+                            waNumber,
+                            target,
+                          })}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          {noUnitCopy.notifyLabel}
+                        </a>
+                      )}
                     </div>
                   </article>
                 );

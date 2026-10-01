@@ -5,6 +5,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { inventoryUnits, products, type InventoryUnitRow } from "@/db/schema";
 import {
+  bolehTeknisiSetUnitStatus,
   registerUnitsSchema,
   updateUnitStatusSchema,
   type RegisterUnitsInput,
@@ -131,7 +132,21 @@ export async function registerUnits(
   }
 }
 
-/** Mutasi status unit (reserved/in_service/returned/dll). Jual via POS, bukan di sini. */
+/**
+ * Mutasi status unit (reserved/in_service/returned/dll). Jual via POS, bukan di sini.
+ *
+ * Daftar peran di sini sengaja lebih longgar daripada matriks route di
+ * src/lib/access.ts, dan selisihnya disengaja: /portal/inventory hanya untuk
+ * admin dan sales, sementara Server Action adalah endpoint HTTP dan route
+ * guard sama sekali tidak menyentuhnya. Action inilah batasnya.
+ *
+ * Yang dibatasi adalah statusnya, bukan perannya. Teknisi tetap boleh menarik
+ * unit masuk dan keluar dari in_service karena itu pekerjaannya, tetapi tidak
+ * boleh menulis available karena status itu yang menerbitkan unit ke etalase
+ * publik lewat v_public_inventory, dan tidak boleh menulis reserved karena itu
+ * keputusan penjualan. Daftar yang mengikat ada di UNIT_STATUS_OLEH_TEKNISI
+ * (src/lib/validations.ts).
+ */
 export async function updateUnitStatus(
   raw: UpdateUnitStatusInput
 ): Promise<ActionResult<InventoryUnit>> {
@@ -141,6 +156,12 @@ export async function updateUnitStatus(
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Status tidak valid.");
   if (parsed.data.status === "sold") {
     return fail("Status sold hanya boleh lewat transaksi POS agar nota tercatat.");
+  }
+  if (
+    guard.profile.role === "technician" &&
+    !bolehTeknisiSetUnitStatus(parsed.data.status)
+  ) {
+    return fail("Peran technician hanya boleh menukar unit ke in_service atau returned.");
   }
   const db = getDb();
   if (!db) return backendOffline();

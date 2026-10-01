@@ -1,4 +1,5 @@
 import { formatIDR } from "./utils.ts";
+import { referencePriceOf } from "./catalogue-notify.ts";
 import type { InventoryUnit, Product, UnitTag } from "@/types";
 import type { ProductCardItem } from "@/components/public/product-card";
 
@@ -16,8 +17,37 @@ export type SortOrder = "newest" | "lowest" | "highest" | "az";
    acak dari internet. */
 const DUMMY_HOSTS = ["images.unsplash.com", "picsum.photos", "placehold.co", "via.placeholder.com"];
 
-function isRealPhoto(src: string | undefined | null): src is string {
-  return !!src && !DUMMY_HOSTS.some((h) => src.includes(h));
+/**
+ * Nilai foto harus benar-benar bisa dirender, bukan sekadar string.
+ *
+ * Filter versi lama hanya memblokir empat host placeholder dan tidak pernah
+ * memeriksa bentuk nilainya, jadi
+ * "undefined/storage/v1/object/public/product-images/products/placeholder.svg"
+ * lolos ke etalase. String itu hasil template literal yang host Storage-nya
+ * tidak terisi, jadi ikut terpaket ke browser di setiap halaman.
+ *
+ * Dua bentuk yang sah tetap diterima: URL http/https yang bisa di-parse, dan
+ * path same-origin seperti "/products/iphone-13-1.jpg" yang dipakai mode lokal.
+ * "//host/path" tidak boleh ikut lolos karena dibaca browser sebagai
+ * protocol-relative URL ke host lain, bukan path di server sendiri.
+ */
+function isUsablePhoto(src: string): boolean {
+  if (src.startsWith("//")) return false;
+  if (src.startsWith("/")) return true;
+  try {
+    const url = new URL(src);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function isRealPhoto(src: string | undefined | null): src is string {
+  if (typeof src !== "string") return false;
+  const value = src.trim();
+  if (value === "") return false;
+  if (DUMMY_HOSTS.some((h) => value.includes(h))) return false;
+  return isUsablePhoto(value);
 }
 
 /* Rp8.499.000 menjadi Rp8,5 jt untuk headline yang ringkas */
@@ -92,10 +122,19 @@ export function toCardItem(
     brand: product?.brand || "HP",
     modelName: product?.model_name || "Smartphone",
     specs: product?.specs || "",
-    images: unit.condition === "new" ? official : used,
+    images: unit.condition === "new" ? officialOrFallback : used,
     condition: unit.condition,
     price,
-    newPrice: unit.condition === "second" ? product?.default_price : undefined,
+    // newPrice hanya boleh isi kalau produknya punya harga acuan yang
+    // benar-benar positif. Unit trade-in bisa punya produk yang default_price-nya
+    // masih 0 karena toko belum menetapkan harga unit barunya, dan angka nol
+    // itu akan tampil sebagai "Barunya Rp0" di sebelah harga jual yang
+    // sebenarnya. referencePriceOf dipakai supaya kartu unit second dan kartu
+    // model tanpa unit memakai aturan yang sama.
+    newPrice:
+      unit.condition === "second"
+        ? referencePriceOf(product?.default_price)
+        : undefined,
     monthly: Math.round(price / 12),
     created_at: unit.created_at,
     tag: tagForUnit(unit, allUnits),
@@ -148,6 +187,18 @@ export function listProductsWithoutUnits(
   return products.filter(
     (p) => !allUnits.some((u) => u.product_id === p.id)
   );
+}
+
+/**
+ * Unit yang benar-benar bisa dijual hari ini.
+ *
+ * Halaman yang membuat kartu etalase wajib lewat sini, bukan memfilter
+ * status sendiri di tiap file. Kalau suatu halaman lupa filter status, unit
+ * sold atau in_service ikut tampil seolah-olah bisa dibeli, dan produk yang
+ * belum punya unit apa pun ikut terhitung tersedia.
+ */
+export function sellableUnits(allUnits: InventoryUnit[]): InventoryUnit[] {
+  return allUnits.filter((u) => u.status === "available");
 }
 
 export function filterItems(

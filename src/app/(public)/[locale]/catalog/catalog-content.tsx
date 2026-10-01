@@ -15,8 +15,48 @@ import {
   filterItems,
   sortItems,
   listProductsWithoutUnits,
+  sellableUnits,
+  isRealPhoto,
   type SortOrder,
 } from "@/lib/shop";
+import {
+  buildNotifyMeHref,
+  noUnitSectionCopy,
+  notifyMeTargetFrom,
+  referencePriceNote,
+} from "@/lib/catalogue-notify";
+import type { Product } from "@/types";
+
+/**
+ * Foto kartu produk yang tidak punya unit: kartu "Belum ada unit" dan kartu
+ * "Baru saja habis".
+ *
+ * Aturannya sama persis dengan toCardItem, yang hanya dipakai untuk unit yang
+ * masih bisa dijual: official_images yang lolos isRealPhoto menang, lalu
+ * image_url, lalu tidak ada foto sama sekali. Nilai mentah dari database
+ * tidak pernah masuk ke atribut src, termasuk "javascript:", "//host", dan
+ * string "undefined/storage/..." yang dulu ikut terkirim ke setiap pengunjung.
+ */
+function cardPhoto(p: Product): string | undefined {
+  const official = (p.official_images ?? []).filter(isRealPhoto);
+  if (official.length > 0) return official[0];
+  return isRealPhoto(p.image_url) ? p.image_url : undefined;
+}
+
+/**
+ * Kartu tanpa foto yang bisa dirender. Sama persis dengan fallback di
+ * ProductCard supaya kedua jalur etalase tidak berbeda tampilan.
+ */
+function PhotoFallback({ locale }: { locale: Locale }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted">
+      <Smartphone className="h-10 w-10" strokeWidth={1.25} />
+      <p className="text-[11px] font-bold">
+        {locale === "en" ? "Photo coming soon" : "Foto menyusul"}
+      </p>
+    </div>
+  );
+}
 
 export function CatalogContent({ locale }: { locale: Locale }) {
   const { products, inventoryUnits, storeSettings } = useStore();
@@ -32,7 +72,8 @@ export function CatalogContent({ locale }: { locale: Locale }) {
   );
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
-  const availableUnits = inventoryUnits.filter((u) => u.status === "available");
+  const availableUnits = sellableUnits(inventoryUnits);
+  const noUnitCopy = noUnitSectionCopy(locale);
 
   const soldOutProducts = products
     .map((p) => {
@@ -112,8 +153,7 @@ export function CatalogContent({ locale }: { locale: Locale }) {
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {soldOutProducts.map(({ product: p, sold }) => {
-                const img =
-                  (p.official_images && p.official_images[0]) || p.image_url;
+                const img = cardPhoto(p);
                 const lastPrice = sold[0].selling_price;
                 return (
                   <article
@@ -121,6 +161,7 @@ export function CatalogContent({ locale }: { locale: Locale }) {
                     className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
                   >
                     <div className="relative aspect-[4/3] overflow-hidden bg-paper">
+                      {!img && <PhotoFallback locale={locale} />}
                       {img && (
                         <Image
                           fill
@@ -162,25 +203,28 @@ export function CatalogContent({ locale }: { locale: Locale }) {
         )}
 
         {newProducts.length > 0 && (
-          <section aria-label={locale === "en" ? "Coming soon" : "Segera hadir"} className="mt-10">
+          <section aria-label={noUnitCopy.heading} className="mt-10">
             <h2 className="max-w-xl text-2xl font-extrabold tracking-tight text-ink">
-              {locale === "en" ? "New in catalog" : "Baru masuk katalog"}
+              {noUnitCopy.heading}
             </h2>
             <p className="mt-1 max-w-xl text-[13px] text-muted">
-              {locale === "en"
-                ? "No unit registered yet. Ask to be notified when the first unit arrives."
-                : "Unitnya belum didaftarkan. Minta dikabari saat unit pertama masuk."}
+              {noUnitCopy.intro}
+            </p>
+            <p className="mt-1 max-w-xl text-[13px] text-muted">
+              {noUnitCopy.requestNote}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {newProducts.map((p) => {
-                const img =
-                  (p.official_images && p.official_images[0]) || p.image_url;
+                const img = cardPhoto(p);
+                const target = notifyMeTargetFrom(p);
+                const harga = referencePriceNote(p.default_price, locale);
                 return (
                   <article
                     key={p.id}
                     className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]"
                   >
                     <div className="relative aspect-[4/3] overflow-hidden bg-paper">
+                      {!img && <PhotoFallback locale={locale} />}
                       {img && (
                         <Image
                           fill
@@ -193,7 +237,7 @@ export function CatalogContent({ locale }: { locale: Locale }) {
                     </div>
                     <div className="flex flex-1 flex-col p-4">
                       <p className="mb-2 inline-flex w-fit items-center rounded-full bg-ink px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-paper">
-                        {locale === "en" ? "Sold out" : "Stok habis"}
+                        {noUnitCopy.badge}
                       </p>
                       <h3 className="text-[15px] font-extrabold leading-snug text-ink">
                         {p.brand} {p.model_name}
@@ -201,21 +245,31 @@ export function CatalogContent({ locale }: { locale: Locale }) {
                       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
                         {p.specs}
                       </p>
-                      <p className="mt-1 text-[13px] font-bold text-muted">
-                        {locale === "en" ? "Catalog price" : "Harga katalog"}{" "}
-                        {formatIDR(p.default_price)}
-                      </p>
-                      <a
-                        href={`https://wa.me/${cleanWa}?text=${encodeURIComponent(
-                          `Halo At Cell, kabari saya kalau ${p.brand} ${p.model_name} sudah ada unitnya.`
-                        )}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        {locale === "en" ? "Notify me" : "Kabari saya"}
-                      </a>
+                      {harga && (
+                        <>
+                          <p className="mt-1 text-[13px] font-bold text-muted">
+                            {harga}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
+                            {noUnitCopy.priceCaveat}
+                          </p>
+                        </>
+                      )}
+                      {target && (
+                        <a
+                          href={buildNotifyMeHref({
+                            locale,
+                            waNumber: cleanWa,
+                            target,
+                          })}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          {noUnitCopy.notifyLabel}
+                        </a>
+                      )}
                     </div>
                   </article>
                 );

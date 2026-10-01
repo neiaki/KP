@@ -1,16 +1,12 @@
 // Build file root. File ini hanya menjaga versi plugin Android dan Gradle
 // supaya build di mesin mana pun menghasilkan APK dengan toolchain yang sama.
 //
-// Repository ada di sini dan di app/build.gradle. jcenter() tidak dipakai
-// sama sekali: JFrog menutupnya pada 2022, dan repository yang mati membuat
-// build berhenti dengan pesan yang tidak menjelaskan penyebab sebenarnya.
-// google() dipakai untuk Android Gradle Plugin, mavenCentral() untuk androidx
-// dan library TWA.
-repositories {
-    google()
-    mavenCentral()
-}
-
+// Repository tidak dideklarasikan di sini. Gradle hanya mengizinkan
+// pluginManagement {}, buildscript {}, dan plugins {} sebelum blok plugins,
+// jadi blok repositories di file ini akan menggagalkan build dengan pesan
+// yang tidak menyebut file mana yang bermasalah. Repository dikelola di
+// settings.gradle lewat dependencyResolutionManagement, yang berlaku untuk
+// semua modul sekaligus.
 plugins {
     id 'com.android.application' version '8.9.1' apply false
 }

@@ -21,11 +21,16 @@ import { StoreMap } from "@/components/public/store-map";
 const BRANDS = ["Apple", "Samsung", "Xiaomi", "Oppo", "Vivo"];
 
 /**
- * Foto konter memakai path yang sama dengan registry product_images, jadi
- * alamatnya ikut diambil dari database. Kalau registry tidak punya path-nya,
- * path lokal dipakai sebagai cadangan.
+ * Foto produk untuk halaman ini memakai path yang sama dengan registry
+ * product_images, jadi alamatnya ikut diambil dari database. Kalau registry
+ * tidak punya path-nya, path lokal dipakai sebagai cadangan.
+ *
+ * Pilihannya foto produk yang isinya cocok dengan nama filenya, bukan foto
+ * berlabel iPhone yang sebenarnya menampilkan Galaxy Note. Caption di
+ * bawahnya juga tidak mengklaim foto ini diambil di konter, karena tidak ada
+ * bukti itu: yang diketahui cuma produk apa yang terjual di toko.
  */
-const COUNTER_PHOTO = "products/iphone-15-pro-2.jpg";
+const STORE_PHOTO = "products/iphone-13-2.jpg";
 
 export function AboutContent({
   locale,
@@ -94,19 +99,15 @@ export function AboutContent({
             <Image
               width={1280}
               height={720}
-              src={imageUrls[COUNTER_PHOTO] ?? `/${COUNTER_PHOTO}`}
-              alt={
-              locale === "en"
-              ? "A phone unit displayed at the At Cell counter"
-              : "Unit HP yang dipajang di konter At Cell"
-              }
+              src={imageUrls[STORE_PHOTO] ?? `/${STORE_PHOTO}`}
+              alt={locale === "en" ? "iPhone 13 sold at At Cell" : "iPhone 13 yang dijual At Cell"}
               className="aspect-[16/9] w-full object-cover"
             />
           </div>
           <figcaption className="mt-2 text-[13px] text-muted">
             {locale === "en"
-              ? "One of the display units at the counter. Hold it first before you decide."
-              : "Salah satu unit display di konter. Pegang dulu sebelum memutuskan."}
+              ? "iPhone 13, one of the models we sell. Try it at the counter before you decide."
+              : "iPhone 13, salah satu tipe yang kami jual. Coba dulu di konter sebelum memutuskan."}
           </figcaption>
         </figure>
 

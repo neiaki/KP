@@ -17,6 +17,8 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `SECRET-ROTATION.md` | Urutan mengganti secret yang pernah bocor, lengkap dengan verifikasi | **Acuan operasional** |
 | `CSP.md` | Cara kerja Content-Security-Policy berbasis nonce, daftar directive yang dipakai, dan alasan setiap keputusan | **Acuan keamanan** |
 | `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |
+| `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unit pertama arrive | **Acuan operasional** |
+| `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
 
 ## Diagram
 
@@ -46,11 +48,18 @@ plantuml -tpng -tsvg docs/*.puml
 
 ## Keputusan produk (29 Sep 2026)
 
-- Etalase unit-driven: produk baru tanpa unit kini tetap tampil dengan label
-  Stok Habis di bagian Baru masuk katalog (katalog dan beranda), harga dari
-  `default_price`, tombol Kabari saya via WA. Helper
-  `listProductsWithoutUnits` di `src/lib/shop.ts` dikunci
-  `tests/etalase-empty-product.test.ts`.
+- Etalase unit-driven: produk tanpa unit tetap tampil di bagian Baru masuk
+  katalog (katalog dan beranda) dengan badge "Belum ada unit", bukan "Stok
+  habis", karena model itu belum pernah punya unit dan bukan turun dari rak.
+  Harga ditulis sebagai perkiraan saat unitnya masuk, bukan harga jual, dan
+  baris harganya disembunyikan kalau `default_price` kosong atau nol. Tombol
+  Minta dikabari membangun pesan lewat `buildNotifyMeHref` di
+  `src/lib/catalogue-notify.ts`, yang menyebut model yang sedang dilihat.
+  Helper `listProductsWithoutUnits` di `src/lib/shop.ts` dikunci
+  `tests/etalase-empty-product.test.ts`, sedangkan copy publik dan panduan
+  konsekuensi di portal dikunci `tests/catalogue-notify.test.ts` dan
+  `tests/catalogue-no-unit-portal.test.ts`.
+  Dokumen stafnya `PUBLIKASI-MODEL-TANPA-STOK.md`.
 - Peringatan anti-scam di `/payment` dipertahankan. Copy ID/EN sudah kasual,
   aktif, dan tanpa em-dash, jadi tidak diubah.
 - Home button dan APK: 10 varian di `design-taste-frontend/` memang tidak
