@@ -148,11 +148,42 @@ test("route memakai helper murni dan tidak hoard logika sendiri", () => {
   );
 });
 
+test("sidik jari tidak memakai prefix NEXT_PUBLIC_ yang membekukan nilainya", () => {
+  // getNextPublicEnvironmentVariables di Next.js hanya memasukkan key yang ADA
+  // di process.env waktu build, dan DefinePlugin tidak pernah punya definisi
+  // untuk process.env utuh. Jadi begitu ANDROID_APP_SHA256 ikut terbawa ke
+  // tahap build, nilanya ter-inline ke dalam bundle dan perubahan sidik jari
+  // di env container berikutnya tidak akan pernah terbaca. Route ini
+  // force-dynamic justru supaya pembacaannya runtime, jadi prefix NEXT_PUBLIC_
+  // di sini membatalkan tujuannya sendiri.
+  const route = readFileSync(
+    new URL("../src/app/.well-known/assetlinks.json/route.ts", import.meta.url),
+    "utf8"
+  );
+  assert.ok(
+    route.includes("process.env.ANDROID_APP_SHA256"),
+    "route wajib membaca ANDROID_APP_SHA256, nama ini yang dipakai .env.example"
+  );
+  assert.ok(
+    !route.includes("NEXT_PUBLIC_ANDROID_APP_SHA256"),
+    "route tidak boleh memakai prefix NEXT_PUBLIC_ untuk sidik jari: nilainya " +
+      "akan membeku saat build dan tidak lagi bisa dirotasi tanpa build ulang"
+  );
+
+  // Dockerfile dan workflow hanya meneruskan dua build-arg. Kalau variabel ini
+  // tidak sengaja ditambahkan ke sana, nilainya akan ikut membeku diam-diam.
+  const dockerfile = readFileSync(new URL("../Dockerfile", import.meta.url), "utf8");
+  assert.ok(
+    !dockerfile.includes("ANDROID_APP_SHA256"),
+    "ANDROID_APP_SHA256 tidak boleh jadi ARG build: route membacanya saat runtime"
+  );
+});
+
 test("env contoh menyebut variabel dan file yang benar", () => {
   const env = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
   assert.ok(
-    env.includes("NEXT_PUBLIC_ANDROID_APP_SHA256="),
-    ".env.example wajib menyebut NEXT_PUBLIC_ANDROID_APP_SHA256, kalau tidak " +
+    env.includes("ANDROID_APP_SHA256="),
+    ".env.example wajib menyebut ANDROID_APP_SHA256, kalau tidak " +
       "tidak ada yang tahu variabel ini harus diisi"
   );
   assert.ok(

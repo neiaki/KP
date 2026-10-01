@@ -83,8 +83,10 @@ OFFSITE_STAGING_DIR=
 OFFSITE_KEEP_ENCRYPTED=
 
 # Verifikasi aplikasi Android. Wajib diisi kalau my.id.atcell sudah ada
-# release, kosongkan kalau belum pernah ada APK.
-NEXT_PUBLIC_ANDROID_APP_SHA256=
+# release, kosongkan kalau belum pernah ada APK. Sengaja tanpa prefix
+# NEXT_PUBLIC_ supaya nilainya dibaca dari env container saat runtime, bukan
+# membeku di dalam bundle saat build.
+ANDROID_APP_SHA256=
 ```
 
 Wajib ada di production:

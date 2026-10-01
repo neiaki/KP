@@ -16,7 +16,22 @@ export const runtime = "nodejs";
 
 export function GET() {
   const statements = buildAssetLinks(
-    parseCertFingerprints(process.env.NEXT_PUBLIC_ANDROID_APP_SHA256)
+    /*
+     * Env ini SENGAJA tanpa prefix NEXT_PUBLIC_.
+     *
+     * Next.js hanya meng-inline prefix itu kalau variabelnya sudah ada saat
+     * `next build` (lihat getNextPublicEnvironmentVariables di
+     * node_modules/next/dist/lib/static-env.js: hanya key yang ada di
+     * process.env waktu build yang masuk DefinePlugin). Kalau someday variabel
+     * ini ikut terbawa ke tahap build, nilainya membeku di dalam bundle dan
+     * env container yang baru tidak akan pernah dibaca lagi. Itu persis
+     * kebalikan dari force-dynamic di atas, yang gunanya supaya sidik jari
+     * baru berlaku tanpa build ulang.
+     *
+     * Sidik jari sertifikat bukan rahasia dan route ini hanya dibaca server,
+     * jadi tidak ada alasan membuatnya bisa dijangkau browser.
+     */
+    parseCertFingerprints(process.env.ANDROID_APP_SHA256)
   );
 
   return NextResponse.json(statements, {
