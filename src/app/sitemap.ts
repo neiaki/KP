@@ -609,9 +609,16 @@ export function buildOpeningHoursSpecification(
 
 /*
  * Foto resmi toko untuk structured data. Aset ini sudah dipakai di halaman
- * tentang sebagai foto konter, jadi tidak menambahkan path baru.
+ * tentang, jadi tidak menambahkan path baru.
+ *
+ * Pilihannya foto produk yang isinya benar-benar cocok dengan nama filenya.
+ * Versi lama memakai iphone-15-pro-2.jpg, padahal fotonya tangan memegang
+ * Galaxy Note yang sedang menulis lingkaran dengan S Pen, di atas layar
+ * bertuliskan Circle to Search. Itu membuat Google menerima bukti yang
+ * bertentangan dengan klaim toko ini berjualan iPhone 15 Pro. Toko belum
+ * punya foto interiors, jadi yang jujur tetap foto produk asli.
  */
-export const STORE_IMAGE_PATH = "products/iphone-15-pro-2.jpg";
+export const STORE_IMAGE_PATH = "products/iphone-13-2.jpg";
 
 /**
  * Terjemahkan lokasi aset jadi URL absolut.

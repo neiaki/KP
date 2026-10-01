@@ -31,7 +31,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ButtonLink } from "@/components/button-link";
 
 export default function TechnicianServicePage() {
-  const { serviceTickets, updateServiceTicket, currentRole } = useStore();
+  const { serviceTickets, updateServiceTicket, inventoryUnits, updateUnitStatus, currentRole } =
+    useStore();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -61,6 +62,48 @@ export default function TechnicianServicePage() {
 
   const MAX_COST_ITEMS = 50;
   const MAX_PHOTOS = 10;
+
+  /*
+   * Unit inventaris yang terhubung dengan tiket ini.
+   *
+   * service_tickets tidak punya kolom unit_id, jadi satu-satunya penghubung
+   * yang benar adalah IMEI: tiket yang bring-device punya imei_or_sn yang sama
+   * dengan unit di inventaris, dan itulah angka yang menempel di perangkatnya.
+   * Cocokkan dibuat persis setelah trim, bukan dengan endsWith atau contains,
+   * supaya unit yang kebetulan punya digit serupa tidak ikut berubah statusnya.
+   *
+   * Control ini ada karena /portal/inventory hanya untuk admin dan sales
+   * (src/lib/access.ts), jadi tanpa sini teknisi tidak punya jalan masuk maupun
+   * jalan keluar dari in_service sama sekali, dan unit yang sudah selesai
+   * diperbaiki menggantung sampai orang lain turun tangan.
+   */
+  const imeiTiket = selectedTicket?.imei_or_sn?.trim() ?? "";
+  const unitTiket = imeiTiket
+    ? inventoryUnits.find((unit) => unit.imei === imeiTiket)
+    : undefined;
+
+  /**
+   * Hanya dua status di sini: in_service untuk masuk dan returned untuk keluar.
+   * Itu persis UNIT_STATUS_OLEH_TEKNISI di src/lib/validations.ts, jadi
+   * halaman ini tidak pernah bisa meminta status yang akan ditolak gerbang
+   * di sisi server. available sengaja tidak ada di sini justru karena
+   * status itu menerbitkan unit ke etalase publik.
+   */
+  const handleUnitService = async (status: "in_service" | "returned") => {
+    if (!unitTiket) return;
+    try {
+      await updateUnitStatus(unitTiket.id, status);
+      setNotice({
+        type: "success",
+        text: `Unit ${unitTiket.imei} ditandai ${status}.`,
+      });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "Gagal mengubah status unit.",
+      });
+    }
+  };
 
   /**
    * Rincian harus sama dengan yang ditagihkan, jadi begitu ada baris
@@ -462,6 +505,54 @@ export default function TechnicianServicePage() {
                 <strong className="break-all font-mono text-ink">{selectedTicket.imei_or_sn}</strong>
               </div>
             </div>
+
+            {/* Unit inventaris milik tiket ini. Hanya dirender kalau ada
+                unit dengan IMEI yang sama, jadi tiket servis untuk perangkat
+                milik pelanggan (bukan stok toko) tidak pernah menampilkan
+                kontrol yang tak berguna. */}
+            {unitTiket && (
+              <div className="mx-3 mb-1 rounded-lg border border-line bg-paper p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="block text-xs text-muted">Unit inventaris:</span>
+                    <strong className="font-mono text-ink">{unitTiket.imei}</strong>
+                    <span className="ml-2 text-xs text-muted">
+                      status sekarang: {unitTiket.status}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {unitTiket.status === "sold" ? (
+                      <span className="text-xs text-muted">
+                        Unit sudah sold dan terminal, statusnya tidak bisa diubah.
+                      </span>
+                    ) : (
+                      <>
+                        {unitTiket.status !== "in_service" && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => void handleUnitService("in_service")}
+                          >
+                            <Wrench className="mr-2 h-4 w-4" />
+                            Masukkan servis
+                          </Button>
+                        )}
+                        {unitTiket.status === "in_service" && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => void handleUnitService("returned")}
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Selesai, dikembalikan
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <form
               id="ticket-workbench-form"

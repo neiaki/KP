@@ -2,10 +2,22 @@ name: Security
 
 # Pemeriksaan keamanan dependensi.
 #
-# Dois workflow yang ada hanya berjalan saat ada push ke main, jadi lockfile
-# yang tidak berubah tidak pernah dipindai ulang. Advisory baru terhadap versi
-# yang sudah dipin tidak akan pernah terlihat tanpa commit baru. Jadwal
-# mingguan di bawah menutup celah itu.
+# Tiga pemicu di bawah punya tiga tugas yang berbeda dan sengaja tidak
+# digabung:
+#
+# - pull_request: umpan balik cepat. PR yang menurunkan `next` ke versi lama
+#   langsung terlihat sebelum di-merge, dan itu jalur yang paling sering dipakai.
+# - push ke main: deteksi, bukan pencegahan. Github menjalankan workflow
+#   pull_request dari merge commit, jadi PR yang sekaligus menurunkan versi DAN
+#   menghapus langkah "Check next version floor" di bawah akan lolos: yang
+#   dijalankan adalah berkas yang sudah dihapus itu. Menjalankan workflow yang
+#   sama pada commit main yang sudah ter-merge tidak mencegah apa pun, tapi
+#   membuat hasilnya langsung terlihat di riwayat build main, bukan menunggu
+#   jadwal mingguan. Pencegahan sebenarnya ada di .github/CODEOWNERS, yang
+#   meminta persetujuan kedua untuk edit di .github/workflows/.
+# - schedule: advisory baru terhadap versi yang sudah dipin tidak akan pernah
+#   terlihat tanpa commit baru, karena keduanya hanya berjalan saat ada push ke
+#   main.
 
 on:
   schedule:
@@ -17,6 +29,12 @@ on:
     # - setelah Dependabot membuka PR versi mingguan, sehingga lockfile yang
     #   dipindai sudah mencakup versi yang baru.
     - cron: "37 3 * * 1"
+  # Commit yang sudah di-merge ke main. Jalur ini murni deteksi, lihat catatan
+  # di kepala berkas: mencegah PR yang menghapus pemeriksaan ini sendiri adalah
+  # urusan .github/CODEOWNERS, bukan trigger di sini.
+  push:
+    branches:
+      - main
   workflow_dispatch:
   pull_request:
     paths:
@@ -24,6 +42,7 @@ on:
       - package-lock.json
       - .github/dependabot.yml
       - .github/workflows/security.yml
+      - .github/CODEOWNERS
 
 # Workflow ini hanya boleh membaca isi repo. Tidak ada hak tulis package dan
 # tidak ada akses secrets, jadi tidak mungkin mendorong image dari sini.

@@ -122,47 +122,143 @@ const KODE_KONEKSI: Record<string, true> = {
   ENETUNREACH: true,
   ENETDOWN: true,
   /*
-   * SQLSTATE kelas 08 = Connection Exception. 08006 adalah connection_failure
-   * dan paling sering muncul bukan dari Postgres langsung, melainkan dari
-   * pooler yang menutup koneksi di tengah transaksi. Bentuk itu yang dipakai
-   * executeSale: seluruh badan transaksi berhasil, tidak ada satu pun query
-   * di dalam callback yang gagal, dan yang putus adalah statement commit.
-   * Karena query di dalam transaksi berjalan di klien milik driver, satu-
-   * satunya yang terlihat dari lapisan kita adalah promise balik dari
-   * .begin, jadi tanpa kode ini di daftar galat commit itu tidak pernah
-   * membangun ulang cache.
+   * SQLSTATE kelas 08 = Connection Exception. Seluruh kelas itu berarti
+   * socket atau sesi tidak bisa dipakai lagi, bukan query yang salah, jadi
+   * semuanya ikut membangun ulang cache.
+   *
+   * 08006 (connection_failure) paling sering muncul bukan dari Postgres
+   * langsung, melainkan dari pooler yang menutup koneksi di tengah transaksi.
+   * Bentuk itu yang dipakai executeSale: seluruh badan transaksi berhasil,
+   * tidak ada satu pun query di dalam callback yang gagal, dan yang putus
+   * adalah statement commit. Karena query di dalam transaksi berjalan di
+   * klien milik driver, satu-satunya yang terlihat dari lapisan kita adalah
+   * promise balik dari .begin, jadi tanpa kode ini di daftar, galat commit
+   * itu tidak pernah membangun ulang cache.
+   *
+   * 08000 connection_exception dan 08007 transaction_resolution_unknown
+   * diletakkan berdampingan karena keduanya sering muncul tanpa keterangan
+   * tambahan: yang pertama saat pooler memutus koneksi, yang kedua saat server
+   * hilang tepat ketika status transaksinya belum diketahui.
+   *
+   * 08001, 08002, dan 08004 adalah penolakan koneksi di sisi server: klien
+   * tidak bisa membangun koneksi, atau server menolak koneksi baru karena
+   * sudah penuh. Koneksi yang dipakai klien memang belum terjadi saat itu,
+   * tapi begitu galatnya naik ke lapisan kita, pool yang menunggunya ikut
+   * terbawa dan cache lama tidak ada gunanya lagi.
+   *
+   * 08P01 protocol_violation masuk juga: byte yang tidak masuk akal di socket
+   * berarti stream itu tidak bisa dipakai untuk query berikutnya, persis
+   * seperti socket yang ditutup di tengah.
    */
+  "08000": true,
+  "08001": true,
+  "08002": true,
+  "08003": true,
+  "08004": true,
   "08006": true,
+  "08007": true,
+  "08P01": true,
+  /*
+   * SQLSTATE kelas 57 = Operator Intervention. Yang dimasukkan hanya yang
+   * berarti server-nya benar-benar hilang: 57P01 admin_shutdown (server
+   * dimatikan perintah administrator), 57P02 crash_shutdown, dan 57P04
+   * database_dropped. Ketiganya kondisi yang tercatat di insiden 2026-09-27,
+   * dan ketiganya berakhir dengan socket yang tidak berguna.
+   *
+   * Yang sengaja TIDAK ikut, dan alasannya:
+   *
+   * 57014 query_canceled. Itu statement timeout yang normal pada load spike.
+   * Membuang cache karena itu membangun klien baru pada setiap query yang
+   * lambat, jadi daftar ini akan membalikkan tujuan penjaganya.
+   *
+   * 57P03 cannot_connect_now. Itu penolakan koneksi yang BELUM terjadi, bukan
+   * koneksi yang sudah putus; jalur retry driver yang menanganinya.
+   *
+   * 53300 too_many_connections (kelas 53 = Insufficient Resources). Galat ini
+   * muncul saat koneksi BARU ditolak karena max_connections sudah penuh.
+   * Koneksi yang sedang dipakai klien utuh dan query berikutnya berjalan begitu
+   * ada slot kosong, jadi membuang cache justru menambah beban ke server yang
+   * sedang penuh. Over-invalidation di sini mahal, bukan murah.
+   *
+   * Seluruh kelas 23 (integrity constraint violation: 23505, 23503, 23514)
+   * dan kelas 42 (syntax or access rule: 42P01, 42703) juga tidak ikut, dan
+   * tidak boleh ikut: semuanya masalah query atau data, bukan masalah jalur.
+   */
+  "57P01": true,
+  "57P02": true,
+  "57P04": true,
 };
 
 /**
  * True kalau galat ini berarti koneksi, bukan query, yang bermasalah.
  *
- * Yang penting tidak ada galat lain di daftar ini. "canceling statement due
- * to statement timeout" (kode 57014) misalnya hal yang normal pada load spike,
- * dan membuang cache karena itu akan membangun klien baru pada setiap query
- * yang lambat.
+ * Tiga aturan, dan ketiganya wajib karena fungsi ini dipanggil dari dalam
+ * promise yang tidak punya catcher.
+ *
+ * Pertama: bentuk masukannya dibaca tanpa asumsi apa pun, jadi masukan apa pun
+ * berakhir dengan true atau false dan tidak pernah melempar TypeError. Yang
+ * dulu meledak adalah err.message.toLowerCase() tanpa pemeriksaan bentuk:
+ * satu message null sudah cukup untuk mematikan proses. Getter yang melempar
+ * (misalnya code yang di Proxy atau accessor buatan lapisan lain) ditutup
+ * oleh try/catch di body's akhir, karena itu satu-satunya bentuk yang masih
+ * bisa melempar setelah pengecekan bentuk.
+ *
+ * Kedua: kode yang sudah ada itu yang berkuasa, dan kalimat pesannya hanya
+ * dibaca kalau tidak ada kode. Dulu kode dibaca lebih dulu hanya untuk daftar
+ * KODE_KONEKSI, lalu kalimat tetap dicari meski kodenya sudah kategori lain.
+ * Akibatnya 23505 yang pesannya kebetulan memuat "not connected" ikut membakar
+ * cache. Sekarang kode yang ada menentukan jawabannya sepenuhnya.
+ *
+ * Ketiga: instanceof tidak dipakai sama sekali, dan itu keputusan sadar.
+ * Kode galat adalah sinyal terstruktur dari driver, dan lapisan mana pun di
+ * antara socket dan kita bisa membungkusnya jadi objek biasa tanpa kehilangan
+ * maknanya. Menolak objek biasa berarti kasus 08006 yang justru tercatat di
+ * kepala berkas ini sebagai commit yang putus lolos begitu saja. Biaya salah
+ * klasifikasi ke arah true hanya satu kali membangun klien baru, yang toh juga
+ * terjadi pada request berikutnya; biaya ke arah yang salah adalah insiden
+ * 2026-09-27.
  */
 export function isConnectionFailure(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const kode = String((err as { code?: unknown }).code ?? "");
-  if (KODE_KONEKSI[kode]) return true;
-  const pesan = err.message.toLowerCase();
-  return (
-    pesan.includes("destination stream closed early") ||
-    pesan.includes("socket hang up") ||
-    pesan.includes("premature close") ||
-    pesan.includes("not connected") ||
-    pesan.includes("write after end") ||
-    // Dua kalimat berikut milik driver pg sekeluarga, yang berdiri di
-    // depan socket kita kalau deployment pernah memakai PgBouncer atau
-    // Postgres.app alih-alih postgres.js. Repo ini sendiri hanya memakai
-    // postgres.js, jadi keduanya Predictive eksploratif. Kalimat pertama berasal
-    // dari libpq saat koneksi hilang tanpa orderly close, dan yang kedua
-    // dari pg-pool saat kl unusable setelah reconnect gagal.
-    pesan.includes("connection terminated unexpectedly") ||
-    pesan.includes("connection error and is not queryable")
-  );
+  try {
+    if (err === null || typeof err !== "object") return false;
+
+    // Hanya string atau angka finite yang dipercaya sebagai kode. Nilai lain
+    // diperlakukan seperti tidak ada kode, supaya jalur kalimat tetap hidup.
+    const kode =
+      "code" in err &&
+      (typeof err.code === "string" ||
+        (typeof err.code === "number" && Number.isFinite(err.code)))
+        ? String(err.code)
+        : "";
+    if (kode !== "") return KODE_KONEKSI[kode] === true;
+
+    // Pesan yang bukan string diabaikan, bukan diubah jadi teks: kalimat
+    // driver selalu string, dan mengabaikannya lebih jujur daripada
+    // memaksanya jadi kalimat yang kebetulan cocok.
+    const pesan =
+      "message" in err && typeof err.message === "string"
+        ? err.message.toLowerCase()
+        : "";
+    return (
+      pesan.includes("destination stream closed early") ||
+      pesan.includes("socket hang up") ||
+      pesan.includes("premature close") ||
+      pesan.includes("not connected") ||
+      pesan.includes("write after end") ||
+      // Dua kalimat berikut milik driver pg sekeluarga, yang berdiri di
+      // depan socket kita kalau deployment pernah memakai PgBouncer atau
+      // Postgres.app alih-alih postgres.js. Repo ini sendiri hanya memakai
+      // postgres.js, jadi keduanya tetap eksploratif. Kalimat pertama berasal
+      // dari libpq saat koneksi hilang tanpa orderly close, dan yang kedua dari
+      // pg-pool saat klien unusable setelah reconnect gagal.
+      pesan.includes("connection terminated unexpectedly") ||
+      pesan.includes("connection error and is not queryable")
+    );
+  } catch {
+    // Getter yang melempar berakhir di sini. Penjaga ini tidak boleh pernah
+    // menjadi penyebab kematian proses yang seharusnya dia lindungi.
+    return false;
+  }
 }
 
 /**
@@ -180,17 +276,46 @@ export function isConnectionFailure(err: unknown): boolean {
  * apa pun. Penangan dipasang di samping, bukan dengan mengembalikan promise
  * baru, karena drizzle memakai .values() pada hasil unsafe dan objek itu harus
  * tetap berupa Query.
+ *
+ * Ekspor ini hanya untuk test penjaganya sendiri: dengan callback yang
+ * sengaja dibuat melempar, test bisa menjalankan jalur yang dulu mematikan
+ * proses dan membuktikan prosesnya sekarang selamat.
  */
-function withConnectionGuard(sql: Sql, onConnectionFailure: () => void): Sql {
+export function withConnectionGuard(sql: Sql, onConnectionFailure: () => void): Sql {
   const pantau = (hasil: unknown): unknown => {
     const thenable = hasil as {
       then?: unknown;
       catch?: (fn: (err: unknown) => void) => unknown;
     };
     if (typeof thenable?.then === "function" && typeof thenable.catch === "function") {
-      void thenable.catch((err) => {
-        if (isConnectionFailure(err)) onConnectionFailure();
-      });
+      let turunan: unknown;
+      try {
+        turunan = thenable.catch((err) => {
+          if (isConnectionFailure(err)) onConnectionFailure();
+        });
+      } catch {
+        // .catch yang melempar sinkron (thenable buatan, atau Proxy) tidak
+        // boleh mengubah hasil yang dilihat pemanggil.
+        return hasil;
+      }
+      /*
+       * Baris inilah yang mencegah proses mati, dan dulu tidak ada.
+       *
+       * `.catch(...)` mengembalikan promise BARU. Kalau callback di dalamnya
+       * melempar, yang menolak adalah promise baru itu. Versi lama membuangnya
+       * dengan `void`, jadi tidak ada satu pun catcher yang menempel pada
+       * penolakan itu dan Node melaporkannya sebagai unhandled rejection.
+       * Seit Node 15 bawaannya --unhandled-rejections=throw, jadi proses
+       * keluar, persis kelas kematian yang penjaga ini ada untuk cegah.
+       *
+       * Di sini promise turunan itu diberi catcher terminal yang tidak
+       * melakukan apa pun. Hasil aslinya tetap dikembalikan ke drizzle apa
+       * adanya, jadi penolakan yang dilihat pemanggil tidak berubah, dan
+       * .values() pada hasil .unsafe tetap jalan. Promise.resolve dipakai
+       * supaya catcher ini juga berlaku kalau .catch mengembalikan thenable
+       * yang bukan Promise.
+       */
+      void Promise.resolve(turunan).catch(() => {});
     }
     return hasil;
   };

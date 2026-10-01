@@ -1,0 +1,68 @@
+# CODEOWNERS At Cell.
+#
+# Kenapa file ini ada: workflow `pull_request` berjalan dari merge commit PR,
+# bukan dari versi workflow di branch tujuan. Jadi PR yang menurunkan `next` ke
+# versi lama DAN menghapus pemeriksaan batas versi
+# (.github/workflows/security.yml) akan lolos, karena workflow yang jalan
+# adalah file yang sudah dihapus itu.
+#
+# Memindahkan pemeriksaan itu ke `push` tidak menutup celah itu: perubahan yang
+# sama ikut ter-merge, jadi pemeriksaannya tetap hilang saat commit-nya sampai
+# ke main. Yang menutup celahnya adalah persetujuan humans kedua untuk edit di
+# folder ini.
+#
+# PENTING DAN JUJUR: CODEOWNERS sendirian tidak memblokir apa pun. Yang
+# mengaktifkannya adalah branch protection di Settings > Branches > main:
+# "Require a pull request before merging" plus "Require approvals" minimal 1,
+# dengan "Do not allow bypassing the above settings" untuk actor yang tidak
+# ada di daftar ini. Tanpa setting itu, file ini cuma permintaan sopan.
+#
+# Yang TIDAK ada di daftar ini: src/app/(public) dan halaman portal selain
+# /src/app/api. Halaman publik adalah tampilan, dan data yang boleh tampilnya
+# ditentukan RLS dan view di database, bukan JSX. Halaman portal sisanya
+# mengikuti store di /src/lib, yang sudah ada di daftar.
+#
+# Format: satu pola per baris, diikuti satu atau lebih owner. Baris yang diawali
+# # adalah komentar. Path tanpa / di awal berlaku untuk seluruh repo.
+
+# Berkas di folder ini memblokir atau memverifikasi build, jadi satu owner saja
+# tidak cukup untuk mengubahnya.
+.github/CODEOWNERS          @neiaki
+.github/workflows/          @neiaki
+.github/dependabot.yml      @neiaki
+
+# Jalur yang bisa menghapus data produksi: script restore menjalankan
+# pg_restore --clean, dan backup adalah satu-satunya cadangan.
+scripts/                   @neiaki
+
+# Penjaga koneksi dan otorisasi. Perubahan di sini hilang kalau pelakunya salah,
+# dan tidak ada yang mengetahuinya sampai insiden.
+/src/db/                   @neiaki
+/src/lib/access.ts         @neiaki
+
+# Setiap Server Action adalah endpoint HTTP dan requireRole()-nya adalah batas
+# keamanan, bukan penyaring tampilan. Route guard di /src/lib/access.ts tidak
+# menyentuhnya sama sekali, jadi action yang salah peran tidak akan ketahuan
+# dari sisi mana pun.
+/src/lib/actions/          @neiaki
+/src/lib/validations.ts    @neiaki
+/src/lib/csp.ts             @neiaki
+/src/lib/rate-limit.ts     @neiaki
+/src/lib/client-ip.ts      @neiaki
+
+# Endpoint HTTP yang tidak lewat Server Action: auth rate limit, health check,
+# dan route yang mengembalikan JSON ke browser.
+/src/app/api/              @neiaki
+/src/proxy.ts             @neiaki
+
+# Skema. Migration yang salah bisa menghapus kolom atau melonggarkan RLS tanpa
+# satu pun error di build.
+/supabase/migrations/      @neiaki
+/supabase/RUN-ALL-PENDING.sql  @neiaki
+
+# Build dan gambar. Perubahan di sini tidak terlihat di diff aplikasi.
+/next.config.ts            @neiaki
+/Dockerfile                @neiaki
+/Dockerfile.coolify        @neiaki
+/package.json              @neiaki
+/package-lock.json         @neiaki

@@ -113,7 +113,8 @@ export const updateUnitStatusSchema = z.object({
   unitId: z.coerce.number().int().positive(),
   status: z.enum(["available", "reserved", "sold", "in_service", "returned"]),
 });
-export type UpdateUnitStatusInput = z.infer<typeof updateUnitStatusSchema>;
+export type UnitStatusInput = z.infer<typeof updateUnitStatusSchema>;
+export type UpdateUnitStatusInput = UnitStatusInput;
 
 /**
  * Referensi foto yang disimpan di kolom photo_urls.
@@ -129,19 +130,27 @@ export type UpdateUnitStatusInput = z.infer<typeof updateUnitStatusSchema>;
  * induk juga ditolak walau karakternya lolos, supaya tidak ada kunci Storage
  * yang keluar dari folder stafnya sendiri.
  */
+/**
+ * Bentuk yang sah untuk satu referensi foto, dipakai bersama oleh sisi tulis
+ * (photoRefSchema) dan sisi baca (filterFotoMilikSendiri).
+ *
+ * Satu fungsi, bukan dua: sebelumnya sisi baca hanya cocok-checking prefix
+ * folder dan sama sekali tidak menolak "..", jadi path seperti
+ * `<id-saya>/../<id-lain>/foto.jpg` lolos ke createSignedUrls. Aturan yang
+ * berbeda antara tulis dan baca adalah bug, bukan pilihan.
+ */
+function photoRefBentukSah(v: string): boolean {
+  if (/^https?:\/\//i.test(v)) return true;
+  if (v.includes("..")) return false;
+  return /^[A-Za-z0-9._\-/]+$/.test(v);
+}
+
 const photoRefSchema = z
   .string()
   .trim()
   .min(1, "Referensi foto tidak boleh kosong.")
   .max(600, "Referensi foto terlalu panjang.")
-  .refine(
-    (v) => {
-      if (/^https?:\/\//i.test(v)) return true;
-      if (v.includes("..")) return false;
-      return /^[A-Za-z0-9._\-/]+$/.test(v);
-    },
-    "Referensi foto harus berupa path Storage atau URL."
-  );
+  .refine(photoRefBentukSah, "Referensi foto harus berupa path Storage atau URL.");
 
 /** Daftar foto, maksimal sepuluh, sama untuk tiket servis dan trade-in. */
 const photoRefsSchema = z.array(photoRefSchema).max(10, "Maksimal 10 foto.");
@@ -235,7 +244,40 @@ export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
 const productBrand = z.string().trim().min(2, "Merek minimal 2 huruf.");
 const productModel = z.string().trim().min(2, "Nama model minimal 2 huruf.");
 const productSpecs = z.string().trim();
-const productImage = z.string().trim();
+/**
+ * image_url produk: kosong berarti tidak ada foto, atau nilai yang benar-benar
+ * bisa dirender.
+ *
+ * Schema ini sengaja satu sumber kebenaran yang sama dengan sisi baca.
+ * src/lib/shop.ts (isUsablePhoto) sudah memutuskan bentuk yang sah: path
+ * same-origin yang diawali satu garis miring, atau URL http/https absolut,
+ * dan TIDAK "//host/path" karena browser membacanya sebagai protocol-relative
+ * URL ke host lain. Migrasi 20260927201000_clear_unparseable_product_image_url.sql
+ * membersihkan nilai di luar bentuk yang sama.
+ *
+ * Sebelumnya schema ini z.string().trim() polos, jadi "products/foo.jpg" tanpa
+ * garis miring dan string "undefined/..." hasil template literal yang gagal
+ * semuanya diterima, lalu dibersihkan belakangan oleh migrasi. Menulis lalu
+ * menghapus adalah dua langkah; lebih baik nilainya tidak bisa ditulis.
+ *
+ * ".." ditolak pada bentuk path supaya tidak ada kunci yang keluar dari direktori
+ * aset, meski isUsablePhoto tidak memeriksanya.
+ */
+const productImage = z
+  .string()
+  .trim()
+  .max(2048, "Alamat foto terlalu panjang.")
+  .refine((v) => {
+    if (v === "") return true;
+    if (v.startsWith("//")) return false;
+    if (v.startsWith("/")) return !v.includes("..");
+    try {
+      const url = new URL(v);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Foto harus berupa URL http/https atau path yang diawali /.");
 const productOfficialImages = z.array(z.string()).max(10);
 const productSecondImages = z.array(z.string()).max(10);
 
@@ -371,6 +413,69 @@ export function buildPhotoObjectKey(
   if (!parsed.success) return null;
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
   return `${parsed.data}/${randomPart}-${safeName}`;
+}
+
+/** Batas jumlah path foto yang ditandatangani dalam satu permintaan. */
+const BATAS_PATH_FOTO = 50;
+
+/**
+ * Ambil hanya path foto yang benar-benar ada di folder staf pemanggil.
+ *
+ * Aturan ini adalah pasangan dari buildPhotoObjectKey di atas: unggah hanya
+ * bisa menulis ke folder staf pemanggil, jadi membaca balik juga harus
+ * dibatasi ke folder itu. Tanpa batasnya, signPhotoPaths menjadi cara
+ * menandatangani foto milik staf lain, dan dua bucket privat itu memuat IMEI,
+ * nama pelanggan, serta foto layar perangkat.
+ *
+ * Masukan diketik unknown karena pemanggilnya Server Action, jadi daftar path
+ * datang langsung dari HTTP dan isinya bisa apa saja. Nilai bukan string
+ * dibuang, bukan dibaca, supaya tidak ada accessor yang dipanggil di luar
+ * kendali. Path https:// juga dibuang: URL penuh bukan object key, dan yang
+ * boleh ditandatangani tetap hanya key di dalam bucket.
+ *
+ * Bentuk path diperiksa dengan photoRefBentukSah yang sama dengan sisi tulis,
+ * jadi ".." yang bisa memanjai prefix seolah-olah folder lain ikut ditolak di sini
+ * juga. Prefix saja tidak cukup: `<id-saya>/../<id-lain>/foto.jpg` memang
+ * diawali folder pemanggil, tapi Storage akan menafsirkannya sebagai folder
+ * milik orang lain.
+ */
+export function filterFotoMilikSendiri(
+  folder: string,
+  paths: readonly unknown[]
+): string[] {
+  const parsed = storageFolderSchema.safeParse(folder);
+  if (!parsed.success) return [];
+  const prefiks = `${parsed.data}/`;
+  return [
+    ...new Set(
+      paths.filter(
+        (p): p is string =>
+          typeof p === "string" && p.startsWith(prefiks) && photoRefBentukSah(p)
+      )
+    ),
+  ].slice(0, BATAS_PATH_FOTO);
+}
+
+/**
+ * Status unit yang boleh ditulis teknisi, dan hanya itu.
+ *
+ * Alasannya bukan struktur peran, melainkan siapa yang berhak menerbitkan unit
+ * ke etalase publik. v_public_inventory pada migrasi
+ * 20260927180000_nullable_inventory_unit_product.sql memfilter
+ * status = available, jadi available adalah satu-satunya status yang mengirim
+ * unit ke halaman publik. reserved adalah keputusan penjualan, dan sold hanya
+ * boleh lewat transaksi POS supaya nota tercatat.
+ *
+ * Yang tersisa, in_service dan returned, adalah pekerjaan reparasi itu
+ * sendiri: teknisi menarik unit masuk dan mengembalikannya. Keduanya arah
+ * bolak-balik, jadi daftar ini sekaligus menjawab "boleh masuk in_service"
+ * dan "boleh keluar dari in_service".
+ */
+export const UNIT_STATUS_OLEH_TEKNISI = ["in_service", "returned"] as const;
+
+/** True kalau teknisi boleh menulis status ini (lihat daftar di atas). */
+export function bolehTeknisiSetUnitStatus(status: UnitStatusInput["status"]): boolean {
+  return (UNIT_STATUS_OLEH_TEKNISI as readonly string[]).includes(status);
 }
 
 /** Nilai yang boleh tersimpan di profiles.role, sama dengan enum user_role. */
