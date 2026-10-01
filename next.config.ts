@@ -5,8 +5,26 @@ const configuredOrigins = (process.env.SERVER_ACTIONS_ALLOWED_ORIGINS ?? "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+/*
+ * Origin yang boleh memanggil Server Actions.
+ *
+ * Server Actions memverifikasi Origin header, jadi domain yang tidak ada di
+ * daftar ini akan ditolak dengan 403 walaupun halamannya sendiri terbuka.
+ * Produksi memakai atcell.my.id dan subdomainnya, jadi keduanya ditulis mati
+ * di sini.
+ *
+ * kp-rust-five.vercel.app ikut ditulis karena deployment Vercel dipakai sebagai
+ * preview yang kerap dibuka, dan tanpa itu semua Server Actions dari sana
+ * gagal. Env SERVER_ACTIONS_ALLOWED_ORIGINS tetap tersedia untuk menambah
+ * domain lain tanpa mengubah kode.
+ */
 const serverActionOrigins = Array.from(
-  new Set(["atcell.my.id", "*.atcell.my.id", ...configuredOrigins])
+  new Set([
+    "atcell.my.id",
+    "*.atcell.my.id",
+    "kp-rust-five.vercel.app",
+    ...configuredOrigins,
+  ])
 );
 
 const securityHeaders = [
