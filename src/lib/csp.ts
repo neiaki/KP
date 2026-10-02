@@ -25,11 +25,11 @@ const ASAL_PETA_EMBED = "https://www.google.com";
  * SDK browser menghitung URL envelope dari DSN: `getEnvelopeEndpointWithUrlEncodedAuth`
  * di @sentry/core mengembalikan `tunnel ? tunnel : <host DSN>/api/<projectId>/envelope/`.
  * Repo ini tidak pernah menyetel `tunnel`, jadi host yang dihubungi adalah
- * host yang tertulis di DSN, yaitu `o<orgid>.ingest.sentry.io`. Angka
- * `<orgid>` datang dari env `NEXT_PUBLIC_SENTRY_DSN`, jadi daftar eksplisit
- * akan mengunci kebijakan ke satu organisasi dan diam-diam rusak begitu DSN
- * dipindah. Wildcard-nya dibatasi ke namespace ingest Sentry: host lain di
- * bawah sentry.io tetap tertutup, dan tidak ada asal lain yang ikut terbuka.
+ * host yang tertulis di DSN. Angka `<orgid>` datang dari env
+ * `NEXT_PUBLIC_SENTRY_DSN`, jadi daftar eksplisit akan mengunci kebijakan ke
+ * satu organisasi dan diam-diam rusak begitu DSN dipindah. Wildcard-nya
+ * dibatasi ke namespace ingest Sentry: host lain di bawah sentry.io tetap
+ * tertutup, dan tidak ada asal lain yang ikut terbuka.
  *
  * Batasnya: ini hanya mengizinkan transport, tidak memuat skrip apa pun.
  * Sentry tetap di-load sebagai modul bundel biasa lewat modul Next, bukan

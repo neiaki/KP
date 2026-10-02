@@ -90,6 +90,29 @@ export const staffInviteSchema = customerSignUpSchema.extend({
 const rupiah = (label: string) =>
   z.coerce.number().min(0, `${label} tidak boleh negatif.`).max(999_999_999_999, `${label} terlalu besar.`);
 
+/*
+ * `default_price` punya aturan sendiri, dan aturannya dideklarasikan satu kali.
+ *
+ * Alasannya dua penjaga yang dulu berbeda. Schema memakai z.coerce.number(),
+ * jadi "", null, dan [] ikut menjadi 0, sementara hargaAcuanLayak menolak
+ * ketiganya karena bukan number. Form aman hanya karena ia memeriksa lebih
+ * dulu, jadi panggilan updateProduct langsung masih bisa menulis 0 hasil
+ * paksa. Dua penjaga yang berbeda itu bug laten: keduanya sama-sama terlihat
+ * benar, dan hanya urutan pemanggil yang menjaga agar tidak berbeda.
+ *
+ * Bentuk barunya menutup celah di sumbernya. Guard tidak lagi menyalin
+ * aturan, dia memanggil schema yang sama, jadi keduanya tidak mungkin
+ * berbeda lagi walau salah satunya diubah. Nol tetap sah, karena itu artinya
+ * "harga acuan belum dikonfirmasi", bukan "harga Rp0".
+ *
+ * Batas atas ikut ditegakkan di sini, bukan hanya di productSchema, supaya
+ * pemanggilan guard dari form menjawab pertanyaan yang sama persis.
+ */
+const hargaAcuanSchema = z
+  .number("Harga acuan harus berupa angka.")
+  .min(0, "Harga acuan tidak boleh negatif.")
+  .max(999_999_999_999, "Harga acuan terlalu besar.");
+
 /**
  * Apakah angka ini layak disimpan sebagai `products.default_price`.
  *
@@ -107,13 +130,12 @@ const rupiah = (label: string) =>
  * harga tidak bisa disimpan dari portal, dan satu-satunya jalan untuk
  * memperbaikinya adalah SQL.
  *
- * Batas atas tidak diperiksa di sini. Schema `productSchema` yang menegakkan
- * batas 999_999_999_999; fungsi ini hanya menjawab "boleh atau tidak nilai ini
- * secara bermakna sebagai harga", supaya form bisa menolak lebih dulu tanpa
- * perlu meniru seluruh aturan schema.
+ * Aturannya sengaja tidak ditulis ulang di sini. Fungsi ini memanggil
+ * hargaAcuanSchema, jadi form dan schema tidak bisa berbeda jawaban, dan
+ * setiap nilai yang ditolak di sini juga ditolak schema.
  */
 export function hargaAcuanLayak(value: unknown): boolean {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  return hargaAcuanSchema.safeParse(value).success;
 }
 
 // Registrasi batch IMEI di bawah katalog produk (Sales). FR-A-01.
@@ -365,7 +387,7 @@ export const productSchema = z.object({
   brand: productBrand,
   model_name: productModel,
   specs: productSpecs.default(""),
-  default_price: rupiah("Harga acuan"),
+  default_price: hargaAcuanSchema.default(0),
   image_url: productImage.default(""),
   official_images: productOfficialImages.default([]),
   second_images: productSecondImages.default([]),
@@ -377,7 +399,7 @@ export const productUpdateSchema = z.object({
   brand: productBrand.optional(),
   model_name: productModel.optional(),
   specs: productSpecs.optional(),
-  default_price: rupiah("Harga acuan").optional(),
+  default_price: hargaAcuanSchema.optional(),
   image_url: productImage.optional(),
   official_images: productOfficialImages.optional(),
   second_images: productSecondImages.optional(),

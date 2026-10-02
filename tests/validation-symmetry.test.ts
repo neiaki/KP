@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   filterFotoMilikSendiri,
+  hargaAcuanLayak,
   productSchema,
   productUpdateSchema,
   updateTicketSchema,
@@ -284,6 +285,95 @@ test("harga acuan nol tetap boleh disimpan, negatif tidak", () => {
   );
   // Batas bawahnya tetap di schema, jadi guard form dan schema tidak berbeda.
   assert.equal(productSchema.safeParse({ ...PRODUK, default_price: -1 }).success, false);
+});
+
+/*
+ * Nilai yang ditolak guard harga acuan harus ditolak schema juga.
+ *
+ * Dulu keduanya berbeda. Schema memakai z.coerce.number(), jadi "", null, dan
+ * [] ikut menjadi 0, sementara guard menolak ketiganya karena bukan number.
+ * Form aman hanya karena memeriksa lebih dulu, jadi updateProduct yang
+ * dipanggil langsung masih bisa menulis 0 hasil paksa. Dua penjaga yang
+ * berbeda itu bug laten: keduanya sama-sama terlihat benar, dan hanya urutan
+ * pemanggil yang menjaga agar tidak berbeda.
+ *
+ * Sekarang guard memanggil schema yang sama, jadi daftar di bawah bukan hanya
+ * harus sama, tapi tidak mungkin berbeda. Test ini mengunci arah itu dari dua
+ * sisi: nilai yang ditolak guard ditolak schema, dan nilai yang diterima guard
+ * diterima schema.
+ */
+test("nilai yang ditolak guard harga acuan juga ditolak schema", () => {
+  // Daftar ini persis yang dulu berbeda. "", null, dan [] adalah tiga di
+  // antaranya yang diam-diam berubah jadi 0 oleh z.coerce.number().
+  const ditolak: unknown[] = [
+    "",
+    "   ",
+    null,
+    [],
+    {},
+    "abc",
+    "0",
+    "8500000",
+    "1e3",
+    true,
+    -1,
+    -0.5,
+    NaN,
+    Infinity,
+    1e13,
+  ];
+  for (const nilai of ditolak) {
+    const teks = JSON.stringify(nilai) ?? String(nilai);
+    assert.equal(hargaAcuanLayak(nilai), false, `guard harus menolak ${teks}`);
+    assert.equal(
+      productSchema.safeParse({ ...PRODUK, default_price: nilai }).success,
+      false,
+      `create harus menolak ${teks} yang ditolak guard`
+    );
+    assert.equal(
+      productUpdateSchema.safeParse({ default_price: nilai }).success,
+      false,
+      `update harus menolak ${teks} yang ditolak guard`
+    );
+  }
+});
+
+test("harga acuan yang sah diterima guard dan schema", () => {
+  // Arah sebaliknya, supaya test di atas tidak bisa lolos karena keduanya
+  // sama-sama menolak semuanya termasuk nilai yang seharusnya sah.
+  for (const sah of [0, 1, 8_500_000, 999_999_999_999]) {
+    assert.equal(hargaAcuanLayak(sah), true, `guard harus menerima ${sah}`);
+    assert.equal(
+      productSchema.safeParse({ ...PRODUK, default_price: sah }).success,
+      true,
+      `create harus menerima ${sah}`
+    );
+    assert.equal(
+      productUpdateSchema.safeParse({ default_price: sah }).success,
+      true,
+      `update harus menerima ${sah}`
+    );
+  }
+});
+
+test("undefined berarti kolom tidak diisi, bukan nilai yang lolos", () => {
+  // Satu-satunya tempat guard dan schema tidak menjawab sama, dan itu
+  // disengaja. undefined di zod berarti "kolom tidak ada", bukan "kolom diisi
+  // dengan undefined": create memakai default 0, dan update berarti jangan
+  // sentuh. Itu kontrak .default() dan .optional(), bukan celah yang membuka
+  // kembali nilai paksa. Guard tetap menolaknya karena form tidak boleh
+  // mengirimnya.
+  assert.equal(hargaAcuanLayak(undefined), false, "guard menolak undefined");
+  assert.equal(
+    productSchema.safeParse({ ...PRODUK, default_price: undefined }).success,
+    true,
+    "create tanpa default_price memakai default 0"
+  );
+  assert.equal(
+    productUpdateSchema.safeParse({ default_price: undefined }).success,
+    true,
+    "update tanpa default_price berarti kolom tidak disentuh"
+  );
 });
 
 test("form portal menolak harga acuan negatif dan bukan nol", () => {
