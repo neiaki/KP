@@ -147,7 +147,7 @@ test("path relatif tanpa garis miring ditolak di create dan update", () => {
 
 test("protocol-relative tetap ditolak karena isUsablePhoto juga menolaknya", () => {
   // src/lib/shop.ts isUsablePhoto menyatakan "//host/path" tidak boleh lolos,
-  // jadioke membukanya di schema akan membuat tiga lapis tidak sinkron lagi,
+  // jadi membukanya di schema akan membuat tiga lapis tidak sinkron lagi,
   // dan membuka kembali lubang yang sudah ditutup.
   assert.equal(
     productSchema.safeParse({ ...PRODUK, image_url: "//cdn.example.com/a.jpg" }).success,
