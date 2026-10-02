@@ -78,6 +78,23 @@ export function CatalogContent({ locale }: { locale: Locale }) {
    * diklik sekali, jadi nilainya boleh menunggu navigasi selesai dan tetap
    * dibaca dari URL tanpa draf.
    */
+  /*
+   * Query string terakhir yang kita minta, bukan yang terakhir sudah selesai.
+   *
+   * `searchParams` adalah URL yang sudah ter navigasi, jadi nilainya tertinggal
+   * selama transisi masih berjalan. Memakainya sebagai dasar menuliskan filter
+   * berarti perubahan kedua yang belum sempat selesai bisa menimpa perubahan
+   * pertama, dan perbandingan yang sama membuat penulisan yang sebenarnya
+   * perlu dianggap tidak berubah.
+   *
+   * Diuji di browser pada build lokal: mengetik "a" lalu langsung menghapus
+   * karakter itu menghasilkan kolom kosong, tapi URL dan kolom kembali menjadi
+   * `?q=a` setelah navigasi tertunda selesai. Karakter yang sudah dihapus
+   * muncul lagi. Dasar di sini memakai query yang terakhir diminta supaya
+   * perubahan kedua mulai dari perubahan pertama, bukan dari URL lama.
+   */
+  const kueriDiminta = React.useRef<string | null>(null);
+
   const qDariUrl = params.get("q") || "";
   const [search, setDraf] = React.useState(qDariUrl);
   const [qTerakhir, setQTerakhir] = React.useState(qDariUrl);
@@ -96,6 +113,16 @@ export function CatalogContent({ locale }: { locale: Locale }) {
     setDraf(qDariUrl);
   }
 
+  // Setiap kali `searchParams` berubah, navigasi yang tertunda sudah selesai
+  // dan `searchParams` kembali menjadi dasar yang benar. Ref hanya perlu
+  // bertahan di antara dua tulisan yang terjadi sebelum navigasi pertama
+  // selesai, supaya tulisan kedua berdasar pada tulisan pertama dan bukan pada
+  // URL lama. Reset di efek, bukan saat render, karena `react-hooks/refs`
+  // melarang menulis ref di luar handler dan efek.
+  React.useEffect(() => {
+    kueriDiminta.current = null;
+  }, [searchParams]);
+
   const selectedBrand = products.some((p) => p.brand === brandDariUrl)
     ? brandDariUrl
     : "all";
@@ -106,14 +133,17 @@ export function CatalogContent({ locale }: { locale: Locale }) {
       ? sortDariUrl
       : "newest";
 
+
   const setFilter = (kunci: string, nilai: string, bawaan: string) => {
-    const berikut = new URLSearchParams(searchParams.toString());
+    const dasar = kueriDiminta.current ?? searchParams.toString();
+    const berikut = new URLSearchParams(dasar);
     if (nilai === bawaan || nilai === "") berikut.delete(kunci);
     else berikut.set(kunci, nilai);
 
     const kueri = berikut.toString();
     const pathname = new URL(window.location.href).pathname;
-    if (kueri === searchParams.toString()) return;
+    if (kueri === dasar) return;
+    kueriDiminta.current = kueri;
     router.replace(`${pathname}${kueri ? `?${kueri}` : ""}`, { scroll: false });
   };
 
