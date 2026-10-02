@@ -36,6 +36,9 @@ berbasis Supabase ketika environment production dikonfigurasi.
   serta SVG-nya dihapus pada 1 Oktober 2026, lalu berkas Mermaid `diagram.mmd`
   dihapus pada 2 Oktober 2026 karena isinya sudah tersalin inline di bagian 3
   `UC-AtCell.md`. Daftar use case di bagian 2 berkas itu yang jadi acuan.
+- Akses panel Coolify dijelaskan di `COOLIFY-PANEL.md`, karena panel adalah
+  kendali penuh atas env production dan jalurnya tidak bisa ditebak dari
+  `ufw status` saja.
 
 ## Keputusan produk (29 Sep 2026)
 

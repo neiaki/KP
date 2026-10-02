@@ -100,6 +100,27 @@ Dua konsekuensi:
    cukup untuk mengekspos API Traefik, yang saat ini justru tersembunyi
    oleh aturannya.
 
+### Lapis ketiga: penjaga Docker
+
+Ada lapis ketiga yang tidak disinggung bagian ini, dan yang justru jadi
+penghalang sebenarnya. Berkas `/usr/local/sbin/docker-dnat-guard.sh` menjaga
+`8080`, `6001`, dan `6002` di rantai `DOCKER-USER`.
+
+Dua hal yang sering membuat orang salah arah di sini:
+
+- **Aturan `ufw` pada port Docker tidak pernah bekerja.** Port `8000` dipublish
+  ke container lewat DNAT di `nat/PREROUTING`, jadi paketnya dibelokkan dan
+  diteruskan, bukan diserahkan secara lokal. Paket seperti itu tidak pernah
+  sampai ke rantai `INPUT` tempat `ufw` bekerja. Aturan `ufw allow 8000`
+  terlihat bersih di `ufw status` tapi tidak memblokir apa pun.
+- **Penjaga hanya mengatur trafik `-i eth0`.** Loopback, jadi SSH tunnel dari
+  operator, dan trafik antar container tidak ikut tertutup. Itu disengaja,
+  supaya panel tetap bisa dicapai tanpa membuka port publik.
+
+Kalau setelah semua langkah di dokumen ini panel tidak bisa diakses dari
+IP owner, periksa `DOCKER-USER` lebih dulu, bukan `ufw`. Jalur akses yang sah
+dan langkah pemulihannya ada di [`COOLIFY-PANEL.md`](COOLIFY-PANEL.md).
+
 Jadi host ini punya dua lapis filter yang tidak saling tahu statusnya. Kalau
 hanya satu yang dirapikan, keadaan sebenarnya tetap tidak diketahui siapa pun.
 
