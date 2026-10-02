@@ -280,10 +280,34 @@ test("filter katalog dibaca dari URL, kolom pencarian memakai draf sinkron", () 
     "perlu mengingat nilai q terakhir supaya perubahan dari draf sendiri tidak menimpa ketikan"
   );
 
-  // Tidak boleh ada efek yang menulis state filter, URL sudah sumbernya.
+  // Penulisan ke URL harus lewat setFilter, bukan lewat efek. Efek hanya
+  // boleh mengembalikan ref ke null, itu batasnya.
+  const efek = src.match(/React\.useEffect\([\s\S]*?\n  \}, \[[^\]]*\]\);/g) || [];
+  for (const isi of efek) {
+    assert.ok(
+      !/router\.|setFilter\(|setDraf\(|setSearch\(|setSelected|setSortOrder\(/.test(isi),
+      "efek tidak boleh menulis filter ke URL, karena itu tugas setFilter"
+    );
+  }
   assert.ok(
-    !/useEffect/.test(src),
-    "tidak boleh ada efek yang menulis state filter ke URL, karena URL sudah sumber kebenarannya"
+    efek.some((isi) => /kueriDiminta\.current\s*=\s*null/.test(isi)),
+    "efek harus mengembalikan ref ke null begitu searchParams berubah, supaya URL lama tidak dipakai lagi sebagai dasar"
+  );
+
+  // Dasar penulisan harus query yang terakhir diminta, bukan searchParams yang
+  // masih tertinggal selama transisi.
+  assert.ok(
+    /const\s+dasar\s*=\s*kueriDiminta\.current\s*\?\?\s*searchParams\.toString\(\)/.test(src),
+    "dasar penulisan harus query yang terakhir diminta, bukan searchParams yang tertinggal selama transisi"
+  );
+  assert.ok(/new URLSearchParams\(dasar\)/.test(src), "query baru harus dibangun dari dasar itu");
+  assert.ok(
+    /if\s*\(kueri\s*===\s*dasar\)\s*return;/.test(src),
+    "perbandingan harus memakai dasar yang sama, bukan searchParams"
+  );
+  assert.ok(
+    /kueriDiminta\.current\s*=\s*kueri/.test(src),
+    "query yang diminta harus dicatat supaya tulisan berikutnya berdasar padanya"
   );
 
   // Satu-satunya jalan mengubah filter adalah menulis URL.
