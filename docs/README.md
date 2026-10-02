@@ -19,6 +19,8 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |
 | `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unit pertama arrive | **Acuan operasional** |
 | `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
+| `TRADE-IN-LAPTOP.md` | Yang sudah ada di mesin taksir tukar tambah, empat penghalang untuk laptop, data yang harus disuplai toko, dan tiga keputusan pemilik sebelum ada kode ditulis | **Acuan keputusan** |
+| `PAYMENT-WARNING-COPY.md` | Letak kalimat peringatan link pembayaran di halaman publik, risiko kalau dihapus, dan copy tulisan ulang yang bisa disetujui dalam satu langkah | **Acuan keputusan** |
 
 ## Catatan
 
@@ -53,10 +55,46 @@ berbasis Supabase ketika environment production dikonfigurasi.
   aktif, dan tanpa em-dash, jadi tidak diubah.
 - Home button dan APK: 10 varian di `design-taste-frontend/` memang tidak
   punya tombol home dan repo tidak menyimpan APK apa pun. Diputuskan tidak
-  ada aksi kode, hanya dicatat di sini.
+  ada aksi kode, hanya dicatat di sini. Lanjutan 2 Oktober 2026: tidak ada
+  tombol home baru yang ditambahkan, jadi keputusan ini tetap berlaku. Yang
+  diklarifikasi cuma marka merek di navbar, dan itu tetap tautan ke beranda.
+  Alasannya ada di keputusan 2 Oktober 2026 di bawah.
 - Harga kondisi laptop dan bottom shopping section: ditunda, testing jalan
-  dulu dengan data existing.
+  dulu dengan data existing. Lanjutannya ada di keputusan 2 Oktober 2026.
 - Scroll trackpad portal: `<main>` portal dan sidebar desktop tidak lagi
   memutus rantai scroll (`overscroll-contain` dihapus). Dialog dan drawer
   mobile tetap menahan scroll. Dikunci
   `tests/portal-scroll-trap.test.ts`.
+
+## Keputusan produk (2 Oktober 2026)
+
+Empat catatan penguji yang ambigu ditelusuri ke kodenya. Tiga berakhir sebagai
+dokumen keputusan yang menunggu owner, satu berakhir sebagai perbaikan kode.
+Tidak ada perilaku bisnis yang diubah tanpa persetujuan owner.
+
+- Note A, "kondisi laptop harga berubah (planing)": fitur, bukan bug.
+  Satu-satunya mesin harga berbasis kondisi di aplikasi adalah kalkulator
+  tukar tambah, dan modelnya dikunci iPhone 11 ke atas. Laptop tidak bisa
+  masuk `inventory_units` maupun `trade_in_records` karena keduanya mewajibkan
+  IMEI 15 digit. Tidak ada harga laptop yang dikarang. Lanjutannya di
+  `TRADE-IN-LAPTOP.md`.
+- Note B, "1. bagian belanja bawah": dua kandidat, kolom footer "Belanja"
+  dan section "Kenapa belanja di At Cell". Tidak ada otoritas desain untuk
+  memilih, karena kesepuluh varian mockup tidak punya footer sama sekali.
+  Audit tautan dan lebar sel tidak menemukan cacat: keempat tautan kolom
+  Belanja memakai awalan locale yang benar, filter kondisi terpakai dari URL,
+  dan bento tidak meluber di 390 px. Tidak ada yang diubah.
+- Note C, "button beranda di web samain dengan apk": tidak ada artefak
+  aplikasi di repo. Android Trusted Web Activity yang dikirim PR #44 hanya
+  pembungkus web, jadi tidak ada tombol home native yang bisa dicocokkan.
+  Marka merek di navbar tetap tautan ke beranda, menyimpang dari 10 varian
+  yang merendernya sebagai label biasa. Alasannya: di desktop tidak ada item
+  Beranda di nav sama sekali, jadi menghapus tautannya akan menghapus
+  satu-satunya jalan pulang dari header. Yang diperbaiki justru tautan di
+  bilah header yang tidak menutup menu mobile.
+- Note D, "notif at cell tidak pernah mengirim link pembayaran lewat chat
+  hapus": ini potongan kalimat yang persis ada di `/payment` dan `/terms`.
+  Keputusan 29 September 2026 di atas sudah menyatakan peringatan itu
+  dipertahankan. Catatan ini membukanya kembali dengan alasan nada, bukan
+  alasan keamanan. Copy publik tidak diubah sebelum owner memilih. Lanjutannya
+  di `PAYMENT-WARNING-COPY.md`.
