@@ -1,12 +1,13 @@
 # Akses Panel Coolify
 
 Panel Coolify adalah kendali penuh atas host production: environment aplikasi,
-trigger deploy, log, terminal container, DNS, dan resource. Dokumen ini
-menjelaskan jalur akses menjelaskan kenapa panel harus tertutup. Dokumen ini
-menjelaskan cara tetap masuk setelah tertutup.
+trigger deploy, log, terminal container, DNS, dan resource. Karena itu panel
+harus tetap tertutup untuk seluruh internet, dan `VPS-HARDENING.md` menjelaskan
+kenapa harus begitu.
 
-Dokumen ini melengkapi `VPS-HARDENING.md` yang `VPS-HARDENING.md` menjelaskan kenapa panel harus
-tertutup. Dokumen ini menjelaskan cara tetap|abbr masuk setelah tertutup.
+Dokumen ini melengkapi bagian itu dengan sisi sebaliknya, yaitu cara tetap
+masuk ke panel setelah tertutup, dan kenapa jalur itu tidak bisa dibaca dari
+`ufw status` saja.
 
 ## Ringkas
 
@@ -27,15 +28,28 @@ Lalu buka `http://127.0.0.1:8000/login` di browser laptop. Tunnel ini
 meneruskan lewat SSH, jadi tidak pernah menyentuh port publik sama sekali.
 
 Jalur ini sengaja **tidak** ikut ditutup oleh penjaga Docker. Berkas
-`/usr/local/sbin/docker-dnat-guard.sh` hanya governs trafik `-i eth0`, yaitu
-ingress dari internet, sehingga trafik loopback dari tunnel lolos.
+`/usr/local/sbin/docker-dnat-guard.sh` hanya mengatur trafik dari internet
+(`-i eth0`), sehingga trafik loopback dari tunnel lolos.
 
 Tunnel bisa ditutup dengan menekan `Ctrl+C` di terminalnya.
 
 ## 2. Pengecualian port 8000 untuk IP owner
 
-Kalau lebih nyaman memakai `http://<IP>:8000/` langsung, ada pengecualian
-di penjaga Docker, hanya untuk satu IP:
+Jalur ini memakai HTTP polos, jadi **password dan cookie sesi melintas tanpa
+enkripsi**. Satu login sudah cukup untuk mengambil seluruh environment
+production, jadi jalur ini bukan yang paling aman. Tapi harus tetap ada
+sementara TLS belum ada, dan jalur pertama tetap lebih aman untuk pemakaian
+harian.
+
+Jalur ini sengaja dibatasi ke satu IP saja. Kalau dibiarkan terbuka untuk
+`0.0.0.0/0`, satu login cukup untuk mengambil `DATABASE_URL`,
+`SUPABASE_SECRET_KEY`, memicu deploy image apa pun, lalu membuka terminal di
+dalam container yang setara akses root. Itu sebabnya IP-nya disimpan sebagai
+nilai `ADMIN_IP` di skrip penjaga, bukan ditulis langsung di dalam rule,
+supaya gampang ditutup lagi.
+
+Kalau lebih nyaman memakai `http://<IP>:8000/` langsung, pengecualian di
+penjaga Docker untuk satu IP tersebut adalah:
 
 ```
 -A DOCKER-USER -s 180.252.81.92/32 -i eth0 -p tcp \
