@@ -10,6 +10,11 @@ import { access, readdir, readFile } from "node:fs/promises";
  * pembaca yang mencari lewat README, padahal dua di antaranya adalah acuan
  * operasional yang wajib dibaca sebelum menyentuh production.
  *
+ * Berkas diagram juga boleh hilang dari repo, dan test ini ikut menjaga arah
+ * sebaliknya: kalau diagram.mmd dihapus tapi masih disebut di indeks, pembaca
+ * akan mencari berkas yang sudah tidak ada. Diagram Mermaid itu dihapus 2
+ * Oktober 2026 karena isinya sudah tersalin inline di bagian 3 UC-AtCell.md.
+ *
  * Test juga menjaga arah sebaliknya. Indeks boleh menyebut berkas yang sudah
  * dihapus atau diganti nama, dan itu sama buruknya: pembaca akan mencari
  * dokumen yang tidak ada.
@@ -73,19 +78,21 @@ test("dokumen acuan ditautkan dari README root", () => {
   );
 });
 
-test("setiap sumber PlantUML punya render PNG dan SVG", async () => {
-  // Kalau sumber PlantUML ditambahkan lagi tanpa dirender, tautan gambarnya
+test("setiap sumber diagram punya render PNG dan SVG", async () => {
+  // Kalau sumber diagram ditambahkan lagi tanpa dirender, tautan gambarnya
   // rusak tanpa error build, karena Markdown tidak ikut divalidasi.
   //
-  // repo ini sengaja tidak punya sumber PlantUML sama sekali sejak 1 Oktober
-  // 2026: diagram use case dihapus, dan yang jadi acuan adalah daftar use case
-  // di UC-AtCell.md. Karena itu test ini tidak lagi menuntut sumbernya ada;
-  // yang dijaga hanya bahwa tidak ada sumber yang menggantung.
+  // repo ini sengaja tidak punya sumber diagram sama sekali sejak 1 Oktober
+  // 2026: PlantUML dihapus, lalu berkas Mermaid diagram.mmd dihapus 2 Oktober
+  // 2026 karena isinya sudah tersalin inline di bagian 3 UC-AtCell.md. Yang
+  // jadi acuan adalah daftar use case. Karena itu test ini tidak lagi menuntut
+  // sumbernya ada; yang dijaga hanya bahwa tidak ada sumber yang menggantung,
+  // dan penghapusan berkas diagram tidak meninggalkan rujukan menggantung.
   const isi = await readdir(docsUrl);
-  const sumber = isi.filter((f) => f.endsWith(".puml"));
+  const sumber = isi.filter((f) => /\.(puml|mmd)$/.test(f));
   const tanpaRender = sumber
     .filter((f) => {
-      const stem = f.replace(/\.puml$/, "");
+      const stem = f.replace(/\.(puml|mmd)$/, "");
       return !isi.includes(`${stem}.png`) || !isi.includes(`${stem}.svg`);
     })
     .sort();
@@ -93,6 +100,29 @@ test("setiap sumber PlantUML punya render PNG dan SVG", async () => {
     tanpaRender,
     [],
     `sumber diagram ini belum dirender ke PNG dan SVG: ${tanpaRender.join(", ")}`
+  );
+
+  // Indeks dan README root tidak boleh punya tautan ke berkas diagram yang
+  // sudah dihapus. Yang diperiksa hanya tautan Markdown, bukan nama file
+  // yang disebut dalam kalimat, karena catatan historis memang sengaja masih
+  // menyebut diagram.mmd supaya pembaca tahu berkas itu pernah ada dan kenapa
+  // dihapus.
+  const semuaDokumen = await Promise.all(
+    ["README.md", "../README.md"].map(async (p) => ({
+      nama: p,
+      isi: await readFile(new URL(p, docsUrl), "utf8"),
+    }))
+  );
+  const menggantung: string[] = [];
+  for (const { nama, isi } of semuaDokumen) {
+    for (const cocok of isi.matchAll(/\]\((?:docs\/)?([\w.-]+\.mmd)\)/g)) {
+      menggantung.push(`${nama} -> ${cocok[1]}`);
+    }
+  }
+  assert.deepEqual(
+    menggantung.sort(),
+    [],
+    `dokumen ini masih menautkan berkas diagram yang sudah dihapus: ${menggantung.join(", ")}`
   );
 });
 

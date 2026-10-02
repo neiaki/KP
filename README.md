@@ -290,10 +290,10 @@ Ikuti runbook lengkap di [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUN
 Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 
 - [`docs/PRD-AtCell.md`](docs/PRD-AtCell.md): vision, kebutuhan, fitur, user flow, dan rancangan arsitektur.
-- [`docs/UC-AtCell.md`](docs/UC-AtCell.md): 18 use case per aktor beserta diagramnya.
+- [`docs/UC-AtCell.md`](docs/UC-AtCell.md): 18 use case per aktor, lengkap dengan diagram Mermaid arsip di dalam berkasnya.
 - [`docs/requirement-2.0.md`](docs/requirement-2.0.md): SRS aktif yang memuat aktor dan kebutuhan aplikasi.
 - [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md): deployment, migration, DNS, backup, restore, dan rollout.
 - [`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md): urutan mengganti secret yang pernah bocor, lengkap dengan verifikasinya.
 - [`docs/CSP.md`](docs/CSP.md): cara kerja Content-Security-Policy berbasis nonce, directive yang dipakai, dan alasan setiap keputusan.
 - [`docs/VPS-HARDENING.md`](docs/VPS-HARDENING.md): catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan.
-- [`docs/diagram.mmd`](docs/diagram.mmd): diagram alur aktor dan use case dalam sintaks Mermaid, untuk pratinjau cepat tanpa PlantUML.
+
