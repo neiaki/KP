@@ -102,21 +102,36 @@ test("setiap sumber diagram punya render PNG dan SVG", async () => {
     `sumber diagram ini belum dirender ke PNG dan SVG: ${tanpaRender.join(", ")}`
   );
 
-  // Indeks dan README root tidak boleh punya tautan ke berkas diagram yang
-  // sudah dihapus. Yang diperiksa hanya tautan Markdown, bukan nama file
-  // yang disebut dalam kalimat, karena catatan historis memang sengaja masih
-  // menyebut diagram.mmd supaya pembaca tahu berkas itu pernah ada dan kenapa
-  // dihapus.
-  const semuaDokumen = await Promise.all(
+  // Tautan ke berkas diagram yang sudah dihapus harus ditolak dari mana pun,
+  // ditulis sebagai `diagram.mmd`, `./diagram.mmd`, atau `docs/diagram.mmd`.
+  // Tautan relatif diselesaikan terhadap letaknya masing-masing dokumen, bukan
+  //terhadap nama file saja, karena `](./diagram.mmd)` dan `](diagram.mmd)`
+  //menunjuk tempat yang berbeda bagi pembaca.
+  //
+  // Yang diperiksa hanya tautan Markdown, bukan penyebutan nama berkas di
+  // dalam kalimat, karena catatan historis memang sengaja masih menyebut
+  // diagram.mmd supaya pembaca tahu berkas itu pernah ada dan kenapa dihapus.
+  //
+  // Test "jalur relatif di indeks docs benar-benar ada" di bawah sudah menangkap
+  // tautan menggantung di docs/README.md, tapi tidak menyentuh README root.
+  // Jadi pemeriksaan ini memang perlu, dan cakupannya harus lebih luas.
+  const dokumenYangDiperiksa = await Promise.all(
     ["README.md", "../README.md"].map(async (p) => ({
       nama: p,
+      url: new URL(p, docsUrl),
       isi: await readFile(new URL(p, docsUrl), "utf8"),
     }))
   );
   const menggantung: string[] = [];
-  for (const { nama, isi } of semuaDokumen) {
-    for (const cocok of isi.matchAll(/\]\((?:docs\/)?([\w.-]+\.mmd)\)/g)) {
-      menggantung.push(`${nama} -> ${cocok[1]}`);
+  for (const { nama, url, isi } of dokumenYangDiperiksa) {
+    for (const cocok of isi.matchAll(/\]\(([^)\s]+)\)/g)) {
+      const target = cocok[1];
+      if (!target.endsWith(".mmd")) continue;
+      try {
+        await access(new URL(target, url));
+      } catch {
+        menggantung.push(`${nama} -> ${target}`);
+      }
     }
   }
   assert.deepEqual(
