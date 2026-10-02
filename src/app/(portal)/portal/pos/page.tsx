@@ -674,7 +674,7 @@ export default function SalesPosPage() {
                   Metode Pembayaran
                 </span>
                 {/* radiogroup + tombol min-h-11: versi lama p-2 hanya 34px dan
-                    grid-cols-3 memecah "transfer" jadidua baris di 375px. */}
+                    grid-cols-3 memecah "transfer" jadi dua baris di 375px. */}
                 <div
                   role="radiogroup"
                   aria-label="Metode pembayaran"
