@@ -113,14 +113,21 @@ export function CatalogContent({ locale }: { locale: Locale }) {
     setDraf(qDariUrl);
   }
 
-  // Setiap kali `searchParams` berubah, navigasi yang tertunda sudah selesai
-  // dan `searchParams` kembali menjadi dasar yang benar. Ref hanya perlu
-  // bertahan di antara dua tulisan yang terjadi sebelum navigasi pertama
-  // selesai, supaya tulisan kedua berdasar pada tulisan pertama dan bukan pada
-  // URL lama. Reset di efek, bukan saat render, karena `react-hooks/refs`
-  // melarang menulis ref di luar handler dan efek.
+  // Ref dikosongkan hanya kalau query yang ter-commit sama dengan query yang
+  // terakhir diminta.
+  //
+  // `router.replace` mengirim transisi asynchronous. Kalau navigasi yang lebih
+  // lama selesai lebih dulu sementara query yang terbaru belum selesai,
+  // `searchParams` akan berisi query lama itu. Mengosongkan ref tanpa syarat
+  // akan membuang query yang masih tertunda, dan tulisan berikutnya memakai
+  // URL lama sebagai dasar sehingga sebagian ketikan hilang.
+  //
+  // Ref tetap bertahan selama query yang diminta belum sampai, dan otomatis
+  // kosong ketika query itu sampai, jadi tidak ada keadaan yang membekas.
   React.useEffect(() => {
-    kueriDiminta.current = null;
+    if (kueriDiminta.current === searchParams.toString()) {
+      kueriDiminta.current = null;
+    }
   }, [searchParams]);
 
   const selectedBrand = products.some((p) => p.brand === brandDariUrl)

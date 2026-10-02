@@ -282,18 +282,24 @@ test("filter katalog dibaca dari URL, kolom pencarian memakai draf sinkron", () 
 
   // Penulisan ke URL harus lewat setFilter, bukan lewat efek. Efek hanya
   // boleh mengembalikan ref ke null, itu batasnya.
-  const efek = src.match(/React\.useEffect\([\s\S]*?\n  \}, \[[^\]]*\]\);/g) || [];
+  const efek = src.match(
+    /React\.useEffect\([\s\S]*?\n  \}, \[[^\]]*\]\);/g
+  ) || [];
   for (const isi of efek) {
     assert.ok(
       !/router\.|setFilter\(|setDraf\(|setSearch\(|setSelected|setSortOrder\(/.test(isi),
       "efek tidak boleh menulis filter ke URL, karena itu tugas setFilter"
     );
   }
+  // Ref hanya boleh dikosongkan kalau query yang ter-commit sama dengan query
+  // yang terakhir diminta. Tanpa syarat itu, navigasi lama yang selesai lebih
+  // dulu akan membuang query yang masih tertunda.
+  const reset = efek.find((isi) => /kueriDiminta\.current\s*=\s*null/.test(isi));
+  assert.ok(reset, "efek harus mengembalikan ref ke null setelah query yang diminta selesai");
   assert.ok(
-    efek.some((isi) => /kueriDiminta\.current\s*=\s*null/.test(isi)),
-    "efek harus mengembalikan ref ke null begitu searchParams berubah, supaya URL lama tidak dipakai lagi sebagai dasar"
+    /if\s*\(kueriDiminta\.current\s*===\s*searchParams\.toString\(\)\)/.test(reset),
+    "reset ref harus bersyarat, kalau tidak query yang masih tertunda hilang saat navigasi lama selesai lebih dulu"
   );
-
   // Dasar penulisan harus query yang terakhir diminta, bukan searchParams yang
   // masih tertinggal selama transisi.
   assert.ok(
