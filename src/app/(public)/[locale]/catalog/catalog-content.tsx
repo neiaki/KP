@@ -62,7 +62,40 @@ export function CatalogContent({ locale }: { locale: Locale }) {
   const condDariUrl = params.get("cond") || "";
   const sortDariUrl = params.get("sort") || "";
 
-  const search = params.get("q") || "";
+  /*
+   * Kolom pencarian punya draf lokal, filter lain tidak.
+   *
+   * `q` adalah teks yang diketik orang, dan `value` input harus berubah
+   * seketika setelah satu ketikan. Kalau `value` diambil langsung dari URL,
+   * nilainya baru berubah setelah `router.replace` selesai sebagai transisi.
+   * Sementara itu React mengembalikan DOM input ke nilai lama di sela itu.
+   * akibatnya karakter yang diketik cepat hilang, karena ketikan berikutnya
+   * membaca `e.target.value` yang sudah dikembalikan.
+   *
+   * Diuji di browser pada build lokal: mengetik "samsung" tanpa jeda
+   * menyisakan `?q=g` di URL dan hanya "g" di kolom pencarian, enam karakter
+   * hilang. Sebaliknya, filter merek, kondisi, dan urutan adalah tombol yang
+   * diklik sekali, jadi nilainya boleh menunggu navigasi selesai dan tetap
+   * dibaca dari URL tanpa draf.
+   */
+  const qDariUrl = params.get("q") || "";
+  const [search, setDraf] = React.useState(qDariUrl);
+  const [qTerakhir, setQTerakhir] = React.useState(qDariUrl);
+
+  // Pola resmi React untuk menyesuaikan state ketika nilai dari luar berubah.
+  // `qTerakhir` mengingat nilai `q` URL terakhir yang sudah ikut disalin ke
+  // draf. Ketika `q` di URL berubah karena orang lain yang mengubahnya,
+  // misalnya tautan `?cond=new` di footer, tombol Back, atau tombol hapus di
+  // navbar, draf ditulis ulang supaya kolom pencarian dan URL tidak berbeda.
+  //
+  // Perubahan `q` yang datang dari draf sendiri tidak perlu di sini: waktu
+  // navigasi selesai, `q` URL sama dengan yang diketik, jadi `setDraf` dipanggil
+  // dengan nilai yang sudah ada di kolom pencarian.
+  if (qDariUrl !== qTerakhir) {
+    setQTerakhir(qDariUrl);
+    setDraf(qDariUrl);
+  }
+
   const selectedBrand = products.some((p) => p.brand === brandDariUrl)
     ? brandDariUrl
     : "all";
@@ -84,7 +117,10 @@ export function CatalogContent({ locale }: { locale: Locale }) {
     router.replace(`${pathname}${kueri ? `?${kueri}` : ""}`, { scroll: false });
   };
 
-  const setSearch = (nilai: string) => setFilter("q", nilai, "");
+  const setSearch = (nilai: string) => {
+    setDraf(nilai);
+    setFilter("q", nilai, "");
+  };
   const setSelectedBrand = (nilai: string) => setFilter("brand", nilai, "all");
   const setSelectedCondition = (nilai: string) => setFilter("cond", nilai, "all");
   const setSortOrder = (nilai: SortOrder) => setFilter("sort", nilai, "newest");
