@@ -34,7 +34,7 @@ const POLA_ID_PRODUK = /^\d+$/;
  *
  * Katalog publik diisi dari snapshot yang membaca tabel products, jadi nama
  * model harusnya selalu ada. Kalau ternyata kosong, tombol Minta dikabari lebih
- * baik hilang daripada mengirim "Halo At Cell, kabari saya kalau  sudah ada
+ * baik hilang daripada mengirim "Halo At Cell, kabari saya kalau sudah ada
  * unitnya", karena counter tidak akan bisa mencari produknya.
  */
 export function notifyMeTargetFrom(product: Product): NotifyMeTarget | null {

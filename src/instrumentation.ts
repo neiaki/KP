@@ -92,7 +92,7 @@ export async function register(): Promise<void> {
      * console.error, console.warn, dan console.info di server diubah jadi
      * breadcrumb. Repo ini mencetak error Postgres lewat jalur itu, dan
      * pesan dari driver postgres sering memuat nilai parameter query. Nama,
-     * nomor telepon, dan IMEI yangistosert lewat Server Action bisa ikut
+     * nomor telepon, dan IMEI yang terkirim lewat Server Action bisa ikut
      * muncul di sana tanpa pernah menyentuh request atau response, jadi
      * beforeSend di atas tidak akan menyentuhnya.
      *
@@ -201,8 +201,8 @@ function scrubEvent<T extends { request?: unknown }>(event: T): T {
  * Yang dicoret:
  *  - breadcrumb kategori console yang pesannya memuat pola data pelanggan
  *    (nomor telepon, IMEI 15 digit, kode tiket). Bunuh saja, bukan disensor:
- *    pesan error yang sudah memuat nilai Asli tidak berguna kalau hanya
- *    sebagian yang dihapus, dan breadcrumb hanyaPelengkap, bukan bukti
+ *    pesan error yang sudah memuat nilai asli tidak berguna kalau hanya
+ *    sebagian yang dihapus, dan breadcrumb hanya pelengkap, bukan bukti
  *    utama.
  *  - breadcrumb kategori query: string SQL yang menyertakan nilai literal
  *    adalah tempat paling mungkin parameter bermunculan.

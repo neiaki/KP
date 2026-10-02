@@ -5,7 +5,7 @@ import { canAccessPortalPath } from "../src/lib/access.ts";
 import { UNIT_STATUS_OLEH_TEKNISI } from "../src/lib/validations.ts";
 
 /*
- * Gerbang status teknisi hanya berguna kalau ada kontrol yangreachable untuk
+ * Gerbang status teknisi hanya berguna kalau ada kontrol yang reachable untuk
  * teknisi.
  *
  * Audit: /portal/inventory hanya untuk admin dan sales, satu-satunya pemanggil
