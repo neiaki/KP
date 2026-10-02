@@ -164,6 +164,30 @@ export const updateUnitStatusSchema = z.object({
 export type UnitStatusInput = z.infer<typeof updateUnitStatusSchema>;
 export type UpdateUnitStatusInput = UnitStatusInput;
 
+/*
+ * Koreksi kondisi dan harga jual unit yang ter-tag salah.
+ *
+ * Schema ini sengaja memakai aturan harga yang sama dengan registrasi batch,
+ * dengan satu perbedaan: harga jual wajib lebih besar dari nol. Unit dengan
+ * harga jual 0 tidak pernah masuk katalog karena filter etalase membuang harga
+ * yang tidak masuk akal, jadi harga 0 hanya akan menjadi baris sampah yang
+ * tidak terlihat tapi masih ikut terpotong di laporan margin.
+ *
+ * Syarat "harga jual di atas harga beli" tidak bisa dicek di sini karena
+ * purchase_cost ada di baris database, bukan di payload. Action yang memanggil
+ * schema ini yang harus membacanya lalu menolak, persis seperti form inventaris
+ * sudah lakukan di sisi klien.
+ */
+export const updateUnitDetailsSchema = z.object({
+  unitId: z.coerce.number().int().positive("Unit tidak dikenal."),
+  condition: z.enum(["new", "second"], "Kondisi harus Baru atau Seken."),
+  sellingPrice: z.coerce
+    .number()
+    .positive("Harga jual harus lebih besar dari nol.")
+    .max(999_999_999_999, "Harga jual terlalu besar."),
+});
+export type UpdateUnitDetailsInput = z.infer<typeof updateUnitDetailsSchema>;
+
 /**
  * Referensi foto yang disimpan di kolom photo_urls.
  *

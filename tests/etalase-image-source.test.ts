@@ -7,7 +7,7 @@ import type { InventoryUnit, Product } from "../src/types/index.ts";
 /*
  * Sumber foto etalase.
  *
- * Tiga hal diuji di sini, dan ketiganya pernah rusak di production.
+ * Empat hal diuji di sini, dan keempatnya pernah rusak di production.
  *
  * 1. Kartu unit baru harus memakai fallback yang sama dengan kartu unit
  *    second. toCardItem sudah menghitung officialOrFallback yang sudah
@@ -22,6 +22,10 @@ import type { InventoryUnit, Product } from "../src/types/index.ts";
  *
  * 3. Galeri resmi Oppo Reno 11 pernah memuat oppo-reno11-2.jpg, yaitu foto
  *    laut tanpa perangkat di dalam frame.
+ *
+ * 4. Grid produk di portal menulis src-nya sendiri, di luar toCardItem, dan
+ *    exprinya dulu hanya `p.image_url || PLACEHOLDER_IMAGE`. IMAGE_URL_BROKEN
+ *    tidak kosong, jadi nilai itu diteruskan apa adanya ke next/image.
  *
  * Catatan jujur soal titik 3: test ini tidak bisa melihat piksel gambar. Yang
  * bisa dikunci di sini ada dua, yaitu setiap entri galeri lolos isRealPhoto,
@@ -148,6 +152,64 @@ test("isRealPhoto tetap menerima URL Storage dan path lokal", () => {
   ];
   for (const nilai of diterima) {
     assert.equal(isRealPhoto(nilai), true, `isRealPhoto harusnya menerima ${nilai}`);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Grid produk portal                                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Etalase publik dijaga toCardItem, tapi grid produk di portal menulis
+ * src-nya sendiri. Sebelumnya ekspresi itu cuma `p.image_url || PLACEHOLDER_IMAGE`,
+ * jadi IMAGE_URL_BROKEN yang tidak kosong lolos ke next/image apa adanya.
+ *
+ * Ekspresi src diambil dari berkas lalu dieksekusi, bukan hanya dibaca sebagai
+ * teks: kalau pemeriksaan ini cuma membandingkan string sumber, perubahan
+ * sekencil `||` menjadi `??` akan lolos. Yang diuji perilakunya, yaitu nilai
+ * yang benar-benar keluar untuk setiap bentuk image_url.
+ */
+const portalProductsPage = readFileSync(
+  new URL("../src/app/(portal)/portal/products/page.tsx", import.meta.url),
+  "utf8"
+);
+
+const srcEkspresi = [
+  ...portalProductsPage.matchAll(/<Image[\s\S]*?src=\{([^{}]+)\}/g),
+].map((m) => (m[1] ?? "").trim());
+
+/** Jalankan ekspresi src apa adanya dengan nilai image_url yang diberikan. */
+function srcUntuk(ekspresi: string, imageUrl: string): unknown {
+  return new Function("p", "isRealPhoto", "PLACEHOLDER_IMAGE", `return (${ekspresi});`)(
+    { image_url: imageUrl },
+    isRealPhoto,
+    "/products/placeholder.svg"
+  );
+}
+
+test("grid produk portal tidak pernah merender image_url yang rusak", () => {
+  assert.ok(
+    srcEkspresi.length > 0,
+    "tidak ada src= di <Image> pada halaman produk portal"
+  );
+  for (const ekspresi of srcEkspresi) {
+    assert.equal(
+      srcUntuk(ekspresi, IMAGE_URL_BROKEN),
+      "/products/placeholder.svg",
+      `src ${ekspresi} meneruskan image_url rusak ke next/image`
+    );
+    assert.equal(
+      srcUntuk(ekspresi, ""),
+      "/products/placeholder.svg",
+      `src ${ekspresi} tidak jatuh ke placeholder saat image_url kosong`
+    );
+    // Dan perbaikan tidak boleh lewat jalan pintas yang membuang semua foto:
+    // path lokal yang benar harus tetap dirender apa adanya.
+    assert.equal(
+      srcUntuk(ekspresi, "/products/iphone-13-1.jpg"),
+      "/products/iphone-13-1.jpg",
+      `src ${ekspresi} membuang foto produk yang sah`
+    );
   }
 });
 

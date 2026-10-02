@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
+import { isRealPhoto } from "@/lib/shop";
 import { Product } from "@/types";
 import { Boxes, Plus, Search, Edit2, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { hargaAcuanLayak } from "@/lib/validations";
@@ -245,7 +246,7 @@ export default function MasterProductsPage() {
                 <Image
                   fill
                   sizes={"(max-width: 640px) 50vw, 20vw"}
-                  src={p.image_url || PLACEHOLDER_IMAGE}
+                  src={isRealPhoto(p.image_url) ? p.image_url : PLACEHOLDER_IMAGE}
                   alt={p.model_name}
                   className="h-full w-full object-cover"
                 />
