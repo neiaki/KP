@@ -86,7 +86,7 @@ if (dsn) {
      *
      * Navigasi ikut dicoret karena halaman lacak dipanggil lewat
      * router.push, dan dari situ kode tiket masuk ke data.to. Tanpa ini,
-     * setiap Computer yang membuka lacak_tuple langsung mencatat kodenya.
+     * setiap pengunjung yang membuka halaman lacak langsung mencatat kodenya.
      *
      * Hook-nya beforeBreadcrumb, bukan beforeSend: beforeSend menerima satu
      * event lengkap beserta semua breadcrumb-nya, dan menyaring di sana
