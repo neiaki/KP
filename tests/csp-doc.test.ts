@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
+import { buildContentSecurityPolicy } from "../src/lib/csp.ts";
 
 /*
  * Dokumen CSP dijaga supaya tidak kedaluwarsa diam-diam. src/lib/csp.ts sudah
@@ -44,6 +45,59 @@ function directiveDiDokumen(): string[] {
   return [...isiDokumen.matchAll(/^\|\s*`([a-z-]+)`/gm)].map((m) => m[1]);
 }
 
+/*
+ * Nama directive saja tidak cukup, dan inilah buktinya. connect-src pernah
+ * menjelaskan satu host ingest Sentry sementara kode sudah menulis tiga, lalu
+ * kedua test di atas tetap hijau karena nama directive-nya sama persis. Test
+ * yang hanya mencocokkan nama itu menciptakan rasa aman yang salah, karena
+ * ia terlihat melindungi dokumen padahal tidak memeriksa isi nilai yang
+ * paling mudah basi.
+ *
+ * Yang di bawah ini membandingkan nilai. Kebijakan dibentuk dari kode
+ * sungguhan lewat buildContentSecurityPolicy, bukan disalin dari dokumen,
+ * supaya tidak mungkin keduanya sama-sama salah di tempat yang sama.
+ */
+
+/*
+ * supabaseUrl sengaja dikosongkan supaya host Storage tidak ikut terhitung.
+ * Host itu datang dari env dan berbeda per project, jadi memang tidak
+ * ditulis di dokumen. Mode produksi juga yang dipakai supaya nilai
+ * 'unsafe-inline' pada script-src tidak ikut terbawa.
+ */
+function kebijakanNyata(): Map<string, string[]> {
+  const kebijakan = buildContentSecurityPolicy({
+    nonce: "NONCE-DOKUMEN",
+    isDevelopment: false,
+  });
+  return new Map(
+    kebijakan.split("; ").map((bagian) => {
+      const spasi = bagian.indexOf(" ");
+      return [bagian.slice(0, spasi), bagian.slice(spasi + 1).split(" ")] as const;
+    })
+  );
+}
+
+/*
+ * Nilai yang ditulis di sel kolom "Nilai" tiap baris tabel directive. Hanya
+ * token yang dibungkus backtick yang diambil, karena itulah bentuk yang
+ * dipakai dokumen untuk menyatakan nilai. Sel alasan sengaja diabaikan,
+ * sebab di situ kalimat bebas menulis ulang istilah tanpa mengubah apa pun.
+ */
+function nilaiDiDokumen(): Map<string, string[]> {
+  const hasil = new Map<string, string[]>();
+  for (const baris of isiDokumen.split("\n")) {
+    const sel = baris.split("|");
+    if (sel.length < 4) continue;
+    const nama = /^\s*`([a-z-]+)`\s*$/.exec(sel[1] ?? "");
+    if (nama === null) continue;
+    hasil.set(
+      nama[1],
+      [...(sel[2] ?? "").matchAll(/`([^`]+)`/g)].map((m) => m[1])
+    );
+  }
+  return hasil;
+}
+
 test("setiap directive di kode dijelaskan di dokumen", () => {
   const kunci = directiveDiKode();
   assert.ok(kunci.length >= 12, `hanya ${kunci.length} directive terbaca dari kode`);
@@ -63,6 +117,86 @@ test("dokumen tidak menjelaskan directive yang tidak dipakai", () => {
     [],
     `docs/CSP.md menjelaskan directive ini tapi tidak ada di src/lib/csp.ts: ${karangan.join(", ")}`
   );
+});
+
+test("nilai setiap directive di dokumen sama dengan nilai di kode", () => {
+  const nyata = kebijakanNyata();
+  const ditulis = nilaiDiDokumen();
+  assert.ok(
+    nyata.size >= 12 && ditulis.size >= 12,
+    `hanya ${nyata.size} directive terbaca dari kode dan ${ditulis.size} dari dokumen`
+  );
+
+  /*
+   * script-src dilewati di sini karena punya dua mode dan sel nilainya menunjuk
+   * ke tabel mode, bukan menulis nilai. Arah dua-dimensinya dijaga test
+   * berikutnya, jadi penyingkatan ini tidak menjadi lubang.
+   */
+  const dilewati = new Set(["script-src"]);
+  const salah: string[] = [];
+  for (const [nama, nilai] of nyata) {
+    if (dilewati.has(nama)) continue;
+    const diDokumen = ditulis.get(nama);
+    if (diDokumen === undefined) continue; // nama sudah dijaga test di atas
+    const sama =
+      diDokumen.length === nilai.length && nilai.every((v, i) => v === diDokumen[i]);
+    if (!sama) {
+      salah.push(`${nama}: kode=[${nilai.join(" ")}] dokumen=[${diDokumen.join(" ")}]`);
+    }
+  }
+  assert.deepEqual(
+    salah,
+    [],
+    `nilai directive ini di docs/CSP.md tidak sama dengan src/lib/csp.ts:\n${salah.join("\n")}`
+  );
+});
+
+/*
+ * script-src adalah directive paling menentukan, jadi tidak boleh dijaga
+ * hanya lewat sebutan "lihat tabel mode". Isi tabel mode itu yang dibandingkan
+ * dengan dua mode yang benar-benar dibentuk kode.
+ */
+/*
+ * Nonce dibuat baru tiap permintaan, jadi mustahil ditulis apa adanya di
+ * dokumen. Dokumen memakai placeholder `'nonce-...'`, dan itu bentuk yang
+ * benar. Perbandingan menormalkan kedua sisi ke placeholder yang sama supaya
+ * bentuk yang benar itu tidak ikut dianggap salah.
+ */
+function normalkanNonce(nilai: string[]): string[] {
+  return nilai.map((v) => (v.startsWith("'nonce-") ? "'nonce-...'" : v));
+}
+
+test("tabel mode script-src sesuai dengan kedua mode di kode", () => {
+  const nilaiScriptSrc = (opsi: { nonce?: string }): string[] => {
+    const bagian = buildContentSecurityPolicy(opsi)
+      .split("; ")
+      .find((b) => b.startsWith("script-src "));
+    assert.ok(bagian, "script-src harus ada di kebijakan");
+    return normalkanNonce(bagian.slice("script-src ".length).split(" "));
+  };
+  // Tabel mode punya sel: Mode, Kapan, nilai script-src, lalu kosong. Yang
+  // diambil adalah sel ketiga, karena di situ nilai ditulis dengan backtick.
+  const barisMode = isiDokumen
+    .split("\n")
+    .filter((l) => /^\|\s*(Nonce|Longgar)\s*\|/.test(l));
+  assert.ok(
+    barisMode.length >= 2,
+    `hanya ${barisMode.length} baris tabel mode terbaca, seharusnya ada dua`
+  );
+
+  for (const [label, mode] of [
+    ["Nonce", nilaiScriptSrc({ nonce: "NONCE-DOKUMEN" })],
+    ["Longgar", nilaiScriptSrc({})],
+  ] as const) {
+    const sel = barisMode.find((l) => l.startsWith(`| ${label} |`));
+    assert.ok(sel, `baris mode ${label} tidak ditemukan di tabel mode`);
+    const tertulis = [...(sel.split("|")[3] ?? "").matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+    assert.deepEqual(
+      tertulis,
+      mode,
+      `nilai script-src mode ${label} di docs/CSP.md tidak sama dengan src/lib/csp.ts`
+    );
+  }
 });
 
 test("dokumen menyebut dua hal yang paling mudah rusak", () => {
