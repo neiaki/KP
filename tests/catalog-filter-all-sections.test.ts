@@ -221,33 +221,66 @@ test("filterProducts mengabaikan kondisi, karena produk tanpa unit tidak punya s
  * `searchParams` balik ke state. Tanpa penjaga ref, kedua efek akan saling
  * memanggil tanpa berhenti.
  */
-test("filter katalog membaca dari URL, bukan dari state terpisah", () => {
+test("filter katalog dibaca dari URL, kolom pencarian memakai draf sinkron", () => {
   const mentah = readFileSync(
     resolvePath(srcRoot, "app/(public)/[locale]/catalog/catalog-content.tsx"),
     "utf8"
   );
-  // Komentar sengaja dihapus dulu. Penjelasan kenapa dulu memakai useState ada
+  // Komentar sengaja dibuang dulu. Penjelasan kenapa dulu memakai useState ada
   // di dalam berkas, jadi menguji mentah akan salah hitung kata itu sebagai
   // pemakaian nyata.
   const src = mentah
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^[ \t]*\/\/.*$/gm, "");
 
-  // Filter harus dibaca dari query string.
+  // Tiga filter diskret harus dibaca dari query string. Semuanya tombol yang
+  // diklik sekali, jadi tidak butuh draf.
   assert.ok(
     /const\s+params\s*=\s*new URLSearchParams\(searchParams\.toString\(\)\)/.test(src),
     "filter harus dibaca dari query string"
   );
   assert.ok(
-    /const\s+search\s*=\s*params\.get\("q"\)/.test(src),
-    "kata kunci harus dibaca dari query string"
+    /const\s+selectedBrand\s*=\s*products\.some/.test(src),
+    "merek harus dibaca dari query string, bukan dari state terpisah"
+  );
+  assert.ok(
+    /const\s+selectedCondition\s*=/.test(src) && !/useState[^;]*selectedCondition/.test(src),
+    "kondisi harus dibaca dari query string, bukan dari state terpisah"
+  );
+  assert.ok(
+    /const\s+sortOrder\s*:\s*SortOrder\s*=/.test(src) && !/useState[^;]*sortOrder/.test(src),
+    "urutan harus dibaca dari query string, bukan dari state terpisah"
   );
 
-  // Dan tidak boleh ada state terpisah yang bisa melenceng dari URL.
+  // Kolom pencarian justru butuh draf lokal. Kalau `value` input diambil dari
+  // query string, nilainya baru berubah setelah router.replace selesai sebagai
+  // transisi, dan React mengembalikan DOM ke nilai lama di sela itu. Karakter
+  // yang diketik cepat hilang. Diuji di browser: mengetik "samsung" tanpa jeda
+  // menyisakan hanya "g" di kolom pencarian.
   assert.ok(
-    !/useState/.test(src),
-    "filter tidak boleh disimpan di useState, karena itu sumber kebenaran kedua yang bisa melenceng dari URL"
+    /const\s+qDariUrl\s*=\s*params\.get\("q"\)/.test(src),
+    "kata kunci harus tetap dibaca dari query string"
   );
+  assert.ok(
+    /const\s+\[search,\s*setDraf\]\s*=\s*(?:React\.)?useState\(qDariUrl\)/.test(src),
+    "kolom teks butuh draf lokal supaya ketikan tidak hilang saat navigasi async"
+  );
+  assert.ok(
+    /const\s+setSearch\s*=\s*\(nilai:\s*string\)\s*=>\s*\{\s*setDraf\(nilai\)/.test(src),
+    "setSearch harus memperbarui draf secara sinkron sebelum menulis ke URL"
+  );
+
+  // Draf hanya boleh mengikuti URL kalau URL berubah karena sumber lain.
+  assert.ok(
+    /if\s*\(qDariUrl\s*!==\s*qTerakhir\)/.test(src),
+    "draf harus disinkronkan ketika q di URL berubah karena sumber lain"
+  );
+  assert.ok(
+    /const\s+\[qTerakhir,\s*setQTerakhir\]\s*=\s*(?:React\.)?useState\(qDariUrl\)/.test(src),
+    "perlu mengingat nilai q terakhir supaya perubahan dari draf sendiri tidak menimpa ketikan"
+  );
+
+  // Tidak boleh ada efek yang menulis state filter, URL sudah sumbernya.
   assert.ok(
     !/useEffect/.test(src),
     "tidak boleh ada efek yang menulis state filter ke URL, karena URL sudah sumber kebenarannya"
@@ -264,11 +297,11 @@ test("filter katalog membaca dari URL, bukan dari state terpisah", () => {
   );
 
   // Nilai dari URL tetap harus disaring, jangan dipercaya mentah.
-  assert.ok(
-    /products\.some\(\(p\) => p\.brand === brandDariUrl\)/.test(src),
-    "merek dari URL hanya diterima kalau benar-benar ada"
-  );
-  for (const nilai of ['condDariUrl === "new"', 'sortDariUrl === "lowest"']) {
+  for (const nilai of [
+    'condDariUrl === "new"',
+    'sortDariUrl === "lowest"',
+    "products.some((p) => p.brand === brandDariUrl)",
+  ]) {
     assert.ok(src.includes(nilai), `nilai dari URL harus divalidasi (${nilai})`);
   }
 });
