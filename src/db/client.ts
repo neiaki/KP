@@ -543,7 +543,7 @@ function buildDb(url: string): Db {
       // angka yang bisa membuat pooler Supabase menolak koneksi. Batas
       // sesungguhnya tetap max_connections di sisi Supabase, yaitu 60 pada
       // paket yang sedang dipakai. Koneksi yang menganggur hampir tidak
-      //menggunakan memori, karena yang benar-benar aktif hanya
+      // menggunakan memori, karena yang benar-benar aktif hanya
       // koneksi yang sedang menjalankan query.
       max: POOL_EFEKTIF,
       // Socket harus ditutup sendiri sebelum pooler atau server punya alasan
