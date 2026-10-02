@@ -444,19 +444,33 @@ digest image yang berjalan lewat Coolify lalu bandingkan dengan digest tag
 `sha-<commit>` di GHCR.
 
 Cara paling langsung adalah label yang dipasang GitHub Actions di image itu.
-Label `org.opencontainers.image.revision` berisi commit yang jadi sumber build,
-jadi di VPS, setelah deploy selesai:
+Label `org.opencontainers.image.revision` berisi commit yang jadi sumber build.
+Perintahnya membaca container yang SEDANG MELAYANI, bukan tag di registry:
 
 ```bash
-docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
-  ghcr.io/neiaki/kp:sha-<commit>
+docker ps --filter "label=com.docker.compose.project=<project>" -q | head -1 | \
+  xargs -I{} docker inspect --format \
+  '{{ index .Config.Labels "org.opencontainers.image.revision" }}' {}
 ```
+
+Bentuk lama yang meng-inspect tag `ghcr.io/neiaki/kp:sha-<commit>` langsung
+tidak berlaku di host ini. Buildx menyimpan image di dalam container builder,
+bukan di daemon, jadi tag itu tidak ada di `docker images` dan `docker
+inspect` menjawab `no such object` walaupun image itu jelas sedang berjalan.
+Label di atas dibaca dari container yang melayani trafik, jadi tidak bergantung
+ke mana pun image-nya disimpan.
 
 Kalau yang muncul bukan commit yang diharapkan, image itu bukan yang kamu kira,
 dan deploy hijau tidak berarti apa-apa. Label yang sama bisa dibaca langsung dari
 GHCR tanpa akses VPS, karena registry menyimpan config image-nya, dan isi tag
 `sha-<commit>` di repository bisa dibandingkan dengan commit yang ada di sana
 sebelum deploy dimulai.
+
+Bukti yang lebih kuat daripada label adalah membandingkan rootfs. Ambil
+`{{.RootFS.Layers}}` dari image container yang berjalan, lalu bandingkan dengan
+`rootfs.diff_ids` dari config blob tag `sha-<commit>` di GHCR. Keduanya harus
+sama persis, seluruh layer, urutannya ikut. Label bisa salah tempel;
+rootfs tidak.
 
 ### Dua container aplikasi sesaat setelah deploy
 

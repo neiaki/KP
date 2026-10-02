@@ -20,12 +20,6 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unit pertama arrive | **Acuan operasional** |
 | `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
 
-## Diagram
-
-| File | Isi |
-|------|-----|
-| `diagram.mmd` | Diagram alur aktor dan use case dalam sintaks Mermaid. Diagram PlantUML sudah dihapus; daftar use case ada di `UC-AtCell.md` |
-
 ## Catatan
 
 - Dua mode aplikasi (mock lokal dan Supabase live) dijelaskan di
@@ -36,6 +30,10 @@ berbasis Supabase ketika environment production dikonfigurasi.
 - `tests/csp-doc.test.ts` menjaga `CSP.md` tetap sinkron dengan
   `src/lib/csp.ts`, supaya penjaga kebijakan tidak bisa dibenarkan sebagai
   dokumentasi yang sudah basi.
+- Tidak ada berkas gambar diagram di `docs/`. Diagram PlantUML dan render PNG
+  serta SVG-nya dihapus pada 1 Oktober 2026, lalu berkas Mermaid `diagram.mmd`
+  dihapus pada 2 Oktober 2026 karena isinya sudah tersalin inline di bagian 3
+  `UC-AtCell.md`. Daftar use case di bagian 2 berkas itu yang jadi acuan.
 
 ## Keputusan produk (29 Sep 2026)
 

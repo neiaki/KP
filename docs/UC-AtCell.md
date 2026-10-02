@@ -123,7 +123,8 @@ flowchart LR
   UC13 -. extend .-> UC14
   UC02 -. view via v_public_inventory .-> UC12
 ```
-Salinannya ada di `diagram.mmd`.
+Diagram ini sudah tersimpan inline di sini, jadi tidak ada berkas Mermaid
+terpisah yang bisa ikut basi tanpa terlihat.
 </details>
 
 ## 4. Spesifikasi Detail
@@ -241,23 +242,18 @@ Salinannya ada di `diagram.mmd`.
 - **Aktor:** Pelanggan login.
 - **Alur utama:** Buka `/account` → daftar `transactions` + `transaction_items` (unit, IMEI, `warranty_duration_months`) → unduh faktur ulang.
 
-## 5. Diagram yang Tersisa
+## 5. Gambar Diagram
 
-Hanya ada `diagram.mmd`, sintaks Mermaid untuk pratinjau cepat. GitHub
-merender blok Mermaid langsung dari Markdown, jadi berkasnya tidak perlu
-dirender terpisah.
+Tidak ada lagi berkas gambar diagram di repo ini. Berkas `.puml` beserta render
+PNG dan SVG dihapus pada 1 Oktober 2026, dan berkas Mermaid terpisah
+`diagram.mmd` dihapus pada 2 Oktober 2026 karena isinya sudah tersalin inline
+di bagian 3 berkas ini.
 
-Untuk melihatnya:
+Yang tersisa sebagai acuan adalah daftar use case di bagian 2 dan
+spesifikasinya di bagian 4. Keduanya bisa dibaca per use case, dicari, dan
+diuji, sedangkan gambar cepat basi begitu ada satu jalur yang berubah.
 
-```bash
-cd /home/neki/Code/KP/docs
-xdg-open diagram.mmd
-```
-
-Di VS Code, pasang ekstensi Mermaid Preview lalu buka berkasnya. Untuk memastikannya
-tetap sinkron dengan daftar use case di bagian 2, ubah `docs/diagram.mmd` di
-waktu yang sama.
-
-Kalau diagram UML yang digambar sebagai PNG dibutuhkan lagi, buat dari
-`docs/diagram.mmd` dan simpan hasilnya di `docs/` bersama sumbernya, supaya
-tautan gambarnya tidak pernah menggantung.
+Kalau gambar UML dibutuhkan lagi nanti, gambar dari daftar use case di bagian 2
+dan simpan hasilnya di `docs/` **bersama sumbernya**, supaya tautan gambarnya
+tidak pernah menggantung. `tests/docs-index.test.ts` akan menolak sumber
+diagram yang belum dirender ke PNG dan SVG.
