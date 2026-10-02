@@ -106,14 +106,14 @@ Ada lapis ketiga yang tidak disinggung bagian ini, dan yang justru jadi
 penghalang sebenarnya. Berkas `/usr/local/sbin/docker-dnat-guard.sh` menjaga
 `8080`, `6001`, dan `6002` di rantai `DOCKER-USER`.
 
-Dua hal yang sering bikin|rujukan|salah arah di sini:
+Dua hal yang sering membuat orang salah arah di sini:
 
 - **Aturan `ufw` pada port Docker tidak pernah bekerja.** Port `8000` dipublish
   ke container lewat DNAT di `nat/PREROUTING`, jadi paketnya dibelokkan dan
   diteruskan, bukan diserahkan secara lokal. Paket seperti itu tidak pernah
   sampai ke rantai `INPUT` tempat `ufw` bekerja. Aturan `ufw allow 8000`
   terlihat bersih di `ufw status` tapi tidak memblokir apa pun.
-- **Penjaga hanya governs trafik `-i eth0`.** Loopback, jadi SSH tunnel dari
+- **Penjaga hanya mengatur trafik `-i eth0`.** Loopback, jadi SSH tunnel dari
   operator, dan trafik antar container tidak ikut tertutup. Itu disengaja,
   supaya panel tetap bisa dicapai tanpa membuka port publik.
 
