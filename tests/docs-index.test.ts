@@ -105,8 +105,8 @@ test("setiap sumber diagram punya render PNG dan SVG", async () => {
   // Tautan ke berkas diagram yang sudah dihapus harus ditolak dari mana pun,
   // ditulis sebagai `diagram.mmd`, `./diagram.mmd`, atau `docs/diagram.mmd`.
   // Tautan relatif diselesaikan terhadap letaknya masing-masing dokumen, bukan
-  //terhadap nama file saja, karena `](./diagram.mmd)` dan `](diagram.mmd)`
-  //menunjuk tempat yang berbeda bagi pembaca.
+  // terhadap nama file saja, karena `](./diagram.mmd)` dan `](diagram.mmd)`
+  // menunjuk tempat yang berbeda bagi pembaca.
   //
   // Yang diperiksa hanya tautan Markdown, bukan penyebutan nama berkas di
   // dalam kalimat, karena catatan historis memang sengaja masih menyebut
