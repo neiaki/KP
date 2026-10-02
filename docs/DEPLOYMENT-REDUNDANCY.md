@@ -458,6 +458,52 @@ GHCR tanpa akses VPS, karena registry menyimpan config image-nya, dan isi tag
 `sha-<commit>` di repository bisa dibandingkan dengan commit yang ada di sana
 sebelum deploy dimulai.
 
+### Dua container aplikasi sesaat setelah deploy
+
+Sesudah deploy, sempat terlihat dua container dari project compose yang sama,
+dengan nama yang berbeda suffix dan image yang berbeda tag commit. Risikonya itu
+bukan dua versi aplikasi yang melayani trafik. Compose menyelesaikan perpindahan
+ke container baru, dan container lama tetap tertinggal sebagai container
+compose yang tidak lagi ada di file compose hasil build. Namanya pun bukan
+nama service yang bisa dibaca, melainkan nama acak, jadi tidak bisa dipakai
+untuk mengira versi mana yang sedang melayani permintaan.
+
+Keadaan itu perlu diketahui supaya tidak salah dibaca sebagai kegagalan
+deploy. Dua pengamatan yang membuatnya terpisah dari insiden "deploy gagal":
+
+- Health check dan `/api/health/ready` tetap hijau sepanjang masa transien,
+  karena keduanya dijawab oleh container baru.
+- Setelah transien, `docker ps` untuk project itu kembali ke satu baris.
+
+Periksanya read-only dan cukup satu perintah. Ganti `<project>` dengan nilai
+label `com.docker.compose.project` container aplikasi:
+
+```bash
+docker ps -a --filter "label=com.docker.compose.project=<project>" \
+  --format '{{.Names}} | {{.Status}} | {{.Image}}'
+```
+
+Hasil yang benar adalah tepat satu baris, dan kolom `Status` berbunyi
+`Up ... (healthy)`. Lebih dari satu baris sesaat setelah deploy adalah
+keadaan transien di atas. Satu baris dengan `Exited` atau `Restarting` adalah
+masalah yang berbeda, dan itulah yang harus ditelusuri lewat log Coolify.
+
+Yang perlu diketahui sebelum menyimpulkan apa pun: `docker inspect` pada tag
+`ghcr.io/neiaki/kp:sha-<commit>` bisa menjawab `no such object` di host ini,
+padahal image itu jelas dipakai. Buildx yang dipakai Coolify menyimpan image
+di dalam container builder, bukan di daemon, jadi tag image lokal tidak bisa
+dibaca lewat `docker images` seperti yang biasa diasumsikan. Karena itu
+verifikasi image yang benar tetap lewat respons, bukan lewat daftar image
+lokal.
+
+Jangan menambahkan `--remove-orphans` untuk membersihkan container yang
+tertinggal itu. Flag tersebut menghapus semua container dalam project yang
+absen dari file compose yang baru, dan pada project yang memuat lebih dari
+satu layanan, itu bisa ikut menghapus layanan yang tidak seharusnya ikut
+dihapus. Untuk At Cell, yang perlu dijaga hanya satu hal: jangan menghitung
+container aplikasi sebagai alat untuk menyimpulkan versi yang sedang berjalan.
+Gunakan respons, seperti bagian di atas.
+
 ### Verifikasi etalase di HTML, bukan hanya di browser
 
 Sejak layout area publik membaca snapshot di server, HTML yang sampai ke crawler

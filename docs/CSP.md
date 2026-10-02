@@ -93,10 +93,10 @@ group.
 | `form-action` | `'self'` | Form hanya mengirim ke server sendiri. |
 | `script-src` | Lihat tabel mode di atas | Satu-satunya directive yang punya mode sendiri. |
 | `script-src-attr` | `'none'` | Menolak handler inline pada atribut HTML. React 19 memakai `addEventListener`, jadi tidak ada kebutuhannya. |
-| `style-src` | `'self'`, `'unsafe-inline'` | Nonce tidak pernah berlaku untuk atribut `style`, dan tiga berkas memakainya. |
-| `img-src` | `'self'`, `data:`, `blob:`, Simple Icons, Unsplash, host Storage | Logo merek, foto mode mock, dan foto produk. |
+| `style-src` | `'self'`, `'unsafe-inline'` | Nonce tidak pernah berlaku untuk atribut `style`, dan beberapa komponen memakainya. |
+| `img-src` | `'self'`, `data:`, `blob:`, `https://cdn.simpleicons.org`, `https://images.unsplash.com`, plus host Storage | Logo merek, foto mode mock, dan foto produk. |
 | `font-src` | `'self'` | Font lewat `next/font` di-host sendiri, bukan dari CDN. |
-| `connect-src` | `'self'`, `https://*.ingest.sentry.io` | Browser tidak pernah bicara langsung ke Supabase, tapi SDK browser Sentry mengirim envelope galat ke host ingest Sentry. |
+| `connect-src` | `'self'`, `https://*.ingest.sentry.io`, `https://*.ingest.us.sentry.io`, `https://*.ingest.de.sentry.io` | Browser tidak pernah bicara langsung ke Supabase, tapi SDK browser Sentry mengirim envelope galat ke host ingest Sentry. Sentry punya dua topologi host, jadi keduanya ditulis. |
 | `frame-src` | `https://www.google.com` | Peta kontak di halaman kaki. |
 | `media-src` | `'self'` | Tidak ada media dari luar. |
 | `manifest-src` | `'self'` | Manifest dibuat sendiri. |
@@ -114,7 +114,9 @@ URL envelope dari DSN, dan `getEnvelopeEndpointWithUrlEncodedAuth` di
 [`@sentry/core`](https://github.com/getsentry/sentry-javascript) mengembalikan
 `tunnel ? tunnel : <host DSN>/api/<projectId>/envelope/`. Repo ini tidak
 pernah menyetel `tunnel`, jadi host yang dihubungi adalah host yang tertulis
-di DSN, yaitu `o<orgid>.ingest.sentry.io`.
+di DSN. Bentuk host itu punya dua topologi, dan DSN At Cell memakai yang
+regional, yaitu `o<orgid>.ingest.<region>.sentry.io` dengan `<region>` berisi
+`us`.
 
 Dulu `connect-src` hanya berisi `'self'`. Akibatnya SDK tetap
 berinialisasi, tidak ada yang kelihatan rusak, dan setiap envelope ditolak
@@ -123,13 +125,25 @@ Contoh ini sebabnya kebijakan yang terlalu ketat berbahaya: yang rusak tidak
 selalu kelihatan, dan gejalanya bisa berupa "tidak ada data" yang disangka
 bukan bug.
 
-Host itu ditulis sebagai `https://*.ingest.sentry.io`, bukan
-`https://o451234.ingest.sentry.io` hasil salin dari DSN. Alasannya, angka
-`<orgid>` datang dari env `NEXT_PUBLIC_SENTRY_DSN`, jadi daftar eksplisit
-akan mengunci kebijakan ke satu organisasi lalu diam-diam rusak begitu DSN
-dipindah. Wildcard-nya tetap dibatasi ke namespace ingest Sentry, jadi host
-lain di bawah `sentry.io` tetap tertutup dan tidak ada asal lain yang ikut
-terbuka.
+Host itu ditulis sebagai wildcard, bukan `https://o451234.ingest.sentry.io`
+hasil salin dari DSN. Alasannya, angka `<orgid>` datang dari env
+`NEXT_PUBLIC_SENTRY_DSN`, jadi daftar eksplisit akan mengunci kebijakan ke satu
+organisasi lalu diam-diam rusak begitu DSN dipindah. Wildcard-nya tetap
+dibatasi ke namespace ingest Sentry, jadi host lain di bawah `sentry.io` tetap
+tertutup dan tidak ada asal lain yang ikut terbuka.
+
+Satu wildcard saja tidak cukup untuk dua topologi itu, karena wildcard `*.` di
+CSP hanya menutup satu label di depan:
+
+- Bentuk lama `o<orgid>.ingest.sentry.io` ditutup oleh
+  `https://*.ingest.sentry.io`.
+- Bentuk regional `o<orgid>.ingest.<region>.sentry.io` justru tidak ditutup
+  wildcard itu, karena label `<region>` ada di antara `ingest` dan `sentry.io`.
+  Untuk DSN At Cell sekarang `<region>` berisi `us`, jadi yang benar-benar
+  menutupnya `https://*.ingest.us.sentry.io`. Region `de` ikut ditulis supaya
+  perpindahan region tidak menggagalkan pelaporan diam-diam, dan karena kedua
+  wildcard itu tetap berada di bawah namespace ingest Sentry, keduanya tidak
+  membuka host lain.
 
 Batasnya penting: mengizinkan `connect-src` hanya mengizinkan **transport**,
 itulah `fetch` dan `XHR` milik SDK ke host yang sudah disebut. Directive itu
@@ -145,10 +159,14 @@ Kalau `NEXT_PUBLIC_SENTRY_DSN` kosong, `Sentry.init` dilewati seluruhnya di
 envelope yang dibuat, dan allowance ini tidak punya efek di deployment yang
 tidak memakai Sentry.
 
-Satu hal yang belum ditangani: kalau Sentry nanti pindah ke host ingest
-regional seperti `o<orgid>.ingest.us.sentry.io`, wildcard di atas tidak ikut
-mencakupnya dan harus ditambah eksplisit. Bentuk regional itu memang
-dikenali SDK, tapi DSN At Cell sekarang tidak punya bagian region itu.
+Kasus itulah yang terjadi pada 1 Oktober 2026. DSN At Cell ternyata regional,
+sementara `connect-src` hanya menulis bentuk yang lama. Header tetap hijau,
+SDK tetap berinialisasi, dan browser membuang setiap envelope tanpa pesan,
+persis seperti tidak ada Sentry sama sekali. Perbaikannya menulis kedua bentuk,
+dan `tests/csp-sentry-connect-src.test.ts` menjaga supaya wildcard yang menutup
+DSN regional tidak hilang diam-diam. Kalau Sentry pindah ke region lain,
+`src/lib/csp.ts` harus ditulis ulang, karena `connect-src` tidak bisa menebak
+`<region>`.
 
 ## Yang sengaja tidak dipakai
 
