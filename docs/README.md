@@ -9,7 +9,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | File | Isi | Status |
 |------|-----|--------|
 | `PRD-AtCell.md` | Product Requirements Document: overview, fitur inti, user flow, arsitektur Next.js + Supabase | Rencana jangka panjang |
-| `UC-AtCell.md` | Spesifikasi use case per aktor (18 UC) plus diagram PlantUML per modul | **Acuan alur** |
+| `UC-AtCell.md` | Spesifikasi use case per aktor (18 UC), plus diagram Mermaid lama yang disimpan sebagai arsip di dalam berkas itu sendiri | **Acuan alur** |
 | `requirement.md` | SRS v1 awal: aktor Sales/Teknisi/Pelanggan, modul IMEI, servis, trade-in | Digantikan v2 |
 | `requirement-2.0.md` | SRS v2 At Cell: tambah aktor Admin/Owner, FR-xxx/NFR-xxx, modul etalase publik multibahasa + dashboard | **Acuan kebutuhan** |
 | `DEPLOYMENT-REDUNDANCY.md` | Runbook Coolify, Supabase, health check, backup, dan rollout | **Acuan operasional** |
