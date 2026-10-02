@@ -51,7 +51,20 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
       </p>
       <header className="sticky top-0 z-40 border-b border-line bg-card/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
-          <Link href={`/${locale}`} className="flex shrink-0 items-center gap-2">
+          {/* Marka merek tetap jadi tautan ke beranda. Keputusan ini
+              menyimpang dari 10 varian mockup yang merendernya sebagai label
+              biasa, dan alasannya ada di docs/README.md. Yang dijaga di sini
+              cuma satu: setiap tautan di bilah header menutup menu mobile
+              dulu. Menu itu ditumpuk di bawah bilah yang sama, jadi menaut
+              ke beranda atau ganti bahasa dari tablet (sm sampai lg, di sana
+              tombol ID/EN dan tombol menu masih berdampingan) akan memindah
+              halaman sambil membiarkan menu tetap terbuka. Tautan di dalam
+              panel menu sudah menutupnya; yang di luar panel ini belum. */}
+          <Link
+            href={`/${locale}`}
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex shrink-0 items-center gap-2"
+          >
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-base font-extrabold text-white">
               AT
             </span>
@@ -110,12 +123,14 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
             >
               <Link
                 href={getSwitchLocaleHref("id")}
+                onClick={() => setMobileMenuOpen(false)}
                 className={`rounded-md px-2 py-1 ${locale === "id" ? "bg-accent text-white" : "text-muted"}`}
               >
                 ID
               </Link>
               <Link
                 href={getSwitchLocaleHref("en")}
+                onClick={() => setMobileMenuOpen(false)}
                 className={`rounded-md px-2 py-1 ${locale === "en" ? "bg-accent text-white" : "text-muted"}`}
               >
                 EN
@@ -127,6 +142,7 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
             {!isLoginPath ? (
               <Link
                 href={`/${locale}/login`}
+                onClick={() => setMobileMenuOpen(false)}
                 aria-label={
                   locale === "en" ? "Sign in to staff portal" : "Masuk ke portal staf"
                 }
