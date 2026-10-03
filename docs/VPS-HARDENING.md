@@ -402,41 +402,59 @@ provider `file`. Karena itu berkas ini tidak mungkin menyentuhnya, dan
 serta `/.well-known/assetlinks.json` semuanya tetap menjawab sama seperti
 sebelumnya.
 
-Sertifikat di `acme.json` **sengaja tidak dihapus**. Traefik tidak pernah
-menyajikan sertifikat tanpa router yang cocok, jadi sertifikatnya sudah tidak
-aktif tanpa harus menyentuh penyimpanan yang sedang dipakai.
+Sertifikat di `acme.json` **sengaja tidak dihapus**, dan tidak boleh diklaim
+sudah tidak aktif. Traefik memuat sertifikat ACME tersimpan ke konfigurasi TLS
+**secara terpisah dari router HTTP**. Karena itu ada dua hal yang tidak sama,
+dan dokumen ini hanya boleh menyatakan yang pertama:
 
-Tapi "tidak lagi disajikan" bukan hal yang sama dengan "masih diperpanjang".
-Traefik menyimpan sertifikat ACME ke konfigurasi TLS secara terpisah dari
-router HTTP, jadi menghapus router bisa menghentikan perpanjangan sertifikat
-panel tanpa membuat router itu muncul lagi di status. Risikonya nyata tapi
-tidak terlihat dari `docker ps`, jadi harus dicek sendiri.
+- **Rute panel tidak lagi cocok.** Ini yang berubah, dan ini yang membuktikan
+  panel tidak bisa dijangkau lewat hostname itu lagi.
+- **Sertifikat untuk SNI itu masih bisa disajikan.** Entri di `acme.json`
+  tidak hilang, dan Traefik masih memastikannya selama ada rute lain yang cocok
+  dengan nama tersebut.
 
-Setelah router dihapus, cek tiga hal ini sebelum dianggap selesai:
+Jadi jangan menulis "sertifikat sudah tidak aktif". Yang benar ditulis:
+**rute panel tidak lagi cocok, sementara sertifikatnya masih tersimpan dan
+mungkin masih disajikan.**
+
+Perilaku Traefik setelah reload tidak bisa dipastikan dari dokumen, jadi
+periksa, jangan diasumsikan. Setelah router dihapus dan Traefik di-reload:
 
 ```
-# 1. Router panel benar-benar tidak ada
-cat /data/coolify/proxy/dynamic/coolify.yaml | grep -c sslip
+# 1. Rute panel benar-benar hilang dari konfigurasi dinamis
+grep -c sslip /data/coolify/proxy/dynamic/coolify.yaml
 
-# 2. Traefik tidak lagi complaining soal sertifikat panel
-docker logs --since 1h <container-traefik> 2>&1 | grep -i 'acme\|certificate' | tail -20
+# 2. Rute apa saja yang masih hidup, ini yang menentukan
+#    apakah sertifikat SNI panel masih bisa disajikan
+docker exec <container-traefik> \
+  grep -n 'Host(`' /data/coolify/proxy/dynamic/coolify.yaml | head -20
 
-# 3. Sertifikat toko masih ada dan masih disajikan
-docker exec <container-traefik> ls /data/coolify/proxy/acme.json
+# 3. Uji handshake. Ini pengamatan yang sebenarnya, bukan kesimpulan
+openssl s_client -connect <IP-VPS>:443 \
+  -servername coolify.<IP>.sslip.io </dev/null 2>&1 \
+  | grep -E 'subject=|issuer=|Verification'
+
+# 4. Entri sertifikat toko masih utuh
+docker exec <container-traefik> \
+  grep -o '[a-z.]*atcell.my.id' /data/coolify/proxy/acme.json | sort -u
 ```
 
-Kalau langkah 2 menunjukkan error perpanjangan yang menyebut hostname panel,
-router tidak bisa dikembalikan dengan mudah lalu tidak dicoba. Yang harus
-dilakukan adalah penerbitan ulang ulang lewat DNS-01, atau membiarkan sertifikat
-kedaluwarsa karena tidak ada yang memakainya lagi.
+Baca hasilnya begini:
 
-Sertifikat toko tidak boleh ikut hilang. Kalau `acme.json` menunjukkan entri
-`atcell.my.id`, `login.atcell.my.id`, atau `www.atcell.my.id` tidak ada,
-kembalikan `coolify.yaml` dari cadangan lalu ulangi. Mengedit
-`acme.json` untuk membuang satu entri berisiko menyentuh tiga sertifikat toko
-yang justru masih dibutuhkan, dan tidak menambah perlindungan: begitu router
-untuk hostname itu kembali, Traefik akan meminta ulang sertifikat dari
-`catchall` yang sama seperti sebelumnya.
+- Langkah 3 tidak mengembalikan sertifikat untuk SNI panel: ini yang
+  diharapkan. Catat begitu saja.
+- Langkah 3 **tetap mengembalikan sertifikat**: itu bukan kegagalan dan bukan
+  kebocoran. Catat sebagai fakta, lalu pastikan tidak ada rute lain yang masih
+  memakai nama itu untuk masuk.
+- Langkah 4 tidak menampilkan `atcell.my.id`, `login.atcell.my.id`, atau
+  `www.atcell.my.id`: **berhenti dan kembalikan `coolify.yaml` dari cadangan**,
+  lalu ulangi. Sertifikat toko ikut hilang berarti etalase dan portal ikut
+  mati.
+
+Mengedit `acme.json` untuk membuang satu entri tidak memperbaiki apa pun.
+Begitu router untuk hostname itu kembali, Traefik akan meminta ulang sertifikat
+dari `catchall` yang sama seperti sebelumnya, dan pengeditan itu hanya
+menambah satu titik gagal di tengah proses.
 
 #### Batas workaround ini, dan yang harus Anda kerjakan
 
