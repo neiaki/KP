@@ -48,9 +48,9 @@ const ASAL_SENDIRI = "https://atcell.my.id";
 const DSN_ORG_A = "https://aaaa1111bbbb2222cccc3333dddd4444@o451234.ingest.sentry.io/451234";
 const DSN_ORG_B = "https://eeee5555ffff6666aaaa7777bbbb8888@o987654.ingest.sentry.io/987654";
 const DSN_ORG_C_REGION_US =
-  "https://1111222233334444aaaa5555bbbb6666@o4511269966905344.ingest.us.sentry.io/4512180640743424";
+  "https://1111222233334444aaaa5555bbbb6666@o451234.ingest.us.sentry.io/451234";
 const DSN_ORG_D_REGION_DE =
-  "https://7777888899990000cccc1111dddd2222@o4511269966905344.ingest.de.sentry.io/4512180640743424";
+  "https://7777888899990000cccc1111dddd2222@o451234.ingest.de.sentry.io/451234";
 
 /*
  * URL envelope yang benar-benar dikirim SDK: DSN dihitung jadi
