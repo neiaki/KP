@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -132,7 +132,10 @@ function siapkanBin(
   return bin;
 }
 
-function jalankanBackup(skenario: Skenario): Hasil {
+function jalankanBackup(
+  skenario: Skenario,
+  opsi: { keepDays?: string; dumpLama?: readonly string[]; umurHari?: number } = {}
+): Hasil {
   const akar = mkdtempSync(join(tmpdir(), "auth-backup-"));
   const dirDump = join(akar, "backup");
   mkdirSync(dirDump);
@@ -142,6 +145,18 @@ function jalankanBackup(skenario: Skenario): Hasil {
   writeFileSync(salinSql, "");
   const bin = siapkanBin(akar, skenario, catat, salinSql);
 
+  // Umur dump lama diatur lewat utimes, bukan dengan menunggu. find -mtime
+  // membaca mtime, jadi ini memberi rotasi kandidat nyata untuk dihapus tanpa
+  // test suite ikut menunggu jam.
+  const lamaMs = Math.floor(Date.now() / 1000) - (Number(opsi.umurHari ?? 30) + 1) * 86_400;
+  // 86_400 detik = satu hari.
+  (opsi.dumpLama ?? []).forEach((nama) => {
+    writeFileSync(join(dirDump, nama), "arsip lama\n");
+    writeFileSync(join(dirDump, `${nama}.sha256`), "checksum lama\n");
+    utimesSync(join(dirDump, nama), lamaMs, lamaMs);
+    utimesSync(join(dirDump, `${nama}.sha256`), lamaMs, lamaMs);
+  });
+
   const hasil = spawnSync("bash", [backupScript], {
     encoding: "utf8",
     timeout: 60_000,
@@ -150,7 +165,7 @@ function jalankanBackup(skenario: Skenario): Hasil {
       PATH: `${bin}:${process.env.PATH ?? ""}`,
       SOURCE_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/postgres",
       BACKUP_DIR: dirDump,
-      KEEP_DAYS: "0",
+      KEEP_DAYS: opsi.keepDays ?? "0",
     },
   });
 
@@ -342,4 +357,68 @@ test("id profil dari dump diperlakukan sebagai data, bukan kode SQL", () => {
 
   assert.match(h.sqlStub, /a''; drop table auth\.users; --/);
   assert.equal(h.status, 5, "restore tanpa akun asli tetap harus gagal");
+});
+
+const LAMA_LAMA = "atcell-20260101T000000Z.dump";
+
+test("rotasi dump lama tetap berjalan walau dump baru tidak lengkap", () => {
+  /*
+   * Dump tanpa auth tetap ditulis ke disk lalu skrip keluar dengan kode 70, dan
+   * sebelumnya kode itu memanggil exit sebelum blok rotasi dieksekusi. Justru
+   * pada malam backupnya rusak direktori backup paling rawan penuh: rotasi
+   * yang dilewati membuat masalah yang sama menumpuk tiap malam tanpa henti.
+   */
+  const h = jalankanBackup({ toc: TOC_TANPA_AUTH }, { keepDays: "1", dumpLama: [LAMA_LAMA] });
+
+  assert.equal(h.status, 70, "dump tanpa auth tetap harus dilaporkan gagal");
+  // Pesan rotasi ke stderr karena itu bagian dari laporan kegagalan, sementara
+  // stdout tetap khusus untuk garis sukses.
+  assert.match(h.stderr, /Rotasi dump lama tetap dijalankan/);
+  assert.doesNotMatch(h.stdout, /^Backup selesai/m);
+});
+
+test("rotasi benar-benar menghapus dump lama walau dump baru tidak lengkap", () => {
+  const h = jalankanBackup({ toc: TOC_TANPA_AUTH }, { keepDays: "1", dumpLama: [LAMA_LAMA] });
+
+  assert.equal(h.status, 70);
+  assert.match(h.stdout, /Dihapus karena lewat 1 hari/);
+  assert.ok(
+    !h.isiDirektoriDump.includes(LAMA_LAMA),
+    `dump lama harus terhapus: ${h.isiDirektoriDump.join(", ")}`
+  );
+  assert.ok(
+    !h.isiDirektoriDump.includes(`${LAMA_LAMA}.sha256`),
+    "checksum dump lama ikut terhapus supaya tidak jadi sampah yatim"
+  );
+});
+
+test("dump yang masih muda tidak ikut terhapus saat rotasi berjalan", () => {
+  const h = jalankanBackup({ toc: TOC_TANPA_AUTH }, {
+    keepDays: "14",
+    umurHari: 3,
+    dumpLama: [LAMA_LAMA],
+  });
+
+  assert.equal(h.status, 70);
+  assert.ok(
+    h.isiDirektoriDump.includes(LAMA_LAMA),
+    `dump 3 hari dengan KEEP_DAYS=14 harus bertahan: ${h.isiDirektoriDump.join(", ")}`
+  );
+  assert.doesNotMatch(h.stdout, /Dihapus karena lewat/);
+});
+
+test("dump lengkap tetap mencetak headline sukses dan rotasi tetap jalan", () => {
+  const h = jalankanBackup({ toc: TOC_DENGAN_AUTH }, {
+    keepDays: "1",
+    dumpLama: [LAMA_LAMA],
+  });
+
+  assert.equal(h.status, 0, `backup lengkap harus sukses: ${h.stderr}`);
+  assert.match(h.stdout, /^Backup selesai/m);
+  assert.match(h.stdout, /Auth ikut ter-backup/);
+  assert.doesNotMatch(h.stdout, /Rotasi dump lama tetap dijalankan/);
+  assert.ok(
+    !h.isiDirektoriDump.includes(LAMA_LAMA),
+    "rotasi tetap jalan pada dump yang lengkap"
+  );
 });

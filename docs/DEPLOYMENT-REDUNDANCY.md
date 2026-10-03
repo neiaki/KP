@@ -932,9 +932,9 @@ tanpa password sama sekali, dan selalu dibuang lewat `trap` walau drill gagal di
 tengah. Kaidah yang dijaga: drill yang berhenti sebelum membuktikan apa pun sama
 nilainya dengan tidak ada drill.
 
-Backup yang belum pernah di-restore belum bisa disebut cadangan. Drill sekarang
-membuktikan pernyataan itu: baris `Drill restore LULUS` di log,
-atau `GAGAL` beserta pemeriksaan mana yang gagal.
+Backup yang belum pernah di-restore belum bisa disebut cadangan. Drill terjadwal
+sekarang yang membuat klaim itu bisa dibuktikan: baris `Drill restore LULUS` di
+log, atau `GAGAL` beserta pemeriksaan mana yang gagal.
 
 #### Rotasi log At Cell
 
