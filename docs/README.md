@@ -19,7 +19,6 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |
 | `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unit pertama arrive | **Acuan operasional** |
 | `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
-| `TRADE-IN-LAPTOP.md` | Yang sudah ada di mesin taksir tukar tambah, empat penghalang untuk laptop, data yang harus disuplai toko, dan tiga keputusan pemilik sebelum ada kode ditulis | **Acuan keputusan** |
 | `PAYMENT-WARNING-COPY.md` | Letak kalimat peringatan link pembayaran di halaman publik, risiko kalau dihapus, dan copy tulisan ulang yang bisa disetujui dalam satu langkah | **Acuan keputusan** |
 
 ## Catatan
@@ -62,7 +61,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
   tombol home baru yang ditambahkan, jadi keputusan ini tetap berlaku. Yang
   diklarifikasi cuma marka merek di navbar, dan itu tetap tautan ke beranda.
   Alasannya ada di keputusan 2 Oktober 2026 di bawah.
-- Harga kondisi laptop dan bottom shopping section: ditunda, testing jalan
+- Harga kondisi unit dan bottom shopping section: ditunda, testing jalan
   dulu dengan data existing. Lanjutannya ada di keputusan 2 Oktober 2026.
 - Scroll trackpad portal: `<main>` portal dan sidebar desktop tidak lagi
   memutus rantai scroll (`overscroll-contain` dihapus). Dialog dan drawer
@@ -75,12 +74,15 @@ Empat catatan penguji yang ambigu ditelusuri ke kodenya. Tiga berakhir sebagai
 dokumen keputusan yang menunggu owner, satu berakhir sebagai perbaikan kode.
 Tidak ada perilaku bisnis yang diubah tanpa persetujuan owner.
 
-- Note A, "kondisi laptop harga berubah (planing)": fitur, bukan bug.
-  Satu-satunya mesin harga berbasis kondisi di aplikasi adalah kalkulator
-  tukar tambah, dan modelnya dikunci iPhone 11 ke atas. Laptop tidak bisa
-  masuk `inventory_units` maupun `trade_in_records` karena keduanya mewajibkan
-  IMEI 15 digit. Tidak ada harga laptop yang dikarang. Lanjutannya di
-  `TRADE-IN-LAPTOP.md`.
+- Note A, "kondisi laptop harga berubah (planing)": ditutup 3 Oktober 2026.
+  Toko ini hanya menjual dan menerima tukar tambah ponsel, jadi kata
+  "laptop" dibaca sebagai salah ketik penguji, bukan permintaan fitur.
+  `PRD-AtCell.md` dan `requirement-2.0.md` tidak punya satu pun
+  ketentuan tentang laptop. Perilaku yang sebenarnya ditunjuk catatan
+  itu, yaitu harga ikut berubah saat kondisi unit diubah, memang
+  disengaja dan dijaga `tests/unit-second-price.test.ts`. Dokumen
+  fitur laptop yang pernah ada sudah dihapus, dan tidak akan dibuat
+  tanpa permintaan owner.
 - Note B, "1. bagian belanja bawah": dua kandidat, kolom footer "Belanja"
   dan section "Kenapa belanja di At Cell". Tidak ada otoritas desain untuk
   memilih, karena kesepuluh varian mockup tidak punya footer sama sekali.
