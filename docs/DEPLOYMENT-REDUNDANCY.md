@@ -765,9 +765,24 @@ di network `coolify`, jadi dari luar VPS tidak bisa diakses:
 # dari luar VPS: harus gagal
 nc -vz <ip-vps> 5432
 
-# dari container lain di network coolify: berhasil
-docker exec <container> pg_isready -h 10.0.1.4 -p 5432
+# dari container lain di network coolify: berhasil.
+# Alamat dibaca dari Docker, bukan ditulis manual: IP container berubah saat
+# di-restart, dan IP yang dilepas langsung dipakai container lain.
+STANDBY=ah5xioiowolm1uub4lpthnnd
+STANDBY_HOST=$(docker inspect "$STANDBY" \
+  --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+docker exec <container> pg_isready -h "$STANDBY_HOST" -p 5432
 ```
+
+Jangan pernah mengunci alamat standby di dokumen atau di script. Pada
+2026-10-02T10:05Z standby di-restart dan Docker memindahkannya dari
+`10.0.1.4` ke `10.0.1.8`; enam menit kemudian `coolify-db` dibuat dan
+mengambil `10.0.1.4`. Wrapper yang masih aims ke `10.0.1.4` selama tiga
+percobaan sync berikutnya mengirim password standby ke database platform
+Coolify, yang menolaknya dengan `password authentication failed`. Wrapper
+kini membaca alamat dari Docker setiap kali jalan, dan mencatat baris
+`Standby <container> di <ip>:5432` ke log supaya target yang dipakai selalu
+bisa diaudit dari `/var/log/atcell-standby-sync.log`.
 
 Jalankan sinkronisasi manual dengan cara yang sama seperti cron, supaya
 redireksi log terjadi sebagai root:
