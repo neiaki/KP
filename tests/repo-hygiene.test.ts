@@ -44,15 +44,42 @@ test("LICENSE ada di root repo", () => {
 
 test("LICENSE yang dipakai adalah MIT dan utuh", () => {
   const isi = baca("LICENSE");
-  // Penanda yang wajib ada di teks MIT resmi. Kalau salah satu
-  // hilang, LICENSE bukan MIT dan kolom package.json ikut salah.
-  const wajib = [
+  // Daftar frasa pendek tidak cukup: menghapus satu klausa saja,
+  // misalnya Responsibilities, tetap lolos. Jadi seluruh teks MIT
+  // dipakai acuan, bukan cuma beberapa penanda.
+  // Baris panjang di bawah adalah teks MIT verbatim, jadi tidak
+  // ditulis ulang agar hemat kolom. Tidak masalah: kedua sisi
+  // dirapikan dulu, jadi pemenggalan baris di sini tidak
+  // berpengaruh pada perbandingan.
+  const MIT_LENGKAP = [
     "MIT License",
-    "Permission is hereby granted, free of charge",
-    "The above copyright notice and this permission notice",
-    'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY',
-  ];
-  const hilang = wajib.filter((frasa) => !isi.includes(frasa));
+    "",
+    "Permission is hereby granted, free of charge, to any person obtaining a copy",
+    "of this software and associated documentation files (the \"Software\"), to deal",
+    "in the Software without restriction, including without limitation the rights",
+    "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+    "copies of the Software, and to permit persons to whom the Software is",
+    "furnished to do so, subject to the following conditions:",
+    "",
+    "The above copyright notice and this permission notice shall be included in all",
+    "copies or substantial portions of the Software.",
+    "",
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR",
+    "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,",
+    "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE",
+    "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER",
+    "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,",
+    "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE",
+    "SOFTWARE.",
+  ].join("\n");
+  const rapikan = (teks: string) => teks.replace(/\s+/g, " ").trim();
+  const target = rapikan(isi);
+
+  // Baris copyright dikecualikan karena isinya berbeda per pemilik.
+  const wajib = MIT_LENGKAP.split("\n")
+    .map(rapikan)
+    .filter((baris) => baris.length > 0 && !baris.startsWith("Copyright"));
+  const hilang = wajib.filter((baris) => !target.includes(baris));
   assert.deepEqual(
     hilang,
     [],
