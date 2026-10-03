@@ -6,9 +6,10 @@
 # dienkripsi lalu dikirim keluar host. Tanpa ini, seluruh cadangan hidup
 # dan mati di tempat yang sama dengan aplikasinya.
 #
-# Urutan: pilih dump terbaru -> verifikasi checksum -> enkripsi ->
-# upload -> verifikasi sisi jauh (bila didukung) -> rotasi lokal salinan
-# terenkripsi. Dump asli di BACKUP_DIR tidak disentuh sama sekali.
+# Urutan: pilih dump terbaru -> verifikasi checksum -> pastikan arsip benar-benar
+# terbaca dan memuat auth -> enkripsi -> upload -> verifikasi sisi jauh (bila
+# didukung) -> rotasi lokal salinan terenkripsi. Dump asli di BACKUP_DIR tidak
+# disentuh sama sekali.
 #
 # Perilaku saat OFFSITE_* belum dikonfigurasi: script KELUAR BUKAN-NOL.
 # Versi lama keluar 0 sambil menulis "lewati tanpa gagal", sehingga cron
@@ -40,6 +41,14 @@ command -v openssl >/dev/null 2>&1 || {
 }
 command -v sha256sum >/dev/null 2>&1 || {
   echo "sha256sum tidak tersedia." >&2
+  exit 1
+}
+# pg_restore dipakai untuk membuktikan arsip benar-benar bisa dibaca dan memuat
+# data auth. Tanpa tool ini pemeriksaan itu mustahil dijalankan, jadi
+# ketiadaannya menggagalkan off-site di awal daripada mengirim arsip yang isinya
+# hanya dijamin oleh checksum.
+command -v pg_restore >/dev/null 2>&1 || {
+  echo "pg_restore tidak tersedia. Tanpa pg_restore isi arsip tidak bisa dibuktikan." >&2
   exit 1
 }
 
@@ -87,6 +96,30 @@ if [ -f "${terbaru}.sha256" ]; then
     echo "Checksum lokal ${dasar} tidak cocok, batalkan sebelum upload." >&2
     exit 1
   }
+fi
+
+# Checksum hanya membuktikan berkas tidak berubah sejak ditulis, bukan bahwa
+# isinya masih bisa dibaca atau punya apa yang dibutuhkan restore. Dua-duanya
+# dicek di sini, sebelum enkripsi dan upload, karena dump rusak yang terkirim
+# ke off-site memberi rasa aman semu: salinannya ada di dua tempat, tapi tidak
+# bisa dipakai memulihkan login.
+#
+# Keluaran pg_restore ditahan di variabel lalu diperiksa, bukan dialirkan ke
+# grep yang langsung keluar begitu nemu baris. Pola itu membuat pg_restore
+# menerima SIGPIPE dan pipefail mengubah kegagalan nyata jadi 141, persis
+# seperti yang pernah terjadi di guard auth.users pada restore-postgres.sh.
+if ! toc_daftar="$(pg_restore --list "$terbaru" 2>&1)"; then
+  printf 'GAGAL: %s tidak bisa dibaca sebagai arsip PostgreSQL, off-site dibatalkan.\n' "$dasar" >&2
+  printf 'Rinciannya: %s\n' "$toc_daftar" >&2
+  exit 1
+fi
+if ! [[ "$toc_daftar" =~ (^|[[:space:]])TABLE[[:space:]]+DATA[[:space:]]+auth[[:space:]]+users([[:space:]]|$) ]]; then
+  {
+    printf 'GAGAL: %s tidak memuat data auth.users, off-site dibatalkan.\n' "$dasar"
+    echo "Skema auth tidak ikut ter-backup, jadi salinan off-site ini tidak bisa dipakai memulihkan akun staf."
+    echo "Periksa --schema=auth pada perintah pg_dump di scripts/backup-postgres.sh."
+  } >&2
+  exit 1
 fi
 
 keluar_dir="${OFFSITE_STAGING_DIR:-${BACKUP_DIR}/.offsite}"
@@ -180,4 +213,5 @@ if [ "$simpan" -gt 0 ]; then
   [ "$dihapus" -eq 0 ] || printf 'Salinan terenkripsi lama dihapus: %s berkas.\n' "$dihapus"
 fi
 
-printf 'Off-site selesai: %s terkirim terenkripsi.\n' "$nama_enc"
+printf 'Off-site selesai: %s terkirim terenkripsi (%s entri data auth).\n' \
+  "$nama_enc" "$(printf '%s\n' "$toc_daftar" | grep -cE '(^|[[:space:]])TABLE[[:space:]]+DATA[[:space:]]+auth[[:space:]]')"

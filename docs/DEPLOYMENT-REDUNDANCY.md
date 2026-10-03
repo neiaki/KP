@@ -883,8 +883,13 @@ aplikasi, jadi ia melindungi dari kerusakan data, migration yang salah, atau
 apa pun untuk memulihkan. Ia **tidak** melindungi dari kehilangan VPS, dari
 akun Supabase yang dikompromikan, atau dari ransomware di host yang sama.
 Salinan terenkripsi off-host dibuat oleh `scripts/backup-offsite.sh`
-(`npm run backup:offsite`): dump terbaru diverifikasi checksum-nya, dienkripsi
-AES-256-CBC dengan PBKDF2, lalu dikirim ke tujuan rclone atau HTTP PUT.
+(`npm run backup:offsite`): dump terbaru diverifikasi checksum-nya, lalu
+dicoba dibaca dengan `pg_restore --list` dan dipastikan memuat data
+`auth.users`, baru dienkripsi AES-256-CBC dengan PBKDF2 dan dikirim ke tujuan
+rclone atau HTTP PUT. Pemeriksaan kedua itu wajib: checksum hanya membuktikan
+berkas tidak berubah sejak ditulis, jadi arsip korup yang checksum-nya cocok
+bisa lolos dan terkirim ke luar host, memberi rasa aman semu karena salinannya
+ada di dua tempat tapi tidak bisa dipakai memulihkan akun staf.
 Exit 0 berarti off-host copy benar-benar terkirim. Kalau passphrase atau
 tujuan upload kosong, script keluar bukan-nol dan cron mencatat `GAGAL`,
 karena cadangan yang diam-diam tidak jalan memunculkan rasa aman yang
