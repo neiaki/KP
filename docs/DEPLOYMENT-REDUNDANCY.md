@@ -71,8 +71,9 @@ NEXT_PUBLIC_SENTRY_DSN=
 NEXT_PUBLIC_COMMIT_SHA=
 VERCEL_GIT_COMMIT_SHA=
 
-# Backup off-site, opsional semua. Tanpa passphrase script keluar 0 tanpa
-# mengirim apa pun. Isi passphrase plus satu tujuan untuk mengaktifkan.
+# Backup off-site. Tanpa passphrase atau tanpa tujuan upload, script keluar
+# BUKAN-NOL dan cron mencatat GAGAL. Exit 0 berarti off-host copy terkirim.
+# Isi passphrase plus satu tujuan untuk mengaktifkan.
 OFFSITE_PASSPHRASE=
 OFFSITE_PASSPHRASE_FILE=
 OFFSITE_RCLONE_REMOTE=
@@ -800,11 +801,14 @@ apa pun untuk memulihkan. Ia **tidak** melindungi dari kehilangan VPS, dari
 akun Supabase yang dikompromikan, atau dari ransomware di host yang sama.
 Salinan terenkripsi off-host dibuat oleh `scripts/backup-offsite.sh`
 (`npm run backup:offsite`): dump terbaru diverifikasi checksum-nya, dienkripsi
-AES-256-CBC dengan PBKDF2, lalu dikirim ke tujuan rclone atau HTTP PUT. Tanpa
-passphrase dan tanpa tujuan, script keluar 0 tanpa mengirim apa pun, jadi cron
-hariannya aman dipasang sebelum konfigurasi selesai. Cara dekripsi dan daftar
-variabel ada di `scripts/backup-offsite.sh` dan `.env.example` (awalan
-`OFFSITE_`).
+AES-256-CBC dengan PBKDF2, lalu dikirim ke tujuan rclone atau HTTP PUT.
+Exit 0 berarti off-host copy benar-benar terkirim. Kalau passphrase atau
+tujuan upload kosong, script keluar bukan-nol dan cron mencatat `GAGAL`,
+karena cadangan yang diam-diam tidak jalan memunculkan rasa aman yang
+palas. Keadaan di host ini per 3 Oktober 2026: file env yang dirujuk cron
+belum dibuat, jadi job itu gagal setiap malam dan belum pernah mengirim
+satu pun byte ke luar host. Cara dekripsi dan daftar variabel ada di
+`scripts/backup-offsite.sh` dan `.env.example` (awalan `OFFSITE_`).
 
 
 ### Backup otomatis di VPS
