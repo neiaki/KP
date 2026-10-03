@@ -58,10 +58,18 @@ ULANG_MENIT="${WATCHDOG_ULANG_MENIT:-30}"
 
 notify() {
   [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ] || return 0
-  curl -sS -m 15 -o /dev/null \
+  # --fail wajib: Telegram menjawab HTTP 4xx untuk token yang dicabut atau
+  # TELEGRAM_CHAT_ID yang salah, dan tanpa --fail curl tetap keluar 0. Notifikasi
+  # yang gagal diam-diam adalah yang paling berbahaya di komponen ini, karena
+  # operator mengira alerting sudah hidup sementara tidak ada yang masuk.
+  # Kegagalan dicatat lewat catat, bukan ditelan: token tidak ikut ke log
+  # karena pesan yang dicatat tidak memuat URL.
+  if ! curl -sS --fail -m 15 -o /dev/null \
     --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
     --data-urlencode "text=$1" \
-    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" 2>/dev/null || true
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" 2>/dev/null; then
+    catat warning "Notifikasi Telegram gagal terkirim. Periksa TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID di $ENV_FILE."
+  fi
 }
 
 # catat <tingkat> <pesan>

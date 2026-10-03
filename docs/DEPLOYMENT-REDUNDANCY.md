@@ -725,6 +725,34 @@ sendiri hilang, dan saat itu yang dicari adalah dump At Cell yang memuat
 satu pun salinan yang memuat akun, sehingga kehilangan project berarti kehilangan
 login tanpa ada apa pun untuk dipulihkan.
 
+### Akun yang hanya ada di target hilang saat restore
+
+`scripts/restore-postgres.sh` memakai `pg_restore --clean --single-transaction`,
+jadi target **diisi ulang** dari dump, bukan digabung dengan isinya. Setiap akun
+Auth, profil, transaksi, dan unit yang ada di target tetapi tidak ada di dump akan
+**terhapus**, termasuk akun yang dibuat beberapa menit sebelum restore
+dimulai. Ini sifat `pg_restore --clean`, bukan bug, dan memang persis yang
+dibutuhkan supaya target sama persis dengan dump.
+
+Konsekuensi praktisnya, dan ini yang perlu dibaca sebelum menjalankan restore ke
+target sungguhan:
+
+1. Restore mengembalikan database ke **saat dump diambil**, bukan ke saat
+   restore dijalankan. Penjualan, unit, dan perubahan stok setelah jam backup
+   akan hilang dari target.
+2. Akun staf yang dibuat setelah backup terakhir tidak ikut pulih. Kalau ada
+   yang baru masuk setelah itu, daftarkan ulang di Supabase Auth setelah
+   restore selesai.
+3. Sebelum restore sungguhan, jalankan drill lebih dulu
+   (`npm run restore:drill`) dan baca output verifikasinya. Drill memakai
+   container sekali pakai dengan `--network none`, jadi tidak pernah menyentuh
+   produksi maupun standby.
+
+Yang **tidak** diam-diam lolos sudah ditutup: `scripts/backup-postgres.sh`
+memeriksa isi dump dan `scripts/restore-postgres.sh` memverifikasi setelah
+restore bahwa ada akun Auth asli, bukan cuma stub. Dump tanpa akun asli
+diperlakukan sebagai kegagalan, bukan sukses setengah jadi.
+
 Contoh format dump dan restore:
 
 ```bash
