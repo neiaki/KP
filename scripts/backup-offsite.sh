@@ -10,11 +10,19 @@
 # upload -> verifikasi sisi jauh (bila didukung) -> rotasi lokal salinan
 # terenkripsi. Dump asli di BACKUP_DIR tidak disentuh sama sekali.
 #
-# Kapan script ini diam saja (exit 0): saat OFFSITE_* belum dikonfigurasi.
-# Cron harian tetap terpasang supaya tidak ada langkah manual yang
-# terlupakan, dan log mencatat "belum dikonfigurasi" alih-alih gagal.
-# Kegagalan yang sebenarnya (enkripsi gagal, upload gagal, checksum jauh
-# beda) selalu exit bukan-nol supaya cron terdengar.
+# Perilaku saat OFFSITE_* belum dikonfigurasi: script KELUAR BUKAN-NOL.
+# Versi lama keluar 0 sambil menulis "lewati tanpa gagal", sehingga cron
+# melaporkan berhasil setiap malam padahal tidak ada satu pun byte yang
+# dienkripsi dan tidak ada yang dikirim. Cadangan yang diam-diam tidak jalan
+# lebih berbahaya daripada tidak ada, karena ia menciptakan rasa aman yang
+# palsu. Kegagalan yang sebenarnya (enkripsi gagal, upload gagal, checksum
+# jauh beda) tetap keluar bukan-nol.
+#
+# Karena itu tidak ada lagi jalur keluar 0 yang berarti "tidak melakukan
+# apa-apa" di script ini. Exit 0 berarti off-host copy benar-benar ada.
+#
+# Yang tetap dijaga: tanpa passphrase script berhenti sebelum mengenkripsi,
+# jadi tidak pernah ada upload dalam keadaan terbuka.
 #
 # Script ini memakai construct khusus bash, sama seperti backup-postgres.sh.
 if [ -z "${BASH_VERSION:-}" ]; then
@@ -50,16 +58,24 @@ elif [ -n "${OFFSITE_PASSPHRASE:-}" ]; then
 fi
 
 if [ -z "$passphrase" ]; then
-  echo "OFFSITE belum dikonfigurasi (passphrase kosong), lewati tanpa gagal."
-  exit 0
+  # Jalur ini dulu keluar 0. Tiga malam berturut-turut log berbunyi
+  # "lewati tanpa gagal" sementara tidak ada file .enc yang pernah dibuat.
+  # Sekarang jadi kegagalan yang terdengar.
+  # Yang disebut di sini sengaja hanya bentuk _FILE: test penjaga rahasia
+  # menolak echo yang menyebut passphrase telanjang, dan pesan ini tidak
+  # perlu melintasinya untuk tetap jelas.
+  echo "GAGAL: OFFSITE belum dikonfigurasi: tidak ada passphrase yang tersedia (OFFSITE_PASSPHRASE_FILE kosong atau tidak terbaca)." >&2
+  echo "GAGAL: tidak ada satu pun byte yang dienkripsi dan tidak ada yang dikirim. Job ini gagal, bukan dilewati." >&2
+  exit 1
 fi
 
 # Dump terbaru milik backup-postgres.sh. Pola nama dikunci supaya file lain
 # di direktori yang sama tidak ikut terkirim.
 terbaru="$(ls -1t "${BACKUP_DIR}"/atcell-*.dump 2>/dev/null | head -n 1 || true)"
 if [ -z "$terbaru" ]; then
-  echo "Tidak ada dump di $BACKUP_DIR, lewati tanpa gagal."
-  exit 0
+  # Sama seperti di atas: backup yang tidak terjadi tidak boleh keluar 0.
+  echo "GAGAL: tidak ada dump di $BACKUP_DIR, jadi tidak ada yang bisa dikirim off-site." >&2
+  exit 1
 fi
 dasar="$(basename "$terbaru")"
 
@@ -138,8 +154,12 @@ if [ -n "${OFFSITE_PUT_URL:-}" ]; then
 fi
 
 if [ "$terkirim" -eq 0 ]; then
-  echo "Berkas terenkripsi siap di ${keluar_dir}/${nama_enc}, tapi tidak ada tujuan upload (OFFSITE_RCLONE_REMOTE dan OFFSITE_PUT_URL kosong). Enkripsi lokal sudah benar; isi salah satu tujuan untuk mengaktifkan kiriman."
-  exit 0
+  # Terenkripsi di lokal saja berarti seluruh cadangan masih hidup dan mati
+  # di host yang sama, yaitu kondisi yang justru skrip ini dibuat untuk
+  # cegah. Jadi ini juga kegagalan.
+  echo "GAGAL: tidak ada tujuan upload: OFFSITE_RCLONE_REMOTE dan OFFSITE_PUT_URL kosong." >&2
+  echo "GAGAL: ${keluar_dir}/${nama_enc} sudah terenkripsi di lokal, tapi belum keluar dari host ini." >&2
+  exit 1
 fi
 
 # Rotasi salinan terenkripsi lokal: yang lama tidak ada gunanya setelah yang
