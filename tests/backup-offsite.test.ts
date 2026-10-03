@@ -126,16 +126,26 @@ test("offsite gagal keras saat terkripsi tapi tidak ada tujuan upload", async ()
 });
 
 test("offsite gagal keras saat tidak ada dump sama sekali", async () => {
+  // Passphrase wajib disediakan. Tanpa itu script berhenti lebih dulu di
+  // pemeriksaan passphrase, jadi cabang "tidak ada dump" yang sedang diuji
+  // tidak pernah disentuh dan test ini tetap hijau apa pun yang terjadi
+  // di sana.
+  const { ppFile } = await siapkanDirektoriUji();
   const dir = await mkdtemp(join(tmpdir(), "offsite-uji-kosong-"));
   const dumps = join(dir, "dumps");
   await mkdir(dumps);
   const hasil = jalankanScript({
     BACKUP_DIR: dumps,
     OFFSITE_STAGING_DIR: join(dir, "staging"),
+    OFFSITE_PASSPHRASE_FILE: ppFile,
   });
 
   assert.notEqual(hasil.status, 0, "backup yang tidak terjadi harus gagal");
   assert.match(hasil.stderr, /GAGAL/);
+  // Harus pesan yang tepat, bukan GAGAL apa saja. Tanpa baris ini test
+  // ini tetap lolos meski cabang yang diuji sama sekali tidak sama
+  // dengan cabang yang dicek.
+  assert.match(hasil.stderr, /tidak ada dump/);
 });
 
 test("offsite tidak pernah keluar 0 tanpa mengirim apa pun", async () => {
