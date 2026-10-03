@@ -199,6 +199,85 @@ test("IMEI 15 digit tetap dijaga di jalur koreksi", () => {
   );
 });
 
+/*
+ * Unit yang sudah sold tidak boleh dikoreksi.
+ *
+ * Alasannya bukan sekadar ": sudah laku". POS menyimpan unitPrice-nya sendiri
+ * di baris transaksi, jadi nota pelanggan tidak ikut berubah kalau unitnya
+ * dikoreksi. Yang ikut berubah adalah dokumen garansi yang sudah terbit,
+ * karena halaman garansi membaca kondisi unit yang SEKARANG. Jadi kondisi
+ * dan harga jual unit sold adalah bagian dari catatan penjualan.
+ */
+test("koreksi ditolak untuk unit sold dan tetap boleh untuk unit lain", () => {
+  const body = actionBody();
+
+  // Penjaga sold tidak mungkin jalan kalau status tidak ikut dibaca dari baris
+  // yang dikunci.
+  assert.match(
+    body,
+    /const \[current\] = await tx[\s\S]*?\.select\(\{[\s\S]*?status: inventoryUnits\.status,[\s\S]*?\}\)/,
+    "updateUnitDetails harus menyelect status untuk bisa menolak unit sold"
+  );
+
+  const syarat = body.match(/if \((current\.status === "sold")\)/);
+  assert.ok(syarat, "penjaga sold di updateUnitDetails tidak ada");
+
+  // Syaratnya dijalankan apa adanya terhadap status yang nyata, bukan hanya
+  // dicocokkan sebagai teks. Ini yang menangkap pembalikan operator.
+  const menolak = new Function(
+    "current",
+    `return ${syarat[1]};`
+  ) as (c: { status: string }) => boolean;
+  assert.equal(menolak({ status: "sold" }), true, "unit sold harus ditolak");
+  for (const status of ["available", "reserved", "in_service", "returned"]) {
+    assert.equal(
+      menolak({ status }),
+      false,
+      `unit ${status} bukan sold, jadi koreksi harus tetap boleh jalan`
+    );
+  }
+
+  // Dan penjaganya harus menyala sebelum .update() menulis kolom apa pun.
+  const posisiSold = body.indexOf('current.status === "sold"');
+  const posisiTulis = body.indexOf(".update(inventoryUnits)");
+  assert.ok(posisiTulis > -1, "blok .update(inventoryUnits) tidak ditemukan");
+  assert.ok(
+    posisiSold < posisiTulis,
+    "penjaga sold harus diperiksa sebelum penulisan condition dan selling_price"
+  );
+});
+
+test("pesan tolak sold menjelaskan kenapa unit itu tidak bisa diubah", () => {
+  const body = actionBody();
+  assert.match(body, /Unit sudah sold dan tidak dapat dikoreksi/);
+  assert.match(
+    body,
+    /nota penjualan/,
+    "pesan harus menyebut alasannya, bukan hanya menolak"
+  );
+});
+
+test("trigger sold tidak menutup jalur koreksi, jadi penjaga aplikasi wajib ada", () => {
+  // Trigger sold dipasang sebagai "before update of status", jadi ia hanya
+  // menyala kalau kolom status ikut ditulis. Jalur koreksi menulis condition
+  // dan selling_price saja, jadi trigger itu tidak pernah melihatnya. Kalau
+  // suatu saat trigger diperluas ke kedua kolom itu, penjaga aplikasi di atas
+  // masih benar dan test ini yang perlu ditinjau, bukan dihapus diam-diam.
+  const migrasi = readFileSync(
+    new URL("../supabase/migrations/0002_harden_atcell_schema.sql", import.meta.url),
+    "utf8"
+  );
+  assert.match(migrasi, /before update of status on public\.inventory_units/);
+
+  const setBlock = actionBody().match(/\.set\(\{([^}]*)\}\)/);
+  assert.ok(setBlock, "blok .set() tidak ditemukan");
+  assert.doesNotMatch(
+    setBlock[1],
+    /status/,
+    "koreksi tidak menulis status, jadi trigger sold memang tidak menyala di sini"
+  );
+});
+
 test("koreksi mendaftarkan ulang path yang sama dengan mutasi inventaris lain", () => {
   const body = actionBody();
   assert.match(body, /revalidatePath\("\/portal\/inventory"\)/);

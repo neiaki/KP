@@ -162,6 +162,45 @@ test("peringatan menyala saat unit seken dihargai sama atau lebih mahal dari har
   );
 });
 
+/*
+ * Test sebelumnya hanya memeriksa bahwa peringatan MENYALA saat harga lebih
+ * mahal, bukan apa yang tertulis di dalamnya. Karena itu kalimat yang selalu
+ * berbunyi "sama dengan" lolos: penjaganya benar, kalimatnya berboh.
+ * Test ini mengunci isi kalimatnya untuk kedua kasus.
+ */
+test("peringatan menulis 'sama dengan' hanya saat harganya memang sama", () => {
+  const samaDengan = misleadingSecondPriceWarning({
+    condition: "second",
+    sellingPrice: NEW_PRICE,
+    newPrice: NEW_PRICE,
+  });
+  assert.ok(samaDengan);
+  assert.match(samaDengan, /sama dengan harga baru produknya/);
+  assert.doesNotMatch(samaDengan, /lebih mahal dari/);
+
+  // Kasus yang tadinya bocor: harga di atas harga baru tetap menyalakan
+  // peringatan, tapi kalimatnya tidak boleh menyatakan sama dengan.
+  const lebihMahal = misleadingSecondPriceWarning({
+    condition: "second",
+    sellingPrice: NEW_PRICE + 500_000,
+    newPrice: NEW_PRICE,
+  });
+  assert.ok(lebihMahal, "harga di atas harga baru harus tetap diperingatkan");
+  assert.match(lebihMahal, /lebih mahal dari harga baru produknya/);
+  assert.doesNotMatch(
+    lebihMahal,
+    /sama dengan/,
+    "harga di atas harga baru tidak boleh disebut sama dengan harga baru"
+  );
+  // "Dua angka sama persis" juga hanya benar di kasus sama. Di atas harga baru
+  // pelanggan justru melihat unit seken lebih mahal dari barang baru.
+  assert.doesNotMatch(lebihMahal, /dua angka sama persis/);
+  assert.match(lebihMahal, /lebih mahal dari barang baru/);
+  // Ajuran penutupnya sama untuk kedua kasus, jadi tidak hilang saat dipecah.
+  assert.match(lebihMahal, /diskonnya rusak/);
+  assert.match(lebihMahal, /Turunkan sedikit di bawah harga baru/);
+});
+
 test("unit trade-in tanpa katalog tidak pernah ikut aturan diskon", () => {
   // pos.ts mendaftarkan unit hasil tukar tambah dengan productId null, jadi
   // tidak punya default_price pembanding. Jalur itu tidak boleh ikut aturan

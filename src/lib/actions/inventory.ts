@@ -249,11 +249,32 @@ export async function updateUnitDetails(
           purchaseCost: inventoryUnits.purchaseCost,
           sellingPrice: inventoryUnits.sellingPrice,
           imei: inventoryUnits.imei,
+          status: inventoryUnits.status,
         })
         .from(inventoryUnits)
         .where(eq(inventoryUnits.id, unitId))
         .for("update");
       if (!current) return { error: "Unit tidak ditemukan." } as const;
+
+      // Unit yang sudah sold tidak bisa dikoreksi, dan ini bukan sekadar
+      // kebijakan. POS menyimpan unitPrice-nya sendiri di baris transaksi,
+      // jadi nota pelanggan tidak ikut berubah. Yang berubah adalah unitnya:
+      // halaman garansi membaca kondisi unit yang SEKARANG, jadi mengoreksi
+      // kondisi unit sold akan menulis ulang apa yang tertulis di dokumen
+      // garansi yang sudah terbit. Kondisi dan harga jual unit sold bagian dari
+      // catatan penjualan yang tidak boleh diubah.
+      //
+      // Trigger trg_prevent_sold_reactivation tidak menutup celah ini: ia
+      //pasang sebagai "before update of status", jadi hanya menyala kalau
+      // kolom status ikut ditulis. .set() di bawah hanya menulis condition dan
+      // selling_price, jadi trigger itu tidak pernah melihat perubahan ini.
+      // Karena itu penjaganya harus ada di sini, seperti yang sudah dilakukan
+      // updateUnitStatus di berkas yang sama.
+      if (current.status === "sold") {
+        return {
+          error: "Unit sudah sold dan tidak dapat dikoreksi: kondisi dan harga jualnya sudah tercatat di nota penjualan.",
+        } as const;
+      }
 
       // Aturan IMEI 15 digit tetap dijaga di jalur koreksi ini juga. Action ini
       // tidak mengubah IMEI, dan IMEI yang rusak bukan salah kondisi maupun

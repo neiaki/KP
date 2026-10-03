@@ -149,10 +149,19 @@ export function misleadingSecondPriceWarning(input: {
   if (!Number.isFinite(newPrice) || newPrice <= 0) return null;
   if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) return null;
   if (sellingPrice < newPrice) return null;
+  // Penjaga ini menyalakan peringatan untuk dua kasus, jadi kalimatnya juga
+  // harus dua: harga yang sama persis membuat pelanggan melihat
+  // dua angka identik; harga yang lebih mahal membuat pelanggan melihat unit
+  // seken lebih mahal dari barang baru. Kalimat "sama dengan" untuk kasus
+  // kedua berboh dan membuat staf mengira guard-nya tidak sengaja.
+  const samaDengan = sellingPrice === newPrice;
   return (
-    `Harga jual ${formatIDR(sellingPrice)} sama dengan harga baru produknya ` +
+    `Harga jual ${formatIDR(sellingPrice)} ` +
+    `${samaDengan ? "sama dengan" : "lebih mahal dari"} harga baru produknya ` +
     `${formatIDR(newPrice)}. Di etalase harga barunya yang dicoret, jadi pelanggan ` +
-    `akan lihat dua angka sama persis dan mengira diskonnya rusak. Turunkan ` +
-    `sedikit di bawah harga baru ya.`
+    (samaDengan
+      ? `akan lihat dua angka sama persis dan `
+      : `akan lihat harga seken lebih mahal dari barang baru dan `) +
+    `mengira diskonnya rusak. Turunkan sedikit di bawah harga baru ya.`
   );
 }

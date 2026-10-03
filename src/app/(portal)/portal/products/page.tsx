@@ -246,7 +246,7 @@ export default function MasterProductsPage() {
                 <Image
                   fill
                   sizes={"(max-width: 640px) 50vw, 20vw"}
-                  src={isRealPhoto(p.image_url) ? p.image_url : PLACEHOLDER_IMAGE}
+                  src={isRealPhoto(p.image_url) ? p.image_url.trim() : PLACEHOLDER_IMAGE}
                   alt={p.model_name}
                   className="h-full w-full object-cover"
                 />

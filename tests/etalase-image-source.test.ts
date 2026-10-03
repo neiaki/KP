@@ -213,6 +213,29 @@ test("grid produk portal tidak pernah merender image_url yang rusak", () => {
   }
 });
 
+/*
+ * isRealPhoto memangkas nilai sebelum memvalidasinya, jadi nilai yang spasi
+ * di depan dan belakangnya tetap lolos sebagai foto sah. Kalau yang
+ * dirender adalah nilai yang belum dipangkas, next/image menerima src dengan
+ * spasi di dalamnya dan menolaknya, persis seperti(image_url rusak: validasi
+ * bilang boleh, pemuat gambar bilang tidak.
+ */
+test("grid produk portal merender nilai foto yang sudah dipangkas", () => {
+  assert.ok(srcEkspresi.length > 0, "tidak ada src= di <Image> pada halaman produk portal");
+  const berSpasi = "  /products/iphone-13-1.jpg  ";
+  for (const ekspresi of srcEkspresi) {
+    assert.ok(
+      isRealPhoto(berSpasi),
+      "nilai foto yang dikelilingi spasi tetap harus dianggap sah oleh isRealPhoto"
+    );
+    assert.equal(
+      srcUntuk(ekspresi, berSpasi),
+      "/products/iphone-13-1.jpg",
+      `src ${ekspresi} meneruskan spasi ke next/image yang tidak memangkas nilainya`
+    );
+  }
+});
+
 /* -------------------------------------------------------------------------- */
 /* Galeri produk                                                              */
 /* -------------------------------------------------------------------------- */
