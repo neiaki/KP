@@ -668,19 +668,62 @@ Pembuatan resource di Coolify:
 Urutan backup yang aman:
 
 1. Ambil dump logis dari Supabase dengan format custom. Script backup mencakup
-   schema `public` dan `private`; data Auth dan Storage tetap menjadi backup
-   layanan Supabase.
-2. Hitung checksum dump, enkripsi, dan kirim ke storage off-site
+   schema `public`, `private`, dan `auth`. Auth ikut karena account staf ada di
+   database yang sama dengan data bisnis: `public.profiles` mereferensi
+   `auth.users(id)`. **Storage belum ikut** dan itu masih celah terbuka, lihat
+   bagian "Storage belum ikut ter-backup" di bawah.
+2. Script backup membuktikan isi dumpnya sendiri. Kalau `auth.users` tidak ada
+   di dalam daftar isi arsip, dump tetap ditulis (data bisnis lebih baik ada
+   daripada tidak ada) tapi script keluar dengan kode 70 dan cron mencatat
+   `GAGAL`. Tidak ada lagi jalur yang melaporkan backup lengkap padahal Auth
+   tidak ikut.
+3. Hitung checksum dump, enkripsi, dan kirim ke storage off-site
    (`npm run backup:offsite`; berjalan otomatis lewat cron harian).
-3. Salin dump ke restore target Coolify saat jadwal restore test.
-4. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
+4. Salin dump ke restore target Coolify saat jadwal restore test.
+5. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
    `scripts/restore-target-bootstrap.sql`. Bootstrap membuat role Data API
    minimal, `auth.users`, `auth.uid()`, dan `auth.role()`.
-5. Isi `auth.users` pada target dengan UUID profil yang ada di dump sebelum
-   restore karena foreign key `profiles.id -> auth.users.id` harus terpenuhi.
-6. Jalankan `pg_restore --jobs=1`, lalu cek tabel wajib, RLS, trigger, dan view.
-7. Hapus data restore test setelah selesai atau hentikan service agar RAM
+6. Jalankan `pg_restore --jobs=1`. Untuk dump modern, tabel `auth.users` yang
+   dibuat bootstrap langsung diganti oleh isi dump, sehingga akun staf ikut
+   pulih. Stub hanya dipakai untuk dump lama yang belum memuat schema auth.
+7. Cek tabel wajib, RLS, trigger, view, dan jumlah akun auth asli.
+8. Hapus data restore test setelah selesai atau hentikan service agar RAM
    kembali ke aplikasi.
+
+### Storage belum ikut ter-backup
+
+`storage` tidak ikut dalam `pg_dump` pada `scripts/backup-postgres.sh`, sama
+seperti keadaannya sebelum Auth ikut diperbaiki. Jadi foto produk, foto servis,
+dan foto trade-in hanya ada di backup layanan Supabase, bukan di dump At Cell
+dan bukan di standby. Kalau dump itu dipakai untuk memulihkan setelah
+kejadian yang menghapus bucket, data foto tidak ikut pulih, sementara tabel
+`product_images` tetap berisi baris yang menunjuk path yang sudah tidak ada.
+Celah ini butuh keputusan tersendiri: dump `storage` menambah ukuran arsip
+secara langsung, dan bucket produksi berisi foto yang tidak boleh bocor ke
+dump yang berisi data bisnis. Yang dilakukan repo sekarang hanya mencatat
+keadaan ini supaya tidak dianggap sudah selesai.
+
+### Apa yang masih perlu langkah manusia untuk Auth
+
+Dump At Cell sekarang memuat akun staf, jadi tidak ada data Auth yang hilang
+diam-diam. Tapi memulihkan **login** adalah urusan Supabase Auth, bukan
+PostgreSQL biasa, dan langkah itu tidak bisa dilakukan oleh script repo:
+
+1. `pg_dump` mengembalikan baris `auth.users` ke database. GoTrue tidak
+   berjalan di sana, jadi tabel itu adalah data, bukan layanan yang bisa
+   menerima login.
+2. Agar orang bisa login lagi di Supabase, baris itu harus diimpor kembali ke
+   Auth project Supabase. Itu operasi Supabase Auth, jadi butuh kredensial
+   project yang tidak ada di VPS ini dan sengaja tidak dibuat oleh repo.
+3. Dump modern sudah berisi `auth.identities` juga, sehingga akun berbasis
+   email/password dan akun yang terhubung ke provider bisa keduanya ikut.
+
+Selama Supabase projectnya utuh, seluruh ini tidak perlu dilakukan: Auth sudah
+punya backup dan PITR sendiri. Yang baru dibutuhkan adalah ketika projectnya
+sendiri hilang, dan saat itu yang dicari adalah dump At Cell yang memuat
+`auth.users`. Keadaan sebelum 3 Oktober 2026 adalah kebalikannya: tidak ada
+satu pun salinan yang memuat akun, sehingga kehilangan project berarti kehilangan
+login tanpa ada apa pun untuk dipulihkan.
 
 Contoh format dump dan restore:
 
@@ -734,12 +777,21 @@ dan berarti orang yang memakai KEEP_DAYS=0 harus menyimpan salinannya sendiri
 di luar. Tanpa rotasi direktori backup tumbuh tanpa batas sampai disk penuh, dan
 disk penuh adalah tempat terakhir yang boleh menyimpan cadangan.
 
-Script restore sudah mengisi `auth.users` dengan stub untuk setiap UUID profil di
-dump sebelum menjalankan `pg_restore`, karena dump hanya mencakup schema `public`
-dan `private` sedangkan `profiles.id` mereferensi `auth.users(id)`. Stub memakai
-alamat `restore-stub-<uuid>@invalid.local` dan `on conflict do nothing`, jadi jelas
-bukan akun sungguhan dan tidak merusak Auth asli yang sudah ada. Backfill Auth
-Supabase tetap wajib dilakukan sebelum restore target dipakai sungguhan.
+Script restore membaca daftar isi dump dulu dan memilih jalurnya. Kalau dump
+memuat data `auth.users`, stub tidak dibuat sama sekali: akun staf ikut pulih
+darinya, dan verifikasi setelah restore memastikan target punya akun auth
+**asli**. Kalau dump tidak memuat `auth.users` (dump lama), baris stub dibuat
+untuk setiap UUID profil di dump memakai alamat `restore-stub-<uuid>@invalid.local`
+dan `on conflict do nothing`, supaya relasi `profiles.id -> auth.users.id`
+terpenuhi tanpa menimpa akun asli yang sudah ada. Jalur stub membuat restore
+bisa berjalan, tidak membuat siapa pun bisa login, dan restore seperti itu
+ditolak dengan kode 5 beserta alasannya.
+
+Sebelum 3 Oktober 2026 dump hanya mencakup `public` dan `private`, sehingga
+setiap restore target berisi tabel `auth.users` yang isinya 100% stub: nol akun
+asli, nol kolom password, nol `email_confirmed_at`. Pemeriksaan lama menghitung
+kelengkapan stub dan selalu lolos. restored standby pada 3 Oktober 2026 memang
+berisi tepat kondisi itu.
 
 #### Standby terisi di VPS
 
@@ -793,19 +845,35 @@ sudo /usr/local/bin/atcell-standby-sync
 
 Alur tiap sinkronisasi: dump logis dari Supabase (script repo, mode 0600 untuk
 `DATABASE_URL` yang diambil runtime dari container aplikasi), bootstrap
-minimum, lalu `pg_restore`. Karena `auth.users` tidak ikut di dalam dump dan stub
-dipakai `on conflict do nothing`, wrapper lebih dulu menghapus schema `auth`
-dulu supaya baris lama dari volume versi sebelumnya tidak bertahan diam-diam
-dan setiap hasil sync benar-benar freshly seeded. Wrapper selalu memverifikasi
-hasil akhir (`v_public_inventory`, `to_regclass`, dan kelengkapan stub
-`auth.users`) sebelum melapor sukses, dan tidak menyentuh standby kalau dump
-gagal.
+minimum, lalu `pg_restore`. Karena dump modern sudah membawa `auth.users`,
+`pg_restore --clean --if-exists` yang menentukan hasil akhir.
+
+Wrapper tidak lagi menghapus schema `auth` tanpa syarat. Schema itu hanya
+dibuang kalau target tidak punya akun auth asli, sehingga operator yang sudah
+mengimpor Auth sungguhan ke standby tidak kehilangan account-nya diam-diam.
+Kalau ada akun asli, langkah itu dilewati dan dicatat di log.
+
+Wrapper meneruskan dua variabel ke `scripts/restore-postgres.sh` selain
+`ALLOW_RESTORE`: `RESTORE_ALLOWED_HOSTS` diisi dari alamat standby yang baru saja
+dibaca dari Docker, dan `RESTORE_ASSUME_YES=1` karena cron tidak punya terminal.
+Keduanya wajib: tanpa yang pertama restore berhenti dengan "Host target tidak
+diizinkan", tanpa yang kedua berhenti dengan "tidak ada terminal untuk
+konfirmasi". Guard yang tidak bisa dilewati tetap berlaku, yaitu daftar host
+produksi dan daftar host target.
+
+Wrapper memverifikasi hasil akhir sebelum melapor sukses: `v_public_inventory`
+tidak boleh kosong, `to_regclass` untuk tabel wajib, tidak boleh ada profil
+tanpa pasangan di `auth.users`, dan harus ada minimal satu akun auth **asli**.
+Hitungan stub tidak lagi dipakai sebagai bukti apa pun. Tidak ada satu pun
+container yang disentuh kalau dump gagal.
 
 Contoh verifikasi manual:
 
 ```bash
 docker exec ah5xioiowolm1uub4lpthnnd psql -U postgres -d postgres \
   -c "select count(*) from v_public_inventory" \
+  -c "select count(*) from auth.users" \
+  -c "select count(*) from auth.users where coalesce(raw_user_meta_data->>'atcell_restore_stub','') <> 'true'" \
   -c "select to_regclass('public.products') is not null"
 ```
 
@@ -815,8 +883,13 @@ aplikasi, jadi ia melindungi dari kerusakan data, migration yang salah, atau
 apa pun untuk memulihkan. Ia **tidak** melindungi dari kehilangan VPS, dari
 akun Supabase yang dikompromikan, atau dari ransomware di host yang sama.
 Salinan terenkripsi off-host dibuat oleh `scripts/backup-offsite.sh`
-(`npm run backup:offsite`): dump terbaru diverifikasi checksum-nya, dienkripsi
-AES-256-CBC dengan PBKDF2, lalu dikirim ke tujuan rclone atau HTTP PUT.
+(`npm run backup:offsite`): dump terbaru diverifikasi checksum-nya, lalu
+dicoba dibaca dengan `pg_restore --list` dan dipastikan memuat data
+`auth.users`, baru dienkripsi AES-256-CBC dengan PBKDF2 dan dikirim ke tujuan
+rclone atau HTTP PUT. Pemeriksaan kedua itu wajib: checksum hanya membuktikan
+berkas tidak berubah sejak ditulis, jadi arsip korup yang checksum-nya cocok
+bisa lolos dan terkirim ke luar host, memberi rasa aman semu karena salinannya
+ada di dua tempat tapi tidak bisa dipakai memulihkan akun staf.
 Exit 0 berarti off-host copy benar-benar terkirim. Kalau passphrase atau
 tujuan upload kosong, script keluar bukan-nol dan cron mencatat `GAGAL`,
 karena cadangan yang diam-diam tidak jalan memunculkan rasa aman yang
@@ -844,10 +917,72 @@ Supabase masih 17.x; `postgres:15` akan menolak dengan `server version mismatch`
 `DATABASE_URL` dibaca dari app container saat runtime ke file sementara mode 0600
 yang langsung dihapus, jadi tidak ada salinan kedua dari secret itu di disk.
 
-Untuk memastikan backup benar-benar bisa dipulihkan, jalankan restore test dari
-dump terbaru ke PostgreSQL 17 sekali pakai, bandingkan jumlah baris dengan
-produksi, lalu hapus container uji. Backup yang belum pernah di-restore belum
-bisa disebut cadangan.
+Untuk memastikan backup benar-benar bisa dipulihkan, ada drill terjadwal.
+`scripts/restore-drill.sh` (`npm run restore:drill`) mengambil dump terbaru,
+memverifikasi checksum-nya, merestore-nya ke PostgreSQL 17 sekali pakai,
+memeriksa hasilnya, lalu membuang container itu. Exit 0 berarti dump terbaru
+memang bisa dipulihkan **dan** hasil restorenya punya akun auth asli.
+
+| Komponen | Lokasi |
+|----------|--------|
+| Jadwal | `/etc/cron.d/atcell-restore-drill`, Minggu 04.17 waktu host |
+| Wrapper | `/usr/local/bin/atcell-restore-drill` |
+| Script repo | `/opt/atcell/scripts/restore-drill.sh` |
+| Sumber dump | `/data/backups/atcell` (bisa diubah lewat `DUMP_DIR`) |
+| Log | `/var/log/atcell-restore-drill.log`, diputar `/etc/logrotate.d/atcell-restore-drill` |
+
+Drill tidak pernah menyentuh standby atau produksi. Container drill dibuat
+sendiri oleh script itu dengan `--network none`, tanpa port yang dipublikasikan,
+tanpa password sama sekali, dan selalu dibuang lewat `trap` walau drill gagal di
+tengah. Kaidah yang dijaga: drill yang berhenti sebelum membuktikan apa pun sama
+nilainya dengan tidak ada drill.
+
+Backup yang belum pernah di-restore belum bisa disebut cadangan. Drill terjadwal
+sekarang yang membuat klaim itu bisa dibuktikan: baris `Drill restore LULUS` di
+log, atau `GAGAL` beserta pemeriksaan mana yang gagal.
+
+#### Rotasi log At Cell
+
+Semua log At Cell punya config logrotate, satu berkas per log, dengan pola yang
+sama: `su root adm`, `weekly`, `rotate 8`, `compress`, `delaycompress`,
+`missingok`, `notifempty`, `copytruncate`.
+
+| Log | Config |
+|-----|--------|
+| `/var/log/atcell-backup.log` | `/etc/logrotate.d/atcell-backup` |
+| `/var/log/atcell-standby-sync.log` | `/etc/logrotate.d/atcell-standby-sync` |
+| `/var/log/atcell-offsite.log` | `/etc/logrotate.d/atcell-offsite` |
+| `/var/log/atcell-watchdog.log` | `/etc/logrotate.d/atcell-watchdog` |
+| `/var/log/atcell-restore-drill.log` | `/etc/logrotate.d/atcell-restore-drill` |
+
+Setiap config baru diuji dengan `logrotate -d /etc/logrotate.d/<nama>` sebelum
+dipasang. Tanpa itu, salah ketik satu baris berarti satu log tumbuh tanpa
+batas sampai disk penuh, dan disk penuh adalah tempat terakhir yang boleh
+menyimpan cadangan.
+
+#### Notifikasi kegagalan uptime
+
+`scripts/atcell-watchdog.sh` dijalankan `/usr/local/bin/atcell-watchdog` lewat
+`/etc/cron.d/atcell-watchdog` setiap lima menit. Script ini hanya bersuara saat
+status berubah, **tapi** pencatatannya tidak hilang: transisi dan pengulangan
+selama outage berjalan ditulis ke log berkas, ke syslog lewat
+`logger -t atcell-watchdog`, dan ke `/var/lib/atcell-watchdog/incident` yang
+isinya dihapus saat pulih. Jadi `journalctl -t atcell-watchdog`,
+`grep atcell-watchdog /var/log/syslog`, dan `/var/lib/atcell-watchdog/incident`
+semuanya menunjukkan insiden yang sedang berjalan.
+
+Notifikasi ke luar hanya lewat Telegram, dan **hanya** kalau
+`/root/.atcell-watchdog.env` ada dengan dua variabel ini:
+
+```bash
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+Tanpa kedua variabel itu `notify()` keluar tanpa melakukan apa pun; pencatatan
+di tiga tempat di atas tetap berjalan, yang hilang hanya pesan ke telepon. Bot
+dibuat lewat `@BotFather`, dan `TELEGRAM_CHAT_ID` adalah id chat tujuan, bukan
+nama akun. Jangan tulis nilainya ke repository.
 
 Jangan menyimpan password database, token, atau checksum dump sensitif di
 repository. Nilai secret hanya disimpan di Coolify secret manager.
