@@ -52,13 +52,18 @@ Kalau lebih nyaman memakai `http://<IP>:8000/` langsung, pengecualian di
 penjaga Docker untuk satu IP tersebut adalah:
 
 ```
--A DOCKER-USER -s 180.252.81.92/32 -i eth0 -p tcp \
+-A DOCKER-USER -s "$ADMIN_IP"/32 -i eth0 -p tcp \
    -m conntrack --ctorigdstport 8000 \
    -m comment --comment atcell-panel-exception -j RETURN
 ```
 
 Rule ini ada **sebelum** aturan penolakan, jadi panel terbuka hanya untuk IP
 itu. Port `8080`, `6001`, dan `6002` tetap tertutup untuk semua orang.
+
+Nilai IP owner tidak pernah ditulis di repository ini. Repo ini publik, jadi
+IP rumah akan bisa dibaca siapa pun yang membuka dokumen ini, dan membuat
+target orang lain lebih mudah. Nilai sebenarnya hanya ada di variabel
+`ADMIN_IP` di dalam skrip penjaga di host.
 
 ### Kenapa harus pakai `--ctorigdstport`
 
