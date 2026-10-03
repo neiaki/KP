@@ -299,10 +299,34 @@ jumlah_nilai=$(grep -c . "$daftar_nilai" || true)
 printf 'nilai yang akan disamarkan: %s\n' "$jumlah_nilai"
 
 if [ "$alat" = "filter-repo" ]; then
+  # Konfigurasi remote disimpan dulu. filter-repo dalam mode biasa menghapus
+  # remote origin, jadi tanpa ini `git push` berikutnya gagal dengan pesan
+  # yang tidak menyuruh siapa pun curiga bahwa penyebabnya skrip purge.
+  #
+  # Jalur filter-branch di bawah sudah menyimpan dan memulihkan sendiri.
+  # Dipercayai karena hanya salah satu dari keduanya yang berjalan.
+  simpan_remote_repo=$(mktemp)
+  git config --get-regexp '^remote\..*\.(url|pushurl|fetch|push|mirror|prune|tagopt)$' \
+    >"$simpan_remote_repo" 2>/dev/null || true
+
   # filter-repo membaca daftar nilai dari file, jadi tidak ada nilai yang
   # bocor ke shell history atau ke environment.
-  sed 's/^/literal:/' "$daftar_nilai" >"${daftar_nilai}.rp"
+  #
+  # `==><IP-publik>` menentukan teks penggantinya. Tanpa itu filter-repo
+  # menulis `***REMOVED***`, yang benar secara teknis tapi tidak terbaca
+  # sebagai nilai yang disamarkan saat dibaca orang lain.
+  sed 's/^/literal:/; s/$/==><IP-publik>/' "$daftar_nilai" >"${daftar_nilai}.rp"
   git filter-repo --replace-text "${daftar_nilai}.rp" --force
+
+  if [ -s "$simpan_remote_repo" ]; then
+    while IFS=' ' read -r kunci nilai; do
+      [ -n "$kunci" ] || continue
+      git config --local --unset-all "$kunci" 2>/dev/null || true
+      git config --local --add "$kunci" "$nilai"
+    done <"$simpan_remote_repo"
+    printf 'remote dipulihkan setelah rewrite.\n'
+  fi
+  rm -f "$simpan_remote_repo"
 else
   printf 'filter-repo tidak ada, memakai filter-branch.\n'
   # filter-branch menulis ulang ref remote-tracking jadi refs/remotes/origin
