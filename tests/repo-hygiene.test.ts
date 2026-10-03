@@ -46,7 +46,8 @@ test("LICENSE yang dipakai adalah MIT dan utuh", () => {
   const isi = baca("LICENSE");
   // Daftar frasa pendek tidak cukup: menghapus satu klausa saja,
   // misalnya Responsibilities, tetap lolos. Jadi seluruh teks MIT
-  // dipakai acuan, bukan cuma beberapa penanda.
+  // dipakai acuan dan dibandingkan sama persis, bukan dicek
+  // satu per satu dengan "mengandung".
   // Baris panjang di bawah adalah teks MIT verbatim, jadi tidak
   // ditulis ulang agar hemat kolom. Tidak masalah: kedua sisi
   // dirapikan dulu, jadi pemenggalan baris di sini tidak
@@ -73,13 +74,21 @@ test("LICENSE yang dipakai adalah MIT dan utuh", () => {
     "SOFTWARE.",
   ].join("\n");
   const rapikan = (teks: string) => teks.replace(/\s+/g, " ").trim();
-  const target = rapikan(isi);
 
-  // Baris copyright dikecualikan karena isinya berbeda per pemilik.
-  const wajib = MIT_LENGKAP.split("\n")
-    .map(rapikan)
-    .filter((baris) => baris.length > 0 && !baris.startsWith("Copyright"));
-  const hilang = wajib.filter((baris) => !target.includes(baris));
+  // Baris copyright dibuang dari kedua sisi karena isinya berbeda per
+  // pemilik. Setelah itu, teks harus sama persis, bukan sekadar
+  // memuat. Memuat saja belum cukup: LICENSE bisa menambah klausanya
+  // sendiri, atau mengurutkan ulang, dan dua itu tetap lolos kalau
+  // hanya dicek dengan "mengandung".
+  const tanpaCopyright = (teks: string) =>
+    rapikan(
+      teks
+        .split("\n")
+        .filter((baris) => !rapikan(baris).startsWith("Copyright"))
+        .join("\n")
+    );
+  const hilang =
+    tanpaCopyright(MIT_LENGKAP) === tanpaCopyright(isi) ? [] : ["seluruh teks"];
   assert.deepEqual(
     hilang,
     [],

@@ -12,10 +12,11 @@ Pakai **Report a vulnerability** di tab Security repository ini.
 GitHub membukanya sebagai private advisory, jadi isinya hanya
 terlihat oleh pemilik repo. Opsi itu aktif di repo ini.
 
-Kalau tombolnya tidak bisa dipakai, kirim lewat Issues dengan
-judul berawalan `[privat]` dan isi detailnya seminimal mungkin.
-Laporan seperti itu akan segera dihapus dari publik setelah dibaca.
-Jalur ini cadangan, bukan jalur utama.
+Kalau tombolnya tidak bisa dipakai, tunggu sampai bisa dipakai
+lagi lalu kirim lewat sana. Jangan membuka issue publik
+untuk kerentanan, bahkan dengan judul `[privat]`: selama issue itu
+ada, isinya sudah terlihat siapa saja, notifikasi sudah terkirim,
+dan penghapusan belakangan tidak membatalkan yang sudah terlihat.
 
 ## Isi laporan yang membantu
 

@@ -281,12 +281,18 @@ Kalau `SECRET-ROTATION.md` menyebut `COOLIFY_API_TOKEN` sebagai secret dengan
 dampak terbesar, itu konsisten dengan kenyataan di atas: panel dan token itu
 adalah dua jalan ke yang sama.
 
-### Dua jalur lain yang membuka panel, dan keduanya sudah ditutup
+### Dua hal lain yang tidak terlihat dari luar
 
-Bagian di atas menulis soal port `8000` dan `6001:6002`. Dua hal lain membuka
-panel dari luar, dan keduanya tidak terlihat dari `ufw`, dari `ss -lntp`, mau
-pun dari `docker ps`: hostname panel yang memakai wildcard `sslip.io`, dan
-jalur deploy otomatis yang kelihatan hidup padahal mati.
+Bagian di atas menulis soal port `8000` dan `6001:6002`. Dua hal lain juga
+tidak terlihat dari `ufw`, dari `ss -lntp`, maupun dari `docker ps`, tapi
+keduanya beda jenis dan tidak boleh dicampur:
+
+- **Jalur ingress panel**: hostname panel yang memakai wildcard `sslip.io`.
+  Ini menambah jalan masuk ke panel, dan hilang begitu hostname-nya ditutup.
+- **Jalur otomasi deploy**: integrasi GitHub App yang kelihatan hidup
+  padahal mati. Ini tidak menambah jalan masuk apa pun. Yang hilang kalau
+  dimatikan adalah kemampuan deploy otomatis, dan kemampuan itu memang
+  sedang tidak dipakai.
 
 #### 1. Hostname panel berasal dari `sslip.io`, bukan dari nama pilihan Anda
 
@@ -330,9 +336,16 @@ Kalau baris itu tidak diisi, Coolify tidak punya identitas GitHub App untuk
 menerima event push. Jadi tidak ada `git push` ke `main` yang bisa memicu
 deploy, berapa pun kali pengaturan auto deploy pada aplikasi disetel.
 
-Inilah yang membuat hostname panel ditutup tanpa kehilangan apa pun. **Panel
-terbuka untuk umum tidak memberi satu pun kemampuan yang tidak sudah Anda
-miliki**: setiap deploy hari ini sudah wajib manual.
+Dua hal ini tidak boleh disamakan. Menutup hostname panel tidak menyentuh
+kemampuan apa pun, karena tidak ada kemampuan yang hilang: yang hilang cuma
+jalan masuknya. Sebaliknya, menghidupkan GitHub App tidak menambah kemampuan
+lain; ia cuma memindahkan langkah `git push` menjadi deploy, dan langkah
+tersebut sudah dilakukan manual selama ini.
+
+Yang tetap berlaku apa adanya: begitu panel bisa dijangkau siapa pun, ia
+memberi akses environment production, deploy image, dan terminal container,
+sesuai daftar di bagian atas. Otomasi deploy yang mati tidak mengurangi
+risiko itu sedikit pun.
 
 #### Bentuk endpoint deploy yang benar-benar dipakai
 
@@ -352,10 +365,26 @@ panel Coolify. `SECRET-ROTATION.md` memperlakukannya sebagai secret dengan
 dampak terbesar, karena satu token itu sudah cukup untuk membaca seluruh
 environment produksi.
 
-Konsekuensi dari ditutupnya hostname `sslip.io`: `COOLIFY_BASE_URL` tidak lagi
-boleh menunjuk ke host panel dari luar. Pointer itu harus diarahkan ke alamat
-yang bisa dijangkau dari dalam VPS, yaitu lewat tunnel SSH atau jaringan Docker.
-Setelah hostname milik Anda ada, pointer itu diarahkan ke hostname tersebut.
+Konsekuensi dari ditutupnya hostname `sslip.io`: alamat panel tidak lagi sama
+untuk semua pemanggil, jadi dua pemanggil harus punya variabelnya sendiri.
+Satu variabel untuk dua pemanggil pasti salah satu akan gagal.
+
+| Pemanggil | Variabel | Alamat yang bisa dijangkau | Token disimpan di |
+|---|---|---|---|
+| VPS ke panel | `COOLIFY_BASE_URL` | loopback atau jaringan Docker di dalam VPS | env proses deploy di VPS |
+| Operator di mesinnya | `COOLIFY_PANEL_URL` | hostname milik Anda, atau tunnel | `~/.secrets` di mesin operator |
+
+Alamat jaringan Docker tidak bisa dipakai `curl` di mesin operator, jadi pointer
+tidak boleh memakai bentuk yang sama dengan pointer VPS. Sebaliknya, panel tidak
+bisa dijangkau lewat IP publik dari luar, jadi pointer VPS tidak boleh memakai
+hostname publik. Setelah hostname milik Anda ada, `COOLIFY_PANEL_URL` diarahkan
+ke hostname tersebut, sementara `COOLIFY_BASE_URL` tetap ke alamat lokal.
+
+Token juga tidak bisa dipakai bersama. `COOLIFY_API_TOKEN` untuk pemanggil VPS
+dimuat dari env proses deploy di VPS, bukan dari `~/.secrets` milik operator,
+karena keduanya punya lokasi sendiri. `SECRET-ROTATION.md` tetap memakai
+`~/.secrets` untuk sisi operator; tidak perlu diubah, hanya dibaca sebagai
+sisi operator saja.
 
 #### Yang diubah di host
 
@@ -375,7 +404,35 @@ sebelumnya.
 
 Sertifikat di `acme.json` **sengaja tidak dihapus**. Traefik tidak pernah
 menyajikan sertifikat tanpa router yang cocok, jadi sertifikatnya sudah tidak
-aktif tanpa harus menyentuh penyimpanan yang sedang dipakai. Mengedit
+aktif tanpa harus menyentuh penyimpanan yang sedang dipakai.
+
+Tapi "tidak lagi disajikan" bukan hal yang sama dengan "masih diperpanjang".
+Traefik menyimpan sertifikat ACME ke konfigurasi TLS secara terpisah dari
+router HTTP, jadi menghapus router bisa menghentikan perpanjangan sertifikat
+panel tanpa membuat router itu muncul lagi di status. Risikonya nyata tapi
+tidak terlihat dari `docker ps`, jadi harus dicek sendiri.
+
+Setelah router dihapus, cek tiga hal ini sebelum dianggap selesai:
+
+```
+# 1. Router panel benar-benar tidak ada
+cat /data/coolify/proxy/dynamic/coolify.yaml | grep -c sslip
+
+# 2. Traefik tidak lagi complaining soal sertifikat panel
+docker logs --since 1h <container-traefik> 2>&1 | grep -i 'acme\|certificate' | tail -20
+
+# 3. Sertifikat toko masih ada dan masih disajikan
+docker exec <container-traefik> ls /data/coolify/proxy/acme.json
+```
+
+Kalau langkah 2 menunjukkan error perpanjangan yang menyebut hostname panel,
+router tidak bisa dikembalikan dengan mudah lalu tidak dicoba. Yang harus
+dilakukan adalah penerbitan ulang ulang lewat DNS-01, atau membiarkan sertifikat
+kedaluwarsa karena tidak ada yang memakainya lagi.
+
+Sertifikat toko tidak boleh ikut hilang. Kalau `acme.json` menunjukkan entri
+`atcell.my.id`, `login.atcell.my.id`, atau `www.atcell.my.id` tidak ada,
+kembalikan `coolify.yaml` dari cadangan lalu ulangi. Mengedit
 `acme.json` untuk membuang satu entri berisiko menyentuh tiga sertifikat toko
 yang justru masih dibutuhkan, dan tidak menambah perlindungan: begitu router
 untuk hostname itu kembali, Traefik akan meminta ulang sertifikat dari
