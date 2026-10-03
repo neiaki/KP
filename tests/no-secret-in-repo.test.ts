@@ -51,7 +51,9 @@ const POLA_TOKEN = [
   /sb_secret_[A-Za-z0-9_-]{10,}/,
   /sb_publishable_[A-Za-z0-9_-]{10,}/,
   /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}/,
-  /ghp_[A-Za-z0-9]{20,}/,
+  // gh[pousr] mencakup personal, oauth, user, server, dan refresh.
+  // docs/SECRET-ROTATION.md sudah memakai kelas yang sama sejak awal.
+  /gh[pousr]_[A-Za-z0-9]{20,}/,
   /github_pat_[A-Za-z0-9_]{20,}/,
   /sk_live_[A-Za-z0-9]{10,}/,
   /pk_live_[A-Za-z0-9]{10,}/,
@@ -81,7 +83,7 @@ const POLA_BUKAN_NILAI = /[[\]()\\.*+?|]/;
 
 const PASSWORD_DUMMY = new Set([
   "postgres",       // container postgres di workflow CI
-  "x",              // fixture最短 di test penjaga restore
+  "x",              // fixture pendek di test penjaga restore
   "PASSWORD",
   "YOUR-PASSWORD",
   "rahasia",
@@ -173,14 +175,30 @@ test("repo tidak memuat token atau kunci layanan", () => {
   );
 });
 
+/*
+ * Password adalah seluruh teks setelah titik dua pertama pada userinfo.
+ * Userinfo bisa memuat titik dua lagi. Memotong di titik dua kedua
+ * menghasilkan potongan salah, dan password asli ikut lolos.
+ */
+function passwordDari(url: string): string | null {
+  const setelahSkema = url.slice(url.indexOf("//") + 2);
+  const akhirUserinfo = setelahSkema.indexOf("@");
+  if (akhirUserinfo === -1) return null;
+  const userinfo = setelahSkema.slice(0, akhirUserinfo);
+  const titik = userinfo.indexOf(":");
+  if (titik === -1) return null;
+  const password = userinfo.slice(titik + 1);
+  return password.length > 0 ? password : null;
+}
+
 test("repo tidak memuat url dengan kredensial di dalamnya", () => {
   const bermasalah: string[] = [];
   for (const rel of terlacak) {
     for (const { baris, teks } of barisTeks(rel)) {
       for (const cocok of teks.matchAll(POLA_URL_KREDENSIAL)) {
-        const password = cocok[0].split("//")[1]?.split(":")[1] ?? "";
-        const nilai = password.replace(/@.*$/, "");
-        if (PASSWORD_DUMMY.has(nilai)) continue;
+          const nilai = passwordDari(cocok[0]);
+          if (nilai === null) continue;
+          if (PASSWORD_DUMMY.has(nilai)) continue;
         if (POLA_BUKAN_NILAI.test(nilai)) continue;
         bermasalah.push(`${rel}:${baris} ${nilai.slice(0, 20)}`);
       }

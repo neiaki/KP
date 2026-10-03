@@ -51,6 +51,28 @@ const terlacak = execFileSync("git", ["ls-files", "-z"], {
   .split("\0")
   .filter((p) => p && p !== DIRI_SENDIRI);
 
+/*
+ * Menghapus setiap frasa yang diizinkan dari baris, supaya kata produk
+ * yang tidak ikut tercakup frasa itu masih bisa ditemukan.
+ *
+ * Panjang baris hasil Always sama dengan baris asal, jadi nomor baris
+ * yang dilaporkan tetap benar.
+ */
+function frasa_terhapus(teks: string, boleh: string[]): string {
+  let sisa = teks;
+  for (const frasa of boleh) {
+    if (!frasa) continue;
+    for (let at = sisa.indexOf(frasa); at !== -1;
+         at = sisa.indexOf(frasa, at + 1)) {
+      sisa =
+        sisa.slice(0, at) +
+        " ".repeat(frasa.length) +
+        sisa.slice(at + frasa.length);
+    }
+  }
+  return sisa;
+}
+
 test("tidak ada produk luar fokus ponsel di repo", () => {
   const bermasalah: string[] = [];
   for (const rel of terlacak) {
@@ -63,11 +85,19 @@ test("tidak ada produk luar fokus ponsel di repo", () => {
     if (isi.includes("\0")) continue;
     const boleh = PENGECUALIAN[rel] ?? [];
     isi.split("\n").forEach((teks, i) => {
-      KATA_LUAR_CAKUPAN.lastIndex = 0;
-      const cocok = teks.match(KATA_LUAR_CAKUPAN);
-      if (!cocok) return;
-      // Baris boleh kalau memuat frasa yang tercatat di daftar.
-      if (boleh.some((frasa) => teks.includes(frasa))) return;
+      // Pengecualian berlaku pada frasa yang tercatat, bukan pada
+      // seluruh baris. Kalau hanya dicek "baris ini memuat frasa yang
+      // diizinkan", satu baris yang sudah benar bisa menyelundupkan
+      // kata produk lain: "browser laptop dan smartwatch" akan lolos
+      // hanya karena memuat "browser laptop".
+      //
+      // Jadi frasa yang diizinkan dihapus lebih dulu dari baris, lalu
+      // kata produk yang tersisa yang diperiksa.
+      const sisa = frasa_terhapus(teks, boleh);
+      const cocok = [...sisa.matchAll(KATA_LUAR_CAKUPAN)].map((m) =>
+        m[1].toLowerCase()
+      );
+      if (cocok.length === 0) return;
       const kata = [...new Set(cocok)].join(", ");
       bermasalah.push(`${rel}:${i + 1} ${kata}`);
     });

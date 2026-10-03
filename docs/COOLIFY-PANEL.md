@@ -60,10 +60,10 @@ penjaga Docker untuk satu IP tersebut adalah:
 Rule ini ada **sebelum** aturan penolakan, jadi panel terbuka hanya untuk IP
 itu. Port `8080`, `6001`, dan `6002` tetap tertutup untuk semua orang.
 
-Nilai IP owner tidak pernah ditulis di repository ini. Repo ini publik, jadi
-IP rumah akan bisa dibaca siapa pun yang membuka dokumen ini, dan membuat
-target orang lain lebih mudah. Nilai sebenarnya hanya ada di variabel
-`ADMIN_IP` di dalam skrip penjaga di host.
+Nilai IP owner sudah dihapus dari dokumen ini, tetapi riwayat Git masih
+memuatnya di commit `34e4a47`. Repo ini publik, jadi IP tersebut tetap
+bisa dibaca dari riwayat. Nilai yang dipakai penjaga hanya ada di
+variabel `ADMIN_IP` di dalam skrip penjaga di host, tidak pernah di repo.
 
 ### Kenapa harus pakai `--ctorigdstport`
 
