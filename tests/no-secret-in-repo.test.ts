@@ -66,9 +66,22 @@ const POLA_TOKEN = [
 const SKEMA_DB =
   "postgres|postgresql|redis|mongodb|mysql";
 
+/*
+ * Userinfo menurut RFC 3986 hanya boleh berisi unreserved, pct-encoded,
+ * dan sub-delims, lalu ditutup titik dua. Jadi karakter pemisah
+ * komponen (`/`, `?`, `#`) tidak mungkin jadi bagian userinfo,
+ * dan memuatnya membuat pencocokan melintasi path atau query.
+ *
+ * Tanpa larangan itu, `postgres://example.com/db?redirect=a:b@c` ikut
+ * terbaca punya kredensial padahal tidak ada password sama sekali.
+ * Pola di bawah memakai kelas RFC 3986 persis, bukan daftar tebakan.
+ */
+const USERINFO =
+  "(?:%[0-9A-Fa-f]{2}|[A-Za-z0-9._~-]|" +
+  "[!$&'()*+,;=]|:)+";
+
 const POLA_URL_KREDENSIAL = new RegExp(
-  `(?:${SKEMA_DB}):` +
-    `//[^\\s"'<>()]*:[^\\s"'<>()@]+@`,
+  `(?:${SKEMA_DB})://${USERINFO}@`,
   "gi"
 );
 
@@ -196,9 +209,9 @@ test("repo tidak memuat url dengan kredensial di dalamnya", () => {
   for (const rel of terlacak) {
     for (const { baris, teks } of barisTeks(rel)) {
       for (const cocok of teks.matchAll(POLA_URL_KREDENSIAL)) {
-          const nilai = passwordDari(cocok[0]);
-          if (nilai === null) continue;
-          if (PASSWORD_DUMMY.has(nilai)) continue;
+        const nilai = passwordDari(cocok[0]);
+        if (nilai === null) continue;
+        if (PASSWORD_DUMMY.has(nilai)) continue;
         if (POLA_BUKAN_NILAI.test(nilai)) continue;
         bermasalah.push(`${rel}:${baris} ${nilai.slice(0, 20)}`);
       }
