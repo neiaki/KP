@@ -787,7 +787,7 @@ terpenuhi tanpa menimpa akun asli yang sudah ada. Jalur stub membuat restore
 bisa berjalan, tidak membuat siapa pun bisa login, dan restore seperti itu
 ditolak dengan kode 5 beserta alasannya.
 
-Before 3 Oktober 2026 dump hanya mencakup `public` dan `private`, sehingga
+Sebelum 3 Oktober 2026 dump hanya mencakup `public` dan `private`, sehingga
 setiap restore target berisi tabel `auth.users` yang isinya 100% stub: nol akun
 asli, nol kolom password, nol `email_confirmed_at`. Pemeriksaan lama menghitung
 kelengkapan stub dan selalu lolos. restored standby pada 3 Oktober 2026 memang
@@ -932,8 +932,8 @@ tanpa password sama sekali, dan selalu dibuang lewat `trap` walau drill gagal di
 tengah. Kaidah yang dijaga: drill yang berhenti sebelum membuktikan apa pun sama
 nilainya dengan tidak ada drill.
 
-Backup yang belum pernah di-restore belum bisa disebut cadangan. Drum sekarang
-yang membuat itu statement bisa dibuktikan: baris `Drill restore LULUS` di log,
+Backup yang belum pernah di-restore belum bisa disebut cadangan. Drill sekarang
+membuktikan pernyataan itu: baris `Drill restore LULUS` di log,
 atau `GAGAL` beserta pemeriksaan mana yang gagal.
 
 #### Rotasi log At Cell
