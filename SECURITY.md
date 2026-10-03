@@ -36,9 +36,12 @@ Ini toko kecil yang dikelola sendiri, tanpa tim keamanan dan
 tanpa program reward. Balasan diberikan di luar jam kerja, dan
 tidak ada jaminan waktu perbaikan.
 
-Laporan yang valid akan dicatat di commit yang terlihat, supaya
-orang lain tidak mengulanginya. Kalau perbaikannya mengubah cara
-deploy, perubahan itu juga dicatat di dokumentasi.
+Laporan yang valid akan diberi kredit di commit yang terlihat, supaya
+orang lain tidak mengulanginya. Kredit itu ditulis setelah perbaikannya
+tiba, bukan saat laporan diterima: detail kerentanan yang belum
+diperbaiki tidak pernah ditulis lebih dulu di tempat yang bisa dibaca
+publik. Kalau perbaikannya mengubah cara deploy, perubahan itu juga
+dicatat di dokumentasi.
 
 ## Di luar cakupan
 
