@@ -35,7 +35,12 @@ type Hasil = {
  */
 function jalankan(
   kode: readonly string[],
-  opsi: { telegram?: boolean; ulangMenit?: number; tanpaLogger?: boolean } = {}
+  opsi: {
+    telegram?: boolean;
+    ulangMenit?: number;
+    tanpaLogger?: boolean;
+    telegramGagal?: boolean;
+  } = {}
 ): Hasil {
   const akar = mkdtempSync(join(tmpdir(), "watchdog-"));
   const bin = join(akar, "bin");
@@ -58,16 +63,26 @@ function jalankan(
     chmodSync(envFile, 0o600);
   }
 
+  // Tiruan curl meniru perilaku yang paling menentukan di sini: HTTP 4xx tetap
+  // membuat curl keluar 0, dan HANYA keluar 22 kalau --fail ikut diberikan.
+  // Tanpa model ini, test tidak bisa membedakan "notifikasi gagal dan
+  // tercatat" dari "notifikasi gagal tapi tetap diam".
   writeFileSync(
     join(bin, "curl"),
     [
       "#!/usr/bin/env bash",
       `printf 'curl %s\\n' "$*" >> '${catatCurl}'`,
+      'pakai_fail=0',
+      'for a in "$@"; do',
+      '  [ "$a" = "--fail" ] && pakai_fail=1',
+      'done',
       'for a in "$@"; do',
       "  case \"$a\" in",
-      "    https://api.telegram.org/*) printf 'ok'; exit 0;;",
+      '    https://api.telegram.org/*)',
+      `      if [ "\${FAKE_TELEGRAM:-200}" -ge 400 ] && [ "$pakai_fail" = 1 ]; then exit 22; fi`,
+      "      printf 'ok'; exit 0;;",
       "  esac",
-      "done",
+      'done',
       'printf \'%s\' "${FAKE_KODE:-000}"',
       "",
     ].join("\n"),
@@ -97,6 +112,7 @@ function jalankan(
         WATCHDOG_RESOLVE: "",
         WATCHDOG_ULANG_MENIT: String(opsi.ulangMenit ?? 0),
         FAKE_KODE: k,
+        FAKE_TELEGRAM: opsi.telegramGagal ? "401" : "200",
       },
     });
     if (index === kode.length - 1) status = hasil.status;
@@ -198,6 +214,31 @@ test("outage berlanjut mengirim pengingat, sehingga yang lupa tidak diam", () =>
   const kiriman = h.requests.filter((r) => r.includes("api.telegram.org/") && r.includes("sendMessage"));
   assert.ok(kiriman.length >= 2, `pengingat ulang harus dikirim: ${h.requests.join(" | ")}`);
   assert.ok(kiriman.some((r) => r.includes("masih sakit")));
+});
+
+test("kegagalan kirim Telegram dicatat, bukan ditelan diam-diam", () => {
+  // Token dicabut atau TELEGRAM_CHAT_ID salah akan dijawab HTTP 4xx. Tanpa
+  // --fail, curl tetap keluar 0 dan tidak ada yang tertulis: operator
+  // mengira alerting hidup padahal tidak ada yang masuk. Ini kegagalan paling
+  // berbahaya di komponen ini karena tidak meninggalkan jejak apa pun.
+  const h = jalankan(["503", "503"], { telegram: true, telegramGagal: true });
+
+  assert.match(
+    h.log,
+    /Notifikasi Telegram gagal terkirim/,
+    `kegagalan notifikasi harus masuk log: ${h.log}`
+  );
+});
+
+test("token Telegram tidak ikut bocor ke log saat pengiriman gagal", () => {
+  const h = jalankan(["503", "503"], { telegram: true, telegramGagal: true });
+
+  assert.doesNotMatch(
+    h.log,
+    /token-tiruan/,
+    `token tidak boleh masuk log: ${h.log}`
+  );
+  assert.doesNotMatch(h.log, /api\.telegram\.org/);
 });
 
 test("health check dipanggil lewat nama host, bukan IP publik", () => {
