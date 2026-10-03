@@ -59,13 +59,34 @@ const POLA_TERLARANG: { pola: RegExp; contoh: string[]; harusBoleh: string[] }[]
   },
   {
     pola: /\.jks$/i,
-    contoh: ["atcell-release.jks", "android/keystore.jks"],
+    contoh: ["atcell-release.jks", "android/keystore.jks", "release.JKS"],
     harusBoleh: ["docs/ANDROID-APP.md", "android/build.gradle"],
   },
   {
-    pola: /\.(keystore|p12|pfx|p8|asc)$/i,
-    contoh: ["release.keystore", "cert.p12", "upload.p12", "upload.pfx", "key.p8", "armored.asc"],
+    pola: /\.(keystore|p12|pfx|p8|asc|gpg)$/i,
+    contoh: [
+      "release.keystore",
+      "cert.p12",
+      "upload.p12",
+      "upload.pfx",
+      "key.p8",
+      "armored.asc",
+      "backup.gpg",
+    ],
+    // Bentuk huruf besar wajib ikut, karena pencocokan .gitignore hanya
+    // case-sensitive saat `git add` pertama kali di filesystem yang begitu.
+    // release.JKS lolos dari pola *.jks kalau polanya tidak ditulis per huruf.
     harusBoleh: ["docs/CSP.md", "scripts/verify-pinning.sh"],
+  },
+  {
+    pola: /\.key$/i,
+    contoh: ["release.key", "tls.key"],
+    harusBoleh: ["docs/key-rotation.md", "src/lib/keyboard.ts", "docs/archive.gpg.md"],
+  },
+  {
+    pola: /^[^/]+\.[lL][oO][gG]$/,
+    contoh: ["release.log", "npm-debug.log"],
+    harusBoleh: ["docs/release.log.md", "src/lib/logger.ts"],
   },
   {
     // .env.example sengaja dikecualikan: itu templat untuk operator, isinya
@@ -159,6 +180,12 @@ test("gitignore menutup nama yang sama dengan polanya", () => {
   // nama yang benar-benar belum tertutup yang diperiksa.
   const tambahan = [
     "backup/atcell.dump",
+    // Direktori jamak dan tunggal keduanya harus tertutup, dan contoh di
+    // sini sengaja memakai nama yang isinya BUKAN sensitif, supaya yang
+    // diuji memang aturan direktorinya dan bukan ekstensi .dump.
+    "backup/note.txt",
+    "log/2026-10.txt",
+    "logs/app.log",
     "atcell-release.jks",
     "release.keystore",
     "cert.p12",
@@ -166,14 +193,27 @@ test("gitignore menutup nama yang sama dengan polanya", () => {
     "atcell.dump.gz",
     "tls/server.pem",
     "db/schema.bak",
+    "release.log",
+    "release.key",
+    "key.gpg",
+    // Bentuk huruf besar. release.JKS lolos dari *.jks kalau .gitignore
+    // hanya menulis pola huruf kecil.
+    "release.JKS",
+    "cert.P12",
+    "release.PFX",
+    "armored.ASC",
   ];
   const bocor: string[] = [];
   for (const nama of tambahan) {
     // check-ignore keluar dengan kode 0 kalau namanya ter-ignore dan 1 kalau
     // tidak, jadi exit code-nya yang dipakai, bukan stdout.
+    //
+    // --no-index wajib: tanpa flag itu, git ikut memperhitungkan status
+    // tracking, jadi nama yang sudah ter-track dianggap "tidak ter-ignore"
+    // begitu saja dan test ini menguji tracking, bukan .gitignore.
     let terIgnore = false;
     try {
-      execFileSync("git", ["check-ignore", "-q", nama], { cwd: root, stdio: "ignore" });
+      execFileSync("git", ["check-ignore", "-q", "--no-index", nama], { cwd: root, stdio: "ignore" });
       terIgnore = true;
     } catch {
       terIgnore = false;

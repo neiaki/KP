@@ -42,29 +42,38 @@ yarn-error.log*
 # Kunci dan sertifikat. Nilai kredensial release Android dan sertifikat
 # backup off-site tidak boleh masuk repo, dan tidak ada gunanya di-commit
 # lalu dihapus karena objek git-nya tetap tersimpan.
-/*.jks
-/*.keystore
-*.jks
-*.keystore
-*.p12
-*.pfx
-*.p8
-*.asc
-*.gpg
+/*
+ * Pola ditulis per huruf supaya case-insensitive tanpa bergantung pada
+ * core.ignoreCase. Git hanya memakai core.ignoreCase untuk nama BERKAS yang
+ * sudah ter-track; saat `git add` pertama kali, pencocokan pola hanya
+ * case-sensitive di filesystem yang begitu, jadi `release.JKS` lolos dari
+ * `*.jks`. Bentuk [jJ][kK][sS] menutupnya tanpa mengubah git config.
+ */
+/*.[jJ][kK][sS]
+/*.[kK][eE][yY][sS][tT][oO][rR][eE]
+*.[jJ][kK][sS]
+*.[kK][eE][yY][sS][tT][oO][rR][eE]
+*.[pP]12
+*.[pP][fF][xX]
+*.[pP]8
+*.[aA][sS][cC]
+*.[gG][pP][gG]
 *.key
 
 # Dump database dan salinan cadangan. Backup production adalah data
 # pelanggan, dan file dump-nya memuat seluruh tabel.
 /backups/
+/backup/
 *.dump
 *.dump.gz
 *.sql.gz
 *.bak
 
 # Log. Log aplikasi dan log container bisa memuat kredensial kalau ada
-# yang salah ternary saat exception.
-/*.log
-/logs/
+# yang salah tulis saat exception. Bentuk jamak ditulis dengan huruf yang
+# bisa berubah supaya log/ dan logs/ ikut tertutup.
+/*.[lL][oO][gG][sS]
+/[lL][oO][gG][sS]/
 
 # vercel
 .vercel
