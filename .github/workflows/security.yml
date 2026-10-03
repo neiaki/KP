@@ -69,8 +69,18 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      # `--omit=dev` karena yang dikirim ke production adalah `dependencies`,
+      # bukan `devDependencies`. Tanpa flag ini gate ini merah terus untuk hal
+      # yang tidak pernah menyentuh kode yang dijalankan pengguna: rantai
+      # eslint-config-next (lint) dan rantai drizzle-kit (migrasi) punya 9
+      # advisory, 5 di antaranya high, sementara `npm audit --omit=dev`
+      # melaporkan 0.
+      #
+      # Tidak ada informasi yang hilang. Langkah OSV di bawah tetap memindai
+      # seluruh package-lock.json tanpa `--omit=dev` dan tetap jadi bell untuk
+      # rantai dev.
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=dev
 
       # Langkah ini ada karena GHSA-vcvr-r3jv-pc5j (CVE-2026-94545, RCE di
       # next/og ImageResponse) tidak ada di feed advisory npm maupun di
