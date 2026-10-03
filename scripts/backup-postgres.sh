@@ -111,21 +111,30 @@ mv -- "$temporary_path" "$dump_path"
 (cd "$BACKUP_DIR" && sha256sum "$dump_name" > "${dump_name}.sha256")
 chmod 600 "${dump_path}.sha256"
 
+# Status disimpan dulu, skrip tidak keluar di titik ini. Dump tanpa auth tetap
+# ditulis ke disk, dan justru pada malam backupnya rusak direktori backup paling
+# rawan penuh: rotasi yang dilewati membuat masalah yang sama menumpuk tiap
+# malam tanpa henti, dan disk penuh adalah tempat terakhir yang boleh menyimpan
+# cadangan. Rotasi dijalankan lebih dulu, baru status ini dikembalikan di akhir.
+auth_lengkap=1
 if [[ ! "$toc_daftar" =~ (^|[[:space:]])TABLE[[:space:]]+DATA[[:space:]]+auth[[:space:]]+users([[:space:]]|$) ]]; then
+  auth_lengkap=0
   {
     printf 'GAGAL: %s sudah ditulis, tapi TIDAK memuat data auth.users.\n' "$dump_name"
     echo "Skema auth tidak ikut ter-backup, jadi restore target berikutnya tidak akan punya akun staf yang bisa login."
     echo "Periksa --schema=auth pada perintah pg_dump di scripts/backup-postgres.sh."
   } >&2
-  # 70 dipakai supaya 'dump jadi tapi isinya tidak lengkap' bisa dibedakan dari
-  # 'pg_dump gagal' oleh pemanggil.
-  exit 70
 fi
 
-printf 'Backup selesai: %s (%s bytes)\n' "$dump_name" "$(stat -c '%s' "$dump_path")"
-printf 'Checksum: %s.sha256\n' "$dump_name"
-printf 'Auth ikut ter-backup: %s entri data auth dalam dump ini.\n' \
-  "$(printf '%s\n' "$toc_daftar" | grep -cE '(^|[[:space:]])TABLE[[:space:]]+DATA[[:space:]]+auth[[:space:]]')"
+# Garis sukses hanya dicetak kalau dump-nya lengkap. Melihat 'Backup selesai'
+# pada dump yang tidak punya auth sama persis dengan hijau keliru yang GAP 5
+# minta ditutup, jadi stdout tidak boleh memuatnya di jalur ini.
+if [ "$auth_lengkap" -eq 1 ]; then
+  printf 'Backup selesai: %s (%s bytes)\n' "$dump_name" "$(stat -c '%s' "$dump_path")"
+  printf 'Checksum: %s.sha256\n' "$dump_name"
+  printf 'Auth ikut ter-backup: %s entri data auth dalam dump ini.\n' \
+    "$(printf '%s\n' "$toc_daftar" | grep -cE '(^|[[:space:]])TABLE[[:space:]]+DATA[[:space:]]+auth[[:space:]]')"
+fi
 
 if [ "$KEEP_DAYS" -gt 0 ]; then
   # Hanya nama yang cocok pola milik script ini yang disentuh, supaya direktori
@@ -138,4 +147,13 @@ if [ "$KEEP_DAYS" -gt 0 ]; then
     removed=$((removed + 1))
   done < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'atcell-*.dump' -mtime "+$KEEP_DAYS" -print)
   [ "$removed" -eq 0 ] || printf 'Total %s dump lama dihapus.\n' "$removed"
+fi
+
+# Status disimpan dikembalikan setelah rotasi selesai. 70 dipakai supaya 'dump
+# jadi tapi isinya tidak lengkap' bisa dibedakan dari 'pg_dump gagal' oleh
+# pemanggil, dan supaya offsite sync serta watchdog bisa menandai backup ini
+# gagal dan tidak ikut disalin ke lokasi lain.
+if [ "$auth_lengkap" -ne 1 ]; then
+  printf 'Rotasi dump lama tetap dijalankan meski dump ini tidak lengkap, supaya direktori backup tidak terus menumpuk.\n' >&2
+  exit 70
 fi
