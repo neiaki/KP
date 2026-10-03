@@ -17,6 +17,8 @@
     "backup:postgres": "bash scripts/backup-postgres.sh",
     "backup:offsite": "bash scripts/backup-offsite.sh",
     "restore:postgres": "bash scripts/restore-postgres.sh",
+    "restore:drill": "bash scripts/restore-drill.sh",
+    "watchdog": "bash scripts/atcell-watchdog.sh",
     "smoke:deployment": "node scripts/smoke-deployment.mjs"
   },
   "dependencies": {
