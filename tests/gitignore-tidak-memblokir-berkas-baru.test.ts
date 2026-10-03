@@ -119,6 +119,31 @@ test("tidak ada pola yang mengabaikan seluruh root", () => {
   );
 });
 
+test("berkas log di setiap kedalaman ter-ignore, bukan hanya di root", () => {
+  // Pola yang diawali `/` hanya menutup berkas di root. Setelah `/*` dihapus
+  // dari blok kunci, pola log yang juga berawalan `/` ikut kehilangan
+  // cakupannya: `src/app.log` dan `scripts/task.log` akan lolos dan ikut
+  // ter-commit kalau ada proses yang menulis log di sana. Abrasi ini tidak
+  // terlihat di review karena perbedaannya cuma satu garis miring.
+  const depth = [
+    "app.log",
+    "src/app.log",
+    "scripts/task.log",
+    "nested/deeper/app.log",
+    "logs/app.log",
+  ];
+  const lolos = depth.filter((nama) => !terIgnore(nama));
+  assert.deepEqual(
+    lolos,
+    [],
+    `log di kedalaman ini tidak ter-ignore: ${lolos.join(", ")}`
+  );
+
+  // Huruf besar harus ikut tertutup juga: .LOG adalah nama yang sama lazimnya
+  // dipakai oleh tools yang menulis log themselves.
+  assert.equal(terIgnore("nested/deeper/app.LOG"), true, ".LOG harus ter-ignore");
+});
+
 test("tidak ada berkas kunci yang ikut ter-track", () => {
   const terlacak = execFileSync("git", ["ls-files"], {
     cwd: root,

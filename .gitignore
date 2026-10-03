@@ -82,7 +82,12 @@ yarn-error.log*
 # terlihat karena `/*` di blok kunci menutup semua apa pun. Dua baris
 # direktori ditulis terpisah karena `log` dan `logs` dua nama berbeda, bukan
 # varyasi huruf.
-/*.[lL][oO][gG]
+#
+# Ketiga baris di bawah berlaku di semua kedalaman, bukan hanya root.
+# Pola yang diawali `/` hanya menutup berkas di root, jadi `src/app.log`
+# dan `scripts/task.log` akan lolos dan ikut ter-commit kalau ada proses
+# yang menulis log di sana.
+*.[lL][oO][gG]
 /[lL][oO][gG]/
 /[lL][oO][gG][sS]/
 
