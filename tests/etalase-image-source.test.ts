@@ -7,7 +7,7 @@ import type { InventoryUnit, Product } from "../src/types/index.ts";
 /*
  * Sumber foto etalase.
  *
- * Tiga hal diuji di sini, dan ketiganya pernah rusak di production.
+ * Empat hal diuji di sini, dan keempatnya pernah rusak di production.
  *
  * 1. Kartu unit baru harus memakai fallback yang sama dengan kartu unit
  *    second. toCardItem sudah menghitung officialOrFallback yang sudah
@@ -22,6 +22,10 @@ import type { InventoryUnit, Product } from "../src/types/index.ts";
  *
  * 3. Galeri resmi Oppo Reno 11 pernah memuat oppo-reno11-2.jpg, yaitu foto
  *    laut tanpa perangkat di dalam frame.
+ *
+ * 4. Grid produk di portal menulis src-nya sendiri, di luar toCardItem, dan
+ *    exprinya dulu hanya `p.image_url || PLACEHOLDER_IMAGE`. IMAGE_URL_BROKEN
+ *    tidak kosong, jadi nilai itu diteruskan apa adanya ke next/image.
  *
  * Catatan jujur soal titik 3: test ini tidak bisa melihat piksel gambar. Yang
  * bisa dikunci di sini ada dua, yaitu setiap entri galeri lolos isRealPhoto,
@@ -114,6 +118,86 @@ test("second_images yang terisi tetap menang atas official_images", () => {
   ]);
 });
 
+/*
+ * isRealPhoto memangkas nilai sebelum memvalidasinya, dan filter(isRealPhoto)
+ * mengembalikan elemen aslinya. Jadi nilai ber-spasi lolos validasi lalu tetap
+ * ber-spasi sampai atribut src, dan next/image menolaknya. Yang dirender harus
+ * nilai yang sama persis dengan yang divalidasi.
+ */
+test("foto kartu unit dipangkas, baik dari image_url maupun dari galeri", () => {
+  const dariImageUrl = product({
+    official_images: [],
+    image_url: "  /products/contoh.jpg  ",
+  });
+  assert.deepEqual(toCardItem(unit("new"), [dariImageUrl]).images, [
+    "/products/contoh.jpg",
+  ]);
+  assert.deepEqual(toCardItem(unit("second"), [dariImageUrl]).images, [
+    "/products/contoh.jpg",
+  ]);
+
+  // Galeri yang lolos filter harus dipangkas juga, bukan hanya image_url.
+  const dariGaleri = product({
+    official_images: ["  /products/iphone-13-1.jpg  "],
+    second_images: ["  /products/iphone-13-2.jpg  "],
+  });
+  assert.deepEqual(toCardItem(unit("new"), [dariGaleri]).images, [
+    "/products/iphone-13-1.jpg",
+  ]);
+  assert.deepEqual(toCardItem(unit("second"), [dariGaleri]).images, [
+    "/products/iphone-13-2.jpg",
+  ]);
+});
+
+/* -------------------------------------------------------------------------- */
+/* NotifyCard                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Kartu "Minta dikabari" memilih fotonya sendiri lalu meneruskannya ke Image.
+ * Blok pemilihan foto dieksekusi apa adanya dari berkas sumber, sama seperti
+ * ekspresi src di grid produk portal, supaya yang diuji perilakunya: nilai apa
+ * yang benar-benar keluar untuk setiap bentuk image_url dan galeri.
+ */
+const notifyCard = readFileSync(
+  new URL("../src/components/public/notify-card.tsx", import.meta.url),
+  "utf8"
+);
+
+const notifyCardBlok = notifyCard.match(
+  /const official =([\s\S]*?);\n\s*const img =([\s\S]*?);\n/
+);
+
+/** Jalankan blok pemilihan foto NotifyCard apa adanya. */
+function imgNotifyCard(produk: Product): unknown {
+  assert.ok(notifyCardBlok, "blok pemilihan foto di NotifyCard tidak ditemukan");
+  return new Function(
+    "product",
+    "isRealPhoto",
+    `const official =${notifyCardBlok[1]};\nconst img =${notifyCardBlok[2]};\nreturn img;`
+  )(produk, isRealPhoto);
+}
+
+test("kartu minta dikabari meneruskan foto yang sudah dipangkas", () => {
+  assert.equal(
+    imgNotifyCard(product({ official_images: [], image_url: "  /products/contoh.jpg  " })),
+    "/products/contoh.jpg",
+    "image_url ber-spasi tidak boleh diteruskan apa adanya"
+  );
+  assert.equal(
+    imgNotifyCard(product({ official_images: ["  /products/iphone-13-1.jpg  "], image_url: IMAGE_URL_BROKEN })),
+    "/products/iphone-13-1.jpg",
+    "galeri ber-spasi tidak boleh diteruskan apa adanya"
+  );
+  // Nilai rusak tetap harus jadi undefined supaya PhotoFallback yang tampil.
+  assert.equal(
+    imgNotifyCard(product({ official_images: [], image_url: IMAGE_URL_BROKEN })),
+    undefined
+  );
+  // image_url kosong juga harus jatuh ke PhotoFallback.
+  assert.equal(imgNotifyCard(product({ official_images: [], image_url: "" })), undefined);
+});
+
 /* -------------------------------------------------------------------------- */
 /* isRealPhoto                                                                */
 /* -------------------------------------------------------------------------- */
@@ -148,6 +232,87 @@ test("isRealPhoto tetap menerima URL Storage dan path lokal", () => {
   ];
   for (const nilai of diterima) {
     assert.equal(isRealPhoto(nilai), true, `isRealPhoto harusnya menerima ${nilai}`);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Grid produk portal                                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Etalase publik dijaga toCardItem, tapi grid produk di portal menulis
+ * src-nya sendiri. Sebelumnya ekspresi itu cuma `p.image_url || PLACEHOLDER_IMAGE`,
+ * jadi IMAGE_URL_BROKEN yang tidak kosong lolos ke next/image apa adanya.
+ *
+ * Ekspresi src diambil dari berkas lalu dieksekusi, bukan hanya dibaca sebagai
+ * teks: kalau pemeriksaan ini cuma membandingkan string sumber, perubahan
+ * sekencil `||` menjadi `??` akan lolos. Yang diuji perilakunya, yaitu nilai
+ * yang benar-benar keluar untuk setiap bentuk image_url.
+ */
+const portalProductsPage = readFileSync(
+  new URL("../src/app/(portal)/portal/products/page.tsx", import.meta.url),
+  "utf8"
+);
+
+const srcEkspresi = [
+  ...portalProductsPage.matchAll(/<Image[\s\S]*?src=\{([^{}]+)\}/g),
+].map((m) => (m[1] ?? "").trim());
+
+/** Jalankan ekspresi src apa adanya dengan nilai image_url yang diberikan. */
+function srcUntuk(ekspresi: string, imageUrl: string): unknown {
+  return new Function("p", "isRealPhoto", "PLACEHOLDER_IMAGE", `return (${ekspresi});`)(
+    { image_url: imageUrl },
+    isRealPhoto,
+    "/products/placeholder.svg"
+  );
+}
+
+test("grid produk portal tidak pernah merender image_url yang rusak", () => {
+  assert.ok(
+    srcEkspresi.length > 0,
+    "tidak ada src= di <Image> pada halaman produk portal"
+  );
+  for (const ekspresi of srcEkspresi) {
+    assert.equal(
+      srcUntuk(ekspresi, IMAGE_URL_BROKEN),
+      "/products/placeholder.svg",
+      `src ${ekspresi} meneruskan image_url rusak ke next/image`
+    );
+    assert.equal(
+      srcUntuk(ekspresi, ""),
+      "/products/placeholder.svg",
+      `src ${ekspresi} tidak jatuh ke placeholder saat image_url kosong`
+    );
+    // Dan perbaikan tidak boleh lewat jalan pintas yang membuang semua foto:
+    // path lokal yang benar harus tetap dirender apa adanya.
+    assert.equal(
+      srcUntuk(ekspresi, "/products/iphone-13-1.jpg"),
+      "/products/iphone-13-1.jpg",
+      `src ${ekspresi} membuang foto produk yang sah`
+    );
+  }
+});
+
+/*
+ * isRealPhoto memangkas nilai sebelum memvalidasinya, jadi nilai yang spasi
+ * di depan dan belakangnya tetap lolos sebagai foto sah. Kalau yang
+ * dirender adalah nilai yang belum dipangkas, next/image menerima src dengan
+ * spasi di dalamnya dan menolaknya, persis seperti(image_url rusak: validasi
+ * bilang boleh, pemuat gambar bilang tidak.
+ */
+test("grid produk portal merender nilai foto yang sudah dipangkas", () => {
+  assert.ok(srcEkspresi.length > 0, "tidak ada src= di <Image> pada halaman produk portal");
+  const berSpasi = "  /products/iphone-13-1.jpg  ";
+  for (const ekspresi of srcEkspresi) {
+    assert.ok(
+      isRealPhoto(berSpasi),
+      "nilai foto yang dikelilingi spasi tetap harus dianggap sah oleh isRealPhoto"
+    );
+    assert.equal(
+      srcUntuk(ekspresi, berSpasi),
+      "/products/iphone-13-1.jpg",
+      `src ${ekspresi} meneruskan spasi ke next/image yang tidak memangkas nilainya`
+    );
   }
 });
 

@@ -3,6 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "@/context/store-context";
 import { unitLabel } from "@/lib/shop";
+import {
+  isPriceAutoSeeded,
+  misleadingSecondPriceWarning,
+  resolvePriceOnConditionChange,
+  suggestedSellingPrice,
+  type SeededPrice,
+} from "@/lib/unit-pricing";
+import { updateUnitDetails } from "@/lib/actions/inventory";
 import { formatIDR } from "@/lib/utils";
 import { UnitCondition, UnitStatus } from "@/types";
 import {
@@ -37,7 +45,7 @@ const UNIT_STATUS_FILTER: string[] = [
 ];
 
 export default function InventoryManagementPage() {
-  const { products, inventoryUnits, addBatchIMEI, updateUnitStatus } = useStore();
+  const { products, inventoryUnits, addBatchIMEI, updateUnitStatus, refresh } = useStore();
 
   // Filter states
   const [search, setSearch] = useState("");
@@ -59,11 +67,23 @@ export default function InventoryManagementPage() {
   // Produk terakhir yang harganya sudah diturunkan, supaya harga tidak
   // menimpa pilihan staf saat produknya tidak berubah.
   const [lastPricedProductId, setLastPricedProductId] = useState<number | null>(null);
+  // Angka yang terakhir DITARUH OTOMATIS di field harga. Ini yang
+  // membedakan "harga masih kosong dan belum disentuh staf" dari "harga ini
+  // sudah diketik staf sendiri". Tanpa pembeda ini, menukar kondisi ke seken
+  // selalu berarti menimpa pilihan staf.
+  const [seededSellingPrice, setSeededSellingPrice] = useState<SeededPrice>(null);
   const [imeiInputText, setImeiInputText] = useState("");
   const [validationError, setValidationError] = useState("");
 
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Koreksi unit yang ter-tag salah atau salah harga (lihat updateUnitDetails).
+  const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
+  const [editCondition, setEditCondition] = useState<UnitCondition>("new");
+  const [editPrice, setEditPrice] = useState<number>(0);
+  const [editError, setEditError] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
     if (!showBatchModal) return;
@@ -83,10 +103,50 @@ export default function InventoryManagementPage() {
   // di dalam effect memaksa render kedua dan memicu render berantai. Ini pola
   // resmi React untuk "menyesuaikan state saat sebuah nilai berubah".
   const selectedProduct = products.find((product) => product.id === activeProductId);
+  const catalogNewPrice = selectedProduct?.default_price
+    ? Number(selectedProduct.default_price)
+    : 0;
   if (lastPricedProductId !== activeProductId) {
     setLastPricedProductId(activeProductId);
-    setSellingPrice(selectedProduct?.default_price ? Number(selectedProduct.default_price) : 0);
+    setSellingPrice(catalogNewPrice);
+    setSeededSellingPrice(catalogNewPrice);
   }
+
+  // Saran harga untuk kondisi yang sedang dipilih. Angka ini hanya patokan:
+  // kalau field harga masih berisi angka yang diisi otomatis, saran ini yang
+  // dipakai. Kalau staf sudah mengetik sendiri, angka staf yang bertahan dan
+  // saran hanya ditampilkan.
+  const priceSuggestion = suggestedSellingPrice(batchCondition, catalogNewPrice);
+  const priceIsAutoSeeded = isPriceAutoSeeded(sellingPrice, seededSellingPrice);
+  const secondPriceWarning = misleadingSecondPriceWarning({
+    condition: batchCondition,
+    sellingPrice,
+    newPrice: catalogNewPrice,
+  });
+
+  const handleBatchConditionChange = (next: UnitCondition) => {
+    setBatchCondition(next);
+    setValidationError("");
+    const resolution = resolvePriceOnConditionChange({
+      condition: next,
+      currentPrice: sellingPrice,
+      seededPrice: seededSellingPrice,
+      newPrice: catalogNewPrice,
+    });
+    if (!resolution.applied) return;
+    setSellingPrice(resolution.nextPrice);
+    setSeededSellingPrice(resolution.nextPrice);
+  };
+
+  const applyPriceSuggestion = () => {
+    if (priceSuggestion <= 0) return;
+    setSellingPrice(priceSuggestion);
+    // Seed ikut diperbarui supaya angka yang baru dipakai ini kembali
+    // dianggap "belum disentuh staf", jadi menukar kondisi lagi tidak
+    // merusak harga itu.
+    setSeededSellingPrice(priceSuggestion);
+    setValidationError("");
+  };
 
   const handleBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,6 +223,93 @@ export default function InventoryManagementPage() {
         type: "error",
         text: error instanceof Error ? error.message : "Gagal memperbarui status unit.",
       });
+    }
+  };
+
+  const editingUnit =
+    editingUnitId === null
+      ? null
+      : inventoryUnits.find((unit) => unit.id === editingUnitId) ?? null;
+
+  const openCorrection = (unitId: number) => {
+    const unit = inventoryUnits.find((item) => item.id === unitId);
+    if (!unit) return;
+    setEditingUnitId(unitId);
+    setEditCondition(unit.condition);
+    setEditPrice(unit.selling_price);
+    setEditError("");
+  };
+
+  const closeCorrection = () => {
+    setEditingUnitId(null);
+    setEditError("");
+  };
+
+  // Saran harga untuk unit yang dikoreksi, dihitung dari harga baru produknya.
+  // Unit hasil trade-in punya product_id NULL jadi tidak punya harga pembanding,
+  // dan di situ editingNewPrice bernilai 0 sehingga tidak ada saran.
+  const editingProduct = editingUnit
+    ? products.find((product) => product.id === editingUnit.product_id)
+    : undefined;
+  const editingNewPrice = editingProduct?.default_price
+    ? Number(editingProduct.default_price)
+    : 0;
+  const editingSuggestion = editingUnit
+    ? suggestedSellingPrice(editCondition, editingNewPrice)
+    : 0;
+  const editingWarning = editingUnit
+    ? misleadingSecondPriceWarning({
+        condition: editCondition,
+        sellingPrice: editPrice,
+        newPrice: editingNewPrice,
+      })
+    : null;
+
+  const handleCorrectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUnit) return;
+    setEditError("");
+    if (!Number.isFinite(editPrice) || editPrice <= 0) {
+      setEditError("Harga jual harus diisi lebih dari nol.");
+      return;
+    }
+    // Sama seperti penjaga di server: harga impas yang tidak diubah tetap
+    // boleh, supaya unit yang sudah impas sejak dulu masih bisa dibetulkan
+    // kondisinya saja tanpa tersangkut di sini.
+    if (editPrice !== editingUnit.selling_price && editPrice <= editingUnit.purchase_cost) {
+      setEditError(
+        `Harga jual (${formatIDR(editPrice)}) harus lebih besar dari harga beli (${formatIDR(
+          editingUnit.purchase_cost
+        )}).`
+      );
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      const result = await updateUnitDetails({
+        unitId: editingUnit.id,
+        condition: editCondition,
+        sellingPrice: editPrice,
+      });
+      if (!result.ok) {
+        setEditError(result.error);
+        return;
+      }
+      // Action sudah mendaftarkan ulang path inventaris, tapi daftar di layar
+      // ini dibaca dari state client, jadi snapshot-nya juga disegarkan supaya
+      // unit yang baru dikoreksi langsung tampil benar tanpa reload manual.
+      await refresh();
+      closeCorrection();
+      setNotice({
+        type: "success",
+        text: `Kondisi dan harga unit ${editingUnit.imei} sudah diperbarui.`,
+      });
+    } catch (error) {
+      setEditError(
+        error instanceof Error ? error.message : "Gagal memperbaiki data unit."
+      );
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -414,6 +561,15 @@ export default function InventoryManagementPage() {
                         <option value="returned">returned</option>
                       </select>
                     </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => openCorrection(unit.id)}
+                      className="w-full text-sm sm:text-xs"
+                    >
+                      Koreksi kondisi dan harga
+                    </Button>
                   </div>
                 );
               })
@@ -432,12 +588,13 @@ export default function InventoryManagementPage() {
                   <th className="p-3">Harga Beli (Modal)</th>
                   <th className="p-3">Harga Jual</th>
                   <th className="p-3">Aksi Ubah Status</th>
+                  <th className="p-3">Koreksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {filteredUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-muted">
+                    <td colSpan={8} className="p-8 text-center text-muted">
                       Tidak ada data unit fisik yang sesuai dengan filter.
                     </td>
                   </tr>
@@ -501,6 +658,20 @@ export default function InventoryManagementPage() {
                             <option value="in_service">in_service</option>
                             <option value="returned">returned</option>
                           </select>
+                        </td>
+                        <td className="p-3">
+                          <label htmlFor={`unit-fix-${unit.id}`} className="sr-only">
+                            Koreksi kondisi dan harga {label}
+                          </label>
+                          <Button
+                            id={`unit-fix-${unit.id}`}
+                            type="button"
+                            variant="outline"
+                            onClick={() => openCorrection(unit.id)}
+                            className="whitespace-nowrap px-2 py-0 text-xs"
+                          >
+                            Koreksi
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -581,7 +752,9 @@ export default function InventoryManagementPage() {
                   <select
                     id="batch-condition"
                     value={batchCondition}
-                    onChange={(e) => setBatchCondition(e.target.value as UnitCondition)}
+                    onChange={(e) =>
+                      handleBatchConditionChange(e.target.value as UnitCondition)
+                    }
                     className="h-11 w-full rounded-lg border border-line bg-paper px-3 text-base text-ink sm:h-10 sm:text-xs"
                   >
                     <option value="new">Baru (New)</option>
@@ -606,6 +779,7 @@ export default function InventoryManagementPage() {
                     className="sm:text-xs"
                   />
                 </div>
+
               </div>
 
               <div>
@@ -625,6 +799,45 @@ export default function InventoryManagementPage() {
                   className="font-bold text-accent-deep sm:text-xs"
                 />
               </div>
+
+                {/* Saran hanya ditampilkan, tidak pernah menimpa angka yang
+                    sudah diketik staf. Kalau fieldnya masih berisi angka
+                    otomatis, sarannya sudah terpakai sendiri dan kata
+                    "otomatis" yang menjelaskan kenapa tidak ada tombol Pakai. */}
+                {batchCondition === "second" && priceSuggestion > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-paper px-2.5 py-2 text-xs text-muted">
+                    <span>
+                      Saran harga seken {formatIDR(priceSuggestion)} dari harga baru{" "}
+                      {formatIDR(catalogNewPrice)}.
+                    </span>
+                    {priceSuggestion !== sellingPrice && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={applyPriceSuggestion}
+                        className="h-8 px-2 py-0 text-xs"
+                      >
+                        Pakai harga ini
+                      </Button>
+                    )}
+                    {priceIsAutoSeeded && priceSuggestion === sellingPrice && (
+                      <span>Sudah dipakai otomatis, ubah saja kalau perlu.</span>
+                    )}
+                  </div>
+                )}
+
+              {/* Peringatan yang paling penting di form ini. Unit second yang
+                  dihargai sama dengan harga baru tayang di etalase dengan
+                  harga coret yang sama dengan harga jualnya, dan pelanggan
+                  akan mengira diskonnya rusak. */}
+              {secondPriceWarning && (
+                <div className="rounded-lg border border-warn/30 bg-warn-bg p-3 text-xs text-warn">
+                  <span className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{secondPriceWarning}</span>
+                  </span>
+                </div>
+              )}
 
               <div>
                 <label
@@ -664,6 +877,133 @@ export default function InventoryManagementPage() {
                   className="w-full font-bold sm:w-auto"
                 >
                   {isSaving ? "Menyimpan..." : "Simpan ke Inventaris"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog koreksi unit. Kondisi dan harga jual adalah satu-satunya
+          dua kolom inventaris yang tidak pernah bisa diperbaiki lewat jalur
+          lain, jadi dialog ini satu-satunya jalan koreksi yang ada. */}
+      {editingUnit && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Koreksi kondisi dan harga unit ${editingUnit.imei}`}
+            className="rise my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-2 border-b border-line pb-3">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-ink">Koreksi Unit</h3>
+                <p className="mt-0.5 break-all font-mono text-xs text-muted">
+                  {editingUnit.imei}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCorrection}
+                aria-label="Tutup dialog koreksi unit"
+                className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {editError && (
+              <div className="flex items-start gap-2 rounded-lg border border-bad/30 bg-bad-bg p-3 text-xs text-bad">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form
+              onSubmit={handleCorrectionSubmit}
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 text-sm"
+            >
+              <div>
+                <label
+                  htmlFor="fix-condition"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
+                  Kondisi Fisik
+                </label>
+                <select
+                  id="fix-condition"
+                  value={editCondition}
+                  onChange={(e) => setEditCondition(e.target.value as UnitCondition)}
+                  className="h-11 w-full rounded-lg border border-line bg-paper px-3 text-base text-ink sm:h-10 sm:text-xs"
+                >
+                  <option value="new">Baru (New)</option>
+                  <option value="second">Seken (Second Hand)</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="fix-selling-price"
+                  className="mb-1 block text-xs font-semibold text-muted"
+                >
+                  Harga Jual Toko (Rp)
+                </label>
+                <Input
+                  id="fix-selling-price"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(Number(e.target.value))}
+                  className="font-bold text-accent-deep sm:text-xs"
+                />
+                <span className="mt-1 block text-[11px] text-muted">
+                  Harga beli unit ini {formatIDR(editingUnit.purchase_cost)}.
+                </span>
+              </div>
+
+              {/* Unit hasil trade-in tidak punya baris katalog, jadi tidak ada
+                  harga baru pembanding dan sarannya tidak bisa dihitung. */}
+              {editingNewPrice > 0 && editingSuggestion > 0 && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-paper px-2.5 py-2 text-xs text-muted">
+                  <span>Saran harga {formatIDR(editingSuggestion)}.</span>
+                  {editingSuggestion !== editPrice && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditPrice(editingSuggestion)}
+                      className="h-8 px-2 py-0 text-xs"
+                    >
+                      Pakai harga ini
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {editingWarning && (
+                <div className="rounded-lg border border-warn/30 bg-warn-bg p-3 text-xs text-warn">
+                  <span className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{editingWarning}</span>
+                  </span>
+                </div>
+              )}
+
+              <div className="flex flex-col-reverse gap-2 border-t border-line pt-3 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeCorrection}
+                  className="w-full sm:w-auto"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="w-full font-bold sm:w-auto"
+                >
+                  {isSavingEdit ? "Menyimpan..." : "Simpan Koreksi"}
                 </Button>
               </div>
             </form>
