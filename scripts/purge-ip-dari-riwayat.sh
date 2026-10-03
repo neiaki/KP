@@ -51,10 +51,6 @@ readonly KONSTANTA_PUBLIK=("1.1.1.1" "8.8.8.8" "9.9.9.9" "1.2.3.4")
 
 readonly POLA_IP='([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})'
 
-# Commit yang memuat nilai bocor hanya ada di satu berkas, jadi
-# hanya berkas itu yang perlu ditulis ulang.
-readonly BERKAS_BOCOR="docs/COOLIFY-PANEL.md"
-
 jalankan=0
 daftar=""
 
@@ -104,9 +100,17 @@ jumlah_worktree=$(git worktree list | grep -c . || true)
       Rewrite menyentuh ref bersama dan bisa merusak checkout yang
       sedang berjalan di worktree lain."
 
+# git-filter-repo selalu dipilih kalau ada. Rantai `A || B && C` di shell dibaca
+# dari kiri ke kanan sebagai `(A || B) && C`, jadi begitu A benar, C ikut jalan
+# dan menimpa alat yang baru saja terdeteksi. Akibatnya filter-branch tetap
+# terpilih meski filter-repo ada, dan jalur rewrite jadi ikut jalur sempit yang
+# cuma menyalin satu berkas.
 alat=""
-command -v git-filter-repo >/dev/null 2>&1 && alat=filter-repo
-[ "$alat" = "filter-repo" ] || git filter-branch --help >/dev/null 2>&1 && alat=filter-branch
+if command -v git-filter-repo >/dev/null 2>&1; then
+  alat=filter-repo
+elif git filter-branch --help >/dev/null 2>&1; then
+  alat=filter-branch
+fi
 [ -n "$alat" ] || gagal "tidak ada git filter-repo maupun git filter-branch"
 
 printf 'alat rewrite: git %s\n' "$alat"
@@ -228,19 +232,67 @@ fi
 printf '\n== Menjalankan rewrite ==\n'
 
 daftar_nilai=$(mktemp)
-trap 'rm -f "$daftar_nilai" "${daftar_nilai}.rp"' EXIT
+simpan_remote_file=""
+refs_original_file=""
+# ${var:+"$var"} menulis path hanya kalau var tidak kosong, jadi trap ini aman
+# walau rewrite berhenti sebelum salah satu tempfile itu dibuat.
+daftar_kandidat=$(mktemp)
+daftar_baik=$(mktemp)
+daftar_bad=$(mktemp)
+# ${var:+"$var"} menulis path hanya kalau var tidak kosong, jadi trap ini aman
+# walau rewrite berhenti sebelum salah satu tempfile itu dibuat.
+trap 'rm -f "$daftar_nilai" "${daftar_nilai}.rp" "$daftar_kandidat" \
+  "$daftar_baik" "$daftar_bad" \
+  ${simpan_remote_file:+"$simpan_remote_file"} \
+  ${refs_original_file:+"$refs_original_file"}' EXIT
 
-# Hanya baris yang memang berbentuk alamat IPv4 yang dipakai. Baris lain
-# di file daftar ditolak, bukan diabaikan diam-diam.
+# Hanya baris yang memang berbentuk alamat IPv4 yang dipakai. Baris lain di
+# file daftar ditolak, bukan diabaikan diam-diam.
+#
+# Kandidat diambil dengan grep -E, bukan grep -vE. Kalau -v yang dipakai, yang
+# masuk justru baris yang BUKAN alamat, jadi daftar yang sah akan terbalik
+# dan skrip berhenti di "file daftar kosong" padahal isinya benar semua.
 grep -vE '^\s*(#|$)' "$daftar" |
-  grep -vE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' >"$daftar_nilai.bad" || true
-if [ -s "$daftar_nilai.bad" ]; then
+  grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' >"$daftar_kandidat" || true
+
+while IFS= read -r baris; do
+  [ -n "$baris" ] || continue
+  # Empat oktet, masing-masing 0 sampai 255. Perbandingan dilakukan dengan
+  # aritmetika bukan regex supaya batas 255 ditegakkan, bukan hanya batas
+  # jumlah digit.
+  IFS=. read -r o1 o2 o3 o4 extra <<EOF
+$baris
+EOF
+  if [ -n "$extra" ] || [ -z "$o1" ] || [ -z "$o4" ]; then
+    printf '%s\n' "$baris" >>"$daftar_bad"
+    continue
+  fi
+  sah=1
+  for oktet in "$o1" "$o2" "$o3" "$o4"; do
+    case "$oktet" in
+      '' | *[!0-9]*)
+        sah=0
+        break
+        ;;
+    esac
+    # 010 dibaca sebagai 10 oleh test aritmetika bash, sama seperti yang
+    # dilakukan pembacaan alamat di inet_aton. Tidak diam-diam diterima,
+    # ditulis sebagai bentuk oktet saja.
+    [ "$((10#$oktet))" -le 255 ] || sah=0
+  done
+  if [ "$sah" -eq 1 ]; then
+    printf '%s\n' "$baris" >>"$daftar_baik"
+  else
+    printf '%s\n' "$baris" >>"$daftar_bad"
+  fi
+done <"$daftar_kandidat"
+
+if [ -s "$daftar_bad" ]; then
   printf 'BARIS DI FILE DAFTAR BUKAN ALAMAT IPv4:\n' >&2
-  sed 's/^/  /' "$daftar_nilai.bad" >&2
-  rm -f "$daftar_nilai.bad"
+  sed 's/^/  /' "$daftar_bad" >&2
   gagal "perbaiki file daftar lalu jalankan ulang"
 fi
-grep -vE '^\s*(#|$)' "$daftar" >"$daftar_nilai"
+cp -- "$daftar_baik" "$daftar_nilai"
 
 jumlah_nilai=$(grep -c . "$daftar_nilai" || true)
 [ "$jumlah_nilai" -gt 0 ] || gagal "file daftar kosong"
@@ -253,36 +305,115 @@ if [ "$alat" = "filter-repo" ]; then
   git filter-repo --replace-text "${daftar_nilai}.rp" --force
 else
   printf 'filter-repo tidak ada, memakai filter-branch.\n'
+  # filter-branch menulis ulang ref remote-tracking jadi refs/remotes/origin
+  # ikut terhapus dan remote origin ikut hilang. Setelah rewrite, `git push`
+  # biasa akan gagal karena tidak ada lagi tempat push, dan orang yangbaru
+  #push tidak akan sadar itu efek skrip purge, bukan konfigurasi rusak.
+  # URL dan semua fetch/push specifiers disimpan lalu dipulihkan.
+  simpan_remote_file="$(mktemp)"
+  git config --get-regexp '^remote\..*\.(url|pushurl|fetch|push|mirror|prune|tagopt)$' \
+    >"$simpan_remote_file" 2>/dev/null || true
   # Titik pada alamat diperlakukan sebagai karakter biasa, bukan wildcard.
   pola=$(sed 's/\./\\./g' "$daftar_nilai" | paste -sd'|' -)
+  # Semua berkas ter-track, bukan cuma satu berkas tertentu. Nilai yang bocor
+  # pernah ada di satu berkas, tapi orang yang menjalankan skrip ini tidak
+  # punya jaminan nilai yang sama tidak ikut muncul di commit lain. Filter yang
+  # hanya menyentuh satu berkas akan melaporkan rewrite berhasil sementara nilai
+  # aslinya masih utuh di berkas lain. Verifikasi di bawah memang menangkapnya,
+  # tapi lebih baik filternya sendiri tidak bergantung pada tebakan.
   filter=$(cat <<FILTER
-if git ls-files --error-unmatch $BERKAS_BOCOR >/dev/null 2>&1; then
-  blob=\$(git show ":$BERKAS_BOCOR" | sed -E "s/($pola)/<IP-publik>/g" | git hash-object -w --stdin)
-  git update-index --cacheinfo 100644,\$blob,$BERKAS_BOCOR
-fi
+git ls-files -z | while IFS= read -r -d '' path; do
+  blob=\$(git show ":\$path" | sed -E "s/($pola)/<IP-publik>/g" | git hash-object -w --stdin)
+  mode=\$(git ls-files -s -- "\$path" | awk '{print \$1}')
+  git update-index --cacheinfo "\$mode,\$blob,\$path"
+done
 FILTER
 )
   FILTER="$filter" git filter-branch -f --index-filter "$filter" \
     --prune-empty --tag-name-filter cat -- --all
+
+  # Remote dipulihkan tepat setelah rewrite, sebelum reflog digariskan. Nilai
+  # yang ada dibaca dari config, jadi pemulihannya tidak bergantung pada
+  # `--partial` dan tidak mengubah perilaku rewrite selain yang di atas.
+  if [ -s "$simpan_remote_file" ]; then
+    # while di dalam redireksi, bukan pipeline. Jalur `| while` jalan di
+    # subshell, jadi perubahan config-nya bisa hilang bersama subshell itu.
+    while IFS=' ' read -r kunci nilai; do
+      [ -n "$kunci" ] || continue
+      git config --local --unset-all "$kunci" 2>/dev/null || true
+      # Nilai fetch boleh mengandung spasi setelah nama section, jadi pemisah
+      # hanya key, dan sisa baris dipakai utuh sebagai nilai.
+      git config --local --add "$kunci" "$nilai"
+    done <"$simpan_remote_file"
+    printf 'Remote dipulihkan setelah rewrite: %s remote.\n' "$(git remote | wc -l)"
+  fi
 fi
 
 # --- 5. Verifikasi ---------------------------------------------------------
 
 if [ "$alat" = "filter-branch" ]; then
   printf '\nMembersihkan ref asli dan objek gantung ...\n'
-  rm -rf .git/refs/original
+  refs_original_file="$(mktemp)"
+  # Ref asli dihapus lewat `git update-ref -d`, bukan `rm -rf .git/refs/original`.
+  # Dua alasan: path itu tidak berlaku kalau git dir terpisah dari working tree,
+  # dan ref yang sudah dipaketkan tidak ada sebagai berkas di sana sama sekali,
+  # jadi `rm -rf` hanya diam-diam tidak menghapus apa pun.
+  #
+  # while di dalam redireksi bukan pipeline, karena pipeline membuat subshell
+  # dan nilai yang diisinya hilang bersama subshell itu.
+  git for-each-ref --format='%(refname)' refs/original/ >"$refs_original_file"
+  while IFS= read -r ref_asli; do
+    [ -n "$ref_asli" ] || continue
+    git update-ref -d "$ref_asli"
+  done <"$refs_original_file"
+  printf 'Ref asli dihapus: %s.\n' "$(grep -c . "$refs_original_file" || printf 0)"
   git reflog expire --expire=now --all
   git gc --prune=now --quiet 2>/dev/null || true
 fi
 
 printf '\n== Verifikasi ==\n'
-printf 'Sisa nilai bocor di riwayat lokal: '
+
+# Dua pemeriksaan dengan bobot berbeda. Yang pertama menentukan exit kode:
+# setiap nilai yang diminta orang lewat --daftar harus benar-benar hilang dari
+# setiap ref yang ditulis ulang. Kalau salah satu masih ada, rewrite-nya tidak
+# berhasil dan skrip wajib keluar bukan-nol, karena exit 0 di sini akan dibaca
+# "riwayat sudah bersih" lalu langkah force-push dijalankan.
+gagal_pakai_daftar=0
+if [ "$jalankan" -eq 1 ] && [ -n "$daftar_nilai" ]; then
+  printf 'Memeriksa %s nilai dari daftar di seluruh ref ...\n' "$jumlah_nilai"
+  semua_ref=$(git rev-list --all)
+  while IFS= read -r nilai; do
+    [ -n "$nilai" ] || continue
+    masih=$(printf '%s\n' "$semua_ref" |
+      while IFS= read -r rev; do [ -n "$rev" ] && git grep -lF -- "$nilai" "$rev" 2>/dev/null || true; done |
+      sort -u || true)
+    if [ -n "$masih" ]; then
+      printf '  MASIH ADA: %s\n' "$nilai"
+      printf '%s\n' "$masih" | head -n 5 | sed 's/^/    /'
+      gagal_pakai_daftar=1
+    else
+      printf '  hilang: %s\n' "$nilai"
+    fi
+  done <"$daftar_nilai"
+fi
+
+# Yang kedua hanya laporan. Deteksi memindai bentuk alamat, jadi nilai milik
+# orang lain yang muncul karena sengaja tidak ikut defensif tetap terlihat di
+# sini tanpa menggagalkan rewrite.
+printf '\nSisa nilai bocor di riwayat lokal: '
 sisa=$(for rev in $(git rev-list --all); do deteksi "$rev"; done | sort -u || true)
 if [ -z "$sisa" ]; then
   printf 'tidak ada\n'
 else
   printf '\n'
   printf '%s\n' "$sisa" | sed 's/^/  /'
+fi
+
+if [ "$gagal_pakai_daftar" -ne 0 ]; then
+  printf '\nGAGAL: ada nilai dari --daftar yang masih ada di riwayat hasil rewrite.\n' >&2
+  printf 'Jangan force-push dulu. Periksa apakah ref yang perlu ditulis ulang sudah\n' >&2
+  printf 'ikut dalam cakupan `-- --all`, lalu jalankan ulang.\n' >&2
+  gagal "rewrite belum bersih"
 fi
 
 printf '\n== Selesai rewrite lokal ==\n'
