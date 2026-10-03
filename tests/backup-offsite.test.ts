@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const offsiteScript = await readFile(
-  new URL("../scripts/backup-offsite.sh", import.meta.url),
-  "utf8"
-);
+const offsiteScriptUrl = new URL("../scripts/backup-offsite.sh", import.meta.url);
+const offsiteScript = await readFile(offsiteScriptUrl, "utf8");
 
 test("offsite memakai bash dan tidak pernah mencetak rahasia", () => {
   // Sama seperti backup-postgres.sh: construct bash dan pipefail tidak ada
@@ -49,14 +52,107 @@ test("offsite memverifikasi checksum sebelum enkripsi", () => {
   assert.match(offsiteScript, /sha256sum -c/);
 });
 
-test("offsite diam saat belum dikonfigurasi, gagal saat setengah jalan", () => {
-  // Cron harian tetap terpasang sebelum tujuan off-site ada, jadi kondisi
-  // belum-dikonfigurasi harus exit 0 dengan pesan yang jelas, bukan gagal
-  // setiap malam dan membuat log yang menutupi kegagalan sungguhan.
-  assert.match(offsiteScript, /belum dikonfigurasi.*lewati tanpa gagal/);
-  assert.match(offsiteScript, /exit 0/);
-  // Sebaliknya, enkripsi gagal atau upload gagal tidak boleh diam.
-  assert.match(offsiteScript, /batalkan sebelum upload/);
+const offsiteScriptPath = fileURLToPath(offsiteScriptUrl);
+
+// Isi throwaway, bukan data apical. Dipakai supaya script punya dump yang
+// checksum-nya cocok, sehingga satu-satunya alasan gagal adalah kondisi yang
+// memang diuji di bawah.
+const ISI_UJI = "DUMPERIKUT-BUKAN-DATA-ASLI\n";
+const NAMA_UJI = "atcell-20260101T000000Z.dump";
+
+async function siapkanDirektoriUji(): Promise<{
+  dumps: string;
+  staging: string;
+  ppFile: string;
+}> {
+  const dir = await mkdtemp(join(tmpdir(), "offsite-uji-"));
+  const dumps = join(dir, "dumps");
+  const staging = join(dir, "staging");
+  await mkdir(dumps);
+  await writeFile(join(dumps, NAMA_UJI), ISI_UJI);
+  const sum = createHash("sha256").update(ISI_UJI).digest("hex");
+  await writeFile(join(dumps, `${NAMA_UJI}.sha256`), `${sum}  ${NAMA_UJI}\n`);
+  // Passphrase lemparan yang dibuat di dalam test ini dan tidak pernah
+  // dicetak, hanya dipakai untuk membuktikan script menolak jalan tanpa tujuan.
+  const ppFile = join(dir, "passphrase");
+  await writeFile(ppFile, "passphrase-buangan-untuk-test\n", { mode: 0o600 });
+  return { dumps, staging, ppFile };
+}
+
+function jalankanScript(env: Record<string, string>) {
+  return spawnSync("bash", [offsiteScriptPath], {
+    // Env dibangun eksplisit: variabel OFFSITE_* dari mesin test tidak boleh
+    // ikut terbawa dan membuat kondisi uji terlewati diam-diam.
+    env: { PATH: process.env.PATH ?? "", NODE_ENV: process.env.NODE_ENV ?? "test", ...env },
+    encoding: "utf8",
+  });
+}
+
+test("offsite gagal keras saat passphrase kosong, bukan dilewati diam-diam", async () => {
+  // Ini kontrak yang melindungi produksi. Versi lama keluar 0 sambil menulis
+  // "lewati tanpa gagal", sehingga cron melaporkan berhasil setiap malam
+  // tanpa mengirim apa pun. Exit bukan-nol harus diuji dengan menjalankan
+  // script sungguhan, bukan dengan membaca teksnya.
+  const { dumps, staging } = await siapkanDirektoriUji();
+  const hasil = jalankanScript({ BACKUP_DIR: dumps, OFFSITE_STAGING_DIR: staging });
+
+  assert.notEqual(
+    hasil.status,
+    0,
+    "passphrase kosong harus keluar bukan-nol, bukan exit 0"
+  );
+  assert.match(hasil.stderr, /GAGAL/);
+  assert.doesNotMatch(hasil.stderr, /lewati tanpa gagal/);
+
+  // Tanpa passphrase script berhenti sebelum mengenkripsi, jadi tidak ada
+  // file .enc sama sekali. Tidak ada yang bisa terkirim dalam keadaan terbuka.
+  const isiStaging = await readdir(staging).catch(() => [] as string[]);
+  assert.deepEqual(isiStaging, [], "tidak boleh ada berkas terenkripsi tanpa passphrase");
+});
+
+test("offsite gagal keras saat terkripsi tapi tidak ada tujuan upload", async () => {
+  // Terenkripsi di lokal saja berarti seluruh cadangan masih hidup dan mati
+  // di host yang sama, yaitu kondisi yang justru skrip ini dibuat untuk cegah.
+  const { dumps, staging, ppFile } = await siapkanDirektoriUji();
+  const hasil = jalankanScript({
+    BACKUP_DIR: dumps,
+    OFFSITE_STAGING_DIR: staging,
+    OFFSITE_PASSPHRASE_FILE: ppFile,
+  });
+
+  assert.notEqual(hasil.status, 0, "tanpa tujuan upload harus keluar bukan-nol");
+  assert.match(hasil.stderr, /GAGAL/);
+  assert.match(hasil.stderr, /tujuan upload/);
+});
+
+test("offsite gagal keras saat tidak ada dump sama sekali", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "offsite-uji-kosong-"));
+  const dumps = join(dir, "dumps");
+  await mkdir(dumps);
+  const hasil = jalankanScript({
+    BACKUP_DIR: dumps,
+    OFFSITE_STAGING_DIR: join(dir, "staging"),
+  });
+
+  assert.notEqual(hasil.status, 0, "backup yang tidak terjadi harus gagal");
+  assert.match(hasil.stderr, /GAGAL/);
+});
+
+test("offsite tidak pernah keluar 0 tanpa mengirim apa pun", async () => {
+  // Penjaga terakhir terhadap regresi: script tidak boleh punya jalur exit 0
+  // yang tidak berarti off-host copy benar-benar terkirim.
+  const { dumps, staging, ppFile } = await siapkanDirektoriUji();
+  const hasil = jalankanScript({
+    BACKUP_DIR: dumps,
+    OFFSITE_STAGING_DIR: staging,
+    OFFSITE_PASSPHRASE_FILE: ppFile,
+    OFFSITE_RCLONE_REMOTE: join(staging, "tidak-ada-remote-ini"),
+  });
+
+  // rclone tidak ada di lingkungan uji, jadi script harus berhenti dengan
+  // kegagalan dan bukan mengklaim terkirim.
+  assert.notEqual(hasil.status, 0);
+  assert.doesNotMatch(hasil.stdout, /terkirim terenkripsi/);
 });
 
 test("offsite hanya menyentuh berkas miliknya sendiri", () => {
