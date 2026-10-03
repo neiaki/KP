@@ -42,13 +42,18 @@ yarn-error.log*
 # Kunci dan sertifikat. Nilai kredensial release Android dan sertifikat
 # backup off-site tidak boleh masuk repo, dan tidak ada gunanya di-commit
 # lalu dihapus karena objek git-nya tetap tersimpan.
-/*
- * Pola ditulis per huruf supaya case-insensitive tanpa bergantung pada
- * core.ignoreCase. Git hanya memakai core.ignoreCase untuk nama BERKAS yang
- * sudah ter-track; saat `git add` pertama kali, pencocokan pola hanya
- * case-sensitive di filesystem yang begitu, jadi `release.JKS` lolos dari
- * `*.jks`. Bentuk [jJ][kK][sS] menutupnya tanpa mengubah git config.
- */
+# Pola ditulis per huruf supaya case-insensitive tanpa bergantung pada
+# core.ignoreCase. Git hanya memakai core.ignoreCase untuk nama BERKAS yang
+# sudah ter-track; saat `git add` pertama kali, pencocokan pola hanya
+# case-sensitive di filesystem yang begitu, jadi `release.JKS` lolos dari
+# `*.jks`. Bentuk [jJ][kK][sS] menutupnya tanpa mengubah git config.
+#
+# Blok ini dulu dibuka dengan `/*` seperti komentar C. Git tidak membaca
+# `/*` sebagai komentar, hanya `#`, jadi baris itu ikut jadi pola dan
+# berarti abaikan semua entri di root termasuk direktori. Akibatnya setiap
+# berkas baru di src/, tests/, docs/, dan scripts/ ter-ignore, dan `git add .`
+# melewatkannya tanpa pesan apa pun. Pola `/*` yang sah tetap ada di baris
+# pola di bawah, jadi tidak ada yang hilang dari cakupan ini.
 /*.[jJ][kK][sS]
 /*.[kK][eE][yY][sS][tT][oO][rR][eE]
 *.[jJ][kK][sS]
@@ -70,9 +75,15 @@ yarn-error.log*
 *.bak
 
 # Log. Log aplikasi dan log container bisa memuat kredensial kalau ada
-# yang salah tulis saat exception. Bentuk jamak ditulis dengan huruf yang
-# bisa berubah supaya log/ dan logs/ ikut tertutup.
-/*.[lL][oO][gG][sS]
+# yang salah tulis saat exception.
+#
+# Pola `*.log` di sini dulu punya satu huruf terlalu banyak, jadi hanya
+# cocok dengan `.logs` dan tidak pernah menutup `.log`. Kebocoran itu tidak
+# terlihat karena `/*` di blok kunci menutup semua apa pun. Dua baris
+# direktori ditulis terpisah karena `log` dan `logs` dua nama berbeda, bukan
+# varyasi huruf.
+/*.[lL][oO][gG]
+/[lL][oO][gG]/
 /[lL][oO][gG][sS]/
 
 # vercel
