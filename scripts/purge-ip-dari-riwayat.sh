@@ -105,8 +105,17 @@ jumlah_worktree=$(git worktree list | grep -c . || true)
       sedang berjalan di worktree lain."
 
 alat=""
-command -v git-filter-repo >/dev/null 2>&1 && alat=filter-repo
-[ "$alat" = "filter-repo" ] || git filter-branch --help >/dev/null 2>&1 && alat=filter-branch
+# if/elif, bukan `A || B && C`. Rantai shell dibaca dari kiri ke kanan sebagai
+# `(A || B) && C`, jadi pada bentuk lama begitu git-filter-repo ditemukan,
+# kondisi C ikut jalan dan menimpa alat yang baru saja terdeteksi. Akibatnya
+# filter-branch tetap terpilih meski filter-repo ada, dan rewrite ikut jalur
+# sempit yang cuma menyalin satu berkas. Baris "alat rewrite:" yang dicetak
+# di bawah juga jadi tidak jujur soal alat yang benar-benar dipakai.
+if command -v git-filter-repo >/dev/null 2>&1; then
+  alat=filter-repo
+elif git filter-branch --help >/dev/null 2>&1; then
+  alat=filter-branch
+fi
 [ -n "$alat" ] || gagal "tidak ada git filter-repo maupun git filter-branch"
 
 printf 'alat rewrite: git %s\n' "$alat"
