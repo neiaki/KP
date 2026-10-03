@@ -186,7 +186,28 @@ command -v psql >/dev/null 2>&1 || {
   exit 1
 }
 
-pg_restore --list "$DUMP_FILE" >/dev/null
+# Daftar isi dump dibaca sekali ke variabel dan dipakai dua kali: membuktikan
+# formatnya, lalu mencari data auth. Tidak dialirkan ke `grep -q` karena grep -q
+# keluar begitu menemukan satu baris, sementara pg_restore yang masih menulis
+# trailer dump menerima SIGPIPE, dan pipefail mengubah status seluruh pipeline
+# jadi 141. Pola yang sama sudah merusak jalur stub di bawah.
+if ! toc_daftar="$(pg_restore --list "$DUMP_FILE" 2>&1)"; then
+  printf 'Gagal membaca daftar isi dump: %s\n' "$toc_daftar" >&2
+  exit 1
+fi
+
+# Apakah dump ini membawa akun staf yang sungguhan?
+#
+# Sejak 3 Oktober 2026 scripts/backup-postgres.sh ikut men-dump schema auth,
+# dan itu satu-satunya tempat account staf ikut ter-backup. Dump lama atau dump
+# buatan tangan belum tentu memuatnya. Keberadaannya wajib diperiksa, bukan
+# diasumsikan: tanpa auth.users asli, FK profiles ke auth tetap terpenuhi oleh
+# stub, sehingga restore tanpa satu pun akun pun akan terlihat hijau.
+if [[ "$toc_daftar" =~ (^|[[:space:]])TABLE[[:space:]]+DATA[[:space:]]+auth[[:space:]]+users([[:space:]]|$) ]]; then
+  dump_punya_auth=1
+else
+  dump_punya_auth=0
+fi
 
 # --------------------------------------------------------------------------
 # Guard 5: dry run. Seluruh pemeriksaan di atas sudah lewat, jadi dry run
@@ -203,17 +224,24 @@ if [ "${RESTORE_DRY_RUN:-0}" = "1" ]; then
   exit 0
 fi
 
-# Dump ini sengaja hanya mencakup schema public dan private, jadi tabel
-# auth.users tidak ikut di dalamnya. Auth dikelola Supabase sebagai backup
-# terpisah. Masalahnya, public.profiles punya FK ke auth.users(id), sehingga
-# restore ke target yang auth.users-nya kosong selalu berhenti di
-# profiles_id_fkey dan seluruh transaksi dibatalkan karena --single-transaction.
+# Dua jalur ada di sini, dan memilihnya berdasarkan isi dump, bukan asumsi.
 #
-# Jadi sebelum restore, auth.users diisi stub untuk setiap id yang dipakai
-# profiles. Stub memakai domain .invalid supaya jelas bukan akun sungguhan:
-# account asli baru ada setelah backup Auth Supabase diterapkan di atas target.
-# Baris stub memakai on conflict do nothing, jadi restore ke target yang
-# sudah punya Auth asli tidak merusak apa pun.
+# Jalur auth (baru): dump memuat schema auth, jadi akun staf ikut pulih dari
+# dump. Stub tidak dibuat sama sekali. Yang dibuat lebih dulu di sini hanyalah
+# auth.users minimal dari restore-target-bootstrap.sql, karena dump juga memuat
+# entri SCHEMA auth sehingga hasil finally adalah milik dump, bukan milik
+# bootstrap.
+#
+# Jalur stub (dump lama): dump hanya memuat public dan private. Auth tidak ada
+# di dalamnya, dan public.profiles punya FK ke auth.users(id), sehingga restore
+# ke target yang auth.users-nya kosong selalu berhenti di profiles_id_fkey dan
+# seluruh transaksi dibatalkan karena --single-transaction. Karena itu auth.users
+# diisi stub lebih dulu untuk setiap id yang dipakai profiles. Stub memakai
+# domain .invalid dan penanda atcell_restore_stub supaya jelas bukan akun
+# sungguhan, dan memakai on conflict do nothing jadi tidak menimpa akun asli
+# yang mungkin sudah ada di target. Jalur ini hanya membuat restore bisa
+# dijalankan; ia tidak membuat siapa pun bisa login, dan itu ditegaskan lagi
+# oleh verifikasi setelah restore.
 
 # Ubah satu nilai dari dump menjadi literal SQL yang aman.
 #
@@ -302,7 +330,12 @@ fi
 auth_probe="${auth_probe//[[:space:]]/}"
 
 if [ "$auth_probe" = "t" ]; then
-  seed_auth_stubs
+  if [ "$dump_punya_auth" -eq 1 ]; then
+    printf 'Dump memuat auth.users asli: stub tidak dibuat, akun asli ikut pulih dari dump.\n'
+  else
+    printf 'PERINGATAN: dump ini tidak memuat data auth.users. Stub hanya membuat restore bisa jalan, bukan membuat target bisa dipakai login.\n'
+    seed_auth_stubs
+  fi
 else
   echo "auth.users tidak ada di target. Jalankan scripts/restore-target-bootstrap.sql lebih dulu." >&2
   exit 1
@@ -318,6 +351,61 @@ pg_restore \
   --dbname="$RESTORE_DATABASE_URL" \
   "$DUMP_FILE"
 
+# --------------------------------------------------------------------------
+# Verifikasi setelah restore.
+#
+# Bentuk lama hanya memeriksa "stub auth.users lengkap", artinya setiap id profil
+# punya baris di auth.users. Kondisi itu juga terpenuhi ketika database berisi
+# 7 akun sintetis dan 0 akun asli, jadi pemeriksaan lama tidak akan pernah
+# menemukan celah backup ini. Yang diperiksa sekarang adalah keberadaan akun
+# asli: baris yang tidak ditandai atcell_restore_stub.
+#
+# Semua angka diambil tanpa pipeline: keluaran psql ditahan di variabel lalu
+# dibandingkan, persis seperti guard auth.users di atas. Mengalirkan keluaran psql
+# ke grep pernah mengubah kegagalan nyata jadi 141 di file yang sama.
+# --------------------------------------------------------------------------
+hitung_satu() {
+  local keluaran
+  if ! keluaran="$(psql "$RESTORE_DATABASE_URL" -q -t -A -v ON_ERROR_STOP=1 -c "$1" 2>&1)"; then
+    printf 'Gagal menjalankan verifikasi pada target: %s\n' "$keluaran" >&2
+    exit 1
+  fi
+  printf '%s' "${keluaran//[[:space:]]/}"
+}
+
+auth_total="$(hitung_satu 'select count(*) from auth.users')"
+auth_asli="$(hitung_satu "select count(*) from auth.users where coalesce(raw_user_meta_data->>'atcell_restore_stub','') <> 'true'")"
+auth_yatim="$(hitung_satu 'select count(*) from public.profiles p left join auth.users u on u.id = p.id where u.id is null')"
+
+printf 'Auth di target: %s baris auth.users, %s di antaranya akun asli, %s profil tanpa akun.\n' \
+  "$auth_total" "$auth_asli" "$auth_yatim"
+
+if [ "$auth_yatim" -ne 0 ]; then
+  {
+    printf 'GAGAL: %s baris public.profiles tidak punya pasangan di auth.users.\n' "$auth_yatim"
+    printf 'Foreign key profiles ke auth tidak utuh, jadi target ini tidak bisa dipakai.\n'
+  } >&2
+  exit 5
+fi
+
+if [ "$auth_asli" -lt 1 ]; then
+  {
+    printf 'GAGAL: target hasil restore tidak punya satu pun akun auth asli.\n'
+    if [ "$dump_punya_auth" -eq 1 ]; then
+      printf 'Dump yang direstore memuat auth.users, jadi isinya hilang di tengah restore.\n'
+    else
+      printf 'Dump yang direstore tidak memuat auth.users sama sekali, dan stub hanya mengisi relasi.\n'
+      printf 'Backup ini tidak bisa dipakai untuk memulihkan login. Ambil auth.users dari dump yang memuat schema auth.\n'
+    fi
+    printf 'Database tanpa akun asli mewarisi seluruh data bisnis, tapi tidak ada yang bisa login.\n'
+  } >&2
+  exit 5
+fi
+
 printf 'Restore selesai: %s\n' "$(basename "$DUMP_FILE")"
-printf 'Stub auth.users hanya placeholder. Terapkan backup Auth Supabase sebelum target dipakai sungguhan.\n'
+if [ "$dump_punya_auth" -eq 1 ]; then
+  printf 'Akun auth ikut dipulihkan dari dump (%s akun asli), bukan stub.\n' "$auth_asli"
+else
+  printf 'Stub auth.users hanya placeholder. Terapkan backup Auth Supabase sebelum target dipakai sungguhan.\n'
+fi
 printf 'Lakukan smoke test RLS, migration, dan health sebelum target dianggap siap.\n'
