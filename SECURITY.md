@@ -1,0 +1,63 @@
+# Kebijakan Keamanan
+
+At Cell adalah toko di Paku Jaya, Serpong Utara. Repo ini memuat
+kode aplikasi etalase beserta portal stafnya, dan repo ini publik,
+jadi isi serta riwayat gitnya bisa dibaca siapa saja tanpa login.
+
+## Melaporkan kerentanan
+
+Jangan membuka issue publik untuk melaporkan kerentanan.
+
+Pakai **Report a vulnerability** di tab Security repository ini.
+GitHub membukanya sebagai private advisory, jadi isinya hanya
+terlihat oleh pemilik repo. Opsi itu aktif di repo ini.
+
+Kalau tombolnya tidak bisa dipakai, tunggu sampai bisa dipakai
+lagi lalu kirim lewat sana. Jangan membuka issue publik
+untuk kerentanan, bahkan dengan judul `[privat]`: selama issue itu
+ada, isinya sudah terlihat siapa saja, notifikasi sudah terkirim,
+dan penghapusan belakangan tidak membatalkan yang sudah terlihat.
+
+## Isi laporan yang membantu
+
+- Lokasi berkas dan baris, atau route yang dipanggil
+- Langkah reproduksi dari keadaan awal yang bersih
+- Dampak nyata, bukan sekadar kemungkinan teoritis
+- Data contoh yang memang tidak pernah dipakai di produksi,
+  kalau bagian yang bermasalah butuh data nyata
+
+Jangan sertakan kunci, token, atau data pelanggan sungguhan.
+Kalau laporan memuat rahasia yang bocor, ganti dengan nilai
+palsu yang bentuknya sama.
+
+## Apa yang terjadi selanjutnya
+
+Ini toko kecil yang dikelola sendiri, tanpa tim keamanan dan
+tanpa program reward. Balasan diberikan di luar jam kerja, dan
+tidak ada jaminan waktu perbaikan.
+
+Laporan yang valid akan diberi kredit di commit yang terlihat, supaya
+orang lain tidak mengulanginya. Kredit itu ditulis setelah perbaikannya
+tiba, bukan saat laporan diterima: detail kerentanan yang belum
+diperbaiki tidak pernah ditulis lebih dulu di tempat yang bisa dibaca
+publik. Kalau perbaikannya mengubah cara deploy, perubahan itu juga
+dicatat di dokumentasi.
+
+## Di luar cakupan
+
+- Kerentanan pada dependensi yang sudah dilaporkan ke basis data
+  advisory dan tidak terjangkau jalur kodenya sendiri
+- Temuan dari pemindaian otomatis tanpa langkah reproduksi
+- Serangan pada server produksi yang butuh akses lebih dulu
+- Perubahan pada `docs/` yang hanya bersifat kosmetik
+
+## Yang sudah dijaga
+
+Repo ini punya penjaga otomatis yang gagal kalau aturan dilanggar:
+
+- `tests/no-secret-in-repo.test.ts` menolak IP publik, token
+  kunci, dan URL yang menyisipkan kredensial
+- `tests/product-scope.test.ts` menolak kata produk di luar fokus
+  ponsel
+
+GitHub secret scanning dan push protection juga aktif di repo ini.

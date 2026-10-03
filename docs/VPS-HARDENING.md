@@ -281,6 +281,220 @@ Kalau `SECRET-ROTATION.md` menyebut `COOLIFY_API_TOKEN` sebagai secret dengan
 dampak terbesar, itu konsisten dengan kenyataan di atas: panel dan token itu
 adalah dua jalan ke yang sama.
 
+### Dua hal lain yang tidak terlihat dari luar
+
+Bagian di atas menulis soal port `8000` dan `6001:6002`. Dua hal lain juga
+tidak terlihat dari `ufw`, dari `ss -lntp`, maupun dari `docker ps`, tapi
+keduanya beda jenis dan tidak boleh dicampur:
+
+- **Jalur ingress panel**: hostname panel yang memakai wildcard `sslip.io`.
+  Ini menambah jalan masuk ke panel, dan hilang begitu hostname-nya ditutup.
+- **Jalur otomasi deploy**: integrasi GitHub App yang kelihatan hidup
+  padahal mati. Ini tidak menambah jalan masuk apa pun. Yang hilang kalau
+  dimatikan adalah kemampuan deploy otomatis, dan kemampuan itu memang
+  sedang tidak dipakai.
+
+#### 1. Hostname panel berasal dari `sslip.io`, bukan dari nama pilihan Anda
+
+Coolify tidak memakai nama pilihan Anda. Ia menyusun hostname panel sendiri
+dari IP publik host, hasilnya `coolify.<IP-publik>.sslip.io`. `sslip.io`
+adalah layanan wildcard DNS yang menerjemahkan IP yang tertulis di dalam
+subdomain, jadi nama itu langsung bekerja tanpa perlu didaftarkan.
+
+Konsekuensinya jarang dipikirkan: **IP publik host ini terpublikasi di bawah
+domain yang tidak dimiliki siapa pun**. Siapa pun yang mencari host `sslip.io`
+di internet bisa menebak lalu mengetuk IP Anda tanpa satu pun catatan DNS
+milik Anda. Traefik juga sudah meminta sertifikat Let's Encrypt yang sah untuk
+hostname itu, sehingga browser tidak menampilkan peringatan apa pun dan
+penyerang tidak perlu membuat sertifikat sendiri.
+
+Ini bukan risiko teoretis. Sebelum diperbaiki, panel menjawab publik dengan
+`302` ke halaman login memakai TLS yang valid, dan access log Traefik
+mencatat permintaan ke hostname tersebut dari puluhan alamat IP luar yang
+berbeda. Yang diamankan bukan hanya halaman login, tapi terminal container yang
+secara praktis setara akses root, isi database produksi, dan kunci off-site
+backup.
+
+Sertifikat untuk `acme-probe.<IP>.sslip.io` juga ada di `acme.json`. Itu bukti
+mekanismenya berjalan otomatis: router `catchall` bawaan Coolify memakai
+`certResolver: letsencrypt`, jadi Traefik akan meminta sertifikat untuk
+hostname asing mana pun yang sampai ke host ini. Dikombinasikan dengan
+`sslip.io`, artinya siapa pun yang mengetuk IP Anda dengan header `Host` apa
+pun bisa membuat host ini menerbitkan sertifikat atas namanya sendiri.
+
+#### 2. Deploy otomatis lewat GitHub App mustahil, dan itu sudah dibuktikan
+
+Deploy lewat GitHub App **tidak pernah bisa jalan di host ini**. Tabel
+`github_apps` di database Coolify hanya punya satu baris, dan baris itu
+placeholder kosong: kolom `organization`, `app_id`, `installation_id`, dan
+`client_id` kosong semua, sedangkan `client_secret`, `webhook_secret`, dan
+`private_key_id` bernilai `NULL`. Yang terisi hanya `name`, `api_url`,
+`html_url`, `custom_user`, dan `custom_port`, yaitu nilai bawaan yang dibuat
+saat Coolify diinstal.
+
+Kalau baris itu tidak diisi, Coolify tidak punya identitas GitHub App untuk
+menerima event push. Jadi tidak ada `git push` ke `main` yang bisa memicu
+deploy, berapa pun kali pengaturan auto deploy pada aplikasi disetel.
+
+Dua hal ini tidak boleh disamakan. Menutup hostname panel tidak menyentuh
+kemampuan apa pun, karena tidak ada kemampuan yang hilang: yang hilang cuma
+jalan masuknya. Sebaliknya, menghidupkan GitHub App tidak menambah kemampuan
+lain; ia cuma memindahkan langkah `git push` menjadi deploy, dan langkah
+tersebut sudah dilakukan manual selama ini.
+
+Yang tetap berlaku apa adanya: begitu panel bisa dijangkau siapa pun, ia
+memberi akses environment production, deploy image, dan terminal container,
+sesuai daftar di bagian atas. Otomasi deploy yang mati tidak mengurangi
+risiko itu sedikit pun.
+
+#### Bentuk endpoint deploy yang benar-benar dipakai
+
+Semua deploy melewati endpoint bertanda tangan milik Coolify, dipanggil dari
+dalam VPS:
+
+```
+POST $COOLIFY_BASE_URL/api/v1/deploy/applications/<uuid-aplikasi>
+Authorization: Bearer $COOLIFY_API_TOKEN
+```
+
+`SECRET-ROTATION.md` sudah memakai bentuk yang sama untuk
+`$COOLIFY_BASE_URL/api/v1/version`, jadi tidak ada konvensi baru di sini. Nilai
+`COOLIFY_API_TOKEN` **tidak pernah ditulis di repository ini**. Ia ada di
+`~/.secrets` pada mesin operator dan dibuat lewat halaman **API Tokens** di
+panel Coolify. `SECRET-ROTATION.md` memperlakukannya sebagai secret dengan
+dampak terbesar, karena satu token itu sudah cukup untuk membaca seluruh
+environment produksi.
+
+Konsekuensi dari ditutupnya hostname `sslip.io`: alamat panel tidak lagi sama
+untuk semua pemanggil, jadi dua pemanggil harus punya variabelnya sendiri.
+Satu variabel untuk dua pemanggil pasti salah satu akan gagal.
+
+| Pemanggil | Variabel | Alamat yang bisa dijangkau | Token disimpan di |
+|---|---|---|---|
+| VPS ke panel | `COOLIFY_BASE_URL` | loopback atau jaringan Docker di dalam VPS | env proses deploy di VPS |
+| Operator di mesinnya | `COOLIFY_PANEL_URL` | hostname milik Anda, atau tunnel | `~/.secrets` di mesin operator |
+
+Alamat jaringan Docker tidak bisa dipakai `curl` di mesin operator, jadi pointer
+tidak boleh memakai bentuk yang sama dengan pointer VPS. Sebaliknya, panel tidak
+bisa dijangkau lewat IP publik dari luar, jadi pointer VPS tidak boleh memakai
+hostname publik. Setelah hostname milik Anda ada, `COOLIFY_PANEL_URL` diarahkan
+ke hostname tersebut, sementara `COOLIFY_BASE_URL` tetap ke alamat lokal.
+
+Token juga tidak bisa dipakai bersama. `COOLIFY_API_TOKEN` untuk pemanggil VPS
+dimuat dari env proses deploy di VPS, bukan dari `~/.secrets` milik operator,
+karena keduanya punya lokasi sendiri. `SECRET-ROTATION.md` tetap memakai
+`~/.secrets` untuk sisi operator; tidak perlu diubah, hanya dibaca sebagai
+sisi operator saja.
+
+#### Yang diubah di host
+
+Router untuk hostname `sslip.io` dihapus dari
+`/data/coolify/proxy/dynamic/coolify.yaml`, berkas konfigurasi yang dibaca
+Traefik sebagai router panel. Berkas sebelumnya dicadangkan lebih dulu ke
+`/data/coolify/proxy/backups/` dengan akhiran `.pre-sslip-lockdown`, jadi
+pengembalian cukup menyalin satu berkas.
+
+Router milik aplikasi toko **tidak pernah ada di berkas itu**. Router
+`atcell.my.id`, `login.atcell.my.id`, dan `www.atcell.my.id` datang dari label
+`traefik.*` pada container aplikasi dan dimuat lewat provider `docker`, bukan
+provider `file`. Karena itu berkas ini tidak mungkin menyentuhnya, dan
+`/api/health/ready`, `/id`, `/id/catalog`, `/manifest.webmanifest`, `/sw.js`,
+serta `/.well-known/assetlinks.json` semuanya tetap menjawab sama seperti
+sebelumnya.
+
+Sertifikat di `acme.json` **sengaja tidak dihapus**, dan tidak boleh diklaim
+sudah tidak aktif. Traefik memuat sertifikat ACME tersimpan ke konfigurasi TLS
+**secara terpisah dari router HTTP**. Karena itu ada dua hal yang tidak sama,
+dan dokumen ini hanya boleh menyatakan yang pertama:
+
+- **Rute panel tidak lagi cocok.** Ini yang berubah, dan ini yang membuktikan
+  panel tidak bisa dijangkau lewat hostname itu lagi.
+- **Sertifikat untuk SNI itu masih bisa disajikan.** Entri di `acme.json`
+  tidak hilang, dan Traefik masih memastikannya selama ada rute lain yang cocok
+  dengan nama tersebut.
+
+Jadi jangan menulis "sertifikat sudah tidak aktif". Yang benar ditulis:
+**rute panel tidak lagi cocok, sementara sertifikatnya masih tersimpan dan
+mungkin masih disajikan.**
+
+Perilaku Traefik setelah reload tidak bisa dipastikan dari dokumen, jadi
+periksa, jangan diasumsikan. Setelah router dihapus dan Traefik di-reload:
+
+```
+# 1. Rute panel benar-benar hilang dari konfigurasi dinamis
+grep -c sslip /data/coolify/proxy/dynamic/coolify.yaml
+
+# 2. Rute apa saja yang masih hidup, ini yang menentukan
+#    apakah sertifikat SNI panel masih bisa disajikan
+docker exec <container-traefik> \
+  grep -n 'Host(`' /data/coolify/proxy/dynamic/coolify.yaml | head -20
+
+# 3. Uji handshake. Ini pengamatan yang sebenarnya, bukan kesimpulan
+openssl s_client -connect <IP-VPS>:443 \
+  -servername coolify.<IP>.sslip.io </dev/null 2>&1 \
+  | grep -E 'subject=|issuer=|Verification'
+
+# 4. Entri sertifikat toko masih utuh
+docker exec <container-traefik> \
+  grep -o '[a-z.]*atcell.my.id' /data/coolify/proxy/acme.json | sort -u
+```
+
+Baca hasilnya begini:
+
+- Langkah 3 tidak mengembalikan sertifikat untuk SNI panel: ini yang
+  diharapkan. Catat begitu saja.
+- Langkah 3 **tetap mengembalikan sertifikat**: itu bukan kegagalan dan bukan
+  kebocoran. Catat sebagai fakta, lalu pastikan tidak ada rute lain yang masih
+  memakai nama itu untuk masuk.
+- Langkah 4 tidak menampilkan `atcell.my.id`, `login.atcell.my.id`, atau
+  `www.atcell.my.id`: **berhenti dan kembalikan `coolify.yaml` dari cadangan**,
+  lalu ulangi. Sertifikat toko ikut hilang berarti etalase dan portal ikut
+  mati.
+
+Mengedit `acme.json` untuk membuang satu entri tidak memperbaiki apa pun.
+Begitu router untuk hostname itu kembali, Traefik akan meminta ulang sertifikat
+dari `catchall` yang sama seperti sebelumnya, dan pengeditan itu hanya
+menambah satu titik gagal di tengah proses.
+
+#### Batas workaround ini, dan yang harus Anda kerjakan
+
+Penghapusan router di berkas itu **bukan perbaikan permanen**. Berkas
+`coolify.yaml` digenerate ulang oleh Coolify dari nilai instance domain di
+tabel `instance_settings`, dan nilai itu masih berisi `sslip.io`. Selama nilai
+itu tidak diganti, setiap kali Coolify menulis ulang berkasnya, router
+wildcard itu ikut kembali. Perbaikan permanen ada di tangan Anda, dan
+berikutnya:
+
+1. **Buat satu record DNS di zona `atcell.my.id`.** Panel tidak lagi bisa
+   memakai hostname yang Coolify susun sendiri dari IP. Record yang dibutuhkan:
+
+   | Nama | Tipe | Nilai | TTL |
+   |------|------|-------|-----|
+   | `coolify` | `A` | IP publik host ini, sama dengan nilai A record `atcell.my.id` yang sudah ada | `300` sampai `3600` |
+
+   Alamat `coolify.atcell.my.id` sekarang **belum ada** dan tidak bisa dibuat
+   dari repo ini, karena tidak ada kredensial DNS provider di mesin operator
+   maupun di host. Record itu harus dibuat lewat konsol tempat zona
+   `atcell.my.id` dikelola.
+
+2. **Ganti instance domain Coolify** ke `https://coolify.atcell.my.id` lewat
+   **Settings** di panel, lalu pastikan `COOLIFY_BASE_URL` di `~/.secrets`
+   ikut menunjuk ke hostname itu. Setelah langkah ini, penghapusan router
+   di atas menjadi permanen karena Coolify sendiri yang akan menulis hostname
+   yang benar.
+
+3. **Daftarkan GitHub App** kalau Anda ingin `git push` ke `main` langsung
+   memicu deploy. Tanpa langkah ini, tidak ada konfigurasi webhook yang akan
+   bekerja, karena identitas GitHub App-nya memang belum pernah dibuat. Tidak
+   ada cara mengisinya dengan tangan di tabel `github_apps`, karena sekarang
+   Anda tahu persis kenapa kolom itu kosong.
+
+Sampai langkah 1 dan 2 selesai, wildcard `sslip.io` akan tetap ada di internet
+dan akan terus mengembalikan IP publik host ini ke siapa pun yang mencarinya.
+Yang berubah hanya bahwa hostname itu tidak lagi menyajikan panel Anda. Yang
+bisa dihapus sepenuhnya adalah DNS-nya, dan itu hanya bisa Anda perbaiki di
+provider zona Anda.
+
 ---
 
 ## 2. Tidak ada batas resource di host 1,9 GiB
