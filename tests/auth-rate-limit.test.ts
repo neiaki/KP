@@ -162,7 +162,7 @@ test("toko di belakang satu NAT tidak saling mengunci", () => {
   for (const name of staff) {
     for (let i = 0; i < 6; i++) {
       assert.equal(
-        consumeCredentialAttempt("103.28.14.7", name).allowed,
+        consumeCredentialAttempt("203.0.113.7", name).allowed,
         true,
         `${name} terkunci pada percobaan ke-${i + 1}; kuota per IP harus cukup untuk satu NAT`
       );
