@@ -51,8 +51,20 @@ export function NotifyCard({
   // Aturan foto disalin dari isRealPhoto, bukan ditulis ulang di sini, supaya
   // kartu ini dan kartu unit yang bisa beli tidak bisa berbeda pendapat soal
   // nilai apa yang boleh masuk ke atribut src.
-  const official = (product.official_images ?? []).filter(isRealPhoto);
-  const img = official.length > 0 ? official[0] : isRealPhoto(product.image_url) ? product.image_url : undefined;
+  // filter(isRealPhoto) mengembalikan elemen aslinya, bukan salinan yang sudah
+  // dipangkas. Jadi nilai yang dikelilingi spasi lolos validasi lalu tetap
+  // ber-spasi sampai atribut src, dan next/image menolaknya. Yang diteruskan
+  // harus nilai yang sama persis dengan yang divalidasi, sama seperti yang
+  // sudah dilakukan di grid produk portal.
+  const official = (product.official_images ?? [])
+    .filter(isRealPhoto)
+    .map((v) => v.trim());
+  const img =
+    official.length > 0
+      ? official[0]
+      : isRealPhoto(product.image_url)
+        ? product.image_url.trim()
+        : undefined;
   const target = notifyMeTargetFrom(product);
   const harga = referencePriceNote(product.default_price, locale);
   const Heading = headingLevel;

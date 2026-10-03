@@ -118,6 +118,86 @@ test("second_images yang terisi tetap menang atas official_images", () => {
   ]);
 });
 
+/*
+ * isRealPhoto memangkas nilai sebelum memvalidasinya, dan filter(isRealPhoto)
+ * mengembalikan elemen aslinya. Jadi nilai ber-spasi lolos validasi lalu tetap
+ * ber-spasi sampai atribut src, dan next/image menolaknya. Yang dirender harus
+ * nilai yang sama persis dengan yang divalidasi.
+ */
+test("foto kartu unit dipangkas, baik dari image_url maupun dari galeri", () => {
+  const dariImageUrl = product({
+    official_images: [],
+    image_url: "  /products/contoh.jpg  ",
+  });
+  assert.deepEqual(toCardItem(unit("new"), [dariImageUrl]).images, [
+    "/products/contoh.jpg",
+  ]);
+  assert.deepEqual(toCardItem(unit("second"), [dariImageUrl]).images, [
+    "/products/contoh.jpg",
+  ]);
+
+  // Galeri yang lolos filter harus dipangkas juga, bukan hanya image_url.
+  const dariGaleri = product({
+    official_images: ["  /products/iphone-13-1.jpg  "],
+    second_images: ["  /products/iphone-13-2.jpg  "],
+  });
+  assert.deepEqual(toCardItem(unit("new"), [dariGaleri]).images, [
+    "/products/iphone-13-1.jpg",
+  ]);
+  assert.deepEqual(toCardItem(unit("second"), [dariGaleri]).images, [
+    "/products/iphone-13-2.jpg",
+  ]);
+});
+
+/* -------------------------------------------------------------------------- */
+/* NotifyCard                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Kartu "Minta dikabari" memilih fotonya sendiri lalu meneruskannya ke Image.
+ * Blok pemilihan foto dieksekusi apa adanya dari berkas sumber, sama seperti
+ * ekspresi src di grid produk portal, supaya yang diuji perilakunya: nilai apa
+ * yang benar-benar keluar untuk setiap bentuk image_url dan galeri.
+ */
+const notifyCard = readFileSync(
+  new URL("../src/components/public/notify-card.tsx", import.meta.url),
+  "utf8"
+);
+
+const notifyCardBlok = notifyCard.match(
+  /const official =([\s\S]*?);\n\s*const img =([\s\S]*?);\n/
+);
+
+/** Jalankan blok pemilihan foto NotifyCard apa adanya. */
+function imgNotifyCard(produk: Product): unknown {
+  assert.ok(notifyCardBlok, "blok pemilihan foto di NotifyCard tidak ditemukan");
+  return new Function(
+    "product",
+    "isRealPhoto",
+    `const official =${notifyCardBlok[1]};\nconst img =${notifyCardBlok[2]};\nreturn img;`
+  )(produk, isRealPhoto);
+}
+
+test("kartu minta dikabari meneruskan foto yang sudah dipangkas", () => {
+  assert.equal(
+    imgNotifyCard(product({ official_images: [], image_url: "  /products/contoh.jpg  " })),
+    "/products/contoh.jpg",
+    "image_url ber-spasi tidak boleh diteruskan apa adanya"
+  );
+  assert.equal(
+    imgNotifyCard(product({ official_images: ["  /products/iphone-13-1.jpg  "], image_url: IMAGE_URL_BROKEN })),
+    "/products/iphone-13-1.jpg",
+    "galeri ber-spasi tidak boleh diteruskan apa adanya"
+  );
+  // Nilai rusak tetap harus jadi undefined supaya PhotoFallback yang tampil.
+  assert.equal(
+    imgNotifyCard(product({ official_images: [], image_url: IMAGE_URL_BROKEN })),
+    undefined
+  );
+  // image_url kosong juga harus jatuh ke PhotoFallback.
+  assert.equal(imgNotifyCard(product({ official_images: [], image_url: "" })), undefined);
+});
+
 /* -------------------------------------------------------------------------- */
 /* isRealPhoto                                                                */
 /* -------------------------------------------------------------------------- */

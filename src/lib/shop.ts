@@ -107,14 +107,22 @@ export function toCardItem(
 ): ProductCardItem {
   const product = products.find((p) => p.id === unit.product_id);
   const price = unit.selling_price;
-  const official = (product?.official_images ?? []).filter(isRealPhoto);
+  // filter(isRealPhoto) mengembalikan elemen aslinya, bukan salinan yang sudah
+  // dipangkas, jadi nilai ber-spasi lolos validasi lalu tetap ber-spasi sampai
+  // kartu merendernya. Yang masuk ke images harus nilai yang sama persis
+  // dengan yang divalidasi.
+  const official = (product?.official_images ?? [])
+    .filter(isRealPhoto)
+    .map((v) => v.trim());
   const officialOrFallback =
     official.length > 0
       ? official
       : isRealPhoto(product?.image_url)
-        ? [product.image_url as string]
+        ? [(product.image_url as string).trim()]
         : [];
-  const secondReal = (product?.second_images ?? []).filter(isRealPhoto);
+  const secondReal = (product?.second_images ?? [])
+    .filter(isRealPhoto)
+    .map((v) => v.trim());
   const used = secondReal.length > 0 ? secondReal : officialOrFallback;
   return {
     unitId: unit.id,
