@@ -5,9 +5,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * Repo ini publik, jadi apa pun yang ada di sini bisa dibaca
- * siapa saja tanpa login. Test ini menahan tiga kelas kebocoran
- * yang sudah pernah terjadi di repo ini.
+ * Repo ini diperlakukan sebagai publik walau sekarang private, jadi apa pun
+ * yang ada di sini harus aman dibaca siapa saja. Test ini menahan tiga
+ * kelas kebocoran yang sudah pernah terjadi di repo ini.
  *
  * 1. IP publik asli. Hace-nya karena rule firewall yang
  *    benar-benar jalan di host disalin apa adanya ke dokumen,

@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * Repo ini publik, jadi LICENSE dan SECURITY.md bukan hiasan.
+ * Repo ini diperlakukan sebagai publik walau sekarang private, jadi LICENSE
+ * dan SECURITY.md bukan hiasan.
  *
  * Tanpa LICENSE, hak cipta berlaku penuh secara default. Orang
  * boleh membaca dan menjalankan, tapi tidak boleh menyalin,

@@ -61,8 +61,9 @@ Rule ini ada **sebelum** aturan penolakan, jadi panel terbuka hanya untuk IP
 itu. Port `8080`, `6001`, dan `6002` tetap tertutup untuk semua orang.
 
 Nilai IP owner sudah dihapus dari dokumen ini, tetapi riwayat Git masih
-memuatnya di commit `34e4a47`. Repo ini publik, jadi IP tersebut tetap
-bisa dibaca dari riwayat. Nilai yang dipakai penjaga hanya ada di
+memuatnya di commit `34e4a47`. Repo ini private sejak 5 Okt 2026, tapi IP
+tersebut sempat publik dan tetap bisa dibaca dari cache, clone lama,
+atau riwayat yang belum di-purge. Nilai yang dipakai penjaga hanya ada di
 variabel `ADMIN_IP` di dalam skrip penjaga di host, tidak pernah di repo.
 
 ### Kenapa harus pakai `--ctorigdstport`

@@ -137,8 +137,12 @@ printf 'selesai (%s)\n' "$(du -h "$cadangan" | cut -f1)"
 # `-h` suppresses nama berkas, jadi yang keluar hanya nilai yang cocok itu sendiri.
 # Tanpa `-h`, keluaran berbentuk rev:path:nilai dan penyaringan di bawah
 # akan membaca "docs/COOLIFY-PANEL" sebagai oktet pertama.
+# tests/no-secret-in-repo.test.ts dikecualikan di sini, sama seperti
+# SKIP_BERKAS di guard. Berkas itu sengaja memuat contoh sintetis
+# (rentang benchmark dan 6to4) untuk menguji guard, jadi tanpa
+# pengecualian HEAD selalu terbaca kotor.
 deteksi() {
-  git grep -I -h -o -E "$POLA_IP" "$1" -- . 2>/dev/null |
+  git grep -I -h -o -E "$POLA_IP" "$1" -- . ':!tests/no-secret-in-repo.test.ts' 2>/dev/null |
     sort -u |
     awk -v aman="${RENTANG_AMAN[*]}" -v konst="${KONSTANTA_PUBLIK[*]}" '
       BEGIN { n = split(aman, g, " "); for (i = 1; i <= n; i++) G[g[i]] = 1

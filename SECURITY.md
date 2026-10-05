@@ -3,10 +3,9 @@
 At Cell adalah toko di Paku Jaya, Serpong Utara. Repo ini memuat
 kode aplikasi etalase beserta portal stafnya.
 
-Repo ini saat ini **publik**, jadi isi serta riwayat gitnya bisa dibaca
-siapa saja tanpa login. Repo ini direncanakan diubah menjadi
-private. Bagian di bawah menjelaskan kenapa privatisasi tidak
-menghapus apa pun yang sudah bocor sebelumnya.
+Repo ini saat ini **private** sejak 5 Okt 2026. Isi serta riwayat gitnya
+hanya bisa dibaca akun yang diberi akses. Bagian di bawah menjelaskan
+kenapa privatisasi tidak menghapus apa pun yang sudah bocor sebelumnya.
 
 
 ## Melaporkan kerentanan
@@ -77,7 +76,7 @@ GitHub secret scanning dan push protection juga aktif di repo ini.
 
 ## Privatisasi dan risikonya
 
-Repo ini direncanakan diubah dari publik menjadi private. Itu benar secara
+Repo ini sudah diubah dari publik menjadi private pada 5 Okt 2026. Itu benar secara
 umum, tapi tidak menyelesaikan satu hal yang sudah terjadi, jadi risikonya
 harus diketahui sebelum privatisasi dianggap selesai.
 
