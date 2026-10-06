@@ -52,7 +52,7 @@ export interface GoogleReviewsData {
 }
 
 const MAPS_URL =
-  "https://www.google.com/maps/place/at+cell/@-6.2366815,106.6772451,17z/data=!4m8!3m7!1s0x2e69fa339a58131f:0xfc71c2a2509f322e";
+  "https://www.google.com/maps/place/at+cell/@-6.2366815,106.67982,17z/data=!4m8!3m7!1s0x2e69fa339a58131f:0xfc71c2a2509f322e";
 
 const API = "https://maps.googleapis.com/maps/api/place";
 

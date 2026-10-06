@@ -83,6 +83,35 @@ test("tanpa GOOGLE_PLACES_API_KEY, getGoogleReviews tidak pernah mengarang ulasa
   }
 });
 
+test("tautan Google Maps menunjuk titik toko yang benar, bukan 285m meleset", async () => {
+  // Regresi Oktober 2026: MAPS_URL memakai @-6.2366815,106.6772451 sementara
+  // titik toko (plus code QM7H+8WG, diverifikasi dari tautan share owner) ada
+  // di 106.67982. Pengunjung yang mengetuk kartu Google Reviews mendarat 285m
+  // di sebelah barat toko. Titik dan ID place dikunci di sini supaya salah
+  // ketik koordinat menggagalkan CI, bukan menunggu laporan pengunjung.
+  const sebelumnya = process.env.GOOGLE_PLACES_API_KEY;
+  delete process.env.GOOGLE_PLACES_API_KEY;
+  try {
+    const hasil = await getGoogleReviews();
+    const snapshot = getSnapshotUlasan();
+    // Di luar masa snapshot tidak ada URL yang perlu diuji.
+    if (snapshot.status !== "siap") return;
+    assert.ok(hasil?.url, "tautan Google Maps harus terisi saat snapshot siap");
+    const url = String(hasil?.url);
+    assert.ok(
+      url.includes("@-6.2366815,106.67982"),
+      `tautan harus menunjuk titik toko yang benar, dapat: ${url}`
+    );
+    assert.ok(
+      url.includes("0x2e69fa339a58131f:0xfc71c2a2509f322e"),
+      `tautan harus membawa ID place At Cell, dapat: ${url}`
+    );
+  } finally {
+    if (sebelumnya === undefined) delete process.env.GOOGLE_PLACES_API_KEY;
+    else process.env.GOOGLE_PLACES_API_KEY = sebelumnya;
+  }
+});
+
 test("kegagalan ulasan selalu menyebut alasannya di log server", async () => {
   // Gejalanya di produksi: bagian ulasan di beranda berubah jadi kartu "Tulis
   // Review" tanpa penjelasan, dan tidak ada yang tahu itu karena key-nya
