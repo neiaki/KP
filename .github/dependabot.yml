@@ -27,6 +27,18 @@ updates:
       prefix: "chore(deps)"
     labels:
       - dependencies
+    # Abaikan lompatan mayor eslint dan typescript. Keduanya butuh perubahan
+    # manual pada konfigurasi (eslint 10 tidak kompatibel dengan
+    # eslint-config-next 16, TS 7 belum didukung typescript-eslint), jadi harus
+    # jadi keputusan sadar, bukan PR bot mingguan. Catatan: exclude-patterns di
+    # grup dev-build di bawah hanya mengeluarkan dari grup, bukan mengabaikan
+    # update, sehingga tanpa ignore di sini keduanya tetap muncul sebagai PR
+    # satuan (contoh: eslint 9 ke 10 yang merusak lint).
+    ignore:
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       # Next.js, React, dan eslint-config-next harus naik bersamaan:
       # memisahkan mereka menghasilkan CI gagal karena peer dependency.
