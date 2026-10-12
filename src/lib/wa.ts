@@ -8,10 +8,11 @@
  * ekstensi.
  */
 
-/* Nomor cadangan toko. Ini satu-satunya angka cadangan di seluruh situs, jadi
-   semua pemanggilan harus lewat cleanWaNumber, bukan menulis ulang angka
-   sendiri di tiap komponen. */
-export const FALLBACK_WA_NUMBER = "6285775398389";
+/* Nomor cadangan sintetis. Jelas bukan nomor sungguhan (prefix 800 tidak
+   dialokasikan untuk pelanggan), jadi kalau link ini lolos ke production,
+   yang rusak hanya tombolnya, bukan privasi siapa pun. Nomor asli toko hanya
+   hidup di database production via portal/settings, tidak pernah di repo. */
+export const FALLBACK_WA_NUMBER = "6280000000000";
 
 /*
  * wa.me hanya menerima nomor internasional tanpa tanda baca: 62xx, bukan

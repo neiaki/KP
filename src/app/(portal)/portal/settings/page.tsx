@@ -324,7 +324,7 @@ export default function StoreSettingsPage() {
                 value={ownerName}
                 onChange={(e) => setOwnerName(e.target.value)}
                 className="sm:text-xs"
-                placeholder="Steven Eka"
+                placeholder="Nama penanggung jawab"
               />
               <p className="mt-1 text-[11px] text-muted">
                 Tampil di widget live chat supaya pelanggan tahu siapa yang membalas.
