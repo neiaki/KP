@@ -1,0 +1,21 @@
+-- Index untuk urutan etalase publik (KP-1, timeout statement 2 Okt 2026).
+--
+-- Query etalase di getPublicInventory membaca v_public_inventory dengan
+-- ORDER BY unit_created_at DESC LIMIT 500. View itu join inventory_units
+-- ke products yang difilter status = 'available', dan index yang ada hanya
+-- menutup sisi filter ((product_id, status) dan (status)), bukan sisi
+-- urutannya. Tanpa index ini planner mengurutkan seluruh unit available
+-- pada setiap render katalog; dengan index, LIMIT 500 dipenuhi langsung
+-- dari traversal index tanpa sort.
+--
+-- Bukan klaim bahwa ini akar KP-1: insiden itu satu lonjakan 10 event dalam
+-- 5 menit dari satu klien curl yang tidak pernah terulang, jadi penyebab
+-- sisi servernya (kontensi lock atau CPU) tidak bisa dibuktikan dari repo.
+-- Yang pasti: query yang timeout adalah query ini, dan query ini sebelumnya
+-- tidak punya index untuk ORDER BY-nya. Index kecil non-destruktif ini
+-- menutup celah itu apa pun pemicunya.
+--
+-- Idempoten (IF NOT EXISTS) dan tidak menyentuh data: aman dijalankan
+-- berulang lewat supabase db push maupun paste SQL Editor.
+create index if not exists inventory_units_created_idx
+  on public.inventory_units (created_at desc);
