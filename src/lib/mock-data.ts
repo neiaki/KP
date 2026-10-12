@@ -13,7 +13,7 @@ export const initialProfiles: Profile[] = [
     id: "prof-admin-01",
     full_name: "Hendra Wijaya (Owner)",
     role: "admin",
-    phone_number: "6285775398389",
+    phone_number: "081200000000",
     email: "admin@atcell.my.id",
     created_at: "2026-01-01T08:00:00Z",
   },
@@ -54,8 +54,8 @@ export const initialStoreSettings: StoreSettings = {
   latitude: -6.2388951,
   longitude: 106.6710492,
   maps_url: "https://maps.app.goo.gl/8Qbpvqs6FwihDrk7A",
-  phone_number: "+62 857-7539-8389",
-  whatsapp_number: "6285775398389",
+  phone_number: "+62 800-0000-0000",
+  whatsapp_number: "6280000000000",
   // Kosong berarti ikon platform itu tidak muncul di footer. Isi dengan URL
   // resmi toko lewat portal/settings, bukan dengan URL halaman generik.
   social_facebook: "",

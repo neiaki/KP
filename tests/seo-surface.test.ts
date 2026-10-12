@@ -36,8 +36,9 @@ import type { StoreSettings } from "../src/types/index.ts";
 
 const ROUTE_PATHS: PublicRoutePath[] = PUBLIC_ROUTES.map((route) => route.path);
 
-/* Fixture store_settings, disalin dari seed 0001_atcell_schema.sql lalu
-   disesuaikan dengan migrasi 20260927140000 yang mengisi nomor asli. */
+/* Fixture store_settings, disalin dari seed 0001_atcell_schema.sql. Nomor dan
+   nama di sini sintetis: kontak asli hanya hidup di database production via
+   portal/settings, tidak pernah di repo. */
 const SETTINGS: StoreSettings = {
   id: 1,
   store_name: "At Cell - Gadget Store & Repair Center",
@@ -47,9 +48,9 @@ const SETTINGS: StoreSettings = {
   latitude: -6.2388951,
   longitude: 106.6710492,
   maps_url: "https://maps.app.goo.gl/8Qbpvqs6FwihDrk7A",
-  phone_number: "+62 857-7539-8389",
-  whatsapp_number: "6285775398389",
-  owner_name: "Steven Eka",
+  phone_number: "+62 800-0000-0000",
+  whatsapp_number: "6280000000000",
+  owner_name: "",
   social_facebook: "https://facebook.com/atcell",
   social_instagram: "",
   social_x: "",

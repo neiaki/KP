@@ -18,7 +18,7 @@ import { cleanWaNumber, FALLBACK_WA_NUMBER } from "../src/lib/wa.ts";
  * yang menangkapnya.
  */
 
-const EWA = "6285775398389";
+const EWA = "6280000000000";
 
 test("nomor lokal Indonesia dinormalkan ke format internasional", () => {
   // 08xx adalah format yang dipakai orang Indonesia dan juga format yang paling
@@ -31,21 +31,21 @@ test("nomor lokal Indonesia dinormalkan ke format internasional", () => {
 
 test("nomor yang sudah internasional dipakai apa adanya", () => {
   assert.equal(cleanWaNumber(EWA), EWA);
-  assert.equal(cleanWaNumber("+62 857-7539-8389"), EWA);
-  assert.equal(cleanWaNumber("62 857-7539-8389"), EWA);
-  assert.equal(cleanWaNumber("(62) 857-7539-8389"), EWA);
+  assert.equal(cleanWaNumber("+62 800-0000-0000"), EWA);
+  assert.equal(cleanWaNumber("62 800-0000-0000"), EWA);
+  assert.equal(cleanWaNumber("(62) 800-0000-0000"), EWA);
 });
 
 test("nomor tanpa prefix 0 maupun 62 tetap mendapat kode negara", () => {
-  assert.equal(cleanWaNumber("85775398389"), EWA);
-  assert.equal(cleanWaNumber("857-7539-8389"), EWA);
+  assert.equal(cleanWaNumber("80000000000"), EWA);
+  assert.equal(cleanWaNumber("800-0000-0000"), EWA);
 });
 
 test("prefix operator internasional 00 dan 011 dibuang", () => {
   // 0062... yang tidak dibuang akan jadi 620628..., diawali 62 sehingga lolos
   // pemeriksaan format tapi menunjuk ke nomor yang tidak pernah ada.
   assert.equal(cleanWaNumber("00628123456789"), "628123456789");
-  assert.equal(cleanWaNumber("0116285775398389"), EWA);
+  assert.equal(cleanWaNumber("0116280000000000"), EWA);
   // Angka di awal yang bukan 00 atau 011 harus tetap utuh.
   assert.equal(cleanWaNumber("081234567890"), "6281234567890");
 });
@@ -64,8 +64,8 @@ test("hasil normalisasi selalu aman untuk URL wa.me", () => {
   const inputs = [
     "081234567890",
     "0812-3456-7890",
-    "+62 857-7539-8389",
-    "85775398389",
+    "+62 800-0000-0000",
+    "80000000000",
     "00628123456789",
     "",
     null,
