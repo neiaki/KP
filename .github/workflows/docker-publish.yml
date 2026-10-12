@@ -33,20 +33,27 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
+
+      # Bun sebagai package manager (lockfile bun.lock). Node tetap
+      # dipasang karena skrip `test` memanggil binari `node` langsung
+      # dan Dockerfile membangun image berbasis Node.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.3"
 
       # Gatekeeper: jangan pernah push image yang tidak lolos tes.
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: bun install --frozen-lockfile
 
       - name: Unit and contract tests
-        run: npm test
+        run: bun run test
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: bunx tsc --noEmit
 
       - name: Lint
-        run: npm run lint
+        run: bun run lint
 
       # Driver docker bawaan tidak mendukung cache export, jadi buildx perlu
       # builder sendiri (docker-container) supaya cache GHA benar-benar dipakai.

@@ -25,7 +25,7 @@ import { readFile } from "node:fs/promises";
  * table, menjalankan server hasil build, lalu meminta /foo dan menghitung
  * <link rel="stylesheet"> di HTML balasannya. Build tidak bisa menjadi
  * penjaga secara rutin: ia hanya bisa jalan di environment yang sama, tidak
- * cocok untuk tiap `npm test`, dan ikut gagal kalau ada agent lain sedang
+ * cocok untuk tiap `bun run test`, dan ikut gagal kalau ada agent lain sedang
  * menyentuh berkas mana pun. Yang dijaga di sini adalah prasyarat yang
  * membuat hasil build itu benar: boundary-nya mengembalikan dokumen utuh,
  * ia memuat stylesheet global, dan ia memakai chrome bersama yang sama

@@ -20,7 +20,7 @@ import nextConfig from "../next.config.ts";
  * global-not-found, bukan layout bawaan) atau permintaan sungguhan ke server
  * yang sudah dibuild, tapi keduanya butuh build penuh. Build di repo ini
  * tidak bisa dijadikan penjaga: ia hanya bisa dijalankan di environment yang
- * sama, tidak cocok untuk tiap `npm test`, dan tetap butuh env Supabase.
+ * sama, tidak cocok untuk tiap `bun run test`, dan tetap butuh env Supabase.
  * Yang dijaga di sini adalah prasyarat yang membuat route itu benar: flag
  * menyala, berkasnya ada, dan berkas itu sendiri yang membawa stylesheet,
  * font, dan chrome situs. Menghapus src/app/global-not-found.tsx atau

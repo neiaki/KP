@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
  * Test ini STATIS, bukan replay langsung ke database, dan itu pilihan sadar.
  * Alasannya tiga:
  *   1. Uji replay hidup butuh DATABASE_URL ke production, jadi tidak bisa
- *      menjadi penjaga di `npm test` tanpa database, dan tidak boleh
+ *      menjadi penjaga di `bun run test` tanpa database, dan tidak boleh
  *      menyalakan perubahan ACL di production hanya demi test.
  *   2. Yang diuji adalah sifat berkas SQL, bukan keadaan database. Kalau
  *      grant itu kembali ke 0001, defect-nya sudah ada sebelum anybody

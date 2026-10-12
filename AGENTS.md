@@ -21,10 +21,10 @@ health endpoint `/api/health/ready` sebelum Production. PRD di
 
 ## Perintah
 
-- `npm run dev` — development (`http://localhost:3000/id`)
-- `npm run build` — wajib lolos sebelum selesai kerja
-- `npx tsc --noEmit` — wajib bersih (typecheck)
-- `npm run lint` — masih ada error/warning warisan di portal, jangan tambah baru
+- `bun run dev` — development (`http://localhost:3000/id`)
+- `bun run build` — wajib lolos sebelum selesai kerja
+- `bunx tsc --noEmit` — wajib bersih (typecheck)
+- `bun run lint` — masih ada error/warning warisan di portal, jangan tambah baru
 
 ## Struktur
 

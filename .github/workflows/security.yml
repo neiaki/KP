@@ -39,7 +39,7 @@ on:
   pull_request:
     paths:
       - package.json
-      - package-lock.json
+      - bun.lock
       - .github/dependabot.yml
       - .github/workflows/security.yml
       - .github/CODEOWNERS
@@ -62,25 +62,30 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
 
-      # Flag yang sama dengan workflow Build Image, dipakai karena lockfile
-      # bisa memuat kombinasi peer dependency yang menolak resolusi ketat.
+      # Bun sebagai package manager (lockfile bun.lock). Node tetap
+      # dipasang karena pemeriksaan batas versi di bawah memanggil
+      # binari `node` langsung.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.3"
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: bun install --frozen-lockfile
 
-      # `--omit=dev` karena yang dikirim ke production adalah `dependencies`,
-      # bukan `devDependencies`. Tanpa flag ini gate ini merah terus untuk hal
-      # yang tidak pernah menyentuh kode yang dijalankan pengguna: rantai
-      # eslint-config-next (lint) dan rantai drizzle-kit (migrasi) punya 9
-      # advisory, 5 di antaranya high, sementara `npm audit --omit=dev`
-      # melaporkan 0.
+      # `bun audit` tidak punya `--omit=dev` seperti `npm audit` dulu, jadi
+      # advisory dev-only dikecualikan eksplisit lewat `--ignore`.
+      # Satu-satunya temuan high saat migrasi adalah braces
+      # (GHSA-vfj7-8cjw-p6xm) di rantai eslint-config-next: hanya dipakai
+      # saat lint, tidak pernah sampai ke production. Daftar ignore ini
+      # fail-closed: advisory high BARU yang belum ada di daftar tetap
+      # menggagalkan job.
       #
       # Tidak ada informasi yang hilang. Langkah OSV di bawah tetap memindai
-      # seluruh package-lock.json tanpa `--omit=dev` dan tetap jadi bell untuk
-      # rantai dev.
+      # seluruh bun.lock tanpa filter dan tetap jadi bell untuk rantai dev.
       - name: Audit dependencies
-        run: npm audit --audit-level=high --omit=dev
+        run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
 
       # Langkah ini ada karena GHSA-vcvr-r3jv-pc5j (CVE-2026-94545, RCE di
       # next/og ImageResponse) tidak ada di feed advisory npm maupun di
@@ -136,4 +141,4 @@ jobs:
         uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
         with:
           scan-args: |-
-            --lockfile=package-lock.json
+            --lockfile=bun.lock

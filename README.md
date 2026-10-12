@@ -91,14 +91,14 @@ flowchart LR
 | Zod | Validasi input di Server Action (`src/lib/validations.ts`) |
 | Node.js Test Runner | Test keamanan, migrasi, backup, health, dan validasi |
 | Sentry | Pelacakan galat production, opsional lewat `SENTRY_DSN` |
-| npm | Package manager repo |
+| bun | Package manager repo |
 
 ## Menjalankan Secara Lokal
 
 ### Prasyarat
 
 - Node.js `22` atau lebih baru.
-- npm.
+- Bun `1.4.3` atau lebih baru.
 - Supabase hanya diperlukan untuk mode live.
 
 ### Instalasi
@@ -106,9 +106,9 @@ flowchart LR
 ```bash
 git clone https://github.com/neiaki/KP.git
 cd KP
-npm ci
+bun install
 cp .env.example .env.local
-npm run dev
+bun run dev
 ```
 
 Buka:
@@ -154,21 +154,21 @@ Jangan pernah commit `.env.local`, password database, service role key, atau tok
 
 | Perintah | Kegunaan |
 |----------|-----------|
-| `npm run dev` | Menjalankan development server |
-| `npm run build` | Membuat build production |
-| `npm start` | Menjalankan hasil build production |
-| `npm test` | Menjalankan test suite |
-| `npx tsc --noEmit` | Melakukan typecheck |
-| `npm run lint` | Menjalankan ESLint |
-| `npm run smoke:deployment -- <primary-url> <fallback-url>` | Memeriksa endpoint health pada deployment |
+| `bun run dev` | Menjalankan development server |
+| `bun run build` | Membuat build production |
+| `bun run start` | Menjalankan hasil build production |
+| `bun run test` | Menjalankan test suite |
+| `bunx tsc --noEmit` | Melakukan typecheck |
+| `bun run lint` | Menjalankan ESLint |
+| `bun run smoke:deployment -- <primary-url> <fallback-url>` | Memeriksa endpoint health pada deployment |
 
 Validasi lengkap sebelum rilis:
 
 ```bash
-npm test
-npx tsc --noEmit
-npm run lint
-npm run build
+bun run test
+bunx tsc --noEmit
+bun run lint
+bun run build
 ```
 
 ## Health Check
@@ -230,14 +230,14 @@ navigasi rutin.
 Backup logis database:
 
 ```bash
-SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" npm run backup:postgres
+SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" bun run backup:postgres
 ```
 
 Restore ke database sementara:
 
 ```bash
 psql "$RESTORE_DATABASE_URL" -f scripts/restore-target-bootstrap.sql
-ALLOW_RESTORE=YES RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" npm run restore:postgres
+ALLOW_RESTORE=YES RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" bun run restore:postgres
 ```
 
 Restore bersifat destruktif. Jalankan hanya terhadap database restore sementara, bukan database production. Backup Auth dan Storage tetap dikelola sebagai bagian dari layanan Supabase.
@@ -268,7 +268,7 @@ docs/                       PRD, kebutuhan, use case, dan runbook deployment
 Build image tidak pernah terjadi di VPS production. Pipeline berjalan begini:
 
 1. Push ke branch `main` memicu GitHub Actions di `.github/workflows/docker-publish.yml`.
-2. Workflow menjalankan `npm test`, `npx tsc --noEmit`, dan `npm run lint`. Image hanya dibangun kalau ketiganya hijau.
+2. Workflow menjalankan `bun run test`, `bunx tsc --noEmit`, dan `bun run lint`. Image hanya dibangun kalau ketiganya hijau.
 3. Build berjalan di runner GitHub lewat `Dockerfile` yang memakai `node:22-bookworm-slim`, lalu hasilnya di-push ke GHCR sebagai `ghcr.io/neiaki/kp:sha-<commit>`.
 4. Coolify di VPS hanya menarik tag yang sudah dipin itu lewat `Dockerfile.coolify`. Tag wajib `sha-<commit>` dan tidak boleh `latest`, karena Coolify menjalankan `docker build` tanpa `--pull`, sehingga tag `latest` bisa terlanjur tersimpan di lokal VPS. Deploy lalu terlihat hijau sambil tetap menjalankan image lama. `tests/deploy-image-pin.test.ts` menjaga aturan ini.
 5. Coolify memasang health check ke `GET /api/health/ready`. Selama jawabannya bukan 200, deployment belum siap.

@@ -13,11 +13,20 @@ FROM node:22-bookworm-slim AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
+# Bun hanya sebagai package manager dan task runner. Runtime aplikasi tetap
+# Node (Next.js, sharp, dan skrip `test` semuanya jalan di Node). Binari
+# diambil dari image resmi oven/bun supaya tahap di bawah tidak perlu
+# mengunduh apa pun lewat curl. Jalur ini yang dipakai image resmi oven/bun;
+# kalau build gagal di COPY ini, periksa dulu isi image oven/bun:1.4.3.
+COPY --from=oven/bun:1.4.3 /usr/local/bin/bun /usr/local/bin/bun
+
 # ---------- deps ----------
 FROM base AS deps
-COPY package.json package-lock.json ./
-# Node 22 masih butuh legacy-peer-deps untuk Next 16 + React 19.
-RUN npm ci --legacy-peer-deps
+COPY package.json bun.lock ./
+# bun.lock dimigrasi 1:1 dari package-lock.json, jadi resolusinya identik.
+# Bun tidak butuh flag legacy-peer-deps: resolvernya menerima kombinasi
+# Next 16 + React 19 apa adanya.
+RUN bun install --frozen-lockfile
 
 # ---------- prod-deps ----------
 # deps di atas wajib lengkap: builder memakai node_modules yang sama untuk
@@ -26,8 +35,8 @@ RUN npm ci --legacy-peer-deps
 # memuat dependency runtime dipakai khusus oleh tahap runner. Tanpa ini
 # drizzle-kit, typescript, eslint, dan tailwindcss ikut terpasang di produksi.
 FROM base AS prod-deps
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps --omit=dev
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
 
 # ---------- builder ----------
 FROM base AS builder
@@ -51,7 +60,7 @@ ARG NEXT_PUBLIC_COMMIT_SHA=""
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
 
-RUN npm run build -- --webpack
+RUN bun run build -- --webpack
 
 # ---------- runner ----------
 FROM base AS runner
@@ -75,11 +84,12 @@ COPY --from=builder --chown=node:node /app/public ./public
 # runtime oleh user node, jadi harus writable.
 COPY --from=builder --chown=node:node /app/.next ./.next
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
-# Disalin penuh supaya `npm start` berperilaku sama persis dengan build lokal.
-# next.config tidak memakai `output: standalone`, jadi node_modules wajib ada.
-# Sumbernya prod-deps, bukan deps, supaya image runtime hanya memuat
-# dependency runtime dan toolchain dev tidak ikut terpasang.
-COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json ./
+# Disalin penuh supaya entrypoint di bawah berperilaku sama persis dengan
+# build lokal. next.config tidak memakai `output: standalone`, jadi
+# node_modules wajib ada. Sumbernya prod-deps, bukan deps, supaya image
+# runtime hanya memuat dependency runtime dan toolchain dev tidak ikut
+# terpasang.
+COPY --from=builder --chown=node:node /app/package.json /app/bun.lock ./
 
 # next.config.ts WAJIB ada di image. Tanpa ini `next start` hanya bergantung pada
 # config yang dibekukan di .next/required-server-files.json, sehingga opsi yang
@@ -99,4 +109,7 @@ EXPOSE 3000
 # HEALTHCHECK akan bentrok dengan itu sehingga container gagal start.
 # Target dan jadwalnya diatur di resource Coolify, bukan di file ini.
 
-CMD ["npm", "start"]
+# next adalah binari Node (shebang #!/usr/bin/env node), jadi perintah di
+# bawah jalan di runtime Node seperti `npm start` sebelumnya, tanpa butuh
+# package manager di dalam image runtime.
+CMD ["./node_modules/.bin/next", "start"]

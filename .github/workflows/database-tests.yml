@@ -2,7 +2,7 @@ name: Database contract tests
 
 # Test yang butuh database sungguhan.
 #
-# Enam test di suite skipped selama `npm test` di CI karena mereka memakai
+# Enam test di suite skipped selama `bun run test` di CI karena mereka memakai
 # DATABASE_URL. Dua di antaranya menjaga hal yang tidak bisa dijaga test biasa:
 #
 #   migration-ledger  membandingkan supabase_migrations.schema_migrations
@@ -71,10 +71,16 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
+
+      # Bun sebagai package manager (lockfile bun.lock). Node tetap
+      # dipasang karena suite test memanggil binari `node` langsung.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.3"
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: bun install --frozen-lockfile
 
       - name: Bootstrap Supabase surface yang dipakai migrasi
         env:
@@ -270,4 +276,4 @@ jobs:
           node --experimental-strip-types --test "${db_tests[@]}"
 
       - name: Pastikan test yang tidak butuh database tetap hijau
-        run: npm test
+        run: bun run test

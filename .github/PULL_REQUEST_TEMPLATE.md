@@ -18,10 +18,10 @@ Tempel hasil komando berikut apa adanya, bukan ringkasan. Kalau ada yang gagal,
 tulis gagal dan kenapa, jangan dipotong.
 
 ```bash
-npm test
-npx tsc --noEmit
-npm run lint
-npm run build
+bun run test
+bunx tsc --noEmit
+bun run lint
+bun run build
 ```
 
 ## Kalau menyentuh deployment

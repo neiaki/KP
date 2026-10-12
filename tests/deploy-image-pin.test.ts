@@ -163,11 +163,11 @@ const POLA_TAG_PRODUKSI = new RegExp(
  *
  * Cukup yang punya arti operasional: Dockerfile, compose, YAML, JSON, dan apa
  * pun di dalam docs/ atau scripts/ karena di sanalah runbook ditulis. Berkas
- * .ts tidak pernah mendeklarasikan image, dan package-lock.json hanya
+ * .ts tidak pernah mendeklarasikan image, dan bun.lock hanya
  * mengulang dependency yang sudah dijaga lockfile-nya.
  */
 function bisaMenyebutImage(path: string): boolean {
-  if (path === "package-lock.json") return false;
+  if (path === "bun.lock") return false;
   const nama = path.split("/").pop() ?? "";
   return (
     nama.startsWith("Dockerfile") ||

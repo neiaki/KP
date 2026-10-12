@@ -19,7 +19,7 @@ import postgres from "postgres";
  * mengunci kesesuaian ledger dengan repo, dan sifatnya read-only: tidak pernah
  * menulis ke database mana pun.
  *
- * Test database opt-in lewat DATABASE_URL supaya `npm test` di CI tanpa
+ * Test database opt-in lewat DATABASE_URL supaya `bun run test` di CI tanpa
  * database tetap jalan.
  */
 
