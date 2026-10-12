@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "if [ -L node_modules/node_modules ]; then rm -f node_modules/node_modules; fi",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
