@@ -3,11 +3,11 @@ import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { cleanWaNumber } from "@/lib/wa";
 
-// Halaman error tidak punya akses ke store, jadi memakai nomor cadangan yang
-// sama dengan komponen lain lewat satu fungsi.
-const WA_NUMBER = cleanWaNumber();
+// Halaman error dan 404 adalah halaman statis: tidak ada store_settings yang
+// bisa dibaca, jadi tombol WA-nya tidak punya nomor sungguhan. Alih-alih
+// memakai angka sintetis yang menyesatkan, kartunya sengaja tidak dirender.
+const WA_NUMBER: string | null = null;
 
 type ErrorStateProps = {
   code: string;
@@ -45,7 +45,9 @@ export function ErrorState({
   meta,
   langNote,
 }: ErrorStateProps) {
-  const waHref = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText)}`;
+  const waHref = WA_NUMBER
+    ? `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waText)}`
+    : null;
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
@@ -104,19 +106,21 @@ export function ErrorState({
           <div className="mt-3 rounded-xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
             <p className="text-sm font-bold text-ink">Butuh jawaban cepat?</p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">{helpText}</p>
-            <a
-              href={waHref}
-              target="_blank"
-              rel="noreferrer"
-              className={cn(
-                "mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg",
-                "bg-wa px-4 text-sm font-bold text-white shadow-sm",
-                "transition-all duration-200 hover:bg-wa-deep active:scale-[0.98]"
-              )}
-            >
-              <MessageCircle className="h-4 w-4" />
-              Chat WA toko
-            </a>
+            {waHref ? (
+              <a
+                href={waHref}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  "mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg",
+                  "bg-wa px-4 text-sm font-bold text-white shadow-sm",
+                  "transition-all duration-200 hover:bg-wa-deep active:scale-[0.98]"
+                )}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Chat WA toko
+              </a>
+            ) : null}
           </div>
         </div>
       </div>
