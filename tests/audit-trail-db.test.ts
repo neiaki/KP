@@ -12,7 +12,7 @@ import postgres from "postgres";
  * kalau nama setting atau format UUID berubah di satu sisi saja, test statis
  * tetap hijau tapi audit produksi menulis NULL semua.
  *
- * Test opt-in lewat DATABASE_URL supaya `npm test` di CI tanpa database tetap
+ * Test opt-in lewat DATABASE_URL supaya `bun run test` di CI tanpa database tetap
  * jalan. Setiap perubahan dibungkus savepoint yang di-rollback, jadi tidak pernah
  * meninggalkan data di database mana pun.
  */
@@ -21,7 +21,7 @@ const url = process.env.DATABASE_URL;
 
 // Keberadaan DATABASE_URL tidak menjamin database-nya bisa dihubungi. Tanpa
 // pemeriksaan koneksi, sisa DATABASE_URL milik project lain di shell membuat
-// `npm test` gagal dengan ECONNREFUSED, dan di CI runner mana pun yang punya
+// `bun run test` gagal dengan ECONNREFUSED, dan di CI runner mana pun yang punya
 // env itu pipeline merah tanpa ada yang rusak. Karena itu koneksi dicoba sekali
 // dulu, dan semua test dilewati kalau gagal.
 async function canConnect(target: string): Promise<boolean> {

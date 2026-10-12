@@ -200,7 +200,7 @@ DSN regional tidak hilang diam-diam. Kalau Sentry pindah ke region lain,
    itu ada di directive yang tepat.
 3. Kalau host-nya berasal dari env, test juga harus memeriksa arah sebaliknya,
    yaitu env kosong tidak boleh membuat policy karangan.
-4. Jalankan `npm test`, lalu `npx tsc --noEmit` dan `npm run lint`.
+4. Jalankan `bun run test`, lalu `bunx tsc --noEmit` dan `bun run lint`.
 
 ## Verifikasi manual
 

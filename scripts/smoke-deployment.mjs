@@ -1,7 +1,7 @@
 const targets = process.argv.slice(2);
 
 if (targets.length === 0) {
-  console.error("Usage: npm run smoke:deployment -- <base-url> [<base-url>]");
+  console.error("Usage: bun run smoke:deployment -- <base-url> [<base-url>]");
   process.exit(2);
 }
 

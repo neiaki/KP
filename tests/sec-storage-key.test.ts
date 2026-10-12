@@ -80,7 +80,7 @@ test("nama file berisi traversal tetap berakhir di dalam folder staf", () => {
 
 /*
  * Penjaga kedua: prefix tidak boleh muncul lagi di tipe publik uploadPhoto.
- * Berkas test ini ikut diperiksa npx tsc --noEmit karena tsconfig-nya
+ * Berkas test ini ikut diperiksa bunx tsc --noEmit karena tsconfig-nya
  * mencakup semua berkas .ts, jadi begitu prefix dikembalikan ke
  * Parameters<typeof uploadPhoto>[1], baris di bawah gagal compile.
  */
