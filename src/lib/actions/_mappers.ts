@@ -119,6 +119,9 @@ export function mapStoreSettings(row: StoreSettingsRow): StoreSettings {
     maps_url: row.mapsUrl ?? undefined,
     phone_number: row.phoneNumber,
     whatsapp_number: row.whatsappNumber ?? undefined,
+    // Tanpa baris ini owner_name hilang di setiap baca: form settings selalu
+    // tampil kosong dan penyimpanan berikutnya menulis balik string kosong.
+    owner_name: row.ownerName ?? undefined,
     social_facebook: row.socialFacebook ?? undefined,
     social_instagram: row.socialInstagram ?? undefined,
     social_x: row.socialX ?? undefined,
