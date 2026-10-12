@@ -14,7 +14,7 @@ masuk ke panel setelah tertutup, dan kenapa jalur itu tidak bisa dibaca dari
 | Jalur | Perlu apa | Pakai kapan |
 |---|---|---|
 | SSH tunnel | Kredensial SSH saja | Harian. Tidak butuh perubahan firewall sama sekali. |
-| Pengecualian port 8000 | IP publik owner | Kalau butuh bookmark URL biasa, misalnya dari HP. |
+| Pengecualian port 8000 | IP publik owner | Darurat saja bila tunnel tidak bisa dipakai. |
 
 ## 1. SSH tunnel (jalur utama)
 
@@ -37,9 +37,9 @@ Tunnel bisa ditutup dengan menekan `Ctrl+C` di terminalnya.
 
 Jalur ini memakai HTTP polos, jadi **password dan cookie sesi melintas tanpa
 enkripsi**. Satu login sudah cukup untuk mengambil seluruh environment
-production, jadi jalur ini bukan yang paling aman. Tapi harus tetap ada
-sementara TLS belum ada, dan jalur pertama tetap lebih aman untuk pemakaian
-harian.
+production, jadi ini bukan jalur harian. Pakai SSH tunnel untuk pemakaian
+harian; jalur ini hanya untuk keadaan darurat selama panel belum punya TLS,
+dan jangan dipakai dari jaringan yang tidak dipercaya.
 
 Jalur ini sengaja dibatasi ke satu IP saja. Kalau dibiarkan terbuka untuk
 `0.0.0.0/0`, satu login cukup untuk mengambil `DATABASE_URL`,
