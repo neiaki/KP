@@ -65,4 +65,4 @@ scripts/                   @neiaki
 /Dockerfile                @neiaki
 /Dockerfile.coolify        @neiaki
 /package.json              @neiaki
-/package-lock.json         @neiaki
+/bun.lock                 @neiaki

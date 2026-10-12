@@ -42,7 +42,7 @@ test("jalur bernilai paling tinggi ikut terlindungi", () => {
     "/src/app/api/",           // route JSON dan health check
     "/next.config.ts",
     "/Dockerfile",
-    "/package-lock.json",
+    "/bun.lock",
     "scripts/",                // pg_restore --clean
     ".github/workflows/",
   ];
