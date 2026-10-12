@@ -1,7 +1,7 @@
 // Skema Drizzle: "cetak biru" 8 tabel + 5 enum dalam TypeScript.
 // CERMINAN migrasi SQL supabase/migrations/0001_atcell_schema.sql — sumber
 // kebenaran struktur DB tetap file SQL itu. Bila menambah tabel/kolom:
-// 1) ubah file ini, 2) `npx drizzle-kit generate`, 3) terapkan SQL-nya ke DB.
+// 1) ubah file ini, 2) `bunx drizzle-kit generate`, 3) terapkan SQL-nya ke DB.
 // Jangan ubah nilai enum tanpa migrasi (data lama bisa rusak).
 //
 // CATATAN NAMA CHECK: constraint check yang ditulis inline di 0001 tidak diberi

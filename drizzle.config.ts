@@ -5,8 +5,8 @@ import { defineConfig } from "drizzle-kit";
 // supabase/migrations/0001_atcell_schema.sql, karena file itu juga berisi
 // RLS, trigger, view, Storage, dan seed. Jangan menjalankan artefak Drizzle
 // ke database production.
-//   npx drizzle-kit generate          # buat artefak referensi (offline, tanpa DB)
-//   npx drizzle-kit studio            # GUI database (hanya untuk database disposable)
+//   bunx drizzle-kit generate          # buat artefak referensi (offline, tanpa DB)
+//   bunx drizzle-kit studio            # GUI database (hanya untuk database disposable)
 // File hasil generate baru disimpan di supabase/drizzle-generated/.
 export default defineConfig({
   out: "./supabase/drizzle-generated",

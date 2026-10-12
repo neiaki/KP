@@ -678,7 +678,7 @@ Urutan backup yang aman:
    `GAGAL`. Tidak ada lagi jalur yang melaporkan backup lengkap padahal Auth
    tidak ikut.
 3. Hitung checksum dump, enkripsi, dan kirim ke storage off-site
-   (`npm run backup:offsite`; berjalan otomatis lewat cron harian).
+   (`bun run backup:offsite`; berjalan otomatis lewat cron harian).
 4. Salin dump ke restore target Coolify saat jadwal restore test.
 5. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
    `scripts/restore-target-bootstrap.sql`. Bootstrap membuat role Data API
@@ -744,7 +744,7 @@ target sungguhan:
    yang baru masuk setelah itu, daftarkan ulang di Supabase Auth setelah
    restore selesai.
 3. Sebelum restore sungguhan, jalankan drill lebih dulu
-   (`npm run restore:drill`) dan baca output verifikasinya. Drill memakai
+   (`bun run restore:drill`) dan baca output verifikasinya. Drill memakai
    container sekali pakai dengan `--network none`, jadi tidak pernah menyentuh
    produksi maupun standby.
 
@@ -756,16 +756,16 @@ diperlakukan sebagai kegagalan, bukan sukses setengah jadi.
 Contoh format dump dan restore:
 
 ```bash
-SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" npm run backup:postgres
+SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" bun run backup:postgres
 psql "$RESTORE_DATABASE_URL" -f scripts/restore-target-bootstrap.sql
 # Cek dulu targetnya tanpa menyentuh database apa pun:
 ALLOW_RESTORE=YES RESTORE_DRY_RUN=1 RESTORE_DATABASE_URL="..." \
-  DUMP_FILE="/path/backup/atcell-....dump" npm run restore:postgres
+  DUMP_FILE="/path/backup/atcell-....dump" bun run restore:postgres
 # Jalankan sungguhan. Host di bawah harus diizinkan lebih dulu lewat
 # RESTORE_ALLOWED_HOSTS; tanpa itu script berhenti dengan kode 3.
 ALLOW_RESTORE=YES RESTORE_ALLOWED_HOSTS="atcell-restore-local" \
   RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" \
-  npm run restore:postgres
+  bun run restore:postgres
 ```
 
 Script restore menolak jalan sebelum menyentuh database kalau salah satu hal ini
@@ -796,7 +796,7 @@ dibedakan dari IP mana pun; karena itu konfirmasi tetap wajib di jalur interakti
 
 Script juga menolak dijalankan dengan `sh`. Ia memakai `[[ ]]` dan
 `${var//[[:space:]]/}`, yang tidak dijamin ada di `/bin/sh`; jalankan dengan
-`bash`, seperti `npm run restore:postgres` sudah lakukan.
+`bash`, seperti `bun run restore:postgres` sudah lakukan.
 
 `KEEP_DAYS` opsional dan default-nya 14. Setelah dump baru ditulis, dump yang
 lebih tua dari `KEEP_DAYS` hari beserta file `.sha256`-nya dihapus, dan hanya
@@ -911,7 +911,7 @@ aplikasi, jadi ia melindungi dari kerusakan data, migration yang salah, atau
 apa pun untuk memulihkan. Ia **tidak** melindungi dari kehilangan VPS, dari
 akun Supabase yang dikompromikan, atau dari ransomware di host yang sama.
 Salinan terenkripsi off-host dibuat oleh `scripts/backup-offsite.sh`
-(`npm run backup:offsite`): dump terbaru diverifikasi checksum-nya, lalu
+(`bun run backup:offsite`): dump terbaru diverifikasi checksum-nya, lalu
 dicoba dibaca dengan `pg_restore --list` dan dipastikan memuat data
 `auth.users`, baru dienkripsi AES-256-CBC dengan PBKDF2 dan dikirim ke tujuan
 rclone atau HTTP PUT. Pemeriksaan kedua itu wajib: checksum hanya membuktikan
@@ -946,7 +946,7 @@ Supabase masih 17.x; `postgres:15` akan menolak dengan `server version mismatch`
 yang langsung dihapus, jadi tidak ada salinan kedua dari secret itu di disk.
 
 Untuk memastikan backup benar-benar bisa dipulihkan, ada drill terjadwal.
-`scripts/restore-drill.sh` (`npm run restore:drill`) mengambil dump terbaru,
+`scripts/restore-drill.sh` (`bun run restore:drill`) mengambil dump terbaru,
 memverifikasi checksum-nya, merestore-nya ke PostgreSQL 17 sekali pakai,
 memeriksa hasilnya, lalu membuang container itu. Exit 0 berarti dump terbaru
 memang bisa dipulihkan **dan** hasil restorenya punya akun auth asli.
@@ -1018,11 +1018,11 @@ repository. Nilai secret hanya disimpan di Coolify secret manager.
 ## Testing wajib
 
 ```bash
-npm test
-npx tsc --noEmit
-npm run lint
-npm run build
-npm run smoke:deployment -- https://primary.example.com
+bun run test
+bunx tsc --noEmit
+bun run lint
+bun run build
+bun run smoke:deployment -- https://primary.example.com
 ```
 
 Smoke test browser dilakukan pada URL Coolify production. Uji minimal:

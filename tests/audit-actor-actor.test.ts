@@ -43,7 +43,7 @@ import type { Db } from "../src/db/client.ts";
  * tiruan.tests/audit-trail.test.ts mengunci sisi pemanggilnya secara statis.
  *
  * Test opt-in lewat DATABASE_URL, sama seperti tests/audit-trail-db.test.ts,
- * supaya `npm test` di CI tanpa database tetap hijau.
+ * supaya `bun run test` di CI tanpa database tetap hijau.
  */
 
 const srcRoot = resolvePath(dirname(fileURLToPath(import.meta.url)), "../src");
