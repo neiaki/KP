@@ -3,9 +3,9 @@
 At Cell adalah toko di Paku Jaya, Serpong Utara. Repo ini memuat
 kode aplikasi etalase beserta portal stafnya.
 
-Repo ini saat ini **private** sejak 5 Okt 2026. Isi serta riwayat gitnya
-hanya bisa dibaca akun yang diberi akses. Bagian di bawah menjelaskan
-kenapa privatisasi tidak menghapus apa pun yang sudah bocor sebelumnya.
+Repo ini saat ini **publik**. Isi serta riwayat gitnya bisa dibaca siapa
+saja tanpa login. Bagian di bawah menjelaskan kenapa privatisasi sementara
+pada 5 Okt 2026 tidak menghapus apa pun yang sudah bocor sebelumnya.
 
 
 ## Melaporkan kerentanan
@@ -74,22 +74,22 @@ tidak akan pernah aman dibaca.
 
 GitHub secret scanning dan push protection juga aktif di repo ini.
 
-## Privatisasi dan risikonya
+## Riwayat publik dan risikonya
 
-Repo ini sudah diubah dari publik menjadi private pada 5 Okt 2026. Itu benar secara
-umum, tapi tidak menyelesaikan satu hal yang sudah terjadi, jadi risikonya
-harus diketahui sebelum privatisasi dianggap selesai.
+Repo ini sempat diubah menjadi private pada 5 Okt 2026, lalu kembali publik.
+Privatisasi sementara itu benar secara umum, tapi tidak menyelesaikan satu
+hal yang sudah terjadi: apa pun yang pernah tertulis di repo publik harus
+diperlakukan sebagai sudah diketahui publik.
 
 ### Apa yang privatisasi tidak lakukan
 
 **Menyembunyikan riwayat lama.** GitHub tidak pernah menghapus halaman
-commit dan `.patch` untuk commit yang pernah ada di repo publik, dan
-kedua-duanya sudah terindeks mesin pencari. Commit yang menghapus IP owner
-dari dokumen, misalnya `36af9e9`, tidak membuat commit sebelumnya yang
-memuat IP itu ikut terhapus. Mengambilnya butuh satu URL, tanpa
-login, selama repo masih publik.
-Setelah privatisasi, halaman lama yang terlanjur ter-cache masih terbuka
-untuk siapa pun yang menyimpannya.
+commit, PR, dan `.patch` untuk konten yang pernah ada di repo publik, dan
+semuanya bisa terindeks mesin pencari. Commit yang menghapus IP owner
+dari dokumen tidak membuat versi sebelumnya ikut terhapus; head PR #69
+masih menyimpan salinan lama dokumen panel. Mengambilnya butuh satu URL,
+tanpa login, selama repo publik. Halaman lama yang terlanjur ter-cache
+tetap terbuka untuk siapa pun yang menyimpannya.
 
 **Mencabut akses ke orang yang sudah menyalin.** Setiap orang yang sudah
 `git clone`, atau yang punya fork, atau yang punya mirror di tempat lain,
@@ -99,7 +99,7 @@ tetap punya objeknya. Privatisasi hanya menutup pintu yang belum dibuka.
 selalu berupa commit baru, dan commit baru tidak mengubah apa yang ditulis
 commit lama.
 
-### Apa yang privatisasi lakukan
+### Apa yang privatisasi sementara itu lakukan
 
 - Menutup akses baca dan tulis untuk orang yang belum punya akses
 - Menghentikan notifikasi dan watch yang mengirim commit baru ke pihak ketiga
@@ -115,9 +115,9 @@ secara sadar. Dua hal yang bisa dilakukan tanpa mengganti IP:
    ikut kena ban sendiri.
 2. **Perlakukan IP itu sebagai tidak rahasia dari sekarang.** Jangan
    menulisnya di dokumen, commit, screenshot, atau pesan. Penulisan IP di repo
-   ini sudah bocor sekali, jadi penjaga yang memindai isi repo harus tetap
-   ada walau repo sudah private: privatisasi bukan alasan berhenti menyimpan
-   hal yang tidak perlu ditulis.
+   ini sudah bocor sekali lewat PR #69, jadi penjaga yang memindai isi repo
+   harus tetap ada: repo publik bukan tempat menyimpan hal yang tidak perlu
+   ditulis.
 
 Penjaga yang sekarang: `tests/no-secret-in-repo.test.ts` untuk isi,
 `tests/no-sensitive-files.test.ts` untuk nama berkas.
