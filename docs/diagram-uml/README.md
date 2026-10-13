@@ -47,5 +47,6 @@ tidak terlihat tanpa render, jadi cek di atas adalah compile step.
 | Penjualan kasir dengan tukar tambah opsional | `activity-penjualan-kasir.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/lib/store-demo.ts` |
 | Status tiket servis dan perpindahannya | `state-tiket-servis.puml` | `.png` `.svg` | OK | `REPAIR_FLOW` di `src/lib/validations.ts` |
 | Status unit inventaris dan perpindahannya | `state-status-unit.puml` | `.png` `.svg` | OK | `demoUpdateUnitStatus` di `src/lib/store-demo.ts`, pemicu `trg_prevent_sold_reactivation` di migrasi |
+| Objek bisnis At Cell dan relasinya | `concept-domain.puml` | `.png` `.svg` | OK | Skema `products`, `inventory_units`, `transactions`, `transaction_items`, `trade_in_records`, `service_tickets`, `store_settings`, `profiles` di `src/db/schema.ts` dan migrasi |
 
 Render tertunda: tidak ada.

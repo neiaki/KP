@@ -1,0 +1,73 @@
+@startuml
+!pragma layout smetana
+title Objek bisnis At Cell dan relasinya
+object Produk {
+  merek
+  model
+  specs
+  harga acuan
+}
+object "Unit Fisik" {
+  IMEI 15 digit
+  kondisi baru atau second
+  status stok
+  harga modal
+  harga jual
+}
+object Transaksi {
+  total
+  potongan tukar tambah
+  pembayaran bersih
+  metode bayar
+}
+object "Rincian Transaksi" {
+  harga unit
+  garansi bulan
+}
+object "Tukar Tambah" {
+  merek model lama
+  IMEI lama
+  grading dan foto
+  harga penawaran
+}
+object "Tiket Servis" {
+  kode tiket
+  model perangkat
+  keluhan
+  status pengerjaan
+  biaya sparepart
+  biaya jasa
+}
+object "Pengaturan Toko" {
+  nama dan deskripsi
+  alamat dan telepon
+  jam buka
+}
+object Profil {
+  nama
+  peran
+}
+object "Etalase Publik" {
+  merek dan model
+  kondisi dan harga jual
+}
+
+Produk "1" -- "*" "Unit Fisik" : punya
+"Unit Fisik" "*" -- "*" Transaksi : terjual lewat
+Transaksi "1" *-- "*" "Rincian Transaksi" : dirinci
+Transaksi "1" -- "0..1" "Tukar Tambah" : dipotong
+"Tukar Tambah" --> "Unit Fisik" : unit lama masuk stok second
+"Tiket Servis" ..> "Unit Fisik" : IMEI cocok bila unit stok
+Profil : mencatat Transaksi
+Profil : menangani "Tiket Servis"
+"Pengaturan Toko" --> "Etalase Publik" : ditampilkan
+"Unit Fisik" --> "Etalase Publik" : hanya yang siap jual
+note right of "Etalase Publik"
+  Etalase membaca view publik, bukan tabel langsung.
+  Harga modal tidak ikut tampil.
+end note
+note right of "Unit Fisik"
+  Status sold bersifat terminal dan
+  hanya lewat transaksi kasir.
+end note
+@enduml
