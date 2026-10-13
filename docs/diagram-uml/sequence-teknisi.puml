@@ -1,4 +1,5 @@
 @startuml
+!include style-atcell.iuml
 title Teknisi masuk lalu kerjakan tiket servis
 autonumber
 actor Teknisi as T
