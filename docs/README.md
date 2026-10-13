@@ -9,7 +9,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | File | Isi | Status |
 |------|-----|--------|
 | `PRD-AtCell.md` | Product Requirements Document: overview, fitur inti, user flow, arsitektur Next.js + Supabase | Rencana jangka panjang |
-| `UC-AtCell.md` | Spesifikasi use case per aktor (18 UC), plus diagram Mermaid lama yang disimpan sebagai arsip di dalam berkas itu sendiri | **Acuan alur** |
+| `UC-AtCell.md` | Kemampuan per aktor tanpa kode bernomor, dari buka web sampai menu admin sales teknisi pelanggan dan tamu, diagram pindah ke `diagram-uml/` | **Acuan alur** |
 | `requirement.md` | SRS v1 awal: aktor Sales/Teknisi/Pelanggan, modul IMEI, servis, trade-in | Digantikan v2 |
 | `requirement-2.0.md` | SRS v2 At Cell: tambah aktor Admin/Owner, FR-xxx/NFR-xxx, modul etalase publik multibahasa + dashboard | **Acuan kebutuhan** |
 | `DEPLOYMENT-REDUNDANCY.md` | Runbook Coolify, Supabase, health check, backup, dan rollout | **Acuan operasional** |
@@ -20,6 +20,8 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unit pertama arrive | **Acuan operasional** |
 | `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
 | `PAYMENT-WARNING-COPY.md` | Letak kalimat peringatan link pembayaran di halaman publik, risiko kalau dihapus, dan copy tulisan ulang yang bisa disetujui dalam satu langkah | **Acuan keputusan** |
+| `diagram-uml/README.md` | Indeks folder diagram UML dan aturan render PNG dan SVG pendamping | **Wadah diagram** |
+| `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor yang sudah diverifikasi ke source code | **Acuan alur** |
 
 ## Catatan
 
@@ -31,10 +33,13 @@ berbasis Supabase ketika environment production dikonfigurasi.
 - `tests/csp-doc.test.ts` menjaga `CSP.md` tetap sinkron dengan
   `src/lib/csp.ts`, supaya penjaga kebijakan tidak bisa dibenarkan sebagai
   dokumentasi yang sudah basi.
-- Tidak ada berkas gambar diagram di `docs/`. Diagram PlantUML dan render PNG
-  serta SVG-nya dihapus pada 1 Oktober 2026, lalu berkas Mermaid `diagram.mmd`
-  dihapus pada 2 Oktober 2026 karena isinya sudah tersalin inline di bagian 3
-  `UC-AtCell.md`. Daftar use case di bagian 2 berkas itu yang jadi acuan.
+- Berkas gambar diagram lama sudah dihapus dari `docs/`. Diagram PlantUML dan
+  render PNG serta SVG-nya dihapus pada 1 Oktober 2026, lalu berkas Mermaid
+  `diagram.mmd` dihapus pada 2 Oktober 2026 karena isinya sudah tersalin
+  inline di bagian 3 `UC-AtCell.md`. Daftar use case di bagian 2 berkas itu
+  yang jadi acuan. Diagram UML baru wajib tinggal di `diagram-uml/`
+  mengikuti aturan di `diagram-uml/README.md`. Isi pertama yang pindah masuk
+  adalah `diagram-uml/sequence-diagram-atcell.md` dari folder Downloads.
 - Akses panel Coolify dijelaskan di `COOLIFY-PANEL.md`, karena panel adalah
   kendali penuh atas env production dan jalurnya tidak bisa ditebak dari
   `ufw status` saja.
