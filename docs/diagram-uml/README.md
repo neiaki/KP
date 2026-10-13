@@ -40,6 +40,9 @@ plantuml -tsvg --output-dir "$PWD/docs/diagram-uml/usecase" docs/diagram-uml/use
 
 Penulis me-render sebelum mengirim perubahan. Kegagalan sintaks
 tidak terlihat tanpa render, jadi cek di atas adalah compile step.
+Catatan: `--output-dir` wajib absolut (pakai `$PWD/` seperti di atas).
+Path relatif diam-diam ditulis relatif terhadap folder sumber
+dan menghasilkan duplikat nyasar.
 
 ## Indeks diagram
 
