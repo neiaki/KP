@@ -28,8 +28,8 @@ Satu perintah me-render semuanya (butuh `plantuml` dan Java):
 
 ```sh
 plantuml -checkonly docs/diagram-uml/*.puml
-plantuml -tpng docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml docs/diagram-uml/class-*.puml docs/diagram-uml/object-*.puml docs/diagram-uml/component-*.puml
-plantuml -tsvg docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml docs/diagram-uml/class-*.puml docs/diagram-uml/object-*.puml docs/diagram-uml/component-*.puml
+plantuml -tpng docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml docs/diagram-uml/class-*.puml docs/diagram-uml/object-*.puml docs/diagram-uml/component-*.puml docs/diagram-uml/er-*.puml
+plantuml -tsvg docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml docs/diagram-uml/class-*.puml docs/diagram-uml/object-*.puml docs/diagram-uml/component-*.puml docs/diagram-uml/er-*.puml
 plantuml -tpng --output-dir "$PWD/docs/diagram-uml/sequence" docs/diagram-uml/sequence-*.puml
 plantuml -tsvg --output-dir "$PWD/docs/diagram-uml/sequence" docs/diagram-uml/sequence-*.puml
 plantuml -tpng --output-dir "$PWD/docs/diagram-uml/activity" docs/diagram-uml/activity-*.puml
@@ -67,5 +67,6 @@ dan menghasilkan duplikat nyasar.
 | Kelas domain At Cell | `class-domain.puml` | `.png` `.svg` | OK | Interface di `src/types/index.ts`, operasi mengikuti fungsi store dan Server Actions |
 | Potret satu penjualan dengan tukar tambah | `object-contoh-jual.puml` | `.png` `.svg` | OK | Nilai contoh ilustrasi, struktur mengikuti `src/types/index.ts` |
 | Modul besar At Cell dan ketergantungannya | `component-arsitektur.puml` | `.png` `.svg` | OK | Struktur `src/app`, `src/proxy.ts`, `src/lib/actions`, Supabase |
+| Skema database At Cell | `er-database.puml` | `.png` `.svg` | OK | `supabase/migrations/0001_atcell_schema.sql`, `src/db/schema.ts` |
 
 Render tertunda: tidak ada.

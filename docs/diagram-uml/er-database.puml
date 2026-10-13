@@ -1,0 +1,96 @@
+@startuml
+title Skema database At Cell
+entity "profiles" as profiles {
+  * id : uuid <<PK, FK auth.users>>
+  --
+  * full_name : text
+  * role : user_role
+  * phone_number : text
+}
+entity "store_settings" as settings {
+  * id : int <<PK, selalu 1>>
+  --
+  * store_name : text
+  * description_id : text
+  * description_en : text
+  * address : text
+  * phone_number : text
+  * opening_hours : jsonb
+}
+entity "products" as products {
+  * id : bigint <<PK>>
+  --
+  * brand : text
+  * model_name : text
+  * default_price : numeric
+  * image_url : text
+}
+entity "inventory_units" as units {
+  * id : bigint <<PK>>
+  --
+  o product_id : bigint <<FK, null untuk tukar tambah>>
+  * imei : text <<UNIQUE, 15 digit>>
+  * condition : new | second
+  * status : unit_status
+  * purchase_cost : numeric
+  * selling_price : numeric
+}
+entity "transactions" as tx {
+  * id : bigint <<PK>>
+  --
+  o invoice_number : text <<UNIQUE>>
+  o sales_id : uuid <<FK>>
+  o customer_id : uuid <<FK>>
+  * customer_name : text
+  * final_payment : numeric
+  * payment_method : enum
+}
+entity "transaction_items" as items {
+  * id : bigint <<PK>>
+  --
+  * transaction_id : bigint <<FK>>
+  * unit_id : bigint <<FK>>
+  * unit_price : numeric
+  * warranty_duration_months : int
+}
+entity "trade_in_records" as tradein {
+  * id : bigint <<PK>>
+  --
+  o transaction_id : bigint <<FK>>
+  o resulting_unit_id : bigint <<FK>>
+  * original_brand_model : text
+  * imei : text <<15 digit>>
+  * grading_details : jsonb
+  * offered_price : numeric
+}
+entity "service_tickets" as tickets {
+  * id : bigint <<PK>>
+  --
+  * ticket_code : text <<UNIQUE>>
+  o customer_id : uuid <<FK>>
+  o technician_id : uuid <<FK>>
+  * device_model : text
+  * repair_status : enum
+  * sparepart_fee : numeric
+  * labor_fee : numeric
+  * total_fee : numeric
+}
+entity "v_public_inventory" as etalase <<view>> {
+  merek, model, kondisi, harga jual
+}
+
+products ||--o{ units : punya
+tx ||--o{ items : dirinci
+units ||--o{ items : terjual
+tx |o--o| tradein : dipotong
+tradein o--o| units : unit lama masuk stok
+profiles |o--o{ tx : mencatat dan membeli
+profiles |o--o{ tickets : menangani
+products }o--o{ etalase : dibaca anon
+units }o--o{ etalase : hanya available
+note bottom of tickets
+  Pemicu BEFORE INSERT menerbitkan ticket_code atomik.
+  Status sold terminal: pemicu menolak semua perubahan dari sold.
+  RLS: anon hanya SELECT ke view etalase.
+end note
+@enduml
