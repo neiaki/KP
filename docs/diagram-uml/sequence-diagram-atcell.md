@@ -82,7 +82,7 @@ sequenceDiagram
     Note over P,DB: Lihat Profil Toko Multilingual
     P->>UI: Buka /id atau /en (jalur / diteruskan ke /id)
     UI->>MW: GET /[locale]
-    MW-->>UI: Routing locale lewat next-intl
+    MW-->>UI: Routing locale segmen [locale]
     UI->>SV: Minta data profil toko
     SV->>DB: SELECT store_settings
     DB-->>SV: Nama, deskripsi id dan en, jam buka, koordinat, alamat, telepon
@@ -118,10 +118,14 @@ sequenceDiagram
     P->>UI: Input kode nota di widget beranda atau /id/tracking?ticket=
     UI->>SV: Cari tiket berdasarkan ticket_code (demo: lookup mock, live: trackTicketPublic)
     SV->>DB: SELECT service_tickets WHERE ticket_code
-    alt Kode ditemukan
-        DB-->>SV: Status, sparepart_fee, labor_fee, total_fee
+    alt Kode ditemukan, mode demo
+        DB-->>SV: Status, sparepart_fee, labor_fee, total_fee, foto
         SV-->>UI: Data timeline dan biaya
-        UI-->>P: Timeline received sampai picked_up plus total biaya
+        UI-->>P: Timeline received sampai picked_up plus total biaya dan foto
+    else Kode ditemukan, mode live
+        DB-->>SV: Status dan warranty_days (foto dan biaya dikosongkan)
+        SV-->>UI: Data timeline tanpa biaya
+        UI-->>P: Timeline status plus garansi, tanpa foto dan tanpa rincian biaya
     else Kode tidak ditemukan
         DB-->>SV: Tidak ada baris
         SV-->>UI: Galat
@@ -187,9 +191,9 @@ sequenceDiagram
     C->>UI: Input kode tiket SRV-YYYYMMDD-XXXXXXXX di /id/tracking
     UI->>SV: Cari tiket berdasarkan ticket_code
     SV->>DB: SELECT service_tickets WHERE ticket_code
-    DB-->>SV: Status dan total biaya
+    DB-->>SV: Status dan warranty_days (mode live mengosongkan foto dan biaya)
     SV-->>UI: Data timeline
-    UI-->>C: Tampilkan timeline status dan total biaya
+    UI-->>C: Tampilkan timeline status plus garansi
     end
 ```
 
@@ -534,6 +538,12 @@ Yang diperbaiki dari naskah asal di folder Downloads:
   bucket `trade-in-photos` dan `service-photos`.
 - Estimasi trade-in publik bersifat hitung lokal plus pesan WhatsApp,
   bukan insert database. Insert trade-in hanya terjadi di POS portal.
+- Routing bahasa memakai segmen `[locale]` plus `translations.ts` dan
+  redirect `/` ke `/id` di `src/proxy.ts`. Klaim `next-intl` dihapus
+  karena paket itu tidak ada di `package.json`.
+- Lacak publik mode live hanya tampil status plus garansi. Foto, rincian
+  biaya, dan catatan dikosongkan di `tracking-content.tsx`, jadi diagram
+  menulis dua cabang demo dan live.
 - Kode bernomor dihapus dari semua judul, tabel, dan diagram
   sesuai permintaan. Judul memakai kalimat langsung seperti
   Pengunjung dapat membuka web.
