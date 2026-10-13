@@ -28,10 +28,12 @@ Satu perintah me-render semuanya (butuh `plantuml` dan Java):
 
 ```sh
 plantuml -checkonly docs/diagram-uml/*.puml
-plantuml -tpng docs/diagram-uml/activity-*.puml docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
-plantuml -tsvg docs/diagram-uml/activity-*.puml docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
+plantuml -tpng docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
+plantuml -tsvg docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
 plantuml -tpng --output-dir docs/diagram-uml/sequence docs/diagram-uml/sequence-*.puml
 plantuml -tsvg --output-dir docs/diagram-uml/sequence docs/diagram-uml/sequence-*.puml
+plantuml -tpng --output-dir docs/diagram-uml/activity docs/diagram-uml/activity-*.puml
+plantuml -tsvg --output-dir docs/diagram-uml/activity docs/diagram-uml/activity-*.puml
 ```
 
 Penulis me-render sebelum mengirim perubahan. Kegagalan sintaks
@@ -46,7 +48,9 @@ tidak terlihat tanpa render, jadi cek di atas adalah compile step.
 | Sales masuk lalu jual, daftar unit, dan buat tiket | `sequence-sales.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/app/(portal)/portal/inventory`, `src/lib/store-demo.ts` |
 | Teknisi masuk lalu kerjakan tiket servis | `sequence-teknisi.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(portal)/portal/service`, `src/lib/validations.ts` |
 | Admin masuk lalu kelola toko dan pantau bisnis | `sequence-admin.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(portal)/portal/dashboard`, `src/app/(portal)/portal/products`, `src/app/(portal)/portal/staff`, `src/app/(portal)/portal/settings`, `src/app/(portal)/portal/reports` |
-| Penjualan kasir dengan tukar tambah opsional | `activity-penjualan-kasir.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/lib/store-demo.ts` |
+| Penjualan kasir dengan tukar tambah opsional | `activity-penjualan-kasir.puml` | `activity/` `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/lib/store-demo.ts` |
+| Kerjakan tiket servis sampai selesai | `activity-servis-tiket.puml` | `activity/` `.png` `.svg` | OK | `src/app/(portal)/portal/service`, `isAllowedTransition` di `src/lib/validations.ts` |
+| Daftarkan unit batch IMEI | `activity-registrasi-imei.puml` | `activity/` `.png` `.svg` | OK | `src/app/(portal)/portal/inventory`, `demoUpdateUnitStatus` di `src/lib/store-demo.ts` |
 | Status tiket servis dan perpindahannya | `state-tiket-servis.puml` | `.png` `.svg` | OK | `REPAIR_FLOW` di `src/lib/validations.ts` |
 | Status unit inventaris dan perpindahannya | `state-status-unit.puml` | `.png` `.svg` | OK | `demoUpdateUnitStatus` di `src/lib/store-demo.ts`, pemicu `trg_prevent_sold_reactivation` di migrasi |
 | Objek bisnis At Cell dan relasinya | `concept-domain.puml` | `.png` `.svg` | OK | Skema `products`, `inventory_units`, `transactions`, `transaction_items`, `trade_in_records`, `service_tickets`, `store_settings`, `profiles` di `src/db/schema.ts` dan migrasi |

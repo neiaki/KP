@@ -1,0 +1,43 @@
+@startuml
+title Kerjakan tiket servis sampai selesai
+start
+partition Teknisi {
+:Buka tiket di meja servis;
+:Isi status berikut, biaya, catatan, foto bukti;
+:Ajukan update;
+}
+partition Sistem {
+if (Peran technician?) then (tidak)
+  :Tolak update;
+  stop
+else (ya)
+endif
+if (Transisi status diizinkan?) then (tidak)
+  :Tolak update;
+  stop
+else (ya)
+endif
+}
+partition Basis Data {
+:Simpan status, biaya, rincian, foto;
+:Hitung total sama dengan sparepart plus jasa;
+}
+partition Teknisi {
+if (Status sudah completed?) then (ya)
+  :Siapkan resi serah terima;
+  stop
+else (tidak)
+endif
+if (Perlu uji ulang?) then (ya)
+  :Kembali isi status berikut;
+else (tidak)
+  :Tutup hari, lanjut tiket lain;
+  stop
+endif
+}
+note right
+  cancelled boleh dari tahap mana pun sebelum completed.
+  completed tidak bisa dibatalkan, hanya bisa diserahterimakan.
+  Rincian biaya maks 50 baris, foto maks 10 berkas.
+end note
+@enduml

@@ -1,0 +1,34 @@
+@startuml
+title Daftarkan unit batch IMEI
+start
+partition Sales {
+:Pilih produk master, kondisi, modal, harga jual;
+:Tempel daftar IMEI;
+:Ajukan registrasi;
+}
+partition Sistem {
+if (Modal dan harga valid dan jual tidak di bawah modal?) then (tidak)
+  :Tolak batch;
+  stop
+else (ya)
+endif
+}
+partition Basis Data {
+while (Masih ada IMEI? (..200)) is (ya)
+  if (Tepat 15 digit angka dan unik?) then (ya)
+    :Simpan unit status available;
+  else (tidak)
+    :Tandai baris gagal;
+  endif
+endwhile (tidak)
+}
+partition Sales {
+:Tampilkan ringkasan berhasil dan gagal;
+stop
+}
+note right
+  Baris gagal tidak menggagalkan baris valid.
+  Status sold tidak bisa diisi manual,
+  hanya lewat transaksi kasir.
+end note
+@enduml
