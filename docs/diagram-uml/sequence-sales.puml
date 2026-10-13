@@ -1,0 +1,112 @@
+@startuml
+title Sales masuk lalu jual, daftar unit, dan buat tiket
+autonumber
+actor Sales as S
+participant "Peramban" as UI
+participant "Middleware" as MW
+participant "Otentikasi" as AU
+participant "Server" as SV
+participant "Basis Data" as DB
+participant "Penyimpanan" as ST
+
+== Masuk dan dibuka ke kasir ==
+S -> UI : Buka /id/login
+alt Mode demo
+  S -> UI : Pilih akun demo sales
+  UI -> UI : Ganti peran ke sales tanpa password
+  UI -> MW : Minta /portal/pos
+  MW --> UI : Izin karena kasir boleh admin dan sales
+else Mode live
+  S -> UI : Isi username dan password
+  UI -> AU : Kirim kredensial
+  AU --> UI : Sesi dan cookie
+  UI -> MW : Minta halaman portal
+  MW -> DB : Baca peran profil
+  DB --> MW : peran sales
+  MW --> UI : Teruskan ke /portal/pos
+end
+
+== Daftarkan unit batch IMEI ==
+S -> UI : Buka /portal/inventory, pilih produk dan isi daftar IMEI
+UI -> SV : Ajukan registrasi batch
+SV -> SV : Validasi isian dan cek peran admin atau sales
+loop Setiap IMEI dalam batch (maks 200)
+  alt IMEI tepat 15 digit angka dan unik
+    SV -> DB : Simpan unit status available plus modal dan harga jual
+    DB --> SV : OK
+  else IMEI duplikat atau panjang salah
+    SV -> SV : Tandai baris gagal
+  end
+end
+SV --> UI : Ringkasan baris berhasil dan baris gagal
+UI --> S : Tampilkan hasil registrasi
+
+== Pantau status unit ==
+S -> UI : Filter /portal/inventory per produk, status, atau IMEI
+UI -> SV : Minta daftar unit
+SV -> DB : Baca unit sesuai filter
+DB --> SV : Unit dan status available, reserved, sold, in_service, returned
+SV --> UI : Daftar unit dan mutasi
+UI --> S : Tampilkan status unit
+
+== Jual lewat kasir plus tukar tambah opsional ==
+S -> UI : Buka /portal/pos, pilih satu unit available per IMEI
+UI -> SV : Minta unit available
+SV -> DB : Baca unit status available
+DB --> SV : Daftar unit
+SV --> UI : Daftar unit
+opt Pembeli belum punya akun
+  S -> UI : Catat nama dan telepon, garansi tetap tertaut
+end
+opt Ada tukar tambah
+  S -> UI : Isi grading layar, bodi, baterai, biometrik, kamera, sinyal, box
+  UI -> SV : Kirim foto unit lama
+  SV -> ST : Simpan ke bucket foto tukar tambah
+  ST --> SV : Alamat foto
+  S -> UI : Input harga penawaran sebagai diskon langsung
+end
+S -> UI : Pilih metode bayar plus durasi garansi
+UI -> UI : Hitung subtotal kurang potongan tukar tambah
+S -> UI : Ajukan checkout
+UI -> SV : Kirim transaksi beserta data tukar tambah bila ada
+SV -> DB : Panggil transaksi atomik
+alt Semua IMEI masih available
+  DB -> DB : Simpan transaksi dan rincian plus garansi
+  DB -> DB : Ubah status IMEI dari available ke sold
+  opt Ada tukar tambah
+    DB -> DB : Isi potongan, simpan riwayat tukar tambah
+    DB -> DB : Simpan unit lama kondisi second status available
+  end
+  DB --> SV : Commit sukses
+  SV --> UI : Transaksi berhasil
+  UI --> S : Cetak nota bergaransi memuat IMEI
+else IMEI sudah sold atau reserved
+  DB --> SV : Rollback semua perubahan
+  SV --> UI : Galat
+  UI --> S : Transaksi dibatalkan dan stok di-refresh
+end
+
+== Buat tiket servis ==
+S -> UI : Buka /portal/service/new, isi nama, telepon, model, IMEI atau SN, keluhan
+UI -> SV : Kirim foto awal
+SV -> ST : Simpan ke bucket foto servis
+ST --> SV : Alamat foto
+UI -> SV : Ajukan tiket baru
+SV -> DB : Simpan tiket servis
+note right of DB
+  Pemicu BEFORE INSERT menerbitkan kode
+  tiket SRV-YYYYMMDD-XXXXXXXX atomik.
+  Sufiks 8 karakter base32 tanpa I, L, O, U.
+end note
+DB --> SV : Tiket status awal received
+SV --> UI : Tiket tersimpan
+UI --> S : Tampilkan resi plus tautan lacak publik
+
+== Catat serah terima unit ==
+S -> UI : Pelanggan datang, catat pelunasan di /portal/service
+UI -> SV : Ubah status tiket
+SV -> DB : Ubah status dari completed ke picked_up
+DB --> SV : OK
+SV --> UI : Tiket tertutup
+UI --> S : Unit keluar dari antrean aktif
+@enduml

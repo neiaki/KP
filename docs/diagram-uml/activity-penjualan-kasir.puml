@@ -1,0 +1,38 @@
+@startuml
+title Penjualan kasir dengan tukar tambah opsional
+start
+partition Sales {
+:Pilih satu unit available per IMEI;
+:Catat nama dan telepon pembeli;
+if (Ada tukar tambah?) then (ya)
+  :Isi grading layar, bodi, baterai, biometrik, kamera, sinyal, box;
+  :Kirim foto unit lama (maks 10 berkas);
+  :Input harga penawaran sebagai diskon;
+else (tidak)
+endif
+:Pilih metode bayar dan durasi garansi;
+:Ajukan checkout;
+}
+partition Sistem {
+if (Semua IMEI masih available?) then (ya)
+else (tidak)
+  :Batalkan transaksi dan refresh stok;
+  stop
+endif
+}
+partition Basis Data {
+:Mulai transaksi atomik;
+:Simpan transaksi dan rincian plus garansi;
+:Ubah status IMEI dari available ke sold;
+if (Ada tukar tambah?) then (ya)
+  :Isi potongan dan simpan riwayat tukar tambah;
+  :Simpan unit lama kondisi second status available;
+else (tidak)
+endif
+:Commit;
+}
+partition Sales {
+:Cetak nota bergaransi memuat IMEI;
+stop
+}
+@enduml

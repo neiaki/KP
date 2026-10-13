@@ -36,10 +36,10 @@ berbasis Supabase ketika environment production dikonfigurasi.
 - Berkas gambar diagram lama sudah dihapus dari `docs/`. Diagram PlantUML dan
   render PNG serta SVG-nya dihapus pada 1 Oktober 2026, lalu berkas Mermaid
   `diagram.mmd` dihapus pada 2 Oktober 2026 karena isinya sudah tersalin
-  inline di bagian 3 `UC-AtCell.md`. Daftar use case di bagian 2 berkas itu
-  yang jadi acuan. Diagram UML baru wajib tinggal di `diagram-uml/`
-  mengikuti aturan di `diagram-uml/README.md`. Isi pertama yang pindah masuk
-  adalah `diagram-uml/sequence-diagram-atcell.md` dari folder Downloads.
+  inline di bagian 3 `UC-AtCell.md`. Penggantinya tinggal di `diagram-uml/`
+  sebagai sumber PlantUML plus render PNG dan SVG yang di-commit:
+  lima sequence per aktor, satu activity kasir, dan dua state machine.
+  Indeks dan perintah render ada di `diagram-uml/README.md`.
 - Akses panel Coolify dijelaskan di `COOLIFY-PANEL.md`, karena panel adalah
   kendali penuh atas env production dan jalurnya tidak bisa ditebak dari
   `ufw status` saja.

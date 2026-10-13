@@ -1,0 +1,86 @@
+@startuml
+title Admin masuk lalu kelola toko dan pantau bisnis
+autonumber
+actor Admin as A
+participant "Peramban" as UI
+participant "Middleware" as MW
+participant "Otentikasi" as AU
+participant "Server" as SV
+participant "Basis Data" as DB
+
+== Masuk dan dibuka ke dashboard ==
+A -> UI : Buka /id/login
+alt Mode demo
+  A -> UI : Pilih akun demo admin
+  UI -> UI : Ganti peran ke admin tanpa password
+  UI -> MW : Minta /portal/dashboard
+  MW --> UI : Izin karena dashboard khusus admin
+else Mode live
+  A -> UI : Isi username dan password
+  UI -> AU : Kirim kredensial
+  AU --> UI : Sesi dan cookie
+  UI -> MW : Minta halaman portal
+  MW -> DB : Baca peran profil
+  DB --> MW : peran admin
+  MW --> UI : Teruskan ke /portal/dashboard
+end
+
+== Lihat dashboard bisnis ==
+A -> UI : Buka /portal/dashboard
+UI -> SV : Minta ringkasan bisnis
+SV -> DB : Agregasi transaksi, tiket servis, unit inventaris
+DB --> SV : Omzet harian dan bulanan, jumlah transaksi, tiket aktif, model di bawah threshold
+SV --> UI : Data dashboard
+UI --> A : Tampilkan grafik omzet, stok menipis, antrean tiket
+
+== Kelola master produk ==
+A -> UI : Tambah, edit, atau nonaktifkan produk di /portal/products
+UI -> SV : Ajukan perubahan produk
+SV -> SV : Validasi isian dan cek peran admin
+SV -> DB : Simpan produk (merek, model, specs, harga acuan)
+note right of DB
+  RLS menolak tulis dari sales dan teknisi.
+end note
+DB --> SV : OK
+SV --> UI : Produk tersimpan
+UI --> A : Katalog diperbarui, produk tanpa unit tampil dengan badge Belum ada unit
+
+== Kelola akun staf ==
+A -> UI : Undang, nonaktifkan, atau ubah peran staf di /portal/staff
+UI -> SV : Ajukan perubahan akun
+alt Ubah peran diri sendiri padahal satu-satunya admin
+  SV --> UI : Ditolak
+  UI --> A : Pesan galat
+else Perubahan diizinkan
+  SV -> AU : Undang atau nonaktifkan akun
+  AU --> SV : OK
+  SV -> DB : Ubah peran profil
+  DB --> SV : OK
+  SV --> UI : Akun staf diperbarui
+  UI --> A : Tampilkan daftar staf terbaru
+end
+
+== Kelola pengaturan toko ==
+A -> UI : Edit identitas bilingual, alamat, telepon, jam, sosmed di /portal/settings
+UI -> SV : Ajukan pengaturan
+SV -> DB : Ubah pengaturan toko singleton
+DB --> SV : OK
+SV --> UI : Pengaturan tersimpan
+UI --> A : Perubahan langsung tampil di profil publik
+
+== Lihat laporan performa ==
+A -> UI : Buka /portal/reports, pilih rentang tanggal
+UI -> SV : Minta laporan read-only
+SV -> DB : Baca tiket completed dalam rentang per teknisi
+DB --> SV : Jumlah tiket completed dan rata-rata durasi
+SV --> UI : Data laporan
+UI --> A : Tampilkan performa tiap teknisi
+
+== Pantau status unit ==
+A -> UI : Filter /portal/inventory per produk, status, atau IMEI
+UI -> SV : Minta daftar unit
+SV -> DB : Baca unit sesuai filter
+DB --> SV : Unit dan status
+SV --> UI : Daftar unit dan mutasi
+UI --> A : Tampilkan status unit
+@enduml

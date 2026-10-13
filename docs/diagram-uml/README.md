@@ -1,24 +1,51 @@
 # Diagram UML At Cell
 
 Folder ini menampung diagram UML (Unified Modeling Language) At Cell.
-Acuan alur tetap daftar use case di bagian 2 `UC-AtCell.md` dan
-diagram Mermaid inline di bagian 3 berkas itu.
+Satu diagram satu berkas sumber PlantUML. Render PNG dan SVG di-commit
+bersama sumbernya karena GitHub tidak me-render `.puml`.
+`sequence-diagram-atcell.md` di folder ini merangkum lima sequence
+diagram plus alasan tiap keputusan yang digambar.
 
 ## Aturan isi
 
-- Satu diagram satu sumber, misal `use-case.puml` atau `activity-pos.mmd`.
-- Setiap sumber `.puml` atau `.mmd` wajib disertai render `.png` dan `.svg`
-  dengan stem yang sama, supaya tautan gambar tidak rusak.
-- Tulis nama model, status, dan tanggal render di deskripsi tiap diagram.
+- Satu diagram satu sumber PlantUML, dinamai sesuai prosesnya.
+- Setiap sumber `.puml` wajib disertai render `.png` dan `.svg`
+  dengan stem yang sama, supaya tidak ada gambar menggantung.
+- Pesan diagram memakai bahasa domain, bukan nama fungsi atau method.
+  Judul menamai prosesnya, bukan fasenya.
+- Jalur gagal digambar bila perilakunya beda (IMEI invalid, stok berubah
+  saat checkout, tiket tidak ketemu, RLS menolak, admin terakhir).
+- Perubahan alur wajib satu paket: prose, sumber diagram, baris indeks
+  ini, dan render yang di-commit. Render basi dihapus di perubahan yang
+  sama, bukan dibiarkan menyesatkan.
 - Jangan menautkan berkas yang sudah dihapus. Catatan historis boleh
   menyebut nama berkas lama, tapi tautan Markdown harus menunjuk
   berkas yang ada.
 
-## Rencana isi
+## Perintah render
 
-- `sequence-diagram-atcell.md` : lima sequence diagram per aktor yang sudah
-  diverifikasi ke `src/proxy.ts`, `src/lib/access.ts`, dan halaman portal.
-- `use-case.png` / `use-case.svg` : ringkasan aktor dan use case utama.
-- `activity-*.png` / `activity-*.svg` : alur POS, servis, dan trade-in.
-- `sequence-*.png` / `sequence-*.svg` : interaksi antar modul.
-- `class.png` / `class.svg` : struktur data produk, unit, tiket, dan transaksi.
+Satu perintah me-render semuanya (butuh `plantuml` dan Java):
+
+```sh
+plantuml -checkonly docs/diagram-uml/*.puml
+plantuml -tpng docs/diagram-uml/*.puml
+plantuml -tsvg docs/diagram-uml/*.puml
+```
+
+Penulis me-render sebelum mengirim perubahan. Kegagalan sintaks
+tidak terlihat tanpa render, jadi cek di atas adalah compile step.
+
+## Indeks diagram
+
+| Diagram | Sumber | Render | Status | Jangkar kode |
+|---|---|---|---|---|
+| Pengunjung membuka web dan memakai layanan publik | `sequence-pengunjung.puml` | `.png` `.svg` | OK | `src/app/(public)/[locale]`, `src/lib/shop.ts` |
+| Pelanggan masuk dan melihat faktur miliknya | `sequence-pelanggan.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/account`, `src/lib/actions/service.ts` |
+| Sales masuk lalu jual, daftar unit, dan buat tiket | `sequence-sales.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/app/(portal)/portal/inventory`, `src/lib/store-demo.ts` |
+| Teknisi masuk lalu kerjakan tiket servis | `sequence-teknisi.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/service`, `src/lib/validations.ts` |
+| Admin masuk lalu kelola toko dan pantau bisnis | `sequence-admin.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/dashboard`, `src/app/(portal)/portal/products`, `src/app/(portal)/portal/staff`, `src/app/(portal)/portal/settings`, `src/app/(portal)/portal/reports` |
+| Penjualan kasir dengan tukar tambah opsional | `activity-penjualan-kasir.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/lib/store-demo.ts` |
+| Status tiket servis dan perpindahannya | `state-tiket-servis.puml` | `.png` `.svg` | OK | `REPAIR_FLOW` di `src/lib/validations.ts` |
+| Status unit inventaris dan perpindahannya | `state-status-unit.puml` | `.png` `.svg` | OK | `demoUpdateUnitStatus` di `src/lib/store-demo.ts`, pemicu `trg_prevent_sold_reactivation` di migrasi |
+
+Render tertunda: tidak ada.

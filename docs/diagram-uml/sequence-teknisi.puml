@@ -1,0 +1,80 @@
+@startuml
+title Teknisi masuk lalu kerjakan tiket servis
+autonumber
+actor Teknisi as T
+participant "Peramban" as UI
+participant "Middleware" as MW
+participant "Otentikasi" as AU
+participant "Server" as SV
+participant "Basis Data" as DB
+participant "Penyimpanan" as ST
+
+== Masuk dan dibuka ke meja servis ==
+T -> UI : Buka /id/login
+alt Mode demo
+  T -> UI : Pilih akun demo teknisi
+  UI -> UI : Ganti peran ke technician tanpa password
+  UI -> MW : Minta /portal/service
+  MW --> UI : Izin karena servis boleh admin, sales, technician
+else Mode live
+  T -> UI : Isi username dan password
+  UI -> AU : Kirim kredensial
+  AU --> UI : Sesi dan cookie
+  UI -> MW : Minta halaman portal
+  MW -> DB : Baca peran profil
+  DB --> MW : peran technician
+  MW --> UI : Teruskan ke /portal/service
+end
+
+== Buat tiket servis ==
+T -> UI : Isi nama, telepon, model, IMEI atau SN, keluhan
+UI -> SV : Kirim foto awal
+SV -> ST : Simpan ke bucket foto servis
+ST --> SV : Alamat foto
+UI -> SV : Ajukan tiket baru
+SV -> DB : Simpan tiket servis
+note right of DB
+  Pemicu BEFORE INSERT menerbitkan kode
+  tiket SRV-YYYYMMDD-XXXXXXXX atomik.
+end note
+DB --> SV : Tiket status awal received
+SV --> UI : Tiket tersimpan
+UI --> T : Tampilkan resi
+
+== Update workflow dan biaya ==
+T -> UI : Buka /portal/service, pilih tiket
+UI -> SV : Minta detail tiket
+SV -> DB : Baca tiket servis
+DB --> SV : Detail tiket
+SV --> UI : Detail tiket
+loop Setiap perpindahan status
+  note over T,DB
+    Urutan: received, diagnosing, waiting_approval,
+    in_progress, testing, completed.
+    testing boleh kembali ke in_progress bila gagal uji.
+  end note
+  T -> UI : Pilih status berikut, isi biaya sparepart, jasa, catatan
+  UI -> SV : Kirim foto bukti
+  SV -> ST : Simpan ke bucket foto servis
+  ST --> SV : Alamat foto
+  UI -> SV : Ajukan update tiket
+  SV -> DB : Ubah status dan biaya plus rincian maks 50 baris
+  alt Peran technician lolos RLS
+    DB --> SV : OK, total sama dengan sparepart plus jasa
+    SV --> UI : Tiket diperbarui
+    UI --> T : Tampilkan status dan total terbaru
+  else Peran tidak diizinkan
+    DB --> SV : Ditolak RLS
+    SV --> UI : Galat
+    UI --> T : Update tidak diizinkan
+  end
+end
+
+== Catat serah terima unit ==
+T -> UI : Pelanggan datang, catat pelunasan
+UI -> SV : Ubah status tiket
+SV -> DB : Ubah status dari completed ke picked_up
+DB --> SV : OK
+SV --> UI : Tiket tertutup
+UI --> T : Unit keluar dari antrean aktif
+@enduml

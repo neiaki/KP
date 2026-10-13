@@ -1,0 +1,68 @@
+@startuml
+title Pengunjung membuka web dan memakai layanan publik
+autonumber
+actor Pengunjung as P
+participant "Peramban" as UI
+participant "Middleware" as MW
+participant "Server" as SV
+participant "Basis Data" as DB
+
+== Lihat profil toko ==
+P -> UI : Buka /id atau /en (jalur / diteruskan ke /id)
+UI -> MW : Minta halaman sesuai locale
+MW --> UI : Routing segmen locale
+UI -> SV : Minta data profil toko
+SV -> DB : Baca pengaturan toko
+DB --> SV : Nama, deskripsi dua bahasa, jam buka, koordinat, alamat, telepon
+SV --> UI : Data profil
+UI --> P : Tampilkan hero, keunggulan, jam buka, peta, alamat, telepon
+
+== Buka etalase dan filter ==
+P -> UI : Buka /id/catalog, pilih filter merek dan kondisi
+UI -> SV : Minta daftar unit sesuai filter
+SV -> DB : Baca view etalase publik (bukan tabel langsung)
+note right of DB
+  Peran anon hanya boleh baca view publik.
+  Harga modal tidak ikut terkirim.
+end note
+DB --> SV : Merek, model, kondisi, harga jual
+SV --> UI : Daftar unit siap jual
+UI --> P : Tampilkan etalase dan kartu Minta dikabari untuk model tanpa unit
+
+== Ganti bahasa ==
+P -> UI : Klik toggle bahasa
+UI -> MW : Pindah /id ke /en atau sebaliknya, filter dipertahankan
+MW --> UI : Routing ke locale baru
+UI -> SV : Minta konten locale baru
+SV -> DB : Baca deskripsi sesuai bahasa dari pengaturan toko
+DB --> SV : Teks sesuai bahasa
+SV --> UI : Konten
+UI --> P : Halaman tampil dalam bahasa baru
+
+== Lacak resi servis ==
+P -> UI : Input kode nota di beranda atau /id/tracking
+UI -> SV : Cari tiket berdasarkan kode nota
+SV -> DB : Cari tiket berdasarkan ticket_code
+alt Kode ditemukan, mode demo
+  DB --> SV : Status, biaya sparepart, biaya jasa, total, foto
+  SV --> UI : Data timeline dan biaya
+  UI --> P : Timeline dari received sampai picked_up plus total biaya dan foto
+else Kode ditemukan, mode live
+  DB --> SV : Status dan garansi (foto dan biaya dikosongkan)
+  SV --> UI : Data timeline tanpa biaya
+  UI --> P : Timeline status plus garansi, tanpa foto dan rincian biaya
+else Kode tidak ditemukan
+  DB --> SV : Tidak ada baris
+  SV --> UI : Galat
+  UI --> P : Pesan error tanpa membocorkan tiket lain
+end
+
+== Minta estimasi tukar tambah ==
+P -> UI : Buka /id/trade-in, isi model, grading, dan foto
+UI -> UI : Hitung taksiran lokal, IMEI opsional wajib 15 digit bila diisi
+UI --> P : Buka WhatsApp dengan pesan taksiran plus target unit
+note right of UI
+  Estimasi publik hanya hitung lokal.
+  Insert database hanya terjadi di kasir portal.
+end note
+@enduml

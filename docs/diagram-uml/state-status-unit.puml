@@ -1,0 +1,20 @@
+@startuml
+title Status unit inventaris dan perpindahannya
+[*] --> available : unit didaftarkan batch IMEI
+available --> reserved : ditahan untuk pembeli
+reserved --> available : tahan dibatalkan
+available --> sold : terjual lewat checkout kasir
+note right of sold
+  sold hanya lewat transaksi kasir agar nota tercatat.
+  Ubah manual ke sold selalu ditolak.
+end note
+available --> in_service : masuk meja servis
+reserved --> in_service : unit yang ditahan masuk servis
+in_service --> returned : keluar meja servis
+returned --> available : kembali dijual (hanya admin dan sales)
+sold --> [*]
+note right of sold
+  sold bersifat terminal: pemicu database
+  menolak semua perubahan dari status sold.
+end note
+@enduml

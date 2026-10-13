@@ -289,6 +289,6 @@ Aturan guard persis seperti `src/lib/access.ts`: account semua peran. Dashboard,
 
 Tidak ada lagi berkas gambar diagram di `docs/` root. Diagram PlantUML lama dan render PNG dan SVG dihapus pada 1 Oktober 2026. Berkas Mermaid terpisah `diagram.mmd` dihapus pada 2 Oktober 2026.
 
-Diagram arsip Mermaid inline yang dulu ada di bagian ini dihapus pada 13 Oktober 2026 karena masih memakai kode bernomor dan jalur tanpa `/portal`. Penggantinya tinggal di `diagram-uml/sequence-diagram-atcell.md` yang berisi lima sequence diagram per aktor dan sudah diverifikasi ke source code.
+Blok Mermaid inline yang dulu ada di bagian ini dihapus pada 14 Oktober 2026 dan diganti delapan sumber PlantUML di `diagram-uml/`: lima sequence per aktor, satu activity penjualan kasir, satu state machine status tiket, dan satu state machine status unit. Tiap sumber lolos cek sintaks dan render PNG plus SVG-nya di-commit di folder itu. Rangkuman per aktor ada di `diagram-uml/sequence-diagram-atcell.md`, indeks dan perintah render ada di `diagram-uml/README.md`.
 
 Kalau gambar UML dibutuhkan lagi, gambar dari kemampuan per aktor di atas dan simpan hasilnya di `diagram-uml/` bersama sumbernya, supaya tautan gambar tidak pernah menggantung. `tests/docs-index.test.ts` menolak sumber diagram yang belum dirender ke PNG dan SVG.

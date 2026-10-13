@@ -1,0 +1,22 @@
+@startuml
+title Status tiket servis dan perpindahannya
+[*] --> received : tiket dibuat
+received --> diagnosing : mulai diagnosa
+received --> cancelled : batal sebelum dikerjakan
+diagnosing --> waiting_approval : butuh persetujuan biaya
+diagnosing --> cancelled : batal saat diagnosa
+waiting_approval --> in_progress : pelanggan setuju
+waiting_approval --> cancelled : pelanggan menolak
+in_progress --> testing : perbaikan selesai, siap uji
+in_progress --> cancelled : batal saat dikerjakan
+testing --> completed : lolos uji
+testing --> in_progress : gagal uji, kerjakan ulang
+testing --> cancelled : batal saat uji
+completed --> picked_up : pelanggan melunasi dan mengambil unit
+picked_up --> [*]
+cancelled --> [*]
+note right of cancelled
+  cancelled boleh dari tahap mana pun sebelum completed.
+  completed tidak bisa dibatalkan, hanya bisa diserahterimakan.
+end note
+@enduml

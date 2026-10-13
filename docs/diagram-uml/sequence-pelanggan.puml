@@ -1,0 +1,47 @@
+@startuml
+title Pelanggan masuk dan melihat faktur miliknya
+autonumber
+actor Pelanggan as C
+participant "Peramban" as UI
+participant "Middleware" as MW
+participant "Otentikasi" as AU
+participant "Server" as SV
+participant "Basis Data" as DB
+
+== Masuk dan diteruskan ke akun ==
+C -> UI : Buka /id/login
+alt Mode demo
+  C -> UI : Pilih akun demo pelanggan
+  UI -> UI : Ganti peran ke customer tanpa password
+  UI -> MW : Minta /portal/account
+  MW --> UI : Izin karena akun boleh semua peran
+else Mode live
+  C -> UI : Isi username dan password
+  UI -> AU : Kirim kredensial
+  AU --> UI : Sesi dan cookie
+  UI -> MW : Minta halaman portal
+  MW -> DB : Baca peran profil
+  DB --> MW : peran customer
+  MW --> UI : Teruskan ke /portal/account
+end
+
+== Lihat faktur dan garansi ==
+C -> UI : Buka /portal/account
+UI -> SV : Minta riwayat transaksi akun ini
+SV -> DB : Baca transaksi dan rincian milik akun (dibatasi RLS)
+DB --> SV : Unit, IMEI, durasi garansi bulan
+SV --> UI : Daftar nota dan garansi plus sisa hari
+UI --> C : Tampilkan unit yang dibeli dan riwayat tiket
+opt Unduh faktur ulang
+  C -> UI : Klik unduh atau cetak kartu garansi
+  UI --> C : Faktur bergaransi siap cetak
+end
+
+== Lacak resi tanpa login ulang ==
+C -> UI : Input kode tiket di /id/tracking
+UI -> SV : Cari tiket berdasarkan ticket_code
+SV -> DB : Cari tiket berdasarkan ticket_code
+DB --> SV : Status dan garansi (mode live mengosongkan foto dan biaya)
+SV --> UI : Data timeline
+UI --> C : Tampilkan timeline status plus garansi
+@enduml
