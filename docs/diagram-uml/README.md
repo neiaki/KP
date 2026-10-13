@@ -28,12 +28,14 @@ Satu perintah me-render semuanya (butuh `plantuml` dan Java):
 
 ```sh
 plantuml -checkonly docs/diagram-uml/*.puml
-plantuml -tpng docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
-plantuml -tsvg docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
-plantuml -tpng --output-dir docs/diagram-uml/sequence docs/diagram-uml/sequence-*.puml
-plantuml -tsvg --output-dir docs/diagram-uml/sequence docs/diagram-uml/sequence-*.puml
-plantuml -tpng --output-dir docs/diagram-uml/activity docs/diagram-uml/activity-*.puml
-plantuml -tsvg --output-dir docs/diagram-uml/activity docs/diagram-uml/activity-*.puml
+plantuml -tpng docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml docs/diagram-uml/class-*.puml docs/diagram-uml/object-*.puml docs/diagram-uml/component-*.puml
+plantuml -tsvg docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml docs/diagram-uml/class-*.puml docs/diagram-uml/object-*.puml docs/diagram-uml/component-*.puml
+plantuml -tpng --output-dir "$PWD/docs/diagram-uml/sequence" docs/diagram-uml/sequence-*.puml
+plantuml -tsvg --output-dir "$PWD/docs/diagram-uml/sequence" docs/diagram-uml/sequence-*.puml
+plantuml -tpng --output-dir "$PWD/docs/diagram-uml/activity" docs/diagram-uml/activity-*.puml
+plantuml -tsvg --output-dir "$PWD/docs/diagram-uml/activity" docs/diagram-uml/activity-*.puml
+plantuml -tpng --output-dir "$PWD/docs/diagram-uml/usecase" docs/diagram-uml/usecase-*.puml
+plantuml -tsvg --output-dir "$PWD/docs/diagram-uml/usecase" docs/diagram-uml/usecase-*.puml
 ```
 
 Penulis me-render sebelum mengirim perubahan. Kegagalan sintaks
@@ -54,5 +56,13 @@ tidak terlihat tanpa render, jadi cek di atas adalah compile step.
 | Status tiket servis dan perpindahannya | `state-tiket-servis.puml` | `.png` `.svg` | OK | `REPAIR_FLOW` di `src/lib/validations.ts` |
 | Status unit inventaris dan perpindahannya | `state-status-unit.puml` | `.png` `.svg` | OK | `demoUpdateUnitStatus` di `src/lib/store-demo.ts`, pemicu `trg_prevent_sold_reactivation` di migrasi |
 | Objek bisnis At Cell dan relasinya | `concept-domain.puml` | `.png` `.svg` | OK | Skema `products`, `inventory_units`, `transactions`, `transaction_items`, `trade_in_records`, `service_tickets`, `store_settings`, `profiles` di `src/db/schema.ts` dan migrasi |
+| Apa yang bisa dilakukan Pengunjung | `usecase-pengunjung.puml` | `usecase/` `.png` `.svg` | OK | Kemampuan Pengunjung di `docs/UC-AtCell.md` |
+| Apa yang bisa dilakukan Pelanggan | `usecase-pelanggan.puml` | `usecase/` `.png` `.svg` | OK | Kemampuan Pelanggan di `docs/UC-AtCell.md` |
+| Apa yang bisa dilakukan Sales | `usecase-sales.puml` | `usecase/` `.png` `.svg` | OK | Kemampuan Sales di `docs/UC-AtCell.md` |
+| Apa yang bisa dilakukan Teknisi | `usecase-teknisi.puml` | `usecase/` `.png` `.svg` | OK | Kemampuan Teknisi di `docs/UC-AtCell.md` |
+| Apa yang bisa dilakukan Admin | `usecase-admin.puml` | `usecase/` `.png` `.svg` | OK | Kemampuan Admin di `docs/UC-AtCell.md` |
+| Kelas domain At Cell | `class-domain.puml` | `.png` `.svg` | OK | Interface di `src/types/index.ts`, operasi mengikuti fungsi store dan Server Actions |
+| Potret satu penjualan dengan tukar tambah | `object-contoh-jual.puml` | `.png` `.svg` | OK | Nilai contoh ilustrasi, struktur mengikuti `src/types/index.ts` |
+| Modul besar At Cell dan ketergantungannya | `component-arsitektur.puml` | `.png` `.svg` | OK | Struktur `src/app`, `src/proxy.ts`, `src/lib/actions`, Supabase |
 
 Render tertunda: tidak ada.

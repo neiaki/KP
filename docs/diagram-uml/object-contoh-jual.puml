@@ -1,0 +1,40 @@
+@startuml
+title Potret satu penjualan dengan tukar tambah
+object "p : Produk" as p {
+  brand = Apel
+  model_name = iPhone 13
+}
+object "uBaru : Unit" as uBaru {
+  imei = 990000000000001
+  condition = new
+  status = sold
+}
+object "t : Transaksi" as t {
+  customer_name = Budi
+  payment_method = qris
+  final_payment = 8500000
+}
+object "r : Rincian" as r {
+  unit_price = 10000000
+  warranty_duration_months = 12
+}
+object "tb : Tukar Tambah" as tb {
+  original_brand_model = Lama X1
+  imei = 990000000000002
+  offered_price = 1500000
+}
+object "uLama : Unit" as uLama {
+  product_id = null
+  condition = second
+  status = available
+}
+p -- uBaru
+t *-- r
+r -- uBaru
+t -- tb
+tb --> uLama
+note bottom
+  Semua nilai di atas contoh ilustrasi,
+  bukan data asli toko.
+end note
+@enduml

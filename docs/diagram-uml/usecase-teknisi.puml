@@ -1,0 +1,18 @@
+@startuml
+title Apa yang bisa dilakukan Teknisi
+actor Teknisi as T
+rectangle "At Cell Web" {
+  usecase "Masuk dan Dibuka ke Meja Servis" as MasukServis
+  usecase "Buat Tiket Servis" as BuatTiket
+  usecase "Update Workflow dan Biaya" as UpdateTiket
+  usecase "Catat Serah Terima Unit" as SerahTerima
+}
+T --> MasukServis
+T --> BuatTiket
+T --> UpdateTiket
+T --> SerahTerima
+note bottom of UpdateTiket
+  Hanya peran technician yang lolos RLS.
+  testing boleh kembali ke in_progress.
+end note
+@enduml

@@ -1,0 +1,24 @@
+@startuml
+title Apa yang bisa dilakukan Pengunjung
+actor Pengunjung as P
+rectangle "At Cell Web" {
+  usecase "Lihat Profil Toko" as LihatProfil
+  usecase "Buka Etalase dan Filter" as BukaEtalase
+  usecase "Ganti Bahasa" as GantiBahasa
+  usecase "Lacak Resi Servis" as LacakResi
+  usecase "Minta Estimasi Tukar Tambah" as MintaEstimasi
+  usecase "Baca Halaman Info" as BacaInfo
+  usecase "Buka Pintu Masuk Staf" as BukaLogin
+}
+P --> LihatProfil
+P --> BukaEtalase
+P --> GantiBahasa
+P --> LacakResi
+P --> MintaEstimasi
+P --> BacaInfo
+P --> BukaLogin
+note bottom of LacakResi
+  Tanpa login. Mode live hanya tampil
+  status plus garansi, tanpa foto dan biaya.
+end note
+@enduml

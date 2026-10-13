@@ -1,0 +1,31 @@
+@startuml
+title Modul besar At Cell dan ketergantungannya
+package "Aplikasi Web" {
+  [Halaman Publik] as Publik
+  [Portal Staf] as Portal
+  [Proxy Middleware] as Proxy
+}
+package "Server" {
+  [Server Actions] as Aksi
+  [Pustaka Domain] as Pustaka
+}
+cloud "Supabase" {
+  [Auth] as Auth
+  [Postgres + RLS] as DB
+  [Storage] as ST
+}
+Publik --> Proxy : teruskan rute locale
+Portal --> Proxy : teruskan rute portal
+Proxy --> Auth : cek sesi dan peran
+Publik --> Aksi : lacak tiket publik
+Portal --> Aksi : tulis dan baca portal
+Aksi --> DB : baca tulis dibatasi RLS
+Aksi --> ST : simpan foto
+Aksi --> Auth : undang staf
+Aksi ..> Pustaka : validasi dan hitung
+Publik ..> Pustaka : filter etalase
+note bottom of DB
+  View etalase publik hanya boleh dibaca anon.
+  Status sold terminal dan hanya lewat kasir.
+end note
+@enduml

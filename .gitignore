@@ -122,3 +122,6 @@ next-env.d.ts
 /.agents/
 /.claude/
 /skills-lock.json
+
+# draf HTML lokal di luar diagram-uml, jangan commit
+/docs/Diagram/

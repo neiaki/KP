@@ -1,0 +1,18 @@
+@startuml
+title Apa yang bisa dilakukan Pelanggan
+actor Pelanggan as C
+rectangle "At Cell Web" {
+  usecase "Masuk dan Mendarat di Akun" as MasukAkun
+  usecase "Lihat Faktur dan Garansi" as LihatFaktur
+  usecase "Unduh Faktur Ulang" as UnduhFaktur
+  usecase "Lacak Resi Servis" as LacakResi
+}
+C --> MasukAkun
+C --> LihatFaktur
+C --> UnduhFaktur
+C --> LacakResi
+UnduhFaktur ..> LihatFaktur : <<include>>
+note bottom of LihatFaktur
+  Hanya data milik akun yang tampil (RLS).
+end note
+@enduml

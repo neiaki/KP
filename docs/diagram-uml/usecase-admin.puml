@@ -1,0 +1,27 @@
+@startuml
+title Apa yang bisa dilakukan Admin
+actor Admin as A
+rectangle "At Cell Web" {
+  usecase "Masuk dan Dibuka ke Dashboard" as MasukDash
+  usecase "Lihat Dashboard Bisnis" as LihatDash
+  usecase "Kelola Master Produk" as KelolaProduk
+  usecase "Kelola Akun Staf" as KelolaStaf
+  usecase "Kelola Pengaturan Toko" as KelolaToko
+  usecase "Lihat Laporan Performa" as LihatLaporan
+  usecase "Pantau Status Unit" as PantauUnit
+  usecase "Pakai Semua Menu Operasional" as PakaiSemua
+}
+A --> MasukDash
+A --> LihatDash
+A --> KelolaProduk
+A --> KelolaStaf
+A --> KelolaToko
+A --> LihatLaporan
+A --> PantauUnit
+A --> PakaiSemua
+PakaiSemua ..> PantauUnit : <<include>>
+note bottom of KelolaStaf
+  Ubah peran diri sendiri padahal
+  satu-satunya admin selalu ditolak.
+end note
+@enduml

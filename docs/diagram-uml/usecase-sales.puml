@@ -1,0 +1,27 @@
+@startuml
+title Apa yang bisa dilakukan Sales
+actor Sales as S
+rectangle "At Cell Web" {
+  usecase "Masuk dan Dibuka ke Kasir" as MasukKasir
+  usecase "Jual Lewat Kasir" as JualKasir
+  usecase "Validasi IMEI Available" as ValidasiIMEI
+  usecase "Proses Tukar Tambah" as TukarTambah
+  usecase "Daftarkan Unit Batch IMEI" as DaftarBatch
+  usecase "Pantau Status Unit" as PantauUnit
+  usecase "Buat Tiket Servis" as BuatTiket
+  usecase "Catat Serah Terima Unit" as SerahTerima
+}
+S --> MasukKasir
+S --> JualKasir
+S --> TukarTambah
+S --> DaftarBatch
+S --> PantauUnit
+S --> BuatTiket
+S --> SerahTerima
+JualKasir ..> ValidasiIMEI : <<include>>
+TukarTambah ..> JualKasir : <<extend>>
+note bottom of JualKasir
+  Checkout menolak unit selain available
+  lalu rollback total (anti double-sell).
+end note
+@enduml
