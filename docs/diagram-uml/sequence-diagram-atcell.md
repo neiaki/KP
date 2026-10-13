@@ -27,7 +27,7 @@ serta membaca halaman info garansi, pembayaran, pengiriman,
 syarat, kontak, dan layanan pelanggan.
 
 - Sumber: `sequence-pengunjung.puml`
-- Render: `sequence-pengunjung.png`, `sequence-pengunjung.svg`
+- Render: `sequence/sequence-pengunjung.png`, `sequence/sequence-pengunjung.svg`
 - Yang perlu diperhatikan: peran anon hanya boleh baca view etalase
   publik sehingga harga modal tidak ikut terkirim. Lacak mode live
   hanya tampil status plus garansi, foto dan biaya dikosongkan.
@@ -41,7 +41,7 @@ pintu login, membuka faktur dan garansi miliknya, mengunduh faktur ulang,
 serta lacak resi servis tanpa perlu login ulang.
 
 - Sumber: `sequence-pelanggan.puml`
-- Render: `sequence-pelanggan.png`, `sequence-pelanggan.svg`
+- Render: `sequence/sequence-pelanggan.png`, `sequence/sequence-pelanggan.svg`
 - Yang perlu diperhatikan: akun hanya boleh semua peran sehingga cabang
   demo langsung terus, cabang live membaca peran profil dulu.
   Riwayat dibatasi RLS ke milik akun.
@@ -55,7 +55,7 @@ mendaftarkan unit batch IMEI, memantau status unit, membuat tiket servis,
 serta mencatat serah terima unit.
 
 - Sumber: `sequence-sales.puml`
-- Render: `sequence-sales.png`, `sequence-sales.svg`
+- Render: `sequence/sequence-sales.png`, `sequence/sequence-sales.svg`
 - Yang perlu diperhatikan: registrasi batch maks 200 baris, baris gagal
   tidak menggagalkan baris valid. Checkout menolak IMEI selain available
   lalu rollback total. Kode tiket diterbitkan pemicu database secara
@@ -68,7 +68,7 @@ ke meja servis, membuat tiket servis baru, mengupdate workflow dan biaya
 plus foto bukti, serta mencatat serah terima unit.
 
 - Sumber: `sequence-teknisi.puml`
-- Render: `sequence-teknisi.png`, `sequence-teknisi.svg`
+- Render: `sequence/sequence-teknisi.png`, `sequence/sequence-teknisi.svg`
 - Yang perlu diperhatikan: testing boleh kembali ke in_progress bila
   gagal uji. Update hanya lolos bila peran technician lolos RLS.
   Rincian biaya maks 50 baris dan total selalu sparepart plus jasa.
@@ -83,7 +83,7 @@ memantau status unit, serta membuka semua menu POS, inventaris,
 servis, dan akun.
 
 - Sumber: `sequence-admin.puml`
-- Render: `sequence-admin.png`, `sequence-admin.svg`
+- Render: `sequence/sequence-admin.png`, `sequence/sequence-admin.svg`
 - Yang perlu diperhatikan: tulis produk ditolak RLS untuk sales dan
   teknisi. Ubah peran diri sendiri padahal satu-satunya admin ditolak.
   Laporan bersifat read-only.

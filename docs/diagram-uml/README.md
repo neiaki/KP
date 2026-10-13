@@ -28,8 +28,10 @@ Satu perintah me-render semuanya (butuh `plantuml` dan Java):
 
 ```sh
 plantuml -checkonly docs/diagram-uml/*.puml
-plantuml -tpng docs/diagram-uml/*.puml
-plantuml -tsvg docs/diagram-uml/*.puml
+plantuml -tpng docs/diagram-uml/activity-*.puml docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
+plantuml -tsvg docs/diagram-uml/activity-*.puml docs/diagram-uml/state-*.puml docs/diagram-uml/concept-*.puml
+plantuml -tpng --output-dir docs/diagram-uml/sequence docs/diagram-uml/sequence-*.puml
+plantuml -tsvg --output-dir docs/diagram-uml/sequence docs/diagram-uml/sequence-*.puml
 ```
 
 Penulis me-render sebelum mengirim perubahan. Kegagalan sintaks
@@ -39,11 +41,11 @@ tidak terlihat tanpa render, jadi cek di atas adalah compile step.
 
 | Diagram | Sumber | Render | Status | Jangkar kode |
 |---|---|---|---|---|
-| Pengunjung membuka web dan memakai layanan publik | `sequence-pengunjung.puml` | `.png` `.svg` | OK | `src/app/(public)/[locale]`, `src/lib/shop.ts` |
-| Pelanggan masuk dan melihat faktur miliknya | `sequence-pelanggan.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/account`, `src/lib/actions/service.ts` |
-| Sales masuk lalu jual, daftar unit, dan buat tiket | `sequence-sales.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/app/(portal)/portal/inventory`, `src/lib/store-demo.ts` |
-| Teknisi masuk lalu kerjakan tiket servis | `sequence-teknisi.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/service`, `src/lib/validations.ts` |
-| Admin masuk lalu kelola toko dan pantau bisnis | `sequence-admin.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/dashboard`, `src/app/(portal)/portal/products`, `src/app/(portal)/portal/staff`, `src/app/(portal)/portal/settings`, `src/app/(portal)/portal/reports` |
+| Pengunjung membuka web dan memakai layanan publik | `sequence-pengunjung.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(public)/[locale]`, `src/lib/shop.ts` |
+| Pelanggan masuk dan melihat faktur miliknya | `sequence-pelanggan.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(portal)/portal/account`, `src/lib/actions/service.ts` |
+| Sales masuk lalu jual, daftar unit, dan buat tiket | `sequence-sales.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/app/(portal)/portal/inventory`, `src/lib/store-demo.ts` |
+| Teknisi masuk lalu kerjakan tiket servis | `sequence-teknisi.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(portal)/portal/service`, `src/lib/validations.ts` |
+| Admin masuk lalu kelola toko dan pantau bisnis | `sequence-admin.puml` | `sequence/` `.png` `.svg` | OK | `src/app/(portal)/portal/dashboard`, `src/app/(portal)/portal/products`, `src/app/(portal)/portal/staff`, `src/app/(portal)/portal/settings`, `src/app/(portal)/portal/reports` |
 | Penjualan kasir dengan tukar tambah opsional | `activity-penjualan-kasir.puml` | `.png` `.svg` | OK | `src/app/(portal)/portal/pos`, `src/lib/store-demo.ts` |
 | Status tiket servis dan perpindahannya | `state-tiket-servis.puml` | `.png` `.svg` | OK | `REPAIR_FLOW` di `src/lib/validations.ts` |
 | Status unit inventaris dan perpindahannya | `state-status-unit.puml` | `.png` `.svg` | OK | `demoUpdateUnitStatus` di `src/lib/store-demo.ts`, pemicu `trg_prevent_sold_reactivation` di migrasi |
