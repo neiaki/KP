@@ -11,8 +11,10 @@ diagram plus alasan tiap keputusan yang digambar.
 - Satu diagram satu sumber PlantUML, dinamai sesuai prosesnya.
 - Setiap sumber `.puml` wajib disertai render `.png` dan `.svg`
   dengan stem yang sama, supaya tidak ada gambar menggantung.
-- Gaya enterprise bersama ada di `style-atcell.iuml` dan disertakan
-  tiap sumber. Jangan duplikasi skinparam per berkas.
+- Gaya enterprise bersama dikelola di `style-atcell.iuml` sebagai sumber
+  kanonik, lalu disalin inline ke tiap `.puml` agar mandiri di server
+  publik (server tidak bisa membaca include lokal). Ubah gaya di file
+  kanonik lalu salin ulang agar seragam, jangan edit tempelan per berkas.
 - Pesan diagram memakai bahasa domain, bukan nama fungsi atau method.
   Judul menamai prosesnya, bukan fasenya.
 - Jalur gagal digambar bila perilakunya beda (IMEI invalid, stok berubah

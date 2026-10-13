@@ -1,5 +1,7 @@
-' Gaya enterprise bersama seluruh diagram At Cell.
-' Disertakan tiap sumber lewat: !include style-atcell.iuml
+' SUMBER KANONIK gaya enterprise seluruh diagram At Cell.
+' Isi file ini disalin inline ke tiap .puml agar mandiri
+' di server publik (server tidak bisa membaca include lokal).
+' Ubah gaya di sini lalu jalankan ulang inline agar seragam.
 skinparam backgroundColor #FFFFFF
 skinparam shadowing false
 skinparam roundcorner 8
