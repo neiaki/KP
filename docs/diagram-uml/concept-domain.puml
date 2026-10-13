@@ -1,5 +1,4 @@
 @startuml
-!pragma layout smetana
 title Objek bisnis At Cell dan relasinya
 object Produk {
   merek
