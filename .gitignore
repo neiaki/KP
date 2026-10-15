@@ -125,3 +125,9 @@ next-env.d.ts
 
 # draf HTML lokal di luar diagram-uml, jangan commit
 /docs/Diagram/
+
+# state tooling diagram lokal, jangan commit
+/.diagram-design
+
+# draf dokumen KP lokal, jangan commit
+/docs/*.docx
