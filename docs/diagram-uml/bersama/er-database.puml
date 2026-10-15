@@ -120,6 +120,29 @@ entity "service_tickets" as tickets {
 entity "v_public_inventory" as etalase <<view>> {
   merek, model, kondisi, harga jual
 }
+entity "product_images" as gambar {
+  * id : bigint <<PK>>
+  --
+  o product_id : bigint <<FK, null aset web>>
+  * path : text <<UNIQUE>>
+  * kind : official | second | hero | payment
+}
+entity "unit_status_audit" as auditunit {
+  * id : bigint <<PK>>
+  --
+  * unit_id : bigint <<FK>>
+  * old_status : enum <<null SQL manual>>
+  * new_status : enum
+  o actor_id : uuid <<FK, null SQL manual>>
+}
+entity "service_ticket_audit" as audittiket {
+  * id : bigint <<PK>>
+  --
+  * ticket_id : bigint <<FK>>
+  * old_status : enum <<null SQL manual>>
+  * new_status : enum
+  o actor_id : uuid <<FK, null SQL manual>>
+}
 
 products ||--o{ units : punya
 tx ||--o{ items : dirinci
@@ -130,9 +153,15 @@ profiles |o--o{ tx : mencatat dan membeli
 profiles |o--o{ tickets : menangani
 products }o--o{ etalase : dibaca anon
 units }o--o{ etalase : hanya available
+products ||--o{ gambar : didaftar
+units ||--o{ auditunit : dicatat
+tickets ||--o{ audittiket : dicatat
+profiles |o--o{ auditunit : pelaku
+profiles |o--o{ audittiket : pelaku
 note bottom of tickets
   Pemicu BEFORE INSERT menerbitkan ticket_code atomik.
   Status sold terminal: pemicu menolak semua perubahan dari sold.
   RLS: anon hanya SELECT ke view etalase.
+  Audit mencatat who, what, when tiap mutasi status.
 end note
 @enduml

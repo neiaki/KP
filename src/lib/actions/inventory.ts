@@ -74,19 +74,6 @@ export async function listUnits(opts?: {
   }
 }
 
-/**
- * Unit `available` per produk untuk picker IMEI di POS (anti double-sell di UI).
- *
- * CATATAN: listUnits meng-clamp limit di 200 baris, jadi 500 di sini cuma
- * permintaan, bukan jaminan. listUnits belum punya paging, jadi lebih dari
- * 200 unit available untuk satu model memang tidak bisa diambil sekaligus.
- */
-export async function getAvailableUnitsByProduct(
-  productId: number
-): Promise<ActionResult<InventoryUnit[]>> {
-  return listUnits({ productId, status: "available", limit: 500 });
-}
-
 /** Registrasi batch IMEI di bawah katalog Admin (Sales/Admin). FR-A-01. */
 export async function registerUnits(
   raw: RegisterUnitsInput

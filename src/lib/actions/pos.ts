@@ -11,6 +11,7 @@ import {
   type InventoryUnitRow,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { finalPaymentAmount, secondHandSellingPrice } from "@/lib/pricing";
 import { posSaleSchema, type PosSaleInput } from "@/lib/validations";
 import type { Transaction } from "@/types";
 import {
@@ -75,7 +76,7 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
           customerPhone: v.customerPhone,
           totalAmount: String(price),
           tradeInDeduction: String(tradeVal),
-          finalPayment: String(Math.max(0, price - tradeVal)),
+          finalPayment: String(finalPaymentAmount(price, tradeVal)),
           paymentMethod: v.paymentMethod,
         })
         .returning({ id: transactions.id });
@@ -114,7 +115,7 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
             condition: "second",
             status: "available",
             purchaseCost: String(tradeVal),
-            sellingPrice: String(Math.round(tradeVal * 1.25)),
+            sellingPrice: String(secondHandSellingPrice(tradeVal)),
           })
           .returning({ id: inventoryUnits.id });
 
@@ -174,8 +175,8 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
       customer_phone: v.customerPhone,
       total_amount: unitPrice,
       trade_in_deduction: tradeVal,
-      final_payment: Math.max(0, unitPrice - tradeVal),
-      final_paid_amount: Math.max(0, unitPrice - tradeVal),
+      final_payment: finalPaymentAmount(unitPrice, tradeVal),
+      final_paid_amount: finalPaymentAmount(unitPrice, tradeVal),
       payment_method: v.paymentMethod,
       created_at: new Date().toISOString(),
       items: unit
@@ -223,22 +224,6 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
   revalidatePath("/portal/pos");
   revalidatePath("/portal/inventory");
   revalidatePath("/portal/dashboard");
-  return ok(mapTransaction(data as unknown as TransactionRow));
-}
-
-/** Detail nota untuk cetak/ekspor faktur bergaransi (FR-A-03). */
-export async function getTransactionDetail(
-  transactionId: number
-): Promise<ActionResult<Transaction>> {
-  const guard = await requireRole(["admin", "sales", "technician"]);
-  if ("error" in guard) return fail(guard.error);
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("transactions")
-    .select(TX_SELECT)
-    .eq("id", transactionId)
-    .single();
-  if (error || !data) return fail("Nota tidak ditemukan.");
   return ok(mapTransaction(data as unknown as TransactionRow));
 }
 

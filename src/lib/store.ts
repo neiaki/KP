@@ -23,29 +23,37 @@ import {
   createTicket as createTicketAction,
   updateTicket as updateTicketAction,
 } from "@/lib/actions/service";
-import {
-  demoAddInventoryUnits,
-  demoAddProduct,
-  demoAddStaff,
-  demoCreateServiceTicket,
-  demoExecutePosSale,
-  demoInitialState,
-  demoResetToDefault,
-  demoUpdateProduct,
-  demoUpdateRole,
-  demoUpdateServiceTicket,
-  demoUpdateStoreSettings,
-  demoUpdateUnitStatus,
-  hydrateDemoFromLocalStorage,
-  type DemoPosSaleParams,
-  type DemoTicketData,
-} from "./store-demo.ts";
+import type { DemoPosSaleParams, DemoTicketData } from "./store-demo.ts";
 import { updateStoreSettings as updateStoreSettingsAction } from "@/lib/actions/settings";
 import { inviteStaff as inviteStaffAction } from "@/lib/actions/auth";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { deriveUsernameFromEmail } from "@/lib/username";
 
+/*
+ * Mode live ditentukan oleh sumber yang sama dengan Server Action
+ * (isSupabaseConfigured), bukan pembacaan env sendiri yang bisa menyimpang:
+ * dulu store hanya melihat URL dan ANON_KEY, jadi project baru yang memakai
+ * PUBLISHABLE_KEY membuat store menjalankan mode demo di browser sementara
+ * action-nya sudah live. Produksi tetap dipaksa live supaya etalase tidak
+ * pernah menampilkan data contoh.
+ */
 const liveBackendEnabled =
-  process.env.NODE_ENV === "production" ||
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  process.env.NODE_ENV === "production" || isSupabaseConfigured();
+
+/*
+ * Mesin mode demo sengaja tidak diimpor statis.
+ *
+ * Modul itu menarik seluruh data contoh lokal, dan impor statis apa pun
+ * dari sini membuat bundler menaruh semuanya ke chunk yang dimuat setiap
+ * pengunjung, termasuk production yang tidak pernah menjalankan jalur demo.
+ * Dengan import() dinamis, modulnya hanya diunduh saat mode demo benar-benar
+ * aktif. Hasilnya di-cache supaya berpindah halaman tidak mengunduh ulang.
+ */
+let promesModulDemo: Promise<typeof import("./store-demo.ts")> | null = null;
+function loadDemoModule() {
+  promesModulDemo ??= import("./store-demo.ts");
+  return promesModulDemo;
+}
 
 const emptyStoreSettings: StoreSettings = {
   id: 1,
@@ -151,36 +159,31 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
   const [mounted, setMounted] = useState(false);
   const [isHydrating, setIsHydrating] = useState(liveBackendEnabled);
   const [backendError, setBackendError] = useState<string | null>(null);
+  // Mode demo juga mulai dari kosong, seperti mode live. Isinya baru datang
+  // dari hydrateDemoFromLocalStorage di effect. "admin" hanya tebakan awal
+  // sebelum hydrate selesai, dan currentProfile menunggu hasil hydrate.
   const [currentRole, setCurrentRole] = useState<UserRole>(
     liveBackendEnabled ? "customer" : "admin"
   );
-  const [currentProfile, setCurrentProfile] = useState<Profile | null>(
-    liveBackendEnabled ? null : demoInitialState.profile
-  );
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(
     resolveSeed(
       seed,
       liveBackendEnabled,
       (s) => s.storeSettings,
       emptyStoreSettings,
-      demoInitialState.storeSettings
+      emptyStoreSettings
     )
   );
   const [products, setProducts] = useState<Product[]>(
-    resolveSeed(seed, liveBackendEnabled, (s) => s.products, [], demoInitialState.products)
+    resolveSeed(seed, liveBackendEnabled, (s) => s.products, [], [])
   );
   const [inventoryUnits, setInventoryUnits] = useState<InventoryUnit[]>(
-    resolveSeed(seed, liveBackendEnabled, (s) => s.inventoryUnits, [], demoInitialState.inventoryUnits)
+    resolveSeed(seed, liveBackendEnabled, (s) => s.inventoryUnits, [], [])
   );
-  const [transactions, setTransactions] = useState<Transaction[]>(
-    liveBackendEnabled ? [] : demoInitialState.transactions
-  );
-  const [serviceTickets, setServiceTickets] = useState<ServiceTicket[]>(
-    liveBackendEnabled ? [] : demoInitialState.serviceTickets
-  );
-  const [profiles, setProfiles] = useState<Profile[]>(
-    liveBackendEnabled ? [] : demoInitialState.profiles
-  );
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [serviceTickets, setServiceTickets] = useState<ServiceTicket[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const loadRequestId = useRef(0);
 
   /*
@@ -281,16 +284,25 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     }
 
     const frame = window.requestAnimationFrame(() => {
-      hydrateDemoFromLocalStorage({
-        setCurrentRole,
-        setStoreSettings,
-        setProducts,
-        setInventoryUnits,
-        setTransactions,
-        setServiceTickets,
-        setProfiles,
-        setMounted,
-      });
+      void loadDemoModule()
+        .then((demo) =>
+          demo.hydrateDemoFromLocalStorage({
+            setCurrentRole,
+            setCurrentProfile,
+            setStoreSettings,
+            setProducts,
+            setInventoryUnits,
+            setTransactions,
+            setServiceTickets,
+            setProfiles,
+            setMounted,
+          })
+        )
+        .catch((error) => {
+          // Chunk demo gagal diunduh: halaman tetap dipakai, tapi tanpa isi.
+          console.warn("Gagal memuat modul demo:", error);
+          setMounted(true);
+        });
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -300,9 +312,10 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     if (liveBackendEnabled) await loadLiveData();
   }, [loadLiveData]);
 
-  const updateRole = (newRole: UserRole) => {
+  const updateRole = async (newRole: UserRole) => {
     if (liveBackendEnabled) return;
-    demoUpdateRole(profiles, newRole, setCurrentRole, setCurrentProfile);
+    const demo = await loadDemoModule();
+    demo.demoUpdateRole(profiles, newRole, setCurrentRole, setCurrentProfile);
   };
 
   const updateStoreSettings = async (newSettings: Partial<StoreSettings>) => {
@@ -332,7 +345,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return updated;
     }
 
-    return demoUpdateStoreSettings(storeSettings, newSettings, setStoreSettings);
+    const demo = await loadDemoModule();
+    return demo.demoUpdateStoreSettings(storeSettings, newSettings, setStoreSettings);
   };
 
   const addProduct = async (
@@ -355,7 +369,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return created;
     }
 
-    return demoAddProduct(newProduct, setProducts);
+    const demo = await loadDemoModule();
+    return demo.demoAddProduct(newProduct, setProducts);
   };
 
   const updateProduct = async (
@@ -378,7 +393,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return updated;
     }
 
-    return demoUpdateProduct(id, updates, setProducts);
+    const demo = await loadDemoModule();
+    return demo.demoUpdateProduct(id, updates, setProducts);
   };
 
   const addInventoryUnits = async (
@@ -402,7 +418,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return created;
     }
 
-    return demoAddInventoryUnits(
+    const demo = await loadDemoModule();
+    return demo.demoAddInventoryUnits(
       inventoryUnits,
       productId,
       condition,
@@ -431,7 +448,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return;
     }
 
-    return demoUpdateUnitStatus(inventoryUnits, unitId, status, setInventoryUnits);
+    const demo = await loadDemoModule();
+    return demo.demoUpdateUnitStatus(inventoryUnits, unitId, status, setInventoryUnits);
   };
 
   const executePosSale = async (params: DemoPosSaleParams): Promise<Transaction> => {
@@ -464,7 +482,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return transaction;
     }
 
-    return demoExecutePosSale(inventoryUnits, params, setInventoryUnits, setTransactions);
+    const demo = await loadDemoModule();
+    return demo.demoExecutePosSale(inventoryUnits, params, setInventoryUnits, setTransactions);
   };
 
   const createServiceTicket = async (
@@ -486,7 +505,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return created;
     }
 
-    return demoCreateServiceTicket(serviceTickets, ticketData, setServiceTickets);
+    const demo = await loadDemoModule();
+    return demo.demoCreateServiceTicket(serviceTickets, ticketData, setServiceTickets);
   };
 
   const updateServiceTicket = async (
@@ -516,7 +536,8 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return;
     }
 
-    return demoUpdateServiceTicket(serviceTickets, ticketId, updates, setServiceTickets);
+    const demo = await loadDemoModule();
+    return demo.demoUpdateServiceTicket(serviceTickets, ticketId, updates, setServiceTickets);
   };
 
   const addStaff = async (
@@ -535,16 +556,9 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
         throw new Error("Kata sandi staf minimal 8 karakter.");
       }
       // Login portal memakai username, jadi staf wajib punya username eksplisit.
-      // Kalau form tidak mengirimnya, turunkan dari email seperti trigger.
-      const finalUsername = (
-        username ??
-        email
-          .trim()
-          .toLowerCase()
-          .split("@")[0]
-          .replace(/[^a-z0-9._-]/g, "")
-          .slice(0, 32)
-      ).trim();
+      // Kalau form tidak mengirimnya, turunkan dari email dengan aturan yang
+      // sama seperti impor pelanggan (src/lib/username.ts).
+      const finalUsername = (username ?? deriveUsernameFromEmail(email)).trim();
       if (finalUsername.length < 3) {
         throw new Error("Username staf minimal 3 karakter.");
       }
@@ -561,12 +575,14 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       return undefined;
     }
 
-    return demoAddStaff(name, role, phone, email, password, username, setProfiles);
+    const demo = await loadDemoModule();
+    return demo.demoAddStaff(name, role, phone, email, password, username, setProfiles);
   };
 
-  const resetToDefault = () => {
+  const resetToDefault = async () => {
     if (liveBackendEnabled) return;
-    demoResetToDefault({
+    const demo = await loadDemoModule();
+    demo.demoResetToDefault({
       setCurrentRole,
       setCurrentProfile,
       setStoreSettings,

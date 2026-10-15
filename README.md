@@ -1,6 +1,6 @@
 # At Cell Web
 
-At Cell Web adalah aplikasi web untuk toko handphone **At Cell** di Paku Jaya, Serpong Utara. Proyek ini menggabungkan etalase publik dwibahasa dengan portal operasional_INTERNAL untuk admin, kasir, teknisi, dan pelanggan.
+At Cell Web adalah aplikasi web untuk toko handphone **At Cell** di Paku Jaya, Serpong Utara. Proyek ini menggabungkan etalase publik dwibahasa dengan portal operasional **internal** untuk admin, kasir, teknisi, dan pelanggan.
 
 ## Situs live
 
@@ -82,8 +82,8 @@ flowchart LR
 
 | Teknologi | Versi atau penggunaan |
 |-----------|----------------------|
-| Next.js | `16.3.6`, App Router dan Server Actions |
-| React | `19.2.8` |
+| Next.js | `16.4.1`, App Router dan Server Actions |
+| React | `19.3.1` |
 | TypeScript | Mode strict |
 | Tailwind CSS | `4` |
 | Supabase | PostgreSQL, Auth, SSR, dan Storage |
@@ -145,7 +145,7 @@ Jangan pernah commit `.env.local`, password database, service role key, atau tok
 
 - IMEI wajib tepat 15 digit angka dan harus unik.
 - POS hanya dapat menjual unit berstatus `available` untuk mencegah double-sell.
-- Trade-in Sekaligus mencatat transaksi dan mendaftarkan unit lama sebagai stok second.
+- Trade-in sekaligus mencatat transaksi dan mendaftarkan unit lama sebagai stok second.
 - Kode tiket servis mengikuti format `SRV-YYYYMMDD-XXXXXXXX`, yaitu 8 karakter base32 dari alfabet tanpa `I`, `L`, `O`, dan `U` supaya mudah ditulis di nota.
 - Alur servis mencakup status pengerjaan dari penerimaan hingga unit diambil pelanggan.
 - RLS dan pemeriksaan peran dijalankan lagi pada Server Actions yang memakai koneksi database langsung.
@@ -291,9 +291,16 @@ Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 
 - [`docs/PRD-AtCell.md`](docs/PRD-AtCell.md): vision, kebutuhan, fitur, user flow, dan rancangan arsitektur.
 - [`docs/UC-AtCell.md`](docs/UC-AtCell.md): 18 use case per aktor, lengkap dengan diagram Mermaid arsip di dalam berkasnya.
-- [`docs/requirement-2.0.md`](docs/requirement-2.0.md): SRS aktif yang memuat aktor dan kebutuhan aplikasi.
+- [`docs/requirement-2.0.md`](docs/requirement-2.0.md): SRS aktif yang memuat aktor dan kebutuhan aplikasi. `docs/requirement.md` adalah SRS v1 yang sudah digantikan, jangan dipakai sebagai acuan.
 - [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md): deployment, migration, DNS, backup, restore, dan rollout.
 - [`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md): urutan mengganti secret yang pernah bocor, lengkap dengan verifikasinya.
 - [`docs/CSP.md`](docs/CSP.md): cara kerja Content-Security-Policy berbasis nonce, directive yang dipakai, dan alasan setiap keputusan.
 - [`docs/VPS-HARDENING.md`](docs/VPS-HARDENING.md): catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan.
+- [`docs/COOLIFY-PANEL.md`](docs/COOLIFY-PANEL.md): cara masuk panel Coolify setelah port publik ditutup (SSH tunnel dan pengecualian darurat).
+- [`docs/ANDROID-APP.md`](docs/ANDROID-APP.md): build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`.
+- [`docs/PUBLIKASI-MODEL-TANPA-STOK.md`](docs/PUBLIKASI-MODEL-TANPA-STOK.md): cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI.
+- [`docs/PERLUASAN-KATALOG-AT-CELL.md`](docs/PERLUASAN-KATALOG-AT-CELL.md): usulan perluasan katalog beserta harga yang wajib dikonfirmasi owner.
+- [`docs/PAYMENT-WARNING-COPY.md`](docs/PAYMENT-WARNING-COPY.md): copy peringatan link pembayaran yang menunggu persetujuan owner (opsi A disarankan, belum diterapkan ke kode).
+- [`docs/diagram-uml/`](docs/diagram-uml/README.md): sumber PlantUML plus render PNG/SVG (sequence, activity, state, usecase, class, object, component, ER).
+- `docs/Diagram/` (draf lokal di-gitignore, tidak ikut repo): dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; diagram yang di-commit ada di `docs/diagram-uml/`.
 

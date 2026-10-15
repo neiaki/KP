@@ -137,11 +137,13 @@ export function DemoRoleBar() {
 
           <button
             type="button"
-            onClick={() => {
-              if (confirm("Reset seluruh data ke kondisi awal demo?")) {
-                resetToInitialData();
-                window.location.reload();
-              }
+            onClick={async () => {
+              if (!confirm("Reset seluruh data ke kondisi awal demo?")) return;
+              // Modul demo dimuat dinamis, jadi reset bisa belum selesai saat
+              // reload dipanggil; menunggu di sini mencegah reset terpotong
+              // di tengah jalan dan data lama muncul kembali.
+              await resetToInitialData();
+              window.location.reload();
             }}
             aria-label="Reset ke data awal"
             title="Reset ke data awal"

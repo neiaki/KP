@@ -25,17 +25,18 @@ import { mapStoreSettings } from "./_mappers";
 
 /**
  * Batas baca etalase publik per IP, untuk getPublicInventory,
- * getPublicSnapshot, dan getPublicImageUrls.
+ * getPublicSnapshot, getPublicStoreSettings, dan getPublicImageUrls.
  *
- * Ketiganya action `use server` tanpa login, jadi tanpa kuota siapa pun bisa
- * menyapu seluruh katalog. Nilainya sengaja jauh di atas pemakaian nyata:
- * satu render halaman publik memakai sekitar 4 token (snapshot di layout,
- * peta gambar di generateMetadata dan di komponen JSON-LD, dan satu token
- * lagi untuk getPublicInventory yang dipanggil di dalam snapshot), dan
- * etalase ini cuma 12 halaman x 2 locale. Satu crawl penuh memakai sekitar
- * 96 token, jadi 600/menit memberi ruang 6x lipatan, cukup untuk Googlebot
- * maupun satu kantor yang banyak orangnya browsing lewat satu IP,
- * sementara penyapu tetap terikat di 600 permintaan per menit.
+ * Keempatnya action `use server` tanpa login, jadi tanpa kuota siapa pun
+ * bisa menyapu seluruh katalog. Nilainya sengaja jauh di atas pemakaian
+ * nyata: satu render halaman publik memakai sekitar 5 token (snapshot di
+ * layout, pengaturan toko di komponen JSON-LD, peta gambar di
+ * generateMetadata dan di komponen JSON-LD, dan satu token lagi untuk
+ * getPublicInventory yang dipanggil di dalam snapshot), dan etalase ini
+ * cuma 12 halaman x 2 locale. Satu crawl penuh memakai sekitar 120 token,
+ * jadi 600/menit memberi ruang 5x lipatan, cukup untuk Googlebot maupun
+ * satu kantor yang banyak orangnya browsing lewat satu IP, sementara
+ * penyapu tetap terikat di 600 permintaan per menit.
  */
 const PUBLIK_PER_IP_LIMIT = 600;
 const PUBLIK_PER_IP_WINDOW_MS = 60_000;
@@ -158,9 +159,9 @@ export async function getPublicInventory(opts?: {
  * getPublicSnapshot untuk seed etalase, sekali lagi oleh StoreJsonLd untuk
  * structured data. Keduanya mengembalikan baris yang sama, jadi tanpa cache
  * satu render halaman publik menjalankan lebih dari lima query database.
- * Dengan max 5 koneksi di src/db/client.ts, dua render yang datang
- * bersamaan menghabiskan seluruh pool dan request berikutnya menunggu
- * tanpa batas.
+ * Pool koneksi dibagi seluruh proses (DB_POOL_MAX, bawaan 12 di
+ * src/db/client.ts), jadi beberapa render yang datang bersamaan bisa
+ * menghabiskan seluruh pool dan request berikutnya menunggu tanpa batas.
  *
  * Gejalanya terlihat di produksi pada 29 September: halaman ringan seperti
  * /robots.txt dan /api/health/live tetap 0,1 detik, sementara /id, /en,
@@ -189,6 +190,11 @@ const cacheStoreSettings = cache(async (): Promise<ActionResult<StoreSettings>> 
 
 /** Profil toko publik untuk landing page (FR-D-01). Tanpa login. */
 export async function getPublicStoreSettings(): Promise<ActionResult<StoreSettings>> {
+  // Kuota dipotong di luar cache, sebelum query apa pun, sama seperti
+  // getPublicImageUrls. cacheStoreSettings() tetap dipakai supaya pembacaan
+  // yang sama di dalam satu request tidak menambah query database.
+  const kuota = await consumePublicQuota();
+  if (kuota) return fail(kuota);
   return cacheStoreSettings();
 }
 
@@ -264,7 +270,10 @@ const PESAN_GAGAL_SNAPSHOT = "Data publik sedang tidak dapat dimuat.";
  */
 async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
   const [settingsResult, inventoryResult, productRows, everHadRows] = await dbBatch([
-    () => getPublicStoreSettings(),
+    // Langsung ke cacheStoreSettings, bukan lewat getPublicStoreSettings:
+    // token kuota request ini sudah dipotong di getPublicSnapshot, jadi
+    // memanggil action publiknya di sini menagih bucket yang sama dua kali.
+    () => cacheStoreSettings(),
     () => getPublicInventory({ limit: 500 }),
     () =>
       db
@@ -370,6 +379,8 @@ async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
 export async function getPublicSnapshot(): Promise<ActionResult<PublicSnapshot>> {
   // Kuota dipotong sebelum snapshot, tapi bacaSnapshot di bawah memanggil
   // getPublicInventory yang memotong satu token lagi dari bucket yang sama.
+  // Pengaturan toko di sana justru dibaca lewat cacheStoreSettings langsung,
+  // supaya snapshot tidak menagih token ketiga.
   const kuota = await consumePublicQuota();
   if (kuota) return fail(kuota);
   const db = getDb();

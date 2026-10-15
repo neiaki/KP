@@ -26,8 +26,8 @@ lacak resi servis, minta estimasi trade-in lewat WhatsApp,
 serta membaca halaman info garansi, pembayaran, pengiriman,
 syarat, kontak, dan layanan pelanggan.
 
-- Sumber: `sequence-pengunjung.puml`
-- Render: `sequence/sequence-pengunjung.png`, `sequence/sequence-pengunjung.svg`
+- Sumber: `pengunjung/sequence-pengunjung.puml`
+- Render: `pengunjung/sequence-pengunjung.png`, `pengunjung/sequence-pengunjung.svg`
 - Yang perlu diperhatikan: peran anon hanya boleh baca view etalase
   publik sehingga harga modal tidak ikut terkirim. Lacak mode live
   hanya tampil status plus garansi, foto dan biaya dikosongkan.
@@ -40,8 +40,8 @@ Pelanggan adalah akun dengan peran customer. Pelanggan dapat masuk lewat
 pintu login, membuka faktur dan garansi miliknya, mengunduh faktur ulang,
 serta lacak resi servis tanpa perlu login ulang.
 
-- Sumber: `sequence-pelanggan.puml`
-- Render: `sequence/sequence-pelanggan.png`, `sequence/sequence-pelanggan.svg`
+- Sumber: `pelanggan/sequence-pelanggan.puml`
+- Render: `pelanggan/sequence-pelanggan.png`, `pelanggan/sequence-pelanggan.svg`
 - Yang perlu diperhatikan: akun hanya boleh semua peran sehingga cabang
   demo langsung terus, cabang live membaca peran profil dulu.
   Riwayat dibatasi RLS ke milik akun.
@@ -54,8 +54,8 @@ memproses trade-in sebagai diskon, checkout atomik dan cetak nota,
 mendaftarkan unit batch IMEI, memantau status unit, membuat tiket servis,
 serta mencatat serah terima unit.
 
-- Sumber: `sequence-sales.puml`
-- Render: `sequence/sequence-sales.png`, `sequence/sequence-sales.svg`
+- Sumber: `sales/sequence-sales.puml`
+- Render: `sales/sequence-sales.png`, `sales/sequence-sales.svg`
 - Yang perlu diperhatikan: registrasi batch maks 200 baris, baris gagal
   tidak menggagalkan baris valid. Checkout menolak IMEI selain available
   lalu rollback total. Kode tiket diterbitkan pemicu database secara
@@ -67,8 +67,8 @@ Teknisi adalah meja servis. Teknisi dapat masuk dan langsung dibuka
 ke meja servis, membuat tiket servis baru, mengupdate workflow dan biaya
 plus foto bukti, serta mencatat serah terima unit.
 
-- Sumber: `sequence-teknisi.puml`
-- Render: `sequence/sequence-teknisi.png`, `sequence/sequence-teknisi.svg`
+- Sumber: `teknisi/sequence-teknisi.puml`
+- Render: `teknisi/sequence-teknisi.png`, `teknisi/sequence-teknisi.svg`
 - Yang perlu diperhatikan: testing boleh kembali ke in_progress bila
   gagal uji. Update hanya lolos bila peran technician lolos RLS.
   Rincian biaya maks 50 baris dan total selalu sparepart plus jasa.
@@ -82,8 +82,8 @@ mengelola pengaturan toko publik, melihat laporan performa teknisi,
 memantau status unit, serta membuka semua menu POS, inventaris,
 servis, dan akun.
 
-- Sumber: `sequence-admin.puml`
-- Render: `sequence/sequence-admin.png`, `sequence/sequence-admin.svg`
+- Sumber: `admin/sequence-admin.puml`
+- Render: `admin/sequence-admin.png`, `admin/sequence-admin.svg`
 - Yang perlu diperhatikan: tulis produk ditolak RLS untuk sales dan
   teknisi. Ubah peran diri sendiri padahal satu-satunya admin ditolak.
   Laporan bersifat read-only.
@@ -148,16 +148,17 @@ Konversi PlantUML 14 Oktober 2026 mengikuti skill diagramming-processes
 dan dokumentasi PlantUML terkini via Context7:
 
 - Lima blok Mermaid di dokumen ini diganti lima berkas `.puml`,
-  satu diagram satu berkas: `sequence-pengunjung.puml`,
-  `sequence-pelanggan.puml`, `sequence-sales.puml`,
-  `sequence-teknisi.puml`, `sequence-admin.puml`.
-- Ditambah `activity-penjualan-kasir.puml` untuk proses kasir,
+  satu diagram satu berkas di folder aktor masing-masing:
+  `pengunjung/sequence-pengunjung.puml`,
+  `pelanggan/sequence-pelanggan.puml`, `sales/sequence-sales.puml`,
+  `teknisi/sequence-teknisi.puml`, `admin/sequence-admin.puml`.
+- Ditambah `sales/activity-penjualan-kasir.puml` untuk proses kasir,
   `state-tiket-servis.puml` untuk status tiket persis peta
   `REPAIR_FLOW` di `src/lib/validations.ts` (termasuk testing kembali
   ke in_progress dan cancelled sebelum completed),
   dan `state-status-unit.puml` untuk status unit (sold hanya lewat
   kasir dan terminal karena pemicu database menolak semua perubahan
-  dari sold).
+  dari sold). Berkas lintas aktor tinggal di `bersama/`.
 - Pesan diagram memakai bahasa domain, bukan nama fungsi.
   Setiap sumber lolos `plantuml -checkonly` dan render PNG plus SVG
-  di-commit di folder ini. Perintah render ada di `README.md` folder ini.
+  di-commit di folder diagramnya. Perintah render ada di `README.md` folder ini.

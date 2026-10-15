@@ -4,6 +4,20 @@ Dokumen ini adalah runbook operasional untuk menjalankan satu codebase At Cell
 di Coolify. Coolify menjadi satu-satunya host aplikasi production, sementara
 Supabase menjadi sumber data, Auth, dan Storage production.
 
+## Daftar isi
+
+- Arsitektur target
+- Environment production
+- Migrasi database (termasuk audit trail dan `RUN-ALL-PENDING.sql`)
+- Health check
+- Header proxy dan rate limit
+- Rilis yang aman
+- Tag image di `Dockerfile.coolify` (termasuk verifikasi image dan etalase)
+- DNS dan session
+- Backup dan rollback (termasuk restore target, standby terjadwal, backup
+  otomatis, rotasi log, dan notifikasi watchdog)
+- Testing wajib
+
 ## Arsitektur target
 
 ```text
@@ -143,9 +157,11 @@ Opsional, tapi kosong berarti fitur tertentu mati:
   kosong, nol, atau bukan angka diam-diam dinonaktifkan oleh driver
   postgres, jadi kode mengembalikan bawaannya, bukan meneruskan apa adanya.
   Jangan lewat `DATABASE_URL`, karena klausa `options` pada connection
-  string ditimpa `src/db/client.ts`. Jangan naikkan melewati kebutuhan: di
-  Vercel `max` cuma 1 koneksi, jadi satu statement panjang menahan seluruh
-  instance dan request lain antre di belakang socket yang sama.
+  string ditimpa `src/db/client.ts`. Jangan naikkan melewati kebutuhan.
+  (Perbandingan: dulu `max` dipatok 1 koneksi di Vercel sehingga satu
+  statement panjang menahan seluruh instance; sekarang ukuran pool diatur
+  `DB_POOL_MAX` dan berlaku sama untuk semua platform. Target deploy
+  production saat ini Coolify, bukan Vercel.)
 
 Pemantauan error, semua opsional dan tidak saling terkait:
 
@@ -202,7 +218,7 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20260927200000_remove_ocean_photo_from_reno11_gallery.sql` | Mengeluarkan foto laut `oppo-reno11-2.jpg` dari galeri resmi Oppo Reno 11, karena shopper yang menekan tombol foto berikutnya melihat laut tanpa perangkat. Alt teks registry-nya diluruskan dan berkasnya tidak dihapus, karena `global-not-found.tsx` masih memakainya |
 | `20260927201000_clear_unparseable_product_image_url.sql` | Mengosongkan `products.image_url` yang isinya bukan alamat foto, terutama string `undefined/storage/...` hasil template literal tanpa host di `portal/products/page.tsx`. Merek, model, specs, dan harga tidak disentuh: itu keputusan merchandising staf |
 | `20260927202000_trim_crop_duplicate_a55_photos.sql` | Memangkas tiga foto Galaxy A55 yang saling potongan, jadi galerinya dua render berbeda bukan lima. Sampul `oppo-reno11-1.png` yang hanya 427x601 piksel tidak disentuh dan butuh sumber resolusi tinggi dari pemotret |
-| `20260930100000_catalogue_apple_iphone_15_pro.sql` | Menambah satu baris katalog Apple iPhone 15 Pro tanpa unit, jadi tampil sebagai kartu "Stok Habis" dengan tombol kabari WhatsApp. Tidak menambah baris `inventory_units` sama sekali. Laporan stafnya di `docs/PERLUASAN-KATALOG-AT-CELL.md` |
+| `20260930100000_catalogue_apple_iphone_15_pro.sql` | Menambah satu baris katalog Apple iPhone 15 Pro tanpa unit, jadi tampil sebagai kartu "Belum ada unit" dengan tombol kabari WhatsApp. Tidak menambah baris `inventory_units` sama sekali. Laporan stafnya di `docs/PERLUASAN-KATALOG-AT-CELL.md` |
 | `20260930101000_catalogue_samsung_galaxy_s24_ultra.sql` | Baris katalog Samsung Galaxy S24 Ultra tanpa unit, foto tunggal `s24-ultra-1.jpg` karena tiga file lain bukan S24 Ultra dan satu lagi potongan dari foto yang sama. Tidak menambah unit |
 | `20260930102000_catalogue_xiaomi_14.sql` | Baris katalog Xiaomi 14 tanpa unit dengan tiga foto yang memang bingkai berbeda. Baris Xiaomi `iphone 16` yang rusak tidak disentuh, itu keputusan staf |
 | `20260930103000_catalogue_vivo_v30.sql` | Baris katalog Vivo V30 tanpa unit. Banner promosi `vivo-v30-1.jpg` tidak dipakai karena fine print-nya menyebut V30 Pro. Tidak menambah unit |
@@ -320,14 +336,15 @@ tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
 terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
 
 `supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
-satu berkas urut, dua puluh enam bagian, untuk project yang belum punya skema
+satu berkas urut, dua puluh delapan bagian, untuk project yang belum punya skema
 sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya: bagian 1
 (`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket Storage.
 Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali paste
 mengisi project kosong" di kepalanya tidak terpenuhi: paste ke project baru
 menghasilkan nol tabel, nol enum, dan nol RLS. Bagian 1 sampai 3 ditambahkan
-pada 27 Sep 2026 dan seluruh penandanya ditulis ulang dari "dari 14" menjadi
-"dari 17".
+pada 27 Sep 2026 dan penandanya ditulis ulang mengikuti jumlah bagian saat
+itu; per 14 Okt 2026 jumlahnya 28 dan sama dengan jumlah berkas di
+`supabase/migrations/`.
 
 Isi tiap bagian harus identik dengan berkas aslinya, dan
 `tests/run-all-pending.test.ts` menjaga dua hal: tiap bagian sama dengan
@@ -833,8 +850,8 @@ di-restore ulang dari dump.
 
 | Komponen | Lokasi |
 |----------|--------|
-| Resource Coolify | `atcell-restore-local`, image `postgres:18-alpine` |
-| Container | `ah5xioiowolm1uub4lpthnnd`, network `coolify` saja, tanpa port host |
+| Resource Coolify | `atcell-restore-local`, image `postgres:17-alpine` (sama major dengan Supabase 17.x) |
+| Container | `<nama-container-standby>` (contoh saat penulisan: `ah5xioiowolm1uub4lpthnnd`), network `coolify` saja, tanpa port host |
 | Jadwal | `/etc/cron.d/atcell-standby-sync`, 03.17/09.17/15.17/21.17 waktu host |
 | Wrapper | `/usr/local/bin/atcell-standby-sync` (mode 700, root) |
 | Log | `/var/log/atcell-standby-sync.log`, diputar `/etc/logrotate.d/atcell-standby-sync` |
@@ -850,7 +867,8 @@ nc -vz <ip-vps> 5432
 # dari container lain di network coolify: berhasil.
 # Alamat dibaca dari Docker, bukan ditulis manual: IP container berubah saat
 # di-restart, dan IP yang dilepas langsung dipakai container lain.
-STANDBY=ah5xioiowolm1uub4lpthnnd
+# Nilai di bawah contoh saat penulisan, ganti dengan nama container kini.
+STANDBY=<nama-container-standby>
 STANDBY_HOST=$(docker inspect "$STANDBY" \
   --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
 docker exec <container> pg_isready -h "$STANDBY_HOST" -p 5432
@@ -859,7 +877,8 @@ docker exec <container> pg_isready -h "$STANDBY_HOST" -p 5432
 Jangan pernah mengunci alamat standby di dokumen atau di script. Pada
 2026-10-02T10:05Z standby di-restart dan Docker memindahkannya dari
 `10.0.1.4` ke `10.0.1.8`; enam menit kemudian `coolify-db` dibuat dan
-mengambil `10.0.1.4`. Wrapper yang masih aims ke `10.0.1.4` selama tiga
+mengambil `10.0.1.4`. Alamat di atas contoh historis 2 Okt 2026, bukan
+konfigurasi kini. Wrapper yang masih mengarah ke `10.0.1.4` selama tiga
 percobaan sync berikutnya mengirim password standby ke database platform
 Coolify, yang menolaknya dengan `password authentication failed`. Wrapper
 kini membaca alamat dari Docker setiap kali jalan, dan mencatat baris
@@ -900,7 +919,7 @@ container yang disentuh kalau dump gagal.
 Contoh verifikasi manual:
 
 ```bash
-docker exec ah5xioiowolm1uub4lpthnnd psql -U postgres -d postgres \
+docker exec <nama-container-standby> psql -U postgres -d postgres \
   -c "select count(*) from v_public_inventory" \
   -c "select count(*) from auth.users" \
   -c "select count(*) from auth.users where coalesce(raw_user_meta_data->>'atcell_restore_stub','') <> 'true'" \
@@ -1024,7 +1043,7 @@ bun run test
 bunx tsc --noEmit
 bun run lint
 bun run build
-bun run smoke:deployment -- https://primary.example.com
+bun run smoke:deployment -- <primary-url> [<fallback-url>]
 ```
 
 Smoke test browser dilakukan pada URL Coolify production. Uji minimal:

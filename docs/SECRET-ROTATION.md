@@ -10,6 +10,11 @@ Dokumen ini sengaja tidak memuat nilai secret apa pun. Ambil nilai baru dari
 dashboard masing-masing layanan, tempel langsung ke `~/.secrets`, dan jangan
 pernah mencetaknya lagi.
 
+Bacaan untuk proyek At Cell: hanya bagian 4 (password database At Cell) yang
+wajib untuk aplikasi ini. Bagian 1, 2, 3, 5, dan 6 adalah milik mesin
+operator dan project lain, dipertahankan di sini supaya urutan rotasinya
+tetap satu tempat.
+
 ## Aturan yang berlaku sepanjang proses
 
 1. Kerjakan satu secret sampai selesai, termasuk verifikasinya, baru pindah
@@ -132,7 +137,7 @@ mengakses database.
 
 Letak nilai yang harus diperbarui:
 
-1. `DATABASE_URL` di `/home/neki/Code/KP/.env`
+1. `DATABASE_URL` di `/home/neki/Code/KP/.env.local`
 2. `ATCELL_DATABASE_URL` di `~/.secrets`
 3. `SUPABASE_DATABASE_PASSWORD` di `~/.secrets`
 4. `DATABASE_URL` di Coolify, environment production
@@ -147,7 +152,7 @@ Langkah:
    terbuka, jadi aplikasi akan error begitu koneksi berikutnya dibuat.
 2. Supabase, **Project Settings**, lalu **Database**, bagian password, lalu
    **Reset**.
-3. Ganti password di `DATABASE_URL` pada `/home/neki/Code/KP/.env`.
+3. Ganti password di `DATABASE_URL` pada `/home/neki/Code/KP/.env.local`.
    Pertahankan bentuk pooler, yaitu port `6543` dan user berawalan `postgres.`
 4. Ganti di Coolify pada environment production, lalu redeploy.
 5. Ganti di `~/.secrets` pada `ATCELL_DATABASE_URL` dan
@@ -157,7 +162,7 @@ Langkah:
 
    ```bash
    cd /home/neki/Code/KP
-   set -a; . ./.env; set +a
+   set -a; . ./.env.local; set +a
    psql "$DATABASE_URL" -X -q -A -t -c "select count(*) from public.products;"
    curl -s http://localhost:3000/api/health/ready
    ```

@@ -1,11 +1,18 @@
 import { z } from "zod";
 import type { RepairStatus } from "@/types";
 
-// Validasi IMEI: tepat 15 digit angka (PRD Bab 7) + cek duplikat ke DB di action.
+/**
+ * Pola IMEI: tepat 15 digit angka (PRD Bab 7).
+ *
+ * Diekspor supaya penjaga non-Zod memakai definisi yang sama, bukan salinan
+ * regex sendiri. Cek duplikat ke DB tetap dilakukan di action masing-masing.
+ */
+export const IMEI_PATTERN = /^\d{15}$/;
+
 export const imeiSchema = z
   .string()
   .trim()
-  .regex(/^\d{15}$/, "Nomor IMEI wajib tepat 15 digit angka.");
+  .regex(IMEI_PATTERN, "Nomor IMEI wajib tepat 15 digit angka.");
 
 // Alfabet base32 tanpa I, L, O, U, sama persis dengan fungsi SQL
 // generate_ticket_code(). Kode 4 digit lama tetap diterima supaya nota yang
@@ -494,9 +501,20 @@ export const storeSettingsUpdateSchema = z.object({
 });
 export type StoreSettingsUpdateInput = z.infer<typeof storeSettingsUpdateSchema>;
 
+/**
+ * Bucket yang boleh diunggah lewat uploadPhoto.
+ *
+ * Sengaja hanya dua bucket privat milik pelanggan. product-images tidak ikut:
+ * gambar katalog dikurasi lewat tabel product_images, bukan lewat form foto
+ * kondisi, dan URL publiknya tersimpan di baris tabel itu. Aksi storage
+ * menurunkan tipe dari daftar ini supaya kontrak unggah hanya punya satu
+ * sumber di sini.
+ */
+export const UPLOAD_BUCKETS = ["trade-in-photos", "service-photos"] as const;
+
 // Upload foto kondisi (trade-in / servis). Validasi ringan di server.
 export const uploadPhotoSchema = z.object({
-  bucket: z.enum(["trade-in-photos", "service-photos"]),
+  bucket: z.enum(UPLOAD_BUCKETS),
   fileName: z.string().trim().min(3).max(160),
   contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   size: z.coerce.number().int().positive().max(5 * 1024 * 1024, "Maksimal 5MB per foto."),

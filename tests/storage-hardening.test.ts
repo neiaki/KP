@@ -63,11 +63,21 @@ test("bucket foto pelanggan tidak lagi public", () => {
     "kedua bucket foto pelanggan harus di-set public = false"
   );
 
-  // product-images tetap publik, karena katalog publik memakai img biasa dan
-  // repo ini belum memakai signed URL.
-  assert.ok(
-    storageActions.includes("getPublicUrl"),
-    "storage actions masih memakai getPublicUrl, jadi product-images harus tetap public"
+  // product-images tetap publik karena katalog publik memakai img biasa
+  // dengan URL yang tersimpan di tabel product_images. Yang dijaga di sini:
+  // jalur aksi storage hanya menangani dua bucket privat pelanggan, jadi ia
+  // tidak boleh lagi menyusun URL publik sama sekali. Cabang itu dulu ada di
+  // uploadPhoto, padahal schema unggah sudah lama menolak product-images,
+  // sehingga tak pernah bisa dicapai.
+  assert.doesNotMatch(
+    storageActions,
+    /getPublicUrl/,
+    "storage actions tidak boleh menyusun URL publik; foto katalog dibaca lewat product_images"
+  );
+  assert.match(
+    storageActions,
+    /createSignedUrl\(path, SIGNED_URL_TTL_SECONDS\)/,
+    "jalan keluar uploadPhoto harus selalu signed URL"
   );
 });
 
@@ -175,13 +185,28 @@ test("product_images tidak memberi hak tulis ke anon", () => {
   );
 });
 
-test("hanya tiga bucket yang boleh ditulis aplikasi", () => {
-  // ALLOWED_BUCKETS adalah satu-satunya daftar putih di sisi aplikasi, jadi
-  // bucket baru tidak bisa masuk tanpa sengaja lewat uploadPhoto.
+test("hanya tiga bucket yang boleh ditandatangani dan dua yang boleh diunggah", () => {
+  // ALLOWED_BUCKETS adalah daftar putih jalur tanda tangan, UPLOAD_BUCKETS
+  // (src/lib/validations.ts) daftar putih unggah. Bucket baru tidak bisa
+  // masuk tanpa sengaja lewat salah satunya.
   const blok = storageActions.match(/ALLOWED_BUCKETS = \[([\s\S]*?)\] as const;/);
   assert.ok(blok, "ALLOWED_BUCKETS tidak ditemukan");
   const bucket = [...blok[1].matchAll(/"([a-z-]+)"/g)].map((m) => m[1]).sort();
   assert.deepEqual(bucket, ["product-images", "service-photos", "trade-in-photos"]);
+
+  const blokUnggah = validations.match(/UPLOAD_BUCKETS = \[([\s\S]*?)\] as const;/);
+  assert.ok(blokUnggah, "UPLOAD_BUCKETS tidak ditemukan");
+  const bucketUnggah = [...blokUnggah[1].matchAll(/"([a-z-]+)"/g)].map((m) => m[1]).sort();
+  assert.deepEqual(
+    bucketUnggah,
+    ["service-photos", "trade-in-photos"],
+    "unggah hanya boleh ke dua bucket privat; product-images dikurasi lewat data"
+  );
+  assert.match(
+    storageActions,
+    /bucket: UploadBucket/,
+    "uploadPhoto harus memakai tipe yang diturunkan dari UPLOAD_BUCKETS"
+  );
 });
 
 test("komentar migrasi mencatat kenapa hak tulis storage.objects tidak dicabut", () => {

@@ -1,0 +1,82 @@
+@startuml
+' --- gaya At Cell (inline, mandiri utk server publik) ---
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName sans-serif
+skinparam defaultFontSize 13
+skinparam titleFontSize 18
+skinparam titleFontStyle bold
+skinparam headerFontSize 11
+skinparam footerFontSize 11
+skinparam noteBackgroundColor #FFF8DC
+skinparam noteBorderColor #B89B00
+skinparam actorBackgroundColor #E8EEF7
+skinparam actorBorderColor #0B4ED8
+skinparam participantBackgroundColor #E8EEF7
+skinparam participantBorderColor #0B4ED8
+skinparam usecaseBackgroundColor #E8EEF7
+skinparam usecaseBorderColor #0B4ED8
+skinparam classBackgroundColor #E8EEF7
+skinparam classBorderColor #0B4ED8
+skinparam objectBackgroundColor #EEF3FA
+skinparam objectBorderColor #0B4ED8
+skinparam activityBackgroundColor #E8EEF7
+skinparam activityBorderColor #0B4ED8
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #0B4ED8
+skinparam stateBackgroundColor #E8EEF7
+skinparam stateBorderColor #0B4ED8
+skinparam stateStartColor #0B4ED8
+skinparam stateEndColor #0B4ED8
+skinparam componentBackgroundColor #E8EEF7
+skinparam componentBorderColor #0B4ED8
+skinparam cloudBackgroundColor #F2F5FA
+skinparam cloudBorderColor #5B6B82
+skinparam databaseBackgroundColor #E8EEF7
+skinparam databaseBorderColor #0B4ED8
+skinparam entityBackgroundColor #E8EEF7
+skinparam entityBorderColor #0B4ED8
+skinparam sequenceArrowColor #334155
+skinparam sequenceLifeLineBorderColor #0B4ED8
+skinparam sequenceParticipantBorderColor #0B4ED8
+footer Dipelihara di docs/diagram-uml, render dari sumber .puml
+title Pakai layanan publik tanpa login
+start
+:Buka web tanpa login;
+note right
+  Jalur awal diteruskan ke /id oleh proxy.
+  Peran anon hanya baca view etalase publik,
+  harga modal tidak ikut terkirim.
+end note
+:Pilih bahasa di navbar (/id atau /en);
+if (Butuh apa?) then (lihat HP dijual)
+  :Isi filter search, merek, kondisi, sort lewat query URL;
+  :Baca kartu unit siap jual;
+  if (Model tanpa unit?) then (ya)
+    :Tekan Minta dikabari lewat WhatsApp;
+  else (tidak)
+  endif
+elseif (lacak servis) then
+  :Input kode nota di form tracking;
+  if (Kode ketemu?) then (ya)
+    :Baca badge status, timeline, dan garansi;
+  else (tidak)
+    :Baca pesan error saja tanpa bocoran tiket lain;
+    stop
+  endif
+elseif (estimasi tukar tambah) then
+  :Isi form grading dan slider battery health;
+  :Unggah maks empat foto 5MB, IMEI opsional 15 digit;
+  :Baca taksiran dan grade di panel;
+  note right
+    Hitungan lokal di browser lalu kirim
+    lewat WhatsApp. Insert database hanya
+    terjadi di kasir portal.
+  end note
+  :Kirim lewat WhatsApp;
+else (baca info)
+  :Buka garansi, pembayaran, pengiriman, syarat, kontak;
+endif
+stop
+@enduml

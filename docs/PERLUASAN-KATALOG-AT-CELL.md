@@ -1,9 +1,11 @@
 # Perluasan Katalog At Cell: Usulan Lima Model
 
 Laporan untuk pemilik toko dan staf. Berkas ini menjelaskan lima berkas migrasi
-yang sudah disiapkan di `supabase/migrations/`. **Belum ada satu pun yang
-dijalankan.** Terapkan hanya setelah bagian harga di bawah dipahami dan
-disetujui.
+yang sudah disiapkan di `supabase/migrations/`. **Status penerapan ke database
+production tidak ditentukan dari dokumen ini.** Verifikasi lewat ledger
+`supabase_migrations.schema_migrations` dan tabel migrasi di
+`docs/DEPLOYMENT-REDUNDANCY.md`; jalankan hanya berkas yang belum tercatat,
+dan hanya setelah bagian harga di bawah dipahami dan disetujui.
 
 Ringkas satu kalimat: yang bertambah adalah **empat model katalog tanpa stok
 dan satu unit trade-in**. Dari lima model itu, hanya satu yang benar-benar bisa
@@ -63,7 +65,7 @@ Beda dua jenis kartu di etalase, dan ini penting untuk dibaca staf:
   unit. Kartu ini muncul di bagian "Baru masuk katalog" dengan lencana
   **"Belum ada unit"**, lalu teks "Model ini sudah masuk katalog, tapi belum
   ada satu pun unitnya di toko, jadi belum bisa dibeli", lalu
-  **"Perkiraan harga saat unitnya masuk"** followed by the price, lalu tombol
+  **"Perkiraan harga saat unitnya masuk"** lalu harganya, lalu tombol
   **"Minta dikabari"**. Kata "habis" sengaja tidak dipakai, karena model ini
   belum pernah punya unit, bukan turun dari rak.
 

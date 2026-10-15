@@ -237,8 +237,9 @@ test("batas jumlah path dipakai dari modul yang sama", () => {
 });
 
 test("bucket katalog publik tetap terjangkau tanpa signed URL", () => {
-  // product-images sengaja publik dan dibaca lewat getPublicUrl, jadi jalur itu
-  // tidak boleh ikut tersaring oleh filter folder staf.
+  // product-images sengaja publik dan dibaca lewat URL yang tersimpan di
+  // product_images, jadi jalur itu tidak boleh ikut tersaring oleh filter
+  // folder staf.
   const action = bacaBerkas("../src/lib/actions/storage.ts");
   assert.match(
     action,

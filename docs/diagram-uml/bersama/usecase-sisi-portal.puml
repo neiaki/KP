@@ -41,33 +41,56 @@ skinparam sequenceArrowColor #334155
 skinparam sequenceLifeLineBorderColor #0B4ED8
 skinparam sequenceParticipantBorderColor #0B4ED8
 footer Dipelihara di docs/diagram-uml, render dari sumber .puml
-title Modul besar At Cell dan ketergantungannya
-package "Aplikasi Web" {
-  [Halaman Publik] as Publik
-  [Portal Staf] as Portal
-  [Proxy Middleware] as Proxy
+title Use Case sisi portal staf
+actor Sales as S
+actor Teknisi as T
+actor Admin as A
+rectangle "At Cell Web - Portal" {
+  rectangle "Kasir dan inventaris" {
+    usecase "Masuk dan Dibuka ke Kasir" as MasukKasir
+    usecase "Jual Lewat Kasir" as JualKasir
+    usecase "Validasi IMEI Available" as ValidasiIMEI
+    usecase "Proses Tukar Tambah" as TukarTambah
+    usecase "Daftarkan Unit Batch IMEI" as DaftarBatch
+    usecase "Pantau Status Unit" as PantauUnit
+  }
+  rectangle "Meja servis" {
+    usecase "Masuk dan Dibuka ke Meja Servis" as MasukServis
+    usecase "Buat Tiket Servis" as BuatTiket
+    usecase "Update Workflow dan Biaya" as UpdateTiket
+    usecase "Catat Serah Terima Unit" as SerahTerima
+  }
+  rectangle "Kelola toko" {
+    usecase "Masuk dan Dibuka ke Dashboard" as MasukDash
+    usecase "Lihat Dashboard Bisnis" as LihatDash
+    usecase "Kelola Master Produk" as KelolaProduk
+    usecase "Kelola Akun Staf" as KelolaStaf
+    usecase "Kelola Pengaturan Toko" as KelolaToko
+    usecase "Lihat Laporan Performa" as LihatLaporan
+    usecase "Pakai Semua Menu Operasional" as PakaiSemua
+  }
 }
-package "Server" {
-  [Server Actions] as Aksi
-  [Pustaka Domain] as Pustaka
-}
-cloud "Supabase" {
-  [Auth] as Auth
-  [Postgres + RLS] as DB
-  [Storage] as ST
-}
-Publik --> Proxy : teruskan rute locale
-Portal --> Proxy : teruskan rute portal
-Proxy --> Auth : cek sesi dan peran
-Publik --> Aksi : lacak tiket publik
-Portal --> Aksi : tulis dan baca portal
-Aksi --> DB : baca tulis dibatasi RLS
-Aksi --> ST : simpan foto
-Aksi --> Auth : undang staf
-Aksi ..> Pustaka : validasi dan hitung
-Publik ..> Pustaka : filter etalase
-note bottom of DB
-  View etalase publik hanya boleh dibaca anon.
-  Status sold terminal dan hanya lewat kasir.
-end note
+S --> MasukKasir
+S --> JualKasir
+S --> TukarTambah
+S --> DaftarBatch
+S --> PantauUnit
+S --> BuatTiket
+S --> SerahTerima
+T --> MasukServis
+T --> BuatTiket
+T --> UpdateTiket
+T --> SerahTerima
+A --> MasukDash
+A --> LihatDash
+A --> KelolaProduk
+A --> KelolaStaf
+A --> KelolaToko
+A --> LihatLaporan
+A --> PantauUnit
+A --> PakaiSemua
+JualKasir ..> ValidasiIMEI : <<include>>
+TukarTambah ..> JualKasir : <<extend>>
+PakaiSemua ..> PantauUnit : <<include>>
+caption Detail batasan tiap aktor ada di diagram use case per aktor
 @enduml

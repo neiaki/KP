@@ -22,31 +22,31 @@
     "smoke:deployment": "node scripts/smoke-deployment.mjs"
   },
   "dependencies": {
-    "@sentry/nextjs": "^11.6.0",
+    "@sentry/nextjs": "^11.8.0",
     "@supabase/ssr": "^0.12.7",
-    "@supabase/supabase-js": "^2.117.3",
-    "ai": "^7.0.136",
+    "@supabase/supabase-js": "^2.118.0",
+    "ai": "^7.0.141",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
-    "lucide-react": "^1.54.0",
-    "next": "16.4.0",
+    "lucide-react": "^1.57.0",
+    "next": "16.4.1",
     "postgres": "^3.4.9",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "sharp": "^0.35.5",
     "tailwind-merge": "^3.7.0",
-    "zod": "^4.6.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^26.6.4",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.10",
-    "eslint": "^9",
-    "eslint-config-next": "16.4.0",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
   }
 }

@@ -94,7 +94,7 @@ const STATEMENT_TIMEOUT_MS = (() => {
  *
  * DB_POOL_MAX dibaca dari env karena batas sebenarnya ada di sisi Supabase
  * (max_connections) dan di trafik, sedangkan repo tidak bisa mengetahuinya
- * tanpaDUCTION getter. Nilai tidak bisa dipakai apa adanya juga jatuh ke
+ * dari kode saja. Nilai yang tidak bisa dipakai apa adanya juga jatuh ke
  * bawaan, dengan alasan yang sama seperti STATEMENT_TIMEOUT_MS di atas.
  */
 const POOL_MAX_BAWAAN = 12;
@@ -520,9 +520,10 @@ function buildDb(url: string): Db {
     postgres(url, {
       // Wajib false untuk Supabase connection pooler (transaction mode).
       prepare: false,
-      // Vercel dapat membuat banyak instance serverless. Batasi setiap
-      // instance ke satu koneksi; Coolify yang long-lived boleh memakai
-      // pool kecil. Supabase pooler tetap menjadi pembatas utama.
+      // Vercel dapat membuat banyak instance serverless, jadi ukuran pool
+      // diatur lewat DB_POOL_MAX dan berlaku sama untuk semua platform
+      // (lihat POOL_EFEKTIF di atas). Supabase pooler tetap menjadi
+      // pembatas utama.
       //
       // Nilai 5 terlalu kecil untuk halaman publik. Satu render halaman
       // berat memakai lima sampai tujuh query: snapshot etalase tiga

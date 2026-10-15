@@ -18,7 +18,9 @@ masuk ke panel setelah tertutup, dan kenapa jalur itu tidak bisa dibaca dari
 
 ## 1. SSH tunnel (jalur utama)
 
-Cara paling aman, dan tidak mengubah apa pun di host:
+Cara paling aman, dan tidak mengubah apa pun di host
+(`vpsubuntu` di bawah contoh alias SSH di mesin operator, ganti dengan
+user dan host yang dipakai):
 
 ```bash
 ssh -L 8000:127.0.0.1:8000 vpsubuntu

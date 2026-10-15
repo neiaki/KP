@@ -17,7 +17,8 @@ import {
   wouldLeaveNoAdmin,
 } from "@/lib/validations";
 import { pickClientIp } from "@/lib/client-ip";
-import { consumeCredentialAttempt } from "@/lib/rate-limit";
+import { consumeCredentialAttempt, consumeRateLimit } from "@/lib/rate-limit";
+import { deriveUsernameFromEmail } from "@/lib/username";
 import type { UserRole } from "@/types";
 import {
   backendOffline,
@@ -27,18 +28,6 @@ import {
   requireRole,
   type ActionResult,
 } from "./_helpers";
-
-// Username yang sama seperti yang dihitung trigger handle_new_user(): huruf
-// kecil dari bagian email sebelum @, dibersihkan dari karakter yang tidak
-// diizinkan, lalu dipotong 32 karakter.
-function usernameFromEmail(email: string): string {
-  return email
-    .trim()
-    .toLowerCase()
-    .split("@")[0]
-    .replace(/[^a-z0-9._-]/g, "")
-    .slice(0, 32);
-}
 
 /**
  * Pembaca IP untuk menjadi kunci throttle kredensial. Logikanya ada di
@@ -152,7 +141,7 @@ export async function signUpCustomer(input: {
         // Email tetap identitas login Supabase, tapi portal memakai username.
         // Ini hanya petunjuk: trigger handle_new_user yang memutuskan kalau
         // username ini bentrok, lalu memakai fallback per-user.
-        username: usernameFromEmail(parsed.data.email),
+        username: deriveUsernameFromEmail(parsed.data.email),
       },
     },
   });
@@ -228,11 +217,36 @@ export async function inviteStaff(input: {
  * sendiri. Kolomnya boleh dikosongkan lagi: staff lama yang sudah tidak ada di
  * toko lebih baik kosong daripada menampilkan nomor yang sudah tidak berlaku.
  */
+/**
+ * Batas penggantian nomor telepon sendiri, per profil dalam satu menit.
+ *
+ * Aksi ini hanya menyentuh baris milik pemanggil, jadi yang dibatasi bukan
+ * enumerasi melainkan pemakaian tak wajar (klik ganda, skrip yang menemukan
+ * endpoint). Kuncinya id profil, bukan IP, supaya staf satu kantor yang
+ * berbagi alamat tidak saling mengunci. Sepuluh kali semenit jauh di atas
+ * kebutuhan mengisi form.
+ */
+const PHONE_PER_PROFILE_LIMIT = 10;
+const PHONE_PER_PROFILE_WINDOW_MS = 60_000;
+
 export async function updateMyPhoneNumber(
   raw: string
 ): Promise<ActionResult<{ phoneNumber: string }>> {
   const guard = await requireRole(["admin", "sales", "technician", "customer"]);
   if ("error" in guard) return fail(guard.error);
+  // Kuota dipotong sebelum validasi dan query, jadi percobaan dengan format
+  // salah pun tetap terhitung dan endpoint tidak bisa dipakai sebagai alat
+  // tulis berulang.
+  const verdict = consumeRateLimit(
+    `phone-profile:${guard.profile.id}`,
+    PHONE_PER_PROFILE_LIMIT,
+    PHONE_PER_PROFILE_WINDOW_MS
+  );
+  if (!verdict.allowed) {
+    return fail(
+      `Terlalu banyak percobaan. Coba lagi dalam ${verdict.retryAfterSeconds} detik.`
+    );
+  }
   const parsed = phoneSchema.safeParse(raw);
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Nomor telepon tidak valid.");

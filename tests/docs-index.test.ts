@@ -79,21 +79,29 @@ test("dokumen acuan ditautkan dari README root", () => {
 });
 
 test("setiap sumber diagram punya render PNG dan SVG", async () => {
-  // Kalau sumber diagram ditambahkan lagi tanpa dirender, tautan gambarnya
-  // rusak tanpa error build, karena Markdown tidak ikut divalidasi.
+  // Kalau sumber diagram ditambahkan tanpa dirender, tautan gambarnya rusak
+  // tanpa error build, karena Markdown tidak ikut divalidasi.
   //
-  // repo ini sengaja tidak punya sumber diagram sama sekali sejak 1 Oktober
-  // 2026: PlantUML dihapus, lalu berkas Mermaid diagram.mmd dihapus 2 Oktober
-  // 2026 karena isinya sudah tersalin inline di bagian 3 UC-AtCell.md. Yang
-  // jadi acuan adalah daftar use case. Karena itu test ini tidak lagi menuntut
-  // sumbernya ada; yang dijaga hanya bahwa tidak ada sumber yang menggantung,
-  // dan penghapusan berkas diagram tidak meninggalkan rujukan menggantung.
-  const isi = await readdir(docsUrl);
-  const sumber = isi.filter((f) => /\.(puml|mmd)$/.test(f));
+  // Sumber diagram tinggal di diagram-uml/ dengan satu folder per aktor dan
+  // bersama/ untuk diagram lintas aktor. Reorg 14 Oktober 2026 memindahkan
+  // semua sumber ke subfolder, sehingga pemeriksaan lama yang hanya membaca
+  // root docs/ diam-diam berhenti melihatnya. Karena itu pemindaian di sini
+  // harus rekursif.
+  //
+  // Folder Diagram/ dilewati: itu draf editorial lokal yang di-gitignore
+  // (/docs/Diagram/), bukan bagian repo, jadi tidak boleh menuntut render di
+  // mesin pengembang.
+  const semuaIsi = (await readdir(docsUrl, { recursive: true })).filter(
+    (p): p is string => typeof p === "string"
+  );
+  const ada = new Set(semuaIsi);
+  const sumber = semuaIsi
+    .filter((p) => !p.startsWith("Diagram/"))
+    .filter((p) => /\.(puml|mmd)$/.test(p));
   const tanpaRender = sumber
     .filter((f) => {
       const stem = f.replace(/\.(puml|mmd)$/, "");
-      return !isi.includes(`${stem}.png`) || !isi.includes(`${stem}.svg`);
+      return !ada.has(`${stem}.png`) || !ada.has(`${stem}.svg`);
     })
     .sort();
   assert.deepEqual(

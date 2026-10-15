@@ -3,13 +3,13 @@
 ## 1. Overview
 Aplikasi ini bertujuan untuk mendigitalkan seluruh operasional toko handphone **At Cell** sekaligus menyediakan profil toko modern yang terintegrasi. Masalah utama yang diselesaikan adalah ketidakakuratan pelacakan stok fisik per nomor unik IMEI, kurangnya transparansi proses pengerjaan servis bagi pelanggan, kerumitan pencatatan transaksi tukar tambah (*trade-in*), ketiadaan etalase publik multi-bahasa untuk menjangkau konsumen yang lebih luas, serta belum adanya satu titik kendali bagi pemilik toko untuk memantau performa bisnis dan mengelola data master.
 
-Tujuan utama sistem adalah menyediakan platform berbasis web menggunakan **Next.js**, **Tailwind CSS**, **shadcn/ui**, dan **Supabase (PostgreSQL)** yang memadukan profil publik toko multi-bahasa (`atcell.my.id/[locale]`) dengan portal operasional terpusat berbasis subdomain (`login.atcell.my.id`) untuk empat aktor utama: **Admin/Owner**, **Sales**, **Teknisi**, dan **Pelanggan**.
+Tujuan utama sistem adalah menyediakan platform berbasis web menggunakan **Next.js**, **Tailwind CSS**, **shadcn/ui**, dan **Supabase (PostgreSQL)** yang memadukan profil publik toko multi-bahasa (`atcell.my.id/[locale]`) dengan portal operasional terpusat di `/portal/*` untuk empat aktor utama: **Admin/Owner**, **Sales**, **Teknisi**, dan **Pelanggan**. Pintu masuk portal adalah `/id/login` (atau subdomain `login.atcell.my.id` yang ditulis ulang ke sana oleh `src/proxy.ts`). Mode demo lokal memakai mock/`localStorage` tanpa Supabase; mode production memakai Supabase/Drizzle, RLS, dan Auth.
 
 ## 2. Requirements
 Berikut adalah persyaratan tingkat tinggi untuk pengembangan sistem:
 - **Aksesibilitas & Multi-Domain:** Sistem diakses melalui dua pintu:
   - Root domain publik (`atcell.my.id`) untuk profil toko, etalase stok, dan pelacakan resi servis.
-  - Subdomain operasional (`login.atcell.my.id`) untuk gerbang masuk terpadu dan dashboard internal tim.
+  - Portal operasional di `/portal/*` (dashboard, kasir, inventaris, servis, akun) dengan pintu masuk `/id/login`. Subdomain `login.atcell.my.id` ditulis ulang ke `/id/login` oleh `src/proxy.ts`, bukan aplikasi terpisah.
 - **Internasionalisasi (i18n):** Halaman publik mendukung dua bahasa via subpath URL: Bahasa Indonesia (`/id`) sebagai *default* dan Bahasa Inggris (`/en`).
 - **Manajemen Peran (RBAC):** Hak akses terisolasi untuk Admin/Owner (kendali penuh, master data, laporan), Sales (kasir/inventaris), Teknisi (servis), dan Pelanggan (riwayat nota & garansi).
 - **Pelacakan Presisi IMEI:** Setiap unit handphone fisik wajib terikat pada nomor unik 15 digit IMEI, kondisi (*New* atau *Second*), dan status mutasi stok fisik.
@@ -26,7 +26,7 @@ Fitur-fitur kunci yang wajib diimplementasikan:
    - **Language Switcher:** Navigasi toggle bahasa instan antara `/id` dan `/en`.
    - **Widget Lacak Resi:** Input cepat kode tiket servis di halaman beranda yang langsung mengarah ke halaman progres detail.
 
-2. **Dashboard & Manajemen Toko (Admin/Owner) (`login.atcell.my.id/dashboard`)**
+2. **Dashboard & Manajemen Toko (Admin/Owner) (`/portal/dashboard`)**
    - **Ringkasan Bisnis:** Grafik omzet harian/bulanan, jumlah transaksi, dan jumlah tiket servis aktif.
    - **Peringatan Stok Menipis:** Daftar model produk dengan jumlah unit `available` di bawah ambang batas yang dapat diatur.
    - **Manajemen Master Produk:** Tambah, edit, atau nonaktifkan entri katalog `products` (merek, model, spesifikasi, harga acuan) — kewenangan ini eksklusif untuk Admin.
@@ -34,19 +34,19 @@ Fitur-fitur kunci yang wajib diimplementasikan:
    - **Pengaturan Profil Publik Toko:** Mengelola konten `store_settings` (nama, deskripsi dwibahasa, alamat, koordinat peta, jam operasional) yang tampil di landing page.
    - **Laporan Performa Teknisi:** Ringkasan jumlah tiket selesai dan rata-rata waktu pengerjaan per teknisi.
 
-3. **Manajemen Inventaris Unit & IMEI (`login.atcell.my.id/inventory`)**
+3. **Manajemen Inventaris Unit & IMEI (`/portal/inventory`)**
    - Sales meregistrasi unit fisik (nomor IMEI) di bawah katalog produk yang sudah didefinisikan Admin.
    - Form registrasi batch nomor IMEI 15 digit.
    - Pemantauan status unit fisik: `available`, `reserved`, `sold`, `in_service`, dan `returned`.
 
-4. **Point of Sale (POS) & Garansi IMEI (`login.atcell.my.id/pos`)**
+4. **Point of Sale (POS) & Garansi IMEI (`/portal/pos`)**
    - Pemilihan produk kasir wajib memilih nomor IMEI fisik aktif yang berstatus `available`.
    - **Registrasi Pelanggan Cepat (Guest):** Jika pelanggan belum memiliki akun, Sales dapat membuat catatan pelanggan ringan (nama & nomor telepon) tanpa proses login penuh, agar histori garansi tetap tertaut.
    - Perhitungan checkout otomatis (subtotal, potongan trade-in, dan metode pembayaran).
    - Cetak/ekspor faktur transaksi bergaransi resmi toko yang memuat nomor IMEI.
    - Mutasi status IMEI dari `available` menjadi `sold` secara instan.
 
-5. **Sistem Tukar Tambah / Trade-In (`login.atcell.my.id/pos`)**
+5. **Sistem Tukar Tambah / Trade-In (`/portal/pos`)**
    - Checklist formulir inspeksi kondisi unit lama (layar, bodi, baterai, fungsi biometrik, sinyal), termasuk unggah foto kondisi fisik ke Supabase Storage.
    - Kalkulasi taksiran harga unit lama sebagai diskon langsung untuk unit baru.
    - Pendaftaran otomatis unit bekas pelanggan ke tabel `inventory_units` dengan status `available` dan kondisi `second`.
@@ -63,9 +63,9 @@ Fitur-fitur kunci yang wajib diimplementasikan:
    - Pengunjung membuka `atcell.my.id/id` atau `/en` untuk mengecek profil toko dan stok handphone.
    - Untuk mengecek status servis, pengunjung memasukkan nomor tiket (`SRV-xxxx`) di menu pelacakan dan sistem langsung menampilkan tahapan reparasi serta total biaya tanpa perlu login.
 
-2. **Alur Akses Subdomain & Login (`login.atcell.my.id`):**
-   - Pengguna (Admin, Sales, Teknisi, atau Pelanggan) membuka `login.atcell.my.id` dan menginput email serta kata sandi.
-   - Middleware memvalidasi sesi cookie lintas domain (`.atcell.my.id`) dan mengarahkan pengguna sesuai perannya:
+2. **Alur Akses Portal & Login (`/id/login` dan `/portal/*`):**
+   - Pengguna (Admin, Sales, Teknisi, atau Pelanggan) membuka `/id/login` (atau subdomain `login.atcell.my.id` yang ditulis ulang ke sana) dan menginput username serta kata sandi. Mode demo memakai klik akun demo tanpa password.
+   - Proxy memvalidasi sesi dan mengarahkan pengguna sesuai perannya (lihat `src/lib/login-redirect.ts` dan `src/lib/access.ts`):
      - **Admin/Owner:** Diarahkan ke `/dashboard`.
      - **Sales:** Diarahkan ke terminal kasir `/pos`.
      - **Teknisi:** Diarahkan ke meja servis `/service`.
@@ -95,8 +95,8 @@ sequenceDiagram
     actor Sales as Sales Kasir
     actor Admin as Admin / Owner
     participant WebPublic as Web Publik (atcell.my.id/[locale])
-    participant SubAuth as Subdomain Internal (login.atcell.my.id)
-    participant Middle as Next.js Middleware (Subdomain Rewrite & i18n)
+    participant Portal as Portal (/portal/* via /id/login)
+    participant Middle as Next.js Proxy (rewrite subdomain & i18n)
     participant Server as Next.js Server Actions
     participant SupaDB as Supabase (PostgreSQL & Auth)
 
@@ -104,41 +104,41 @@ sequenceDiagram
     Note over Pelanggan, WebPublic: Akses Landing Page & Tracking Publik
     Pelanggan->>WebPublic: Kunjungi atcell.my.id/id/tracking
     WebPublic->>Middle: Request diterima (Host: atcell.my.id)
-    Middle->>WebPublic: Routing via next-intl (/id subpath)
+    Middle->>WebPublic: Routing via segmen /[locale] (/id default)
     Pelanggan->>Server: Kirim Kode Tiket (SRV-xxxx)
     Server->>SupaDB: Query detail tiket servis (status & biaya)
     SupaDB-->>Server: Return data tiket servis
     Server-->>WebPublic: Render visual timeline pengerjaan
 
     %% Transaksi Trade-In Internal
-    Note over Sales, SubAuth: Transaksi POS & Trade-In di Subdomain
-    Sales->>SubAuth: Buka login.atcell.my.id/pos
-    SubAuth->>Middle: Request diterima (Host: login.atcell.my.id)
-    Middle->>SubAuth: Rewrite ke internal /auth-portal/pos
+    Note over Sales, Portal: Transaksi POS & Trade-In di Portal
+    Sales->>Portal: Buka /id/login lalu /portal/pos
+    Portal->>Middle: Request diterima (Host: atcell.my.id atau login.atcell.my.id)
+    Middle->>Portal: Rewrite subdomain login ke /id/login, guard peran per path
     Sales->>Server: Submit penjualan + form checklist grading unit lama
     Server->>SupaDB: Eksekusi RPC Transaksi Atomik
     SupaDB->>SupaDB: 1. Insert tabel transactions & transaction_items
     SupaDB->>SupaDB: 2. Update status IMEI unit baru -> 'sold'
     SupaDB->>SupaDB: 3. Insert unit lama ke inventory_units -> 'second' & 'available'
     SupaDB-->>Server: Transaksi berhasil diproses
-    Server-->>SubAuth: Konfirmasi transaksi & terbitkan faktur garansi
+    Server-->>Portal: Konfirmasi transaksi & terbitkan faktur garansi
 
     %% Manajemen Dashboard & Master Data Admin
-    Note over Admin, SubAuth: Admin Mengelola Dashboard, Master Produk & Pengaturan Toko
-    Admin->>SubAuth: Buka login.atcell.my.id/dashboard
-    SubAuth->>Middle: Request diterima (Host: login.atcell.my.id)
-    Middle->>SubAuth: Rewrite ke internal /auth-portal/dashboard
+    Note over Admin, Portal: Admin Mengelola Dashboard, Master Produk & Pengaturan Toko
+    Admin->>Portal: Buka /id/login lalu /portal/dashboard
+    Portal->>Middle: Request diterima, guard memastikan peran admin
+    Middle->>Portal: Teruskan ke /portal/dashboard
     Admin->>Server: Submit produk baru / update store_settings
     Server->>SupaDB: Insert/Update products atau store_settings (RLS role admin)
     SupaDB-->>Server: Data tersimpan
-    Server-->>SubAuth: Render dashboard terbaru (ringkasan omzet & stok menipis)
+    Server-->>Portal: Render dashboard terbaru (ringkasan omzet & stok menipis)
 ```
 
-Pola akses yang sama — *host-based middleware rewrite* dan penegakan otorisasi via RLS Supabase — berlaku konsisten untuk seluruh rute privat (`/dashboard`, `/pos`, `/service`, `/account`), sehingga logika perutingan tidak perlu diduplikasi per peran.
+Pola akses yang sama — *proxy rewrite berbasis host* (`src/proxy.ts`) dan penegakan otorisasi via RLS Supabase plus guard `src/lib/access.ts` — berlaku konsisten untuk seluruh rute portal (`/portal/dashboard`, `/portal/pos`, `/portal/inventory`, `/portal/service`, `/portal/products`, `/portal/staff`, `/portal/settings`, `/portal/reports`, `/portal/account`), sehingga logika perutingan tidak perlu diduplikasi per peran. Acuan perilaku rinci ada di `docs/UC-AtCell.md` yang ditulis langsung dari source code.
 
 ## 6. Database Schema
 
-Berikut adalah Entity Relationship Diagram (ERD) yang menggambarkan struktur database utama:
+Berikut adalah Entity Relationship Diagram (ERD) yang menggambarkan struktur database utama. Ini tabel inti; sumber kanonik adalah `supabase/migrations/0001_atcell_schema.sql` dan `src/db/schema.ts`. Tabel pelengkap (`product_images`, audit trail, dan objek dari migrasi lanjutan) tidak digambar di sini supaya diagram tetap terbaca, dan didaftar di `docs/DEPLOYMENT-REDUNDANCY.md`.
 
 ```mermaid
 erDiagram
@@ -261,14 +261,14 @@ Bagian ini mengatur batasan teknis dan panduan desain yang harus dipatuhi.
 
 1. **High-Level Technology:**
    - **Framework & Styling:** Next.js (App Router, Server Actions) dengan Tailwind CSS dan komponen antarmuka shadcn/ui.
-   - **Internasionalisasi:** next-intl dengan format rute `/[locale]` untuk seluruh halaman pada domain publik.
+   - **Internasionalisasi:** segmen rute `/[locale]` untuk seluruh halaman pada domain publik (`/id` default, `/en`), dengan kamus di `src/lib/translations.ts`. Tidak memakai pustaka `next-intl` (tidak ada di `package.json`).
    - **Backend & Storage:** Supabase (PostgreSQL Database, Supabase Auth, Supabase Storage untuk foto kondisi barang servis/trade-in).
    - **Form Engine:** React Hook Form terintegrasi dengan validasi skema Zod.
 
 2. **Domain, Subdomain & Routing Rules:**
-   - **Edge Middleware:** Mengatur rewrite internal untuk request dari hostname `login.atcell.my.id` langsung ke direktori `/auth-portal`.
-   - **Cross-Subdomain Cookies:** Sesi autentikasi Supabase wajib menggunakan konfigurasi cookie wildcard `.atcell.my.id` di mode produksi agar status login terbaca di semua domain toko.
-   - **Local Environment Setup:** Pengujian lokal memanfaatkan konfigurasi virtual domain pada file hosts (`atcell.local` dan `login.atcell.local`).
+   - **Proxy (`src/proxy.ts`):** mengatur rewrite internal untuk request dari hostname `login.atcell.my.id` ke `/id/login`, redirect `/` ke `/id`, redirect URL lama `/portal/login` ke `/id/login`, serta guard akses `/portal/*` per peran.
+   - **Cross-Subdomain Cookies:** Sesi autentikasi Supabase memakai konfigurasi cookie wildcard `.atcell.my.id` di mode produksi agar status login terbaca di semua domain toko.
+   - **Local Environment Setup:** pengujian lokal memakai `http://localhost:3000/id` langsung, tanpa virtual domain.
 
 3. **Integritas Database & Enum Constraints:**
    - **Validasi IMEI:** Kolom `imei` diatur `UNIQUE` dengan panjang tepat 15 karakter angka (via `CHECK` constraint/regex).
@@ -295,7 +295,6 @@ Bagian ini mengatur batasan teknis dan panduan desain yang harus dipatuhi.
    - URL hasil unggahan disimpan sebagai array pada kolom `photo_urls` (jsonb) di `trade_in_records` dan `service_tickets`.
 
 6. **Typography Rules:**
-   Sistem antarmuka (UI) wajib menggunakan konfigurasi font variable sebagai berikut untuk menjaga konsistensi visual:
-   - **Sans:** `Geist Mono, ui-monospace, monospace`
-   - **Serif:** `serif`
-   - **Mono:** `JetBrains Mono, monospace`
+   Sistem antarmuka (UI) memakai dua font via `next/font` di `src/components/root-shell.tsx`:
+   - **Teks:** `Plus Jakarta Sans` (sans-serif)
+   - **Mono (IMEI, kode tiket, harga nota):** `JetBrains Mono` (monospace)
