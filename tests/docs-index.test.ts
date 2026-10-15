@@ -5,7 +5,7 @@ import { access, readdir, readFile } from "node:fs/promises";
 /*
  * Indeks docs/ dijaga karena isinya sudah basi tanpa ada yang memperingatkan.
  * Saat audit, docs/README.md masih berhenti di empat dokumen pertama:
- * UC-AtCell.md, SECRET-ROTATION.md, dan berkas diagram sama sekali tidak
+ * USE-CASE-AtCell.md, SECRET-ROTATION.md, dan berkas diagram sama sekali tidak
  * disebut. Dokumen yang tidak disebut di indeks docs sama saja tidak ada bagi
  * pembaca yang mencari lewat README, padahal dua di antaranya adalah acuan
  * operasional yang wajib dibaca sebelum menyentuh production.
@@ -13,7 +13,7 @@ import { access, readdir, readFile } from "node:fs/promises";
  * Berkas diagram juga boleh hilang dari repo, dan test ini ikut menjaga arah
  * sebaliknya: kalau diagram.mmd dihapus tapi masih disebut di indeks, pembaca
  * akan mencari berkas yang sudah tidak ada. Diagram Mermaid itu dihapus 2
- * Oktober 2026 karena isinya sudah tersalin inline di bagian 3 UC-AtCell.md.
+ * Oktober 2026 karena isinya sudah tersalin inline di USE-CASE-AtCell.md.
  *
  * Test juga menjaga arah sebaliknya. Indeks boleh menyebut berkas yang sudah
  * dihapus atau diganti nama, dan itu sama buruknya: pembaca akan mencari
@@ -64,7 +64,7 @@ test("dokumen acuan ditautkan dari README root", () => {
   );
   const aktif = [
     "PRD-AtCell.md",
-    "UC-AtCell.md",
+    "USE-CASE-AtCell.md",
     "requirement-2.0.md",
     "DEPLOYMENT-REDUNDANCY.md",
     "SECRET-ROTATION.md",
@@ -156,7 +156,7 @@ test("dokumen tidak menunjuk gambar yang tidak ada di docs/", async () => {
   const isi = new Set(await readdir(docsUrl));
   const bermasalah: string[] = [];
 
-  for (const nama of ["UC-AtCell.md", "PRD-AtCell.md", "README.md"]) {
+  for (const nama of ["USE-CASE-AtCell.md", "PRD-AtCell.md", "README.md"]) {
     const isiDokumen = await readFile(new URL(`./${nama}`, docsUrl), "utf8");
     for (const cocok of isiDokumen.matchAll(/!\[[^\]]*\]\(\.\/([^)\s]+)\)/g)) {
       const target = cocok[1];

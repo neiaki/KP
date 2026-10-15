@@ -33,7 +33,7 @@ di `src/lib/store.ts`.
 ### Halaman publik
 
 - Landing page dan profil toko dalam Bahasa Indonesia dan Inggris.
-- Etalase HP siap jual dengan filter merek dan kondisi.
+- Etalase handphone siap jual dengan filter merek dan kondisi.
 - Informasi layanan, garansi, pengiriman, pembayaran, kontak, dan trade-in.
 - Pelacakan servis publik tanpa login menggunakan kode tiket.
 - Tema terang/gelap dan desain responsif.
@@ -61,15 +61,20 @@ di `src/lib/store.ts`.
 
 ```mermaid
 flowchart LR
-    Public[Pengunjung] --> Next[Next.js App Router]
-    Staff[Staf At Cell] --> Next
-    Next --> Actions[Server Actions]
-    Next --> Routes[Route Handlers]
-    Actions --> Auth[Supabase Auth]
-    Actions --> DB[(Supabase PostgreSQL)]
-    Actions --> Storage[Supabase Storage]
-    Next -. mode demo .-> Mock[Mock data + localStorage]
+    Public["Pengunjung"] --> Next["Next.js App Router"]
+    Staff["Staf At Cell"] --> Next
+    Next --> Actions["Server Actions"]
+    Next --> Routes["Route Handlers"]
+    Actions --> Auth["Supabase Auth"]
+    Actions --> DB[("Supabase PostgreSQL")]
+    Actions --> Storage["Supabase Storage"]
+    Next -.->|"mode demo"| Mock["Mock data + localStorage"]
 ```
+
+Diagram yang sama juga tersedia sebagai gambar untuk pembaca aplikasi
+GitHub di ponsel yang belum mendukung render Mermaid:
+
+![Alur arsitektur At Cell, dari pengunjung dan staf sampai Supabase](docs/diagram-uml/bersama/arsitektur-alur.png)
 
 - **Frontend dan server:** Next.js 16, React 19, TypeScript, dan Tailwind CSS 4.
 - **Data production:** Supabase PostgreSQL, Auth, dan Storage.
@@ -206,7 +211,7 @@ query string (yang membuat halaman lacak bisa dibuka tanpa login), body
 request, cookie, dan header `Authorization`. Sisi browser tidak menyaring
 nilai, hanya membuang event yang bukan milik aplikasi.
 
-Isi env di platform (Coolify):
+Isi variabel lingkungan di platform (Coolify):
 
 ```text
 NEXT_PUBLIC_SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>
@@ -290,7 +295,7 @@ Ikuti runbook lengkap di [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUN
 Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 
 - [`docs/PRD-AtCell.md`](docs/PRD-AtCell.md): vision, kebutuhan, fitur, user flow, dan rancangan arsitektur.
-- [`docs/UC-AtCell.md`](docs/UC-AtCell.md): 18 use case per aktor, lengkap dengan diagram Mermaid arsip di dalam berkasnya.
+- [`docs/USE-CASE-AtCell.md`](docs/USE-CASE-AtCell.md): 31 kemampuan per aktor, dari membuka web sampai semua menu portal, plus relasi antarkemampuan.
 - [`docs/requirement-2.0.md`](docs/requirement-2.0.md): SRS aktif yang memuat aktor dan kebutuhan aplikasi. `docs/requirement.md` adalah SRS v1 yang sudah digantikan, jangan dipakai sebagai acuan.
 - [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md): deployment, migration, DNS, backup, restore, dan rollout.
 - [`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md): urutan mengganti secret yang pernah bocor, lengkap dengan verifikasinya.
@@ -301,6 +306,6 @@ Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 - [`docs/PUBLIKASI-MODEL-TANPA-STOK.md`](docs/PUBLIKASI-MODEL-TANPA-STOK.md): cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI.
 - [`docs/PERLUASAN-KATALOG-AT-CELL.md`](docs/PERLUASAN-KATALOG-AT-CELL.md): usulan perluasan katalog beserta harga yang wajib dikonfirmasi owner.
 - [`docs/PAYMENT-WARNING-COPY.md`](docs/PAYMENT-WARNING-COPY.md): copy peringatan link pembayaran yang menunggu persetujuan owner (opsi A disarankan, belum diterapkan ke kode).
-- [`docs/diagram-uml/`](docs/diagram-uml/README.md): sumber PlantUML plus render PNG/SVG (sequence, activity, state, usecase, class, object, component, ER).
+- [`docs/diagram-uml/`](docs/diagram-uml/README.md): sumber PlantUML plus render PNG/SVG (sequence, activity, state, usecase, class, object, component, ER) dan sumber Mermaid alur arsitektur untuk README root.
 - `docs/Diagram/` (draf lokal di-gitignore, tidak ikut repo): dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; diagram yang di-commit ada di `docs/diagram-uml/`.
 

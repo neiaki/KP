@@ -134,7 +134,7 @@ sequenceDiagram
     Server-->>Portal: Render dashboard terbaru (ringkasan omzet & stok menipis)
 ```
 
-Pola akses yang sama — *proxy rewrite berbasis host* (`src/proxy.ts`) dan penegakan otorisasi via RLS Supabase plus guard `src/lib/access.ts` — berlaku konsisten untuk seluruh rute portal (`/portal/dashboard`, `/portal/pos`, `/portal/inventory`, `/portal/service`, `/portal/products`, `/portal/staff`, `/portal/settings`, `/portal/reports`, `/portal/account`), sehingga logika perutingan tidak perlu diduplikasi per peran. Acuan perilaku rinci ada di `docs/UC-AtCell.md` yang ditulis langsung dari source code.
+Pola akses yang sama — *proxy rewrite berbasis host* (`src/proxy.ts`) dan penegakan otorisasi via RLS Supabase plus guard `src/lib/access.ts` — berlaku konsisten untuk seluruh rute portal (`/portal/dashboard`, `/portal/pos`, `/portal/inventory`, `/portal/service`, `/portal/products`, `/portal/staff`, `/portal/settings`, `/portal/reports`, `/portal/account`), sehingga logika perutingan tidak perlu diduplikasi per peran. Acuan perilaku rinci ada di `docs/USE-CASE-AtCell.md` yang ditulis langsung dari kode sumber.
 
 ## 6. Database Schema
 
