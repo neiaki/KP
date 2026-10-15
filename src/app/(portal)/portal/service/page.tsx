@@ -36,6 +36,10 @@ export default function TechnicianServicePage() {
   const [sparepartFee, setSparepartFee] = useState<number>(0);
   const [laborFee, setLaborFee] = useState<number>(100000);
   const [notes, setNotes] = useState("");
+  // FR-B-04: konfirmasi bahwa nota servis asli sudah ditunjukkan sebelum unit
+  // diserahkan. Direset setiap kali modal dibuka supaya tidak terbawa tiket
+  // sebelumnya.
+  const [notaConfirmed, setNotaConfirmed] = useState(false);
 
   // service_tickets.cost_breakdown sudah divalidasi (src/lib/validations.ts)
   // dan sudah dicetak di nota servis (src/lib/print-nota.ts), tapi tidak
@@ -172,6 +176,7 @@ export default function TechnicianServicePage() {
     setLaborFee(ticket.labor_fee);
     setNotes(ticket.technician_notes ?? "");
     setCostItems(ticket.cost_breakdown ?? []);
+    setNotaConfirmed(false);
 
     const refs = ticket.photo_urls ?? [];
     setProgressPhotos(refs);
@@ -207,6 +212,19 @@ export default function TechnicianServicePage() {
       return;
     }
 
+    // FR-B-04: serah terima unit tidak boleh lewat tanpa konfirmasi nota.
+    // Penjaga yang sama ada di Server Action (live) dan demoUpdateServiceTicket
+    // (demo); cek di sini hanya supaya pesannya muncul sebelum request jalan.
+    const menyerahkanUnit =
+      editStatus === "picked_up" && selectedTicket.repair_status !== "picked_up";
+    if (menyerahkanUnit && !notaConfirmed) {
+      setNotice({
+        type: "error",
+        text: "Centang konfirmasi nota servis sebelum unit diserahkan ke pelanggan.",
+      });
+      return;
+    }
+
     try {
       const costBreakdown = costItems.map((item) => ({
         ...item,
@@ -218,14 +236,18 @@ export default function TechnicianServicePage() {
       // Action-nya sendiri. Dua jalur tulis saling menimpa urutan dan membuat
       // salinan tiket di store setengah jadi.
 
-      await updateServiceTicket(selectedTicket.id, {
-        repair_status: editStatus,
-        sparepart_fee: sparepartFee,
-        labor_fee: laborFee,
-        technician_notes: notes,
-        cost_breakdown: costBreakdown,
-        photo_urls: progressPhotos,
-      });
+      await updateServiceTicket(
+        selectedTicket.id,
+        {
+          repair_status: editStatus,
+          sparepart_fee: sparepartFee,
+          labor_fee: laborFee,
+          technician_notes: notes,
+          cost_breakdown: costBreakdown,
+          photo_urls: progressPhotos,
+        },
+        { notaConfirmed }
+      );
 
       // Update active modal copy
       setSelectedTicket((prev) =>
@@ -239,10 +261,14 @@ export default function TechnicianServicePage() {
               technician_notes: notes,
               cost_breakdown: costBreakdown,
               photo_urls: progressPhotos,
+              ...(menyerahkanUnit
+                ? { picked_up_at: prev.picked_up_at ?? new Date().toISOString() }
+                : {}),
             }
           : null
       );
 
+      setNotaConfirmed(false);
       setNotice({ type: "success", text: "Tiket servis berhasil diperbarui!" });
     } catch (error) {
       setNotice({
@@ -578,6 +604,29 @@ export default function TechnicianServicePage() {
                   ))}
                 </select>
               </div>
+
+              {/* FR-B-04: gerbang serah terima. Hanya muncul saat status
+                  berpindah ke picked_up, jadi meja kerja sehari-hari tidak
+                  bertambah langkah. */}
+              {editStatus === "picked_up" && selectedTicket.repair_status !== "picked_up" && (
+                <label
+                  htmlFor="ticket-nota-confirmed"
+                  className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-accent/30 bg-accent-soft/70 p-3 text-sm"
+                >
+                  <input
+                    id="ticket-nota-confirmed"
+                    type="checkbox"
+                    checked={notaConfirmed}
+                    onChange={(e) => setNotaConfirmed(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded text-accent-deep focus:ring-accent"
+                  />
+                  <span className="text-ink">
+                    <strong className="block">Nota servis asli sudah ditunjukkan</strong>
+                    Centang setelah pemilik memperlihatkan nota sebelum unit diserahkan.
+                    Waktu serah terima dicatat sebagai awal masa garansi perbaikan.
+                  </span>
+                </label>
+              )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>

@@ -56,6 +56,7 @@ function mapTicket(t: ServiceTicketRow): ServiceTicket {
     cost_breakdown: t.costBreakdown ?? [],
     created_at: toISO(t.createdAt),
     updated_at: toISO(t.updatedAt),
+    picked_up_at: t.pickedUpAt ? toISO(t.pickedUpAt) : null,
   };
 }
 
@@ -143,6 +144,19 @@ export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult
         } as const;
       }
 
+      // FR-B-04: unit hanya boleh diserahkan setelah petugas memastikan nota
+      // servis asli ditunjukkan pemilik. REPAIR_FLOW hanya mengizinkan
+      // picked_up dari completed, jadi gerbang ini tepat di serah terima.
+      if (
+        v.repairStatus === "picked_up" &&
+        from !== "picked_up" &&
+        v.notaConfirmed !== true
+      ) {
+        return {
+          error: "Centang konfirmasi nota servis sebelum menyerahkan unit ke pelanggan.",
+        } as const;
+      }
+
       const sparepart = v.sparepartFee ?? toNumber(current.sparepart);
       const labor = v.laborFee ?? toNumber(current.labor);
       const [updated] = await tx
@@ -152,6 +166,13 @@ export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult
           sparepartFee: String(sparepart),
           laborFee: String(labor),
           totalFee: String(sparepart + labor),
+          // FR-B-04: waktu serah terima dicatat sekali saat transisi ke
+          // picked_up. Trigger DB menyetempel juga sebagai jaring pengaman
+          // untuk jalur non-aplikasi, dan coalesce-nya tidak menimpa nilai
+          // yang sudah ada.
+          ...(v.repairStatus === "picked_up" && from !== "picked_up"
+            ? { pickedUpAt: new Date() }
+            : {}),
           ...(v.technicianId !== undefined ? { technicianId: v.technicianId } : {}),
           ...(v.technicianNotes !== undefined ? { technicianNotes: v.technicianNotes } : {}),
           ...(v.warrantyDays !== undefined ? { warrantyDays: v.warrantyDays } : {}),
@@ -222,6 +243,7 @@ type PublicTicketRow = {
   imeiOrSn: string;
   repairStatus: RepairStatus;
   warrantyDays: number;
+  pickedUpAt: Date | string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 };
@@ -232,6 +254,7 @@ type PublicTrackingResult = {
   imei_or_sn: string;
   repair_status: RepairStatus;
   warranty_days: number;
+  picked_up_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -348,6 +371,7 @@ export async function trackTicketPublic(rawCode: string): Promise<
         imeiOrSn: serviceTickets.imeiOrSn,
         repairStatus: serviceTickets.repairStatus,
         warrantyDays: serviceTickets.warrantyDays,
+        pickedUpAt: serviceTickets.pickedUpAt,
         createdAt: serviceTickets.createdAt,
         updatedAt: serviceTickets.updatedAt,
       })
@@ -370,6 +394,7 @@ export async function trackTicketPublic(rawCode: string): Promise<
     imei_or_sn: t.imeiOrSn ? `****${t.imeiOrSn.slice(-4)}` : "",
     repair_status: t.repairStatus,
     warranty_days: t.warrantyDays,
+    picked_up_at: t.pickedUpAt ? toISO(t.pickedUpAt) : null,
     created_at: toISO(t.createdAt),
     updated_at: toISO(t.updatedAt),
   });

@@ -226,6 +226,7 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20261001120000_hide_unidentified_product_6.sql` | Menonaktifkan produk id 6 yang brand 'Xiaomi' dan model_name 'iphone 16' saling bertentangan, jadi etalase publik tidak menampilkan identitas yang belum dipastikan. Merek dan modelnya tidak diubah: itu keputusan staf yang harus melihat unit fisiknya, unit 10 masih di konter. Aktifkan lagi lewat portal Master Produk setelah identitasnya benar |
 | `20261013000000_index_inventory_units_created.sql` | Index `(created_at desc)` di `inventory_units` untuk `ORDER BY unit_created_at DESC LIMIT 500` di etalase publik (query yang timeout pada insiden Sentry KP-1, 2 Okt 2026). Non-destruktif, `IF NOT EXISTS`, tidak menyentuh data |
 | `20261013120000_redact_store_contact.sql` | Mengganti nomor telepon, nomor WhatsApp, dan nama owner di `store_settings` dengan nilai sintetis supaya repo berhenti menyimpan kontak asli. Isi ulang nilai sungguhan lewat portal/settings setelah migrasi ini jalan di production |
+| `20261015000000_service_ticket_picked_up_at.sql` | Menambah kolom `picked_up_at` di `service_tickets` dan stempel waktunya di trigger transisi `completed -> picked_up` (FR-B-04). Non-destruktif, `IF NOT EXISTS` dan `CREATE OR REPLACE`, tidak menyentuh data |
 `0001` aman dijalankan ulang kapan saja, termasuk `supabase db push` yang
 terhenti di tengah lalu diulang. Rananya sudah dibetulkan pada 27 Sep 2026:
 versi lama `0001` memberi `EXECUTE` pada `public.get_my_role()` dan
@@ -336,14 +337,14 @@ tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
 terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
 
 `supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
-satu berkas urut, dua puluh delapan bagian, untuk project yang belum punya skema
+satu berkas urut, dua puluh sembilan bagian, untuk project yang belum punya skema
 sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya: bagian 1
 (`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket Storage.
 Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali paste
 mengisi project kosong" di kepalanya tidak terpenuhi: paste ke project baru
 menghasilkan nol tabel, nol enum, dan nol RLS. Bagian 1 sampai 3 ditambahkan
 pada 27 Sep 2026 dan penandanya ditulis ulang mengikuti jumlah bagian saat
-itu; per 14 Okt 2026 jumlahnya 28 dan sama dengan jumlah berkas di
+itu; per 15 Okt 2026 jumlahnya 29 dan sama dengan jumlah berkas di
 `supabase/migrations/`.
 
 Isi tiap bagian harus identik dengan berkas aslinya, dan

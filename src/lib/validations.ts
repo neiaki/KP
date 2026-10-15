@@ -314,6 +314,9 @@ export const updateTicketSchema = z.object({
   // Foto progres perbaikan ditambahkan dari meja kerja, bukan hanya saat intake,
   // jadi update perlu bisa menambah URL tanpa menimpa daftar yang ada.
   photoUrls: photoRefsSchema.optional(),
+  // FR-B-04: gerbang konfirmasi serah terima. Wajib true saat transisi
+  // completed -> picked_up; bukan kolom DB, jadi tidak pernah tersimpan.
+  notaConfirmed: z.boolean().optional(),
 });
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
 

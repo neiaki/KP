@@ -306,6 +306,10 @@ export const serviceTickets = pgTable(
       .default(sql`'[]'::jsonb`),
     createdAt: createdAtCol(),
     updatedAt: updatedAtCol(),
+    // FR-B-04: waktu serah terima unit, diisi sekali saat transisi
+    // completed -> picked_up (trigger di migrasi 20261015000000). Nullable
+    // karena tiket lama dan tiket yang belum diambil tidak punya nilainya.
+    pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("service_tickets_code_idx").on(t.ticketCode),
