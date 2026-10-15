@@ -12,10 +12,12 @@
  * belasan `if (liveBackendEnabled)`. Akibatnya bundle production yang
  * dikirim ke setiap pengunjung ikut memuat seluruh data mock dan seluruh
  * jalur demo, padahal tidak satu pun yang pernah berjalan di produksi.
- * Setelah pemisahan, src/lib/store.ts tidak lagi mengimpor mock-data dan
- * tidak menyebut localStorage sama sekali. tests/store-demo.test.ts
- * mengunci kedua hal itu, jadi kembalinya satu impor mock ke jalur live
- * akan menggagalkan test.
+ * Setelah pemisahan, store.ts memanggil modul ini lewat import() dinamis
+ * (loadDemoModule), jadi bundler memecahnya ke chunk terpisah yang hanya
+ * diunduh saat mode demo benar-benar aktif. store.ts tetap tidak menyentuh
+ * localStorage maupun data mock secara langsung; tests/store-demo.test.ts
+ * mengunci bentuk impor itu, dan kembalinya satu impor statis akan
+ * menggagalkan test sebelum datanya ikut ke bundle pengunjung.
  *
  * Ekstensi .ts ditulis eksplisit supaya modul ini bisa diimpor test node
  * tanpa Next.js, sama seperti src/db/client.ts. Runner test tidak bisa
@@ -33,9 +35,11 @@ import {
 } from "./mock-data.ts";
 import {
   generateTicketSuffix,
+  IMEI_PATTERN,
   isAllowedTransition,
   registerUnitsSchema,
 } from "./validations.ts";
+import { finalPaymentAmount, secondHandSellingPrice } from "./pricing.ts";
 import type {
   InventoryUnit,
   PaymentMethod,
@@ -103,17 +107,27 @@ export type DemoStateSetters = {
 };
 
 /**
- * Baca seluruh state demo dari localStorage.
+ * Baca seluruh state demo dari localStorage, atau tulis bawaan kalau
+ * kuncinya belum ada.
  *
  * Dipanggil sekali dari useEffect di src/lib/store.ts, di dalam
- * requestAnimationFrame. Kalau versi data berubah, seluruh kunci lama
- * dibuang dulu supaya bentuk lama tidak terbaca sebagai bentuk baru.
+ * requestAnimationFrame. State awal store sengaja kosong supaya bentuknya
+ * sama dengan mode live, jadi di sinilah isi mode demo ditentukan:
+ *
+ * - Kalau versi data berubah, seluruh kunci lama dibuang dulu supaya bentuk
+ *   lama tidak terbaca sebagai bentuk baru.
+ * - Kunci yang hilang atau isinya rusak diisi data bawaan lalu ditulis
+ *   kembali, jadi pengguna lama tidak melihat layar kosong permanen dan
+ *   kunjungan pertama langsung punya data yang bisa diubah.
+ * - currentProfile diisi dari daftar profiles yang cocok dengan role,
+ *   sehingga portal demo punya profil aktif tanpa menunggu aksi pengguna.
  */
-export type DemoHydrateSetters = Omit<DemoStateSetters, "setCurrentProfile">;
+export type DemoHydrateSetters = DemoStateSetters;
 
 export function hydrateDemoFromLocalStorage(setters: DemoHydrateSetters) {
   const {
     setCurrentRole,
+    setCurrentProfile,
     setStoreSettings,
     setProducts,
     setInventoryUnits,
@@ -127,31 +141,46 @@ export function hydrateDemoFromLocalStorage(setters: DemoHydrateSetters) {
       clearLocalData();
       localStorage.setItem(VERSION_KEY, DATA_VERSION);
     }
+
     const savedRole = localStorage.getItem(STORAGE_KEYS.CURRENT_ROLE);
-    if (savedRole) setCurrentRole(savedRole as UserRole);
+    const role = (savedRole as UserRole | null) ?? demoInitialState.role;
+    if (!savedRole) localStorage.setItem(STORAGE_KEYS.CURRENT_ROLE, role);
+    setCurrentRole(role);
 
-    const savedSettings = localStorage.getItem(STORAGE_KEYS.STORE_SETTINGS);
-    if (savedSettings) setStoreSettings(JSON.parse(savedSettings));
+    const profiles = readSeed(STORAGE_KEYS.PROFILES, demoInitialState.profiles);
+    setProfiles(profiles);
+    setCurrentProfile(
+      profiles.find((profile) => profile.role === role) ?? profiles[0] ?? null
+    );
 
-    const savedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-    if (savedProducts) setProducts(JSON.parse(savedProducts));
-
-    const savedInventory = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-    if (savedInventory) setInventoryUnits(JSON.parse(savedInventory));
-
-    const savedTransactions = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-    if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-
-    const savedTickets = localStorage.getItem(STORAGE_KEYS.TICKETS);
-    if (savedTickets) setServiceTickets(JSON.parse(savedTickets));
-
-    const savedProfiles = localStorage.getItem(STORAGE_KEYS.PROFILES);
-    if (savedProfiles) setProfiles(JSON.parse(savedProfiles));
+    setStoreSettings(readSeed(STORAGE_KEYS.STORE_SETTINGS, demoInitialState.storeSettings));
+    setProducts(readSeed(STORAGE_KEYS.PRODUCTS, demoInitialState.products));
+    setInventoryUnits(readSeed(STORAGE_KEYS.INVENTORY, demoInitialState.inventoryUnits));
+    setTransactions(readSeed(STORAGE_KEYS.TRANSACTIONS, demoInitialState.transactions));
+    setServiceTickets(readSeed(STORAGE_KEYS.TICKETS, demoInitialState.serviceTickets));
   } catch (error) {
     console.warn("Gagal membaca data demo dari localStorage:", error);
   } finally {
     setMounted(true);
   }
+}
+
+/**
+ * Baca satu kunci JSON dari localStorage. Kunci yang kosong atau isinya
+ * rusak diganti nilai bawaan dan ditulis kembali, supaya panggilan
+ * berikutnya membaca bentuk yang sama seperti yang dilihat pengguna.
+ */
+function readSeed<T>(key: string, fallback: T): T {
+  const raw = localStorage.getItem(key);
+  if (raw !== null) {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      // Data rusak ditimpa bawaan di bawah; simpan gagalnya tidak fatal.
+    }
+  }
+  localStorage.setItem(key, JSON.stringify(fallback));
+  return fallback;
 }
 
 export function demoUpdateRole(
@@ -318,7 +347,7 @@ export function demoExecutePosSale(
   }
   const tradeIn = params.tradeIn;
   if (tradeIn) {
-    if (!/^\d{15}$/.test(tradeIn.imei.trim())) {
+    if (!IMEI_PATTERN.test(tradeIn.imei.trim())) {
       throw new Error("Nomor IMEI unit tukar tambah wajib tepat 15 digit angka!");
     }
     if (inventoryUnits.some((u) => u.imei === tradeIn.imei.trim())) {
@@ -327,7 +356,7 @@ export function demoExecutePosSale(
   }
 
   const tradeInVal = params.tradeIn?.offeredPrice || 0;
-  const finalPayment = Math.max(0, unit.selling_price - tradeInVal);
+  const finalPayment = finalPaymentAmount(unit.selling_price, tradeInVal);
   const transactionId = Date.now();
   let tradeInRecord: TradeInRecord | undefined;
   const nextInventory = inventoryUnits.map((u) =>
@@ -348,7 +377,7 @@ export function demoExecutePosSale(
       condition: "second",
       status: "available",
       purchase_cost: tradeInVal,
-      selling_price: Math.round(tradeInVal * 1.25),
+      selling_price: secondHandSellingPrice(tradeInVal),
       created_at: new Date().toISOString(),
     };
     nextInventory.unshift(secondHandUnit);

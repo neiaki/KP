@@ -443,11 +443,14 @@ test("hydrate membaca simpanan dan menandai mounted", () => {
   isi.set("atcell_data_version", DATA_VERSION);
   isi.set(STORAGE_KEYS.CURRENT_ROLE, "sales");
   isi.set(STORAGE_KEYS.PRODUCTS, JSON.stringify([produk(3)]));
+  isi.set(STORAGE_KEYS.PROFILES, JSON.stringify([profil("y", "sales")]));
   const peran = penampung<UserRole>("admin");
+  const orang = penampung<Profile | null>(null);
   const barang = penampung<Product[]>([]);
   const pasang = penampung<boolean>(false);
   hydrateDemoFromLocalStorage({
     setCurrentRole: peran.set,
+    setCurrentProfile: orang.set,
     setStoreSettings: (() => {}) as never,
     setProducts: barang.set,
     setInventoryUnits: (() => {}) as never,
@@ -457,18 +460,21 @@ test("hydrate membaca simpanan dan menandai mounted", () => {
     setMounted: pasang.set,
   });
   assert.equal(peran.nilai(), "sales");
+  // Profil aktif ikut dipulihkan dari daftar yang tersimpan.
+  assert.equal(orang.nilai()?.role, "sales");
   assert.equal(barang.nilai().length, 1);
   assert.equal(pasang.nilai(), true);
 });
 
-test("hydrate membuang data versi lama", () => {
+test("hydrate membuang data versi lama lalu menulis data awal", () => {
   const isi = pasangStorageAwal();
   isi.set("atcell_data_version", "lama-sekali");
-  isi.set(STORAGE_KEYS.PRODUCTS, JSON.stringify([produk(3)]));
+  isi.set(STORAGE_KEYS.PRODUCTS, JSON.stringify([produk(999)]));
   const barang = penampung<Product[]>([]);
   const pasang = penampung<boolean>(false);
   hydrateDemoFromLocalStorage({
     setCurrentRole: (() => {}) as never,
+    setCurrentProfile: (() => {}) as never,
     setStoreSettings: (() => {}) as never,
     setProducts: barang.set,
     setInventoryUnits: (() => {}) as never,
@@ -477,17 +483,60 @@ test("hydrate membuang data versi lama", () => {
     setProfiles: (() => {}) as never,
     setMounted: pasang.set,
   });
-  assert.equal(barang.nilai().length, 0);
+  // Data versi lama dibuang, bukan dibaca diam-diam; kunci bawaan langsung
+  // ditulis ulang supaya kunjungan berikutnya melihat bentuk yang sama.
+  assert.equal(
+    barang.nilai().some((p) => p.id === 999),
+    false,
+    "data versi lama tidak boleh ikut terbaca"
+  );
+  assert.deepEqual(
+    barang.nilai().map((p) => p.id),
+    demoInitialState.products.map((p) => p.id)
+  );
   assert.equal(isi.get("atcell_data_version"), DATA_VERSION);
+  assert.equal(isi.has(STORAGE_KEYS.PRODUCTS), true);
 });
 
-test("store.ts tidak menyentuh localStorage maupun mock-data langsung", async () => {
+test("hydrate mengganti simpanan yang rusak dengan data awal", () => {
+  const isi = pasangStorageAwal();
+  isi.set("atcell_data_version", DATA_VERSION);
+  isi.set(STORAGE_KEYS.PRODUCTS, "{rusak");
+  const barang = penampung<Product[]>([]);
+  hydrateDemoFromLocalStorage({
+    setCurrentRole: (() => {}) as never,
+    setCurrentProfile: (() => {}) as never,
+    setStoreSettings: (() => {}) as never,
+    setProducts: barang.set,
+    setInventoryUnits: (() => {}) as never,
+    setTransactions: (() => {}) as never,
+    setServiceTickets: (() => {}) as never,
+    setProfiles: (() => {}) as never,
+    setMounted: (() => {}) as never,
+  });
+  assert.deepEqual(
+    barang.nilai().map((p) => p.id),
+    demoInitialState.products.map((p) => p.id),
+    "JSON rusak harus jatuh ke data awal, bukan meledak"
+  );
+  // Yang tersimpan di storage sudah berbentuk JSON yang bisa dibaca lagi.
+  assert.doesNotThrow(() => JSON.parse(isi.get(STORAGE_KEYS.PRODUCTS)!));
+});
+
+test("store.ts hanya memuat modul demo lewat import() dinamis", async () => {
   // Pemisahan ini yang membuat bundle production tidak ikut memuat jalur
-  // demo. Kalau suatu hari ada yang mengimpor mock-data lagi dari store.ts,
-  // seluruh data contoh ikut terkirim ke setiap pengunjung.
+  // demo. Impor statis apa pun dari store-demo menarik seluruh data contoh
+  // kembali ke chunk yang dimuat setiap pengunjung, jadi bentuk impornya
+  // ikut dikunci di sini, bukan hanya nama modulnya.
   const sumber = await readFile(new URL("../src/lib/store.ts", import.meta.url), "utf8");
   assert.doesNotMatch(sumber, /localStorage/);
   assert.doesNotMatch(sumber, /mock-data/);
-  // Jalur demo tetap ada, tapi lewat modulnya sendiri.
-  assert.match(sumber, /store-demo\.ts/);
+  // Yang boleh hanya impor tipe (di-erase saat build) dan import() dinamis.
+  assert.doesNotMatch(
+    sumber,
+    /import\s+(?!type\b)[^"']*from\s+"\.\/store-demo\.ts"/,
+    "impor nilai statis dari store-demo membawa data contoh ke bundle pengunjung"
+  );
+  // Jalur demo tetap ada, tapi dimuat saat runtime ketika mode demo aktif.
+  assert.match(sumber, /import\("\.\/store-demo\.ts"\)/);
 });
