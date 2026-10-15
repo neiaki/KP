@@ -16,12 +16,17 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `VPS-HARDENING.md` | Catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan | **Acuan operasional** |
 | `SECRET-ROTATION.md` | Urutan mengganti secret yang pernah bocor, lengkap dengan verifikasi | **Acuan operasional** |
 | `CSP.md` | Cara kerja Content-Security-Policy berbasis nonce, daftar directive yang dipakai, dan alasan setiap keputusan | **Acuan keamanan** |
+| `COOLIFY-PANEL.md` | Cara masuk panel Coolify setelah port publik ditutup: SSH tunnel harian dan pengecualian darurat | **Acuan operasional** |
 | `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |
 | `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unit pertama arrive | **Acuan operasional** |
 | `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
 | `PAYMENT-WARNING-COPY.md` | Letak kalimat peringatan link pembayaran di halaman publik, risiko kalau dihapus, dan copy tulisan ulang yang bisa disetujui dalam satu langkah | **Acuan keputusan** |
 | `diagram-uml/README.md` | Indeks folder diagram UML dan aturan render PNG dan SVG pendamping | **Wadah diagram** |
+| `Diagram/README.md` | Indeks dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; draf lokal di-gitignore, tidak ikut repo | **Arsip lokal** |
 | `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor yang sudah diverifikasi ke source code | **Acuan alur** |
+| `agents/issue-tracker.md` | Konfigurasi issue tracker repo untuk skill agent: GitHub Issues lewat `gh` CLI, termasuk alur wayfinding | **Acuan agent** |
+| `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
+| `agents/domain.md` | Aturan konsumsi dokumen domain (GLOSSARY.md, docs/adr/) oleh skill agent | **Acuan agent** |
 
 ## Catatan
 
@@ -37,8 +42,10 @@ berbasis Supabase ketika environment production dikonfigurasi.
   render PNG serta SVG-nya dihapus pada 1 Oktober 2026, lalu berkas Mermaid
   `diagram.mmd` dihapus pada 2 Oktober 2026 karena isinya sudah tersalin
   inline di bagian 3 `UC-AtCell.md`. Penggantinya tinggal di `diagram-uml/`
-  sebagai sumber PlantUML plus render PNG dan SVG yang di-commit:
-  lima sequence per aktor, satu activity kasir, dan dua state machine.
+  sebagai sumber PlantUML plus render PNG dan SVG yang di-commit: dua puluh
+  tujuh sumber dalam folder per aktor (pengunjung, pelanggan, admin, sales,
+  teknisi) dan `bersama/` untuk diagram lintas aktor (state machine, ER,
+  class, object, component, concept, use case sisi).
   Indeks dan perintah render ada di `diagram-uml/README.md`.
 - Akses panel Coolify dijelaskan di `COOLIFY-PANEL.md`, karena panel adalah
   kendali penuh atas env production dan jalurnya tidak bisa ditebak dari

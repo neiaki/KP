@@ -1,5 +1,10 @@
 # Software Requirements Specification (SRS) - Sistem Toko Handphone
 
+> DOKUMEN DIGANTIKAN. Jangan dipakai sebagai acuan. Versi aktif adalah
+> `requirement-2.0.md` yang menambah aktor Admin/Owner, modul etalase publik
+> multibahasa, dashboard, dan ID kebutuhan FR-xxx/NFR-xxx. Berkas ini
+> dipertahankan hanya sebagai arsip sejarah v1.
+
 ## 1. Ringkasan Sistem
 Sistem informasi berbasis web/aplikasi untuk toko handphone yang mengintegrasikan pencatatan penjualan unit berbasis nomor IMEI, alur layanan servis unit, dan transaksi tukar tambah (trade-in).
 

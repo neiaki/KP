@@ -1,6 +1,6 @@
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -24,13 +24,14 @@ health endpoint `/api/health/ready` sebelum Production. PRD di
 - `bun run dev` — development (`http://localhost:3000/id`)
 - `bun run build` — wajib lolos sebelum selesai kerja
 - `bunx tsc --noEmit` — wajib bersih (typecheck)
-- `bun run lint` — masih ada error/warning warisan di portal, jangan tambah baru
+- `bun run lint` — wajib bersih; jangan menambahkan error atau warning baru
+- `bun run test` — suite Node (`node --test`) tanpa koneksi database; sebagian test skip tanpa `DATABASE_URL`
 
 ## Struktur
 
-- `src/app/[locale]/` — halaman publik: `page.tsx` (landing), `catalog/`,
+- `src/app/(public)/[locale]/` — halaman publik: `page.tsx` (landing), `catalog/`,
   `tracking/` (lacak servis via `?ticket=`), `trade-in/`
-- `src/app/portal/` — halaman internal staf (login demo, dashboard, pos,
+- `src/app/(portal)/portal/` — halaman internal staf (login demo, dashboard, pos,
   inventory, service, products, staff, settings, reports, account)
 - `src/components/public/` — navbar, footer, product-card, brand-mark,
   theme-toggle (khusus area publik)
@@ -88,3 +89,17 @@ health endpoint `/api/health/ready` sebelum Production. PRD di
 - Jangan sentuh `components/ui/` kecuali untuk token global yang disepakati.
 - Halaman portal adalah alat internal: fungsionalitas dulu, jangan redesign
   visualnya tanpa diminta eksplisit.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`GLOSSARY.md` + `docs/adr/`). See `docs/agents/domain.md`.
