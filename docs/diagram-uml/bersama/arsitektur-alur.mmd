@@ -1,0 +1,9 @@
+flowchart LR
+    Public["Pengunjung"] --> Next["Next.js App Router"]
+    Staff["Staf At Cell"] --> Next
+    Next --> Actions["Server Actions"]
+    Next --> Routes["Route Handlers"]
+    Actions --> Auth["Supabase Auth"]
+    Actions --> DB[("Supabase PostgreSQL")]
+    Actions --> Storage["Supabase Storage"]
+    Next -.->|"mode demo"| Mock["Mock data + localStorage"]

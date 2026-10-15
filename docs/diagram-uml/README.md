@@ -1,9 +1,11 @@
 # Diagram UML At Cell
 
 Folder ini menampung diagram UML (Unified Modeling Language) At Cell.
-Satu diagram satu berkas sumber PlantUML. Render PNG dan SVG di-commit
-di folder yang sama dengan sumbernya karena GitHub tidak me-render
-`.puml`. `sequence-diagram-atcell.md` di folder ini merangkum lima
+Satu diagram satu berkas sumber: PlantUML untuk diagram UML, plus satu
+sumber Mermaid untuk diagram arsitektur README root. Render PNG dan SVG
+di-commit di folder yang sama dengan sumbernya karena GitHub tidak
+me-render `.puml`, dan aplikasi GitHub di ponsel belum mendukung
+Mermaid. `sequence-diagram-atcell.md` di folder ini merangkum lima
 sequence diagram plus alasan tiap keputusan yang digambar.
 
 ## Tata folder
@@ -13,14 +15,18 @@ sequence diagram plus alasan tiap keputusan yang digambar.
   sequence, dan activity aktor tersebut plus render PNG dan SVG.
   Folder `sales/` juga memuat dua activity proses kasir dan
   registrasi IMEI, folder `teknisi/` memuat activity proses servis.
-- `bersama/`: diagram lintas aktor (dua state machine, class,
-  object, component, concept, dan skema database) plus rendernya.
+- `bersama/`: diagram lintas aktor (dua state machine, dua use case
+  sisi publik dan portal staf, class, object, component, concept, dan
+  skema database) plus rendernya. Sumber Mermaid `arsitektur-alur.mmd`
+  untuk diagram arsitektur README root juga tinggal di sini bersama
+  render PNG dan SVG-nya.
 - `sequence-diagram-atcell.md`: rangkuman lima sequence per aktor.
 - `style-atcell.iuml`: sumber kanonik gaya enterprise.
 
 ## Aturan isi
 
-- Satu diagram satu sumber PlantUML, dinamai sesuai prosesnya.
+- Satu diagram satu sumber, dinamai sesuai prosesnya: PlantUML untuk
+  diagram UML, Mermaid untuk diagram arsitektur README root.
 - Setiap sumber `.puml` wajib disertai render `.png` dan `.svg`
   dengan stem yang sama, supaya tidak ada gambar menggantung.
 - Gaya enterprise bersama dikelola di `style-atcell.iuml` sebagai sumber
@@ -40,27 +46,27 @@ sequence diagram plus alasan tiap keputusan yang digambar.
 
 ## Perintah render
 
-Satu perintah me-render semuanya (butuh `plantuml` dan Java).
+Perintah di bawah me-render semuanya (butuh `plantuml` dan Java untuk
+diagram UML, plus `mmdc` dari mermaid-cli untuk diagram arsitektur).
 Sumber dan render tinggal sekamar, jadi tidak perlu `--output-dir`:
 
 ```sh
-plantuml -checkonly docs/diagram-uml/*.puml docs/diagram-uml/*/*.puml
+plantuml -checkonly docs/diagram-uml/*/*.puml
 plantuml -tpng docs/diagram-uml/bersama/*.puml
 plantuml -tsvg docs/diagram-uml/bersama/*.puml
 for d in pengunjung pelanggan sales teknisi admin; do
   plantuml -tpng docs/diagram-uml/$d/*.puml
   plantuml -tsvg docs/diagram-uml/$d/*.puml
 done
+mmdc -i docs/diagram-uml/bersama/arsitektur-alur.mmd -o docs/diagram-uml/bersama/arsitektur-alur.svg -b white
+mmdc -i docs/diagram-uml/bersama/arsitektur-alur.mmd -o docs/diagram-uml/bersama/arsitektur-alur.png -b white -s 3
 ```
 
 Penulis me-render sebelum mengirim perubahan. Kegagalan sintaks
 tidak terlihat tanpa render, jadi cek di atas adalah compile step.
-Catatan: `--output-dir` wajib absolut (pakai `$PWD/` seperti di atas).
-Path relatif diam-diam ditulis relatif terhadap folder sumber
-dan menghasilkan duplikat nyasar.
-
-Penulis me-render sebelum mengirim perubahan. Kegagalan sintaks
-tidak terlihat tanpa render, jadi cek di atas adalah compile step.
+Kalau menambahkan `--output-dir` pada PlantUML, nilainya wajib absolut
+(pakai `$PWD/`); path relatif diam-diam ditulis relatif terhadap folder
+sumber dan menghasilkan duplikat nyasar.
 
 ## Indeks diagram
 
@@ -82,16 +88,17 @@ tidak terlihat tanpa render, jadi cek di atas adalah compile step.
 | Status tiket servis dan perpindahannya | `bersama/state-tiket-servis.puml` | `bersama/` `.png` `.svg` | OK | `REPAIR_FLOW` di `src/lib/validations.ts` |
 | Status unit inventaris dan perpindahannya | `bersama/state-status-unit.puml` | `bersama/` `.png` `.svg` | OK | `demoUpdateUnitStatus` di `src/lib/store-demo.ts`, pemicu `trg_prevent_sold_reactivation` di migrasi |
 | Objek bisnis At Cell dan relasinya | `bersama/concept-domain.puml` | `bersama/` `.png` `.svg` | OK | Skema `products`, `inventory_units`, `transactions`, `transaction_items`, `trade_in_records`, `service_tickets`, `store_settings`, `profiles` di `src/db/schema.ts` dan migrasi |
-| Apa yang bisa dilakukan Pengunjung | `pengunjung/usecase-pengunjung.puml` | `pengunjung/` `.png` `.svg` | OK | Kemampuan Pengunjung di `docs/UC-AtCell.md` |
-| Apa yang bisa dilakukan Pelanggan | `pelanggan/usecase-pelanggan.puml` | `pelanggan/` `.png` `.svg` | OK | Kemampuan Pelanggan di `docs/UC-AtCell.md` |
-| Apa yang bisa dilakukan Sales | `sales/usecase-sales.puml` | `sales/` `.png` `.svg` | OK | Kemampuan Sales di `docs/UC-AtCell.md` |
-| Apa yang bisa dilakukan Teknisi | `teknisi/usecase-teknisi.puml` | `teknisi/` `.png` `.svg` | OK | Kemampuan Teknisi di `docs/UC-AtCell.md` |
-| Apa yang bisa dilakukan Admin | `admin/usecase-admin.puml` | `admin/` `.png` `.svg` | OK | Kemampuan Admin di `docs/UC-AtCell.md` |
+| Apa yang bisa dilakukan Pengunjung | `pengunjung/usecase-pengunjung.puml` | `pengunjung/` `.png` `.svg` | OK | Kemampuan Pengunjung di `docs/USE-CASE-AtCell.md` |
+| Apa yang bisa dilakukan Pelanggan | `pelanggan/usecase-pelanggan.puml` | `pelanggan/` `.png` `.svg` | OK | Kemampuan Pelanggan di `docs/USE-CASE-AtCell.md` |
+| Apa yang bisa dilakukan Sales | `sales/usecase-sales.puml` | `sales/` `.png` `.svg` | OK | Kemampuan Sales di `docs/USE-CASE-AtCell.md` |
+| Apa yang bisa dilakukan Teknisi | `teknisi/usecase-teknisi.puml` | `teknisi/` `.png` `.svg` | OK | Kemampuan Teknisi di `docs/USE-CASE-AtCell.md` |
+| Apa yang bisa dilakukan Admin | `admin/usecase-admin.puml` | `admin/` `.png` `.svg` | OK | Kemampuan Admin di `docs/USE-CASE-AtCell.md` |
 | Use case sisi publik (Pengunjung dan Pelanggan) | `bersama/usecase-sisi-publik.puml` | `bersama/` `.png` `.svg` | OK | Gabungan `pengunjung/usecase-pengunjung.puml` dan `pelanggan/usecase-pelanggan.puml` |
 | Use case sisi portal staf (Sales, Teknisi, Admin) | `bersama/usecase-sisi-portal.puml` | `bersama/` `.png` `.svg` | OK | Gabungan `sales/usecase-sales.puml`, `teknisi/usecase-teknisi.puml`, dan `admin/usecase-admin.puml` |
 | Kelas domain At Cell | `bersama/class-domain.puml` | `bersama/` `.png` `.svg` | OK | Interface di `src/types/index.ts`, operasi mengikuti fungsi store dan Server Actions |
 | Potret satu penjualan dengan tukar tambah | `bersama/object-contoh-jual.puml` | `bersama/` `.png` `.svg` | OK | Nilai contoh ilustrasi, struktur mengikuti `src/types/index.ts` |
 | Modul besar At Cell dan ketergantungannya | `bersama/component-arsitektur.puml` | `bersama/` `.png` `.svg` | OK | Struktur `src/app`, `src/proxy.ts`, `src/lib/actions`, Supabase |
 | Skema database At Cell | `bersama/er-database.puml` | `bersama/` `.png` `.svg` | OK | `supabase/migrations/0001_atcell_schema.sql`, `0007_audit_trail.sql`, `20260927130000_product_image_registry.sql`, `src/db/schema.ts` |
+| Alur arsitektur aplikasi untuk README root | `bersama/arsitektur-alur.mmd` | `bersama/` `.png` `.svg` | OK | Struktur `src/app`, `src/proxy.ts`, `src/lib/actions`, Supabase |
 
 Render tertunda: tidak ada.
