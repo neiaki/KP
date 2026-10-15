@@ -5,7 +5,8 @@ import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
-import { formatIDR, formatDate } from "@/lib/utils";
+import { formatIDR, formatDate, formatDateOnly } from "@/lib/utils";
+import { serviceWarrantyEnd } from "@/lib/warranty";
 import { openNotaPrintWindow, buildServiceNotaHtml } from "@/lib/print-nota";
 import { trackTicketPublic } from "@/lib/actions/service";
 import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
@@ -206,6 +207,7 @@ export function TrackingContent({ locale }: { locale: Locale }) {
       cost_breakdown: [],
       created_at: data.created_at,
       updated_at: data.updated_at,
+      picked_up_at: data.picked_up_at,
       });
     } catch {
       if (requestId !== searchRequestId.current) return;
@@ -253,6 +255,13 @@ export function TrackingContent({ locale }: { locale: Locale }) {
         ? activeTicket.imei.slice(-4)
         : ""
     : "";
+
+  // FR-B-04: garansi perbaikan berjalan dari serah terima unit. Sebelum
+  // diambil, tidak ada tanggal akhir yang bisa dijanjikan, jadi barisnya
+  // tidak dirender.
+  const warrantyEnd = activeTicket
+    ? serviceWarrantyEnd(activeTicket.picked_up_at, activeTicket.warranty_days ?? 30)
+    : null;
 
   return (
     <div className="bg-paper">
@@ -416,6 +425,11 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                     <ShieldCheck className="h-3.5 w-3.5" />
                     {activeTicket.warranty_days || 30} hari
                   </dd>
+                  {warrantyEnd && (
+                    <p className="mt-0.5 text-xs text-muted">
+                      Berlaku sampai {formatDateOnly(warrantyEnd, locale)}
+                    </p>
+                  )}
                 </div>
               </dl>
 

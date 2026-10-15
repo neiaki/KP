@@ -21,3 +21,14 @@ export function formatDate(dateStr: string | Date, locale: string = "id"): strin
     timeStyle: "short",
   }).format(d);
 }
+
+/**
+ * Tanggal tanpa jam, untuk hal yang berlaku seharian penuh dan jamnya cuma
+ * menambah derau (mis. akhir masa garansi servis).
+ */
+export function formatDateOnly(dateStr: string | Date, locale: string = "id"): string {
+  const d = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    dateStyle: "long",
+  }).format(d);
+}

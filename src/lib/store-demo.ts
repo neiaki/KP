@@ -487,18 +487,22 @@ export function demoUpdateServiceTicket(
   serviceTickets: ServiceTicket[],
   ticketId: number | string,
   updates: Partial<ServiceTicket>,
-  setServiceTickets: DemoSetter<ServiceTicket[]>
+  setServiceTickets: DemoSetter<ServiceTicket[]>,
+  opts?: { notaConfirmed?: boolean }
 ): void {
   const current = serviceTickets.find((ticket) => String(ticket.id) === String(ticketId));
   if (!current) throw new Error("Tiket servis tidak ditemukan.");
-  if (
-    updates.repair_status &&
-    updates.repair_status !== current.repair_status &&
-    !isAllowedTransition(current.repair_status, updates.repair_status)
-  ) {
+  const target = updates.repair_status;
+  const berpindah = target !== undefined && target !== current.repair_status;
+  if (berpindah && !isAllowedTransition(current.repair_status, target)) {
     throw new Error(
-      `Transisi ${current.repair_status} ke ${updates.repair_status} tidak diizinkan. Ikuti alur reparasi resmi.`
+      `Transisi ${current.repair_status} ke ${target} tidak diizinkan. Ikuti alur reparasi resmi.`
     );
+  }
+  // FR-B-04: mode demo menegakkan gerbang yang sama dengan jalur live, supaya
+  // alur yang diuji staf di demo tidak meloloskan serah terima tanpa nota.
+  if (berpindah && target === "picked_up" && opts?.notaConfirmed !== true) {
+    throw new Error("Centang konfirmasi nota servis sebelum menyerahkan unit ke pelanggan.");
   }
 
   setServiceTickets((prev) => {
@@ -510,6 +514,11 @@ export function demoUpdateServiceTicket(
       return {
         ...ticket,
         ...updates,
+        // FR-B-04: stempel waktu serah terima sekali saja, sejalan dengan
+        // coalesce di trigger database.
+        ...(berpindah && updates.repair_status === "picked_up"
+          ? { picked_up_at: ticket.picked_up_at ?? new Date().toISOString() }
+          : {}),
         total_fee: totalFee,
         updated_at: new Date().toISOString(),
       };

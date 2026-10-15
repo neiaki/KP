@@ -511,7 +511,10 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
 
   const updateServiceTicket = async (
     ticketId: number | string,
-    updates: Partial<ServiceTicket>
+    updates: Partial<ServiceTicket>,
+    // FR-B-04: konfirmasi serah terima. Hanya dipakai saat transisi ke
+    // picked_up; pemanggil lain tidak perlu mengirimnya.
+    opts?: { notaConfirmed?: boolean }
   ): Promise<void> => {
     if (liveBackendEnabled) {
       const current = serviceTickets.find((ticket) => String(ticket.id) === String(ticketId));
@@ -528,6 +531,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
           // bisa diperbarui tanpa mengirim apa pun.
           costBreakdown: updates.cost_breakdown,
           photoUrls: updates.photo_urls,
+          notaConfirmed: opts?.notaConfirmed,
         })
       );
       setServiceTickets((prev) =>
@@ -537,7 +541,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     }
 
     const demo = await loadDemoModule();
-    return demo.demoUpdateServiceTicket(serviceTickets, ticketId, updates, setServiceTickets);
+    return demo.demoUpdateServiceTicket(serviceTickets, ticketId, updates, setServiceTickets, opts);
   };
 
   const addStaff = async (

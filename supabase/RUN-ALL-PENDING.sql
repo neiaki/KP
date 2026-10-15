@@ -1,16 +1,18 @@
 -- ============================================================================
 -- File gabungan untuk Supabase SQL Editor
 --
--- Isi: SELURUH migrasi At Cell, 28 bagian, dari database kosong.
+-- Isi: SELURUH migrasi At Cell, 29 bagian, dari database kosong.
 -- Urutannya mengikuti ketergantungan antar bagian, bukan hanya nomor file.
 -- Menyalin file ini ke project Supabase yang benar-benar kosong sudah cukup:
 -- bagian 1 (0001) yang membuat tabel, enum, RLS, view, trigger, dan bucket
 -- Storage, jadi tidak ada satu langkah pun yang harus dijalankan sebelumnya.
 --
--- STATUS untuk project At Cell yang sekarang: SEMUA bagian di bawah ini SUDAH
--- TERJALAN (diverifikasi 27 Sep 2026), jadi file ini tidak perlu di-paste lagi
--- ke project itu. Yang membutuhkannya hanya project yang belum ter-provision:
--- akun Supabase baru, staging terpisah, atau database yang di-reset dari nol.
+-- STATUS untuk project At Cell yang sekarang: bagian 1 sampai 28 SUDAH
+-- TERJALAN (diverifikasi 27 Sep 2026). Bagian 29 (FR-B-04, 15 Okt 2026)
+-- belum dijalankan di project itu: jalankan hanya bagian 29 lewat SQL Editor
+-- atau psql, lalu catat di ledger. File ini tetap perlu di-paste utuh hanya
+-- untuk project yang belum ter-provision: akun Supabase baru, staging
+-- terpisah, atau database yang di-reset dari nol.
 --
 -- DAFTAR BAGIAN, sesuai urutan di file ini:
 --   1  0001_atcell_schema                            tabel, enum, RLS, trigger, view, Storage, seed
@@ -41,6 +43,7 @@
 --  26 20261001120000_hide_unidentified_product_6       sembunyikan produk yang brand dan modelnya bertentangan
 --  27 20261013000000_index_inventory_units_created       index created_at untuk urutan etalase publik
 --  28 20261013120000_redact_store_contact               ganti kontak toko dengan nilai sintetis, isi ulang via portal
+--  29 20261015000000_service_ticket_picked_up_at         kolom picked_up_at + stempel waktu serah terima unit (FR-B-04)
 --
 -- CATATAN soal tabel schema_migrations: project ini tidak memakai Supabase CLI
 -- untuk menjalankan migrasi, dan repo ini tidak punya supabase/config.toml.
@@ -66,7 +69,7 @@
 -- ============================================================================
 
 -- ###########################################################################
--- BAGIAN 1 dari 28: 0001_atcell_schema
+-- BAGIAN 1 dari 29: 0001_atcell_schema
 -- ###########################################################################
 
 do $$ begin create type user_role as enum ('admin','sales','technician','customer');
@@ -597,7 +600,7 @@ values
 on conflict (id) do nothing;
 
 -- ###########################################################################
--- BAGIAN 2 dari 28: 0002_harden_atcell_schema
+-- BAGIAN 2 dari 29: 0002_harden_atcell_schema
 -- ###########################################################################
 
 create schema if not exists private;
@@ -1129,7 +1132,7 @@ grant select on public.v_public_inventory to service_role;
 grant usage, select, update on all sequences in schema public to service_role;
 
 -- ###########################################################################
--- BAGIAN 3 dari 28: 0003_lock_legacy_helpers
+-- BAGIAN 3 dari 29: 0003_lock_legacy_helpers
 -- ###########################################################################
 
 revoke execute on function public.get_my_role() from public, anon, authenticated;
@@ -1138,7 +1141,7 @@ grant execute on function public.get_my_role() to service_role;
 grant execute on function public.is_staff() to service_role;
 
 -- ###########################################################################
--- BAGIAN 4 dari 28: 0004_align_schema_contract
+-- BAGIAN 4 dari 29: 0004_align_schema_contract
 -- ###########################################################################
 
 do $$
@@ -1244,7 +1247,7 @@ on conflict (id) do nothing;
 
 
 -- ###########################################################################
--- BAGIAN 5 dari 28: 20260926025406_index_public_foreign_keys
+-- BAGIAN 5 dari 29: 20260926025406_index_public_foreign_keys
 -- ###########################################################################
 
 create index if not exists service_tickets_customer_id_idx
@@ -1264,7 +1267,7 @@ create index if not exists transactions_customer_id_idx
 
 
 -- ###########################################################################
--- BAGIAN 6 dari 28: 20260926103000_strengthen_ticket_codes
+-- BAGIAN 6 dari 29: 20260926103000_strengthen_ticket_codes
 -- ###########################################################################
 
 create or replace function public.generate_ticket_code()
@@ -1322,7 +1325,7 @@ alter table public.service_tickets
 
 
 -- ###########################################################################
--- BAGIAN 7 dari 28: 0006_store_social_urls
+-- BAGIAN 7 dari 29: 0006_store_social_urls
 -- ###########################################################################
 
 alter table public.store_settings add column if not exists social_facebook text;
@@ -1369,7 +1372,7 @@ end $$;
 
 
 -- ###########################################################################
--- BAGIAN 8 dari 28: 0007_audit_trail
+-- BAGIAN 8 dari 29: 0007_audit_trail
 -- ###########################################################################
 
 create table if not exists public.unit_status_audit (
@@ -1540,7 +1543,7 @@ grant usage, select on all sequences in schema public to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 9 dari 28: 0005_username_login
+-- BAGIAN 9 dari 29: 0005_username_login
 -- ###########################################################################
 
 alter table public.profiles add column if not exists email text;
@@ -1684,7 +1687,7 @@ grant all on public.profiles to service_role;
 
 
 -- ###########################################################################
--- BAGIAN 10 dari 28: 20260927130000_product_image_registry
+-- BAGIAN 10 dari 29: 20260927130000_product_image_registry
 -- ###########################################################################
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -1765,7 +1768,7 @@ create policy product_images_admin_delete
   using ((select private.get_my_role()) = 'admin');
 
 -- ###########################################################################
--- BAGIAN 11 dari 28: 20260927120000_auto_enable_rls_on_new_tables
+-- BAGIAN 11 dari 29: 20260927120000_auto_enable_rls_on_new_tables
 -- ###########################################################################
 CREATE OR REPLACE FUNCTION rls_auto_enable()
 RETURNS EVENT_TRIGGER
@@ -1865,7 +1868,7 @@ EXECUTE FUNCTION rls_auto_enable();
 
 
 -- ###########################################################################
--- BAGIAN 12 dari 28: 20260927140000_store_owner_and_real_contact
+-- BAGIAN 12 dari 29: 20260927140000_store_owner_and_real_contact
 -- ###########################################################################
 alter table public.store_settings
   add column if not exists owner_name text not null default '';
@@ -1885,7 +1888,7 @@ where id = 1;
 
 
 -- ###########################################################################
--- BAGIAN 13 dari 28: 20260927150000_revoke_anon_write_on_product_images
+-- BAGIAN 13 dari 29: 20260927150000_revoke_anon_write_on_product_images
 -- ###########################################################################
 
 -- Hak tulis anon di registry gambar produk.
@@ -1918,7 +1921,7 @@ grant select on public.product_images to anon;
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 14 dari 28: 20260927160000_harden_storage_access
+-- BAGIAN 14 dari 29: 20260927160000_harden_storage_access
 -- ###########################################################################
 
 -- Akses Storage untuk foto pelanggan.
@@ -1999,7 +2002,7 @@ create policy storage_staff_read on storage.objects
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 15 dari 28: 20260927170000_demo_ticket_for_tracking_example
+-- BAGIAN 15 dari 29: 20260927170000_demo_ticket_for_tracking_example
 -- ###########################################################################
 
 -- Tiket demo untuk kode contoh di halaman lacak servis publik.
@@ -2084,7 +2087,7 @@ where ticket_code = 'SRV-20260912-7K4M2QX9' and repair_status = 'in_progress';
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 16 dari 28: 20260927180000_nullable_inventory_unit_product
+-- BAGIAN 16 dari 29: 20260927180000_nullable_inventory_unit_product
 -- ###########################################################################
 
 -- inventory_units.product_id jadi nullable, etalase publik tetap jujur.
@@ -2211,7 +2214,7 @@ select p.brand,
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 17 dari 28: 20260927190000_close_browser_role_write_grants
+-- BAGIAN 17 dari 29: 20260927190000_close_browser_role_write_grants
 -- ###########################################################################
 
 -- Menutup hak tulis yang masih bocor, lalu menutup akar masalahnya.
@@ -2321,7 +2324,7 @@ alter default privileges in schema public grant select on tables to anon, authen
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 18 dari 28: 20260927200000_remove_ocean_photo_from_reno11_gallery
+-- BAGIAN 18 dari 29: 20260927200000_remove_ocean_photo_from_reno11_gallery
 -- ###########################################################################
 
 -- Lepaskan foto laut dari galeri resmi Oppo Reno 11.
@@ -2415,7 +2418,7 @@ update public.product_images
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 19 dari 28: 20260927201000_clear_unparseable_product_image_url
+-- BAGIAN 19 dari 29: 20260927201000_clear_unparseable_product_image_url
 -- ###########################################################################
 
 -- Bersihkan image_url produk yang isinya bukan alamat foto.
@@ -2510,7 +2513,7 @@ update public.products p
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 20 dari 28: 20260927202000_trim_crop_duplicate_a55_photos
+-- BAGIAN 20 dari 29: 20260927202000_trim_crop_duplicate_a55_photos
 -- ###########################################################################
 
 -- Pangkas foto galeri Galaxy A55 yang saling potongan.
@@ -2622,7 +2625,7 @@ update public.products p
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 21 dari 28: 20260930100000_catalogue_apple_iphone_15_pro
+-- BAGIAN 21 dari 29: 20260930100000_catalogue_apple_iphone_15_pro
 -- ###########################################################################
 
 -- Masukkan Apple iPhone 15 Pro ke katalog tanpa membuat unit inventaris.
@@ -2734,7 +2737,7 @@ where not exists (
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 22 dari 28: 20260930101000_catalogue_samsung_galaxy_s24_ultra
+-- BAGIAN 22 dari 29: 20260930101000_catalogue_samsung_galaxy_s24_ultra
 -- ###########################################################################
 
 -- Masukkan Samsung Galaxy S24 Ultra ke katalog tanpa membuat unit inventaris.
@@ -2854,7 +2857,7 @@ where not exists (
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 23 dari 28: 20260930102000_catalogue_xiaomi_14
+-- BAGIAN 23 dari 29: 20260930102000_catalogue_xiaomi_14
 -- ###########################################################################
 
 -- Masukkan Xiaomi 14 ke katalog tanpa membuat unit inventaris.
@@ -2977,7 +2980,7 @@ where not exists (
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 24 dari 28: 20260930103000_catalogue_vivo_v30
+-- BAGIAN 24 dari 29: 20260930103000_catalogue_vivo_v30
 -- ###########################################################################
 
 -- Masukkan Vivo V30 ke katalog tanpa membuat unit inventaris.
@@ -3087,7 +3090,7 @@ where not exists (
 -- ###########################################################################
 
 -- ###########################################################################
--- BAGIAN 25 dari 28: 20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9
+-- BAGIAN 25 dari 29: 20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9
 -- ###########################################################################
 
 -- Katalogkan unit trade-in id 9 sebagai Apple iPhone 14 Plus.
@@ -3260,7 +3263,7 @@ update public.inventory_units u
 -- ###########################################################################
 -- ###########################################################################
 
--- BAGIAN 26 dari 28: 20261001120000_hide_unidentified_product_6
+-- BAGIAN 26 dari 29: 20261001120000_hide_unidentified_product_6
 -- ###########################################################################
 
 update public.products p
@@ -3275,7 +3278,7 @@ update public.products p
 -- ###########################################################################
 -- ###########################################################################
 
--- BAGIAN 27 dari 28: 20261013000000_index_inventory_units_created
+-- BAGIAN 27 dari 29: 20261013000000_index_inventory_units_created
 -- ###########################################################################
 
 -- Index untuk urutan etalase publik (KP-1, timeout statement 2 Okt 2026).
@@ -3290,7 +3293,7 @@ create index if not exists inventory_units_created_idx
 -- ###########################################################################
 -- ###########################################################################
 
--- BAGIAN 28 dari 28: 20261013120000_redact_store_contact
+-- BAGIAN 28 dari 29: 20261013120000_redact_store_contact
 -- ###########################################################################
 
 -- Kontak toko keluar dari repo. Lihat
@@ -3302,5 +3305,48 @@ update public.store_settings
        whatsapp_number = '6280000000000',
        owner_name      = ''
  where id = 1;
+
+-- ###########################################################################
+
+-- ###########################################################################
+-- ###########################################################################
+
+-- BAGIAN 29 dari 29: 20261015000000_service_ticket_picked_up_at
+-- ###########################################################################
+
+-- Lihat supabase/migrations/20261015000000_service_ticket_picked_up_at.sql
+-- untuk penjelasan lengkap.
+
+alter table public.service_tickets
+  add column if not exists picked_up_at timestamptz;
+
+create or replace function public.validate_service_ticket_transition()
+returns trigger
+language plpgsql
+set search_path = public, private, pg_temp
+as $$
+begin
+  if new.repair_status = old.repair_status then
+    return new;
+  end if;
+
+  if not (
+    (old.repair_status = 'received' and new.repair_status in ('diagnosing', 'cancelled')) or
+    (old.repair_status = 'diagnosing' and new.repair_status in ('waiting_approval', 'cancelled')) or
+    (old.repair_status = 'waiting_approval' and new.repair_status in ('in_progress', 'cancelled')) or
+    (old.repair_status = 'in_progress' and new.repair_status in ('testing', 'cancelled')) or
+    (old.repair_status = 'testing' and new.repair_status in ('completed', 'in_progress', 'cancelled')) or
+    (old.repair_status = 'completed' and new.repair_status = 'picked_up')
+  ) then
+    raise exception 'INVALID_REPAIR_TRANSITION';
+  end if;
+
+  if new.repair_status = 'picked_up' then
+    new.picked_up_at := coalesce(new.picked_up_at, now());
+  end if;
+
+  return new;
+end;
+$$;
 
 -- ###########################################################################

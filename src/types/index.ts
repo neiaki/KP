@@ -187,5 +187,7 @@ export interface ServiceTicket {
   photo_urls: string[];
   created_at: string;
   updated_at: string;
+  // FR-B-04: waktu serah terima unit, diisi saat status menjadi `picked_up`.
+  picked_up_at?: string | null;
   cost_breakdown?: ServiceCostItem[];
 }

@@ -88,6 +88,7 @@ type ServiceTicketDbRow = {
   cost_breakdown: ServiceTicket["cost_breakdown"];
   created_at: string;
   updated_at: string;
+  picked_up_at: string | null;
 };
 
 function mapProduct(row: ProductDbRow): Product {
@@ -140,6 +141,7 @@ function mapTicket(row: ServiceTicketDbRow): ServiceTicket {
     cost_breakdown: row.cost_breakdown ?? [],
     created_at: toISO(row.created_at),
     updated_at: toISO(row.updated_at),
+    picked_up_at: row.picked_up_at ? toISO(row.picked_up_at) : null,
   };
 }
 
