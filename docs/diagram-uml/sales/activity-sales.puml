@@ -1,0 +1,85 @@
+@startuml
+' --- gaya At Cell (inline, mandiri utk server publik) ---
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName sans-serif
+skinparam defaultFontSize 13
+skinparam titleFontSize 18
+skinparam titleFontStyle bold
+skinparam headerFontSize 11
+skinparam footerFontSize 11
+skinparam noteBackgroundColor #FFF8DC
+skinparam noteBorderColor #B89B00
+skinparam actorBackgroundColor #E8EEF7
+skinparam actorBorderColor #0B4ED8
+skinparam participantBackgroundColor #E8EEF7
+skinparam participantBorderColor #0B4ED8
+skinparam usecaseBackgroundColor #E8EEF7
+skinparam usecaseBorderColor #0B4ED8
+skinparam classBackgroundColor #E8EEF7
+skinparam classBorderColor #0B4ED8
+skinparam objectBackgroundColor #EEF3FA
+skinparam objectBorderColor #0B4ED8
+skinparam activityBackgroundColor #E8EEF7
+skinparam activityBorderColor #0B4ED8
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #0B4ED8
+skinparam stateBackgroundColor #E8EEF7
+skinparam stateBorderColor #0B4ED8
+skinparam stateStartColor #0B4ED8
+skinparam stateEndColor #0B4ED8
+skinparam componentBackgroundColor #E8EEF7
+skinparam componentBorderColor #0B4ED8
+skinparam cloudBackgroundColor #F2F5FA
+skinparam cloudBorderColor #5B6B82
+skinparam databaseBackgroundColor #E8EEF7
+skinparam databaseBorderColor #0B4ED8
+skinparam entityBackgroundColor #E8EEF7
+skinparam entityBorderColor #0B4ED8
+skinparam sequenceArrowColor #334155
+skinparam sequenceLifeLineBorderColor #0B4ED8
+skinparam sequenceParticipantBorderColor #0B4ED8
+footer Dipelihara di docs/diagram-uml, render dari sumber .puml
+title Kasir, inventaris, dan tiket servis
+start
+:Buka pintu masuk staf;
+if (Peran sales?) then (ya)
+  :Mendarat di kasir POS;
+else (tidak)
+  :Dikembalikan ke beranda peran;
+  stop
+endif
+if (Kerja apa?) then (jual unit)
+  :Ikuti diagram penjualan kasir di folder ini;
+  note right
+    Satu unit available per IMEI, data walk-in
+    nama wajib plus HP, checkout atomik dan
+    cetak nota. Unit selain available ditolak.
+  end note
+elseif (daftar unit) then
+  :Ikuti diagram registrasi batch IMEI di folder ini;
+  note right
+    Tiap IMEI tepat 15 digit angka dan unik.
+    Batch maks 200 baris, harga jual tidak
+    boleh di bawah modal kecuali tidak berubah.
+  end note
+elseif (pantau stok) then
+  :Cari IMEI dan model plus filter status dan kondisi;
+  :Baca ringkasan tersedia, terjual, second, total;
+  if (Ubah status?) then (ya)
+    :Set status baru lewat aksi yang diizinkan;
+    note right
+      Dilarang set langsung ke sold dari UI dan
+      dilarang keluarkan unit sold. Koreksi hanya
+      boleh ubah kondisi dan harga.
+    end note
+  else (tidak)
+  endif
+else (buat tiket)
+  :Catat nama dan HP, model, IMEI atau SN, keluhan;
+  :Terima status awal received plus resi;
+  :Serahkan resi dan tautan tracking ke pelanggan;
+endif
+stop
+@enduml

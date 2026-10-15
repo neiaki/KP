@@ -1,0 +1,258 @@
+@startuml
+' --- gaya At Cell (inline, mandiri utk server publik) ---
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName sans-serif
+skinparam defaultFontSize 13
+skinparam titleFontSize 18
+skinparam titleFontStyle bold
+skinparam headerFontSize 11
+skinparam footerFontSize 11
+skinparam noteBackgroundColor #FFF8DC
+skinparam noteBorderColor #B89B00
+skinparam actorBackgroundColor #E8EEF7
+skinparam actorBorderColor #0B4ED8
+skinparam participantBackgroundColor #E8EEF7
+skinparam participantBorderColor #0B4ED8
+skinparam usecaseBackgroundColor #E8EEF7
+skinparam usecaseBorderColor #0B4ED8
+skinparam classBackgroundColor #E8EEF7
+skinparam classBorderColor #0B4ED8
+skinparam objectBackgroundColor #EEF3FA
+skinparam objectBorderColor #0B4ED8
+skinparam activityBackgroundColor #E8EEF7
+skinparam activityBorderColor #0B4ED8
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #0B4ED8
+skinparam stateBackgroundColor #E8EEF7
+skinparam stateBorderColor #0B4ED8
+skinparam stateStartColor #0B4ED8
+skinparam stateEndColor #0B4ED8
+skinparam componentBackgroundColor #E8EEF7
+skinparam componentBorderColor #0B4ED8
+skinparam cloudBackgroundColor #F2F5FA
+skinparam cloudBorderColor #5B6B82
+skinparam databaseBackgroundColor #E8EEF7
+skinparam databaseBorderColor #0B4ED8
+skinparam entityBackgroundColor #E8EEF7
+skinparam entityBorderColor #0B4ED8
+skinparam sequenceArrowColor #334155
+skinparam sequenceLifeLineBorderColor #0B4ED8
+skinparam sequenceParticipantBorderColor #0B4ED8
+footer Dipelihara di docs/diagram-uml, render dari sumber .puml
+title Kelas domain At Cell
+package "Aktor dan toko" {
+  class Profil {
+    +id: string
+    +full_name: string
+    +role: UserRole
+    +phone_number: string
+    +email: string?
+    +username: string?
+    +created_at: datetime
+  }
+  class PengaturanToko {
+    +id: int
+    +store_name: string
+    +description_id: string
+    +description_en: string
+    +address: string
+    +latitude: decimal
+    +longitude: decimal
+    +maps_url: string?
+    +phone_number: string
+    +whatsapp_number: string?
+    +owner_name: string?
+    +social_facebook: string?
+    +social_instagram: string?
+    +social_x: string?
+    +social_tiktok: string?
+    +opening_hours: json
+    +updated_at: datetime
+  }
+  enum UserRole {
+    admin
+    sales
+    technician
+    customer
+  }
+}
+package "Katalog dan unit" {
+  class Produk {
+    +id: int
+    +brand: string
+    +model_name: string
+    +specs: string
+    +default_price: decimal
+    +image_url: string
+    +official_images: string[]?
+    +second_images: string[]?
+    +pernah_punya_unit: boolean?
+    +created_at: datetime
+  }
+  class Unit {
+    +id: int
+    +product_id: int?
+    +trade_in_model: string?
+    +imei: string
+    +condition: UnitCondition
+    +purchase_cost: decimal
+    +selling_price: decimal
+    +status: UnitStatus
+    +created_at: datetime
+  }
+  class GambarProduk {
+    +id: int
+    +product_id: int?
+    +path: string
+    +public_url: string
+    +kind: GambarKind
+    +alt_text: string
+    +byte_size: int
+    +is_primary: boolean
+    +created_at: datetime
+  }
+  enum UnitCondition {
+    new
+    second
+  }
+  enum UnitStatus {
+    available
+    reserved
+    sold
+    in_service
+    returned
+  }
+  enum GambarKind {
+    official
+    second
+    hero
+    payment
+  }
+}
+package "Penjualan" {
+  class Transaksi {
+    +id: int
+    +invoice_number: string?
+    +customer_id: string?
+    +customer_name: string
+    +customer_phone: string
+    +sales_id: string
+    +total_amount: decimal
+    +trade_in_id: int?
+    +trade_in_deduction: decimal?
+    +final_payment: decimal?
+    +final_paid_amount: decimal?
+    +payment_method: PaymentMethod
+    +created_at: datetime
+  }
+  class Rincian {
+    +id: int
+    +transaction_id: int?
+    +inventory_unit_id: int?
+    +unit_id: int?
+    +unit_price: decimal
+    +warranty_period_days: int?
+    +warranty_duration_months: int?
+  }
+  class TukarTambah {
+    +id: int
+    +transaction_id: int?
+    +resulting_unit_id: int?
+    +original_brand_model: string
+    +imei: string
+    +offered_price: decimal
+    +agreed_price: decimal?
+    +physical_condition_notes: string?
+    +photo_urls: string[]?
+    +created_at: datetime
+  }
+  class Grading {
+    +screen: string?
+    +body: string?
+    +battery: int?
+    +battery_health: int?
+    +cameras: string?
+    +face_id: string?
+    +notes: string?
+  }
+  enum PaymentMethod {
+    cash
+    transfer
+    qris
+    debit
+    credit
+  }
+}
+package "Servis" {
+  class Tiket {
+    +id: int|string
+    +ticket_code: string
+    +customer_id: string?
+    +customer_name: string
+    +customer_phone: string
+    +technician_id: string?
+    +device_name: string?
+    +device_model: string
+    +imei: string?
+    +imei_or_sn: string?
+    +issue_notes: string
+    +problem_description: string?
+    +technician_notes: string?
+    +repair_status: RepairStatus
+    +sparepart_fee: decimal
+    +labor_fee: decimal
+    +total_fee: decimal
+    +warranty_days: int?
+    +photo_urls: string[]
+    +created_at: datetime
+    +updated_at: datetime
+  }
+  class Biaya {
+    +id: string
+    +name: string
+    +cost: decimal
+    +type: sparepart | labor
+  }
+  enum RepairStatus {
+    received
+    diagnosing
+    waiting_approval
+    in_progress
+    testing
+    completed
+    picked_up
+    cancelled
+  }
+}
+class LayananToko <<store>> {
+  +jualUnit()
+  +buatTiket()
+  +updateTiket()
+  +daftarBatchUnit()
+  +ubahStatusUnit()
+  +simpanPengaturan()
+  +undangStaf()
+}
+Produk "1" -- "0..*" Unit : punya
+Produk "1" -- "0..*" GambarProduk : didaftar
+Transaksi "1" *-- "1..*" Rincian : dirinci
+Rincian "*" -- "1" Unit : menjual
+Transaksi "1" -- "0..1" TukarTambah : dipotong
+TukarTambah "1" *-- "1" Grading : dinilai
+TukarTambah --> Unit : unit lama masuk stok
+Tiket "1" *-- "*" Biaya : dirinci
+Profil "1" -- "*" Transaksi : mencatat dan membeli
+Profil "1" -- "*" Tiket : menangani
+LayananToko ..> Transaksi : tulis
+LayananToko ..> Tiket : tulis
+LayananToko ..> Unit : tulis
+note bottom of LayananToko
+  Atribut mengikuti src/types/index.ts apa adanya,
+  tanda tanya berarti opsional di kode. Tabel audit
+  dan view etalase ada di diagram skema database.
+  Kode implementasi sebagai fungsi store dan
+  Server Actions, bukan class OOP.
+end note
+@enduml

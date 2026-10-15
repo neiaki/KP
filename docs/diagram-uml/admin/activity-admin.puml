@@ -1,0 +1,93 @@
+@startuml
+' --- gaya At Cell (inline, mandiri utk server publik) ---
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName sans-serif
+skinparam defaultFontSize 13
+skinparam titleFontSize 18
+skinparam titleFontStyle bold
+skinparam headerFontSize 11
+skinparam footerFontSize 11
+skinparam noteBackgroundColor #FFF8DC
+skinparam noteBorderColor #B89B00
+skinparam actorBackgroundColor #E8EEF7
+skinparam actorBorderColor #0B4ED8
+skinparam participantBackgroundColor #E8EEF7
+skinparam participantBorderColor #0B4ED8
+skinparam usecaseBackgroundColor #E8EEF7
+skinparam usecaseBorderColor #0B4ED8
+skinparam classBackgroundColor #E8EEF7
+skinparam classBorderColor #0B4ED8
+skinparam objectBackgroundColor #EEF3FA
+skinparam objectBorderColor #0B4ED8
+skinparam activityBackgroundColor #E8EEF7
+skinparam activityBorderColor #0B4ED8
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #0B4ED8
+skinparam stateBackgroundColor #E8EEF7
+skinparam stateBorderColor #0B4ED8
+skinparam stateStartColor #0B4ED8
+skinparam stateEndColor #0B4ED8
+skinparam componentBackgroundColor #E8EEF7
+skinparam componentBorderColor #0B4ED8
+skinparam cloudBackgroundColor #F2F5FA
+skinparam cloudBorderColor #5B6B82
+skinparam databaseBackgroundColor #E8EEF7
+skinparam databaseBorderColor #0B4ED8
+skinparam entityBackgroundColor #E8EEF7
+skinparam entityBorderColor #0B4ED8
+skinparam sequenceArrowColor #334155
+skinparam sequenceLifeLineBorderColor #0B4ED8
+skinparam sequenceParticipantBorderColor #0B4ED8
+footer Dipelihara di docs/diagram-uml, render dari sumber .puml
+title Kelola toko dan pantau bisnis
+start
+:Buka pintu masuk staf;
+if (Peran admin?) then (ya)
+  :Mendarat di dashboard bisnis;
+else (tidak)
+  :Dikembalikan ke beranda peran;
+  stop
+endif
+:Baca omzet, transaksi, tiket aktif, dan stok rendah;
+note right
+  Halaman ini read-only tanpa mutasi.
+  Ambang stok rendah bisa 1, 2, 3, atau 5.
+end note
+if (Kelola apa?) then (master produk)
+  :Tambah, edit, atau nonaktifkan katalog;
+  note right
+    Harga nol atau kosong berarti tanpa harga
+    dan baris harga disembunyikan di etalase.
+    Produk tanpa unit tampil Belum ada unit.
+    Tulis produk ditolak untuk sales dan teknisi.
+  end note
+elseif (akun staf) then
+  :Undang atau ubah peran sales dan technician;
+  note right
+    Username kecil 3 sampai 32 karakter,
+    password min delapan. Peran customer
+    ditolak. Dilarang ubah peran diri sendiri
+    menjadi non admin kalau satu-satunya admin.
+  end note
+elseif (pengaturan toko) then
+  :Simpan identitas bilingual, alamat, jam, dan sosmed;
+  note right
+    Kosong berarti sembunyi. Perubahan langsung
+    tampil di profil publik.
+  end note
+elseif (laporan) then
+  :Baca performa per teknisi per rentang tanggal;
+  note right
+    Read-only. Tiket batal dihitung gagal.
+  end note
+else (operasional)
+  :Buka kasir, inventaris, servis, atau akun;
+  note right
+    Ikut aturan main peran pelaksananya,
+    admin lolos semua penjaga.
+  end note
+endif
+stop
+@enduml
