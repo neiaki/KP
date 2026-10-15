@@ -7,6 +7,7 @@ import { openNotaPrintWindow, buildPosNotaHtml } from "@/lib/print-nota";
 import { uploadPhoto } from "@/lib/actions/storage";
 import { TRADE_IN_MODELS } from "@/lib/trade-in-models";
 import { UNIT_LABEL_UNKNOWN, unitLabel } from "@/lib/shop";
+import { finalPaymentAmount } from "@/lib/pricing";
 import { PaymentMethod, Transaction, UnitCondition } from "@/types";
 import {
   ShoppingCart,
@@ -103,7 +104,7 @@ export default function SalesPosPage() {
   // Calculate totals
   const subtotal = selectedUnit ? selectedUnit.selling_price : 0;
   const tradeInDeduction = hasTradeIn ? customTradeInPrice : 0;
-  const finalPayment = Math.max(0, subtotal - tradeInDeduction);
+  const finalPayment = finalPaymentAmount(subtotal, tradeInDeduction);
 
   const handleTradeInPhotoChange = async (
     event: React.ChangeEvent<HTMLInputElement>

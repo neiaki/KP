@@ -9,9 +9,17 @@ import {
   filterFotoMilikSendiri,
   objectKeyBentukSah,
   uploadPhotoSchema,
+  UPLOAD_BUCKETS,
 } from "@/lib/validations";
 import { fail, ok, requireRole, type ActionResult } from "./_helpers";
 
+/**
+ * Bucket yang boleh dibaca lewat signed URL. Ketiganya boleh ditandatangani
+ * (dua privat untuk pratinjau, katalog tetap publik), tapi hanya dua di
+ * antaranya yang boleh diunggah. Daftar unggah ada di
+ * src/lib/validations.ts sebagai UPLOAD_BUCKETS, satu sumber dengan schema
+ * form, jadi menambah bucket unggah baru kelihatan sebagai perubahan kontrak.
+ */
 const ALLOWED_BUCKETS = [
   "trade-in-photos",
   "service-photos",
@@ -21,6 +29,9 @@ const ALLOWED_BUCKETS = [
 ] as const;
 
 type Bucket = (typeof ALLOWED_BUCKETS)[number];
+
+/** Bucket yang boleh diunggah form foto kondisi (dua bucket privat). */
+type UploadBucket = (typeof UPLOAD_BUCKETS)[number];
 
 /**
  * Tabel yang menyimpan photo_urls untuk bucket privat.
@@ -53,22 +64,22 @@ function perluTandaTangan(bucket: Bucket): boolean {
  * Yang dikembalikan adalah `{ path, url }` dengan dua peran berbeda, dan
  * pemanggil wajib memperlakukannya begitu:
  *
- * - `path` untuk disimpan ke kolom photo_urls. Bucket trade-in-photos dan
- *   service-photos sengaja privat, jadi getPublicUrl tidak bisa dipakai di
- *   sana. Fungsi itu hanya menyusun URL /object/public/ tanpa memeriksa
- *   privatnya bucket, jadi diam-diam mengembalikan URL yang selalu gagal
- *   diambil. Path tidak pernah basi, jadi hanya itu yang layak disimpan.
- * - `url` untuk langsung ditampilkan. Untuk bucket privat ini signed URL
- *   berumur terbatas, jadi hanya boleh jadi pratinjau pada sesi berjalan dan
+ * - `path` untuk disimpan ke kolom photo_urls. Kedua bucket yang bisa
+ *   diunggah sengaja privat, jadi URL publik tidak bisa dipakai di sana:
+ *   path /object/public/ hanya dilayani untuk bucket publik, dan bucket
+ *   privat selalu menolaknya. Path tidak pernah basi, jadi hanya itu yang
+ *   layak disimpan.
+ * - `url` untuk langsung ditampilkan, dan selalu signed URL berumur
+ *   terbatas. Nilainya cuma boleh jadi pratinjau pada sesi berjalan dan
  *   tidak boleh dikirim balik ke database.
  */
 export async function uploadPhoto(
   formData: FormData,
-  opts: { bucket: Bucket }
+  opts: { bucket: UploadBucket }
 ): Promise<ActionResult<{ url: string; path: string }>> {
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
-  if (!ALLOWED_BUCKETS.includes(opts.bucket)) return fail("Bucket tidak dikenal.");
+  if (!UPLOAD_BUCKETS.includes(opts.bucket)) return fail("Bucket tidak dikenal.");
   const file = formData.get("file");
   if (!(file instanceof File)) return fail("File foto wajib disertakan.");
   const parsed = uploadPhotoSchema.safeParse({
@@ -95,12 +106,6 @@ export async function uploadPhoto(
     upsert: false,
   });
   if (error) return fail("Gagal mengunggah foto. Coba lagi.");
-  if (!perluTandaTangan(opts.bucket)) {
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(opts.bucket).getPublicUrl(path);
-    return ok({ url: publicUrl, path });
-  }
   const { data: signed, error: signError } = await supabase.storage
     .from(opts.bucket)
     .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
