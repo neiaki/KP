@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /*
- * supabase/RUN-ALL-PENDING.sql menggabungkan 29 migrasi supaya
+ * supabase/RUN-ALL-PENDING.sql menggabungkan 30 migrasi supaya
  * project baru cukup di-paste sekali lewat SQL Editor. File itu dibangun
  * dengan skrip di luar repo, jadi tidak ada yang menahan isinya tetap sama
  * dengan migrasi aslinya.
@@ -117,6 +117,10 @@ const SECTIONS: { label: string; source: string }[] = [
     label: "20261015000000_service_ticket_picked_up_at",
     source: "20261015000000_service_ticket_picked_up_at.sql",
   },
+  {
+    label: "20261016081500_current_actor_id_search_path",
+    source: "20261016081500_current_actor_id_search_path.sql",
+  },
 ];
 
 /** Setiap berkas di supabase/migrations/ wajib muncul, tanpa kecuali. */
@@ -131,7 +135,7 @@ const MIGRASI = readdirSync(repoFile("../supabase/migrations"))
  *
  * Blok komentar di awal badan sengaja tidak dibandingkan: saat digabung,
  * pembatas bagian di dalam migrasi jadi berlebihan karena penanda
- * `-- BAGIAN n dari 28` sudah melakukan hal yang sama. Yang wajib identik
+ * `-- BAGIAN n dari <total bagian>` sudah melakukan hal yang sama. Yang wajib identik
  * adalah setiap baris SQL-nya, dan itu yang dicek di sini.
  */
 /**
