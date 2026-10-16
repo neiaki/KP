@@ -7,13 +7,11 @@
 -- bagian 1 (0001) yang membuat tabel, enum, RLS, view, trigger, dan bucket
 -- Storage, jadi tidak ada satu langkah pun yang harus dijalankan sebelumnya.
 --
--- STATUS untuk project At Cell yang sekarang: bagian 1 sampai 29 SUDAH
--- TERJALAN (bagian 29, FR-B-04, diverifikasi 16 Okt 2026 lewat ledger dan
--- kolom picked_up_at). Bagian 30 (16 Okt 2026) belum dijalankan di project
--- itu: jalankan hanya bagian 30 lewat SQL Editor atau psql, lalu catat di
--- ledger. File ini tetap perlu di-paste utuh hanya untuk project yang belum
--- ter-provision: akun Supabase baru, staging terpisah, atau database yang
--- di-reset dari nol.
+-- STATUS untuk project At Cell yang sekarang: bagian 1 sampai 30 SUDAH
+-- TERJALAN (bagian 30, pin search_path helper aktor audit, diverifikasi
+-- 16 Okt 2026 lewat ledger dan proconfig fungsi). File ini tetap perlu
+-- di-paste utuh hanya untuk project yang belum ter-provision: akun Supabase
+-- baru, staging terpisah, atau database yang di-reset dari nol.
 --
 -- DAFTAR BAGIAN, sesuai urutan di file ini:
 --   1  0001_atcell_schema                            tabel, enum, RLS, trigger, view, Storage, seed
