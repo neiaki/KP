@@ -1,0 +1,23 @@
+-- Pin search_path helper aktor audit private.current_actor_id().
+--
+-- Advisor Supabase melaporkan "function_search_path_mutable" (lint 0011):
+-- fungsi ditulis migrasi 0007 tanpa search_path, sehingga nama apa pun yang
+-- di-resolve di dalamnya mengikuti search_path koneksi pemanggil. Helper ini
+-- dibaca trigger audit saat mencatat mutasi unit dan tiket servis, jadi yang
+-- dijaga adalah jalur tulis audit, bukan hanya fungsi yang dipanggil langsung.
+--
+-- Isi fungsinya tidak merujuk satu pun objek schema: hanya current_setting(),
+-- nullif(), dan cast ::uuid, semuanya dari pg_catalog. Karena itu search_path
+-- cukup dikosongkan dan tidak ada perilaku yang berubah.
+--
+-- Sengaja memakai ALTER FUNCTION, bukan CREATE OR REPLACE seperti migrasi
+-- lain: ALTER hanya menyentuh atribut search_path, sedangkan badan fungsi,
+-- sifat STABLE, dan ACL-nya (grant service_role dari 0007) tidak ditulis
+-- ulang. Dengan begitu badan fungsi di production tidak bisa bergeser dari
+-- versi yang ada di repo tanpa sengaja.
+--
+-- Idempoten (ALTER SET berulang menghasilkan nilai yang sama), non-destruktif,
+-- dan tidak menyentuh data: aman dijalankan berulang lewat SQL Editor maupun
+-- psql.
+alter function private.current_actor_id()
+  set search_path = '';
