@@ -306,6 +306,7 @@ Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 - [`docs/PUBLIKASI-MODEL-TANPA-STOK.md`](docs/PUBLIKASI-MODEL-TANPA-STOK.md): cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI.
 - [`docs/PERLUASAN-KATALOG-AT-CELL.md`](docs/PERLUASAN-KATALOG-AT-CELL.md): usulan perluasan katalog beserta harga yang wajib dikonfirmasi owner.
 - [`docs/PAYMENT-WARNING-COPY.md`](docs/PAYMENT-WARNING-COPY.md): copy peringatan link pembayaran yang menunggu persetujuan owner (opsi A disarankan, belum diterapkan ke kode).
+- [`docs/UJI-ALUR-STAF.md`](docs/UJI-ALUR-STAF.md): skenario uji alur ber-kredensial staf (login per role, undang staf, IMEI, POS, workflow tiket, lintasan akses) dan status eksekusinya.
 - [`docs/diagram-uml/`](docs/diagram-uml/README.md): sumber PlantUML plus render PNG/SVG (sequence, activity, state, usecase, class, object, component, ER) dan sumber Mermaid alur arsitektur untuk README root.
 - `docs/Diagram/` (draf lokal di-gitignore, tidak ikut repo): dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; diagram yang di-commit ada di `docs/diagram-uml/`.
 
