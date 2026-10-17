@@ -21,6 +21,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unitnya pertama kali tiba | **Acuan operasional** |
 | `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
 | `PAYMENT-WARNING-COPY.md` | Letak kalimat peringatan link pembayaran di halaman publik, risiko kalau dihapus, dan copy tulisan ulang yang bisa disetujui dalam satu langkah | **Acuan keputusan** |
+| `UJI-ALUR-STAF.md` | Skenario uji end-to-end alur ber-kredensial staf: login per role, undang staf, IMEI, POS, workflow tiket sampai serah terima, dan lintasan akses, plus status eksekusinya | **Acuan operasional** |
 | `diagram-uml/README.md` | Indeks folder diagram UML dan aturan render PNG dan SVG pendamping | **Wadah diagram** |
 | `Diagram/README.md` | Indeks dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; draf lokal di-gitignore, tidak ikut repo | **Arsip lokal** |
 | `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor yang sudah diverifikasi ke source code | **Acuan alur** |
