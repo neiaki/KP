@@ -37,11 +37,22 @@ test("render PNG dan SVG alur arsitektur ikut di-commit", async () => {
 
 test("README menautkan gambar alur arsitektur yang benar-benar ada", async () => {
   const tautan = readme.match(
-    /!\[[^\]]*\]\((docs\/diagram-uml\/bersama\/arsitektur-alur\.(?:png|svg))\)/
+    /!\[[^\]]*\]\(((?:\.\/)?docs\/diagram-uml\/bersama\/arsitektur-alur\.(?:png|svg))\)/
   );
   assert.ok(
     tautan,
     "README root harus menautkan gambar alur arsitektur sebagai cadangan pembaca yang belum bisa menampilkan Mermaid"
   );
-  await access(repoFile(`../${tautan[1]}`));
+  await access(repoFile(`../${tautan[1].replace(/^\.\//, "")}`));
+});
+
+test("gambar fallback tampil sebelum blok Mermaid untuk pembaca GitHub mobile", () => {
+  const tautan = readme.indexOf("![Alur arsitektur At Cell");
+  const mermaid = readme.indexOf("```mermaid");
+  assert.ok(tautan >= 0, "README root harus memuat gambar fallback");
+  assert.ok(mermaid >= 0, "README root harus memuat diagram Mermaid");
+  assert.ok(
+    tautan < mermaid,
+    "gambar fallback harus tampil lebih dulu daripada Mermaid yang tidak dirender di aplikasi GitHub mobile"
+  );
 });

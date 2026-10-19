@@ -17,6 +17,7 @@ import {
 import { pickClientIp } from "@/lib/client-ip";
 import { consumeRateLimit, refundRateLimit } from "@/lib/rate-limit";
 import type { RepairStatus, ServiceTicket } from "@/types";
+import { mapDrizzleServiceTicket } from "./_ticket-mappers";
 import {
   backendOffline,
   fail,
@@ -31,34 +32,6 @@ import {
 type TicketUpdateResult =
   | { error: string; updated?: never }
   | { error?: never; updated: ServiceTicketRow };
-
-function mapTicket(t: ServiceTicketRow): ServiceTicket {
-  return {
-    id: t.id,
-    ticket_code: t.ticketCode,
-    customer_id: t.customerId,
-    technician_id: t.technicianId,
-    customer_name: t.customerName,
-    customer_phone: t.customerPhone,
-    device_model: t.deviceModel,
-    device_name: t.deviceName ?? t.deviceModel,
-    imei_or_sn: t.imeiOrSn,
-    imei: t.imeiOrSn,
-    issue_notes: t.issueNotes,
-    problem_description: t.problemDescription ?? t.issueNotes,
-    technician_notes: t.technicianNotes ?? undefined,
-    repair_status: t.repairStatus,
-    photo_urls: t.photoUrls ?? [],
-    sparepart_fee: toNumber(t.sparepartFee),
-    labor_fee: toNumber(t.laborFee),
-    total_fee: toNumber(t.totalFee),
-    warranty_days: t.warrantyDays,
-    cost_breakdown: t.costBreakdown ?? [],
-    created_at: toISO(t.createdAt),
-    updated_at: toISO(t.updatedAt),
-    picked_up_at: t.pickedUpAt ? toISO(t.pickedUpAt) : null,
-  };
-}
 
 /** Daftarkan tiket servis masuk (kasir/teknisi). Kode dibuat trigger DB. FR-B-01. */
 export async function createTicket(raw: CreateTicketInput): Promise<ActionResult<ServiceTicket>> {
@@ -91,7 +64,7 @@ export async function createTicket(raw: CreateTicketInput): Promise<ActionResult
       .returning();
     if (!created) return fail("Gagal membuat tiket.");
     revalidatePath("/portal/service");
-    return ok(mapTicket(created));
+    return ok(mapDrizzleServiceTicket(created));
   } catch {
     return fail("Gagal membuat tiket servis. Coba lagi.");
   }
@@ -189,7 +162,7 @@ export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult
     }
     revalidatePath("/portal/service");
     revalidatePath("/portal/dashboard");
-    return ok(mapTicket(result.updated));
+    return ok(mapDrizzleServiceTicket(result.updated));
   } catch {
     return fail("Gagal memperbarui tiket servis. Coba lagi.");
   }
@@ -225,7 +198,7 @@ export async function listTickets(opts?: {
       .where(filters.length > 0 ? and(...filters) : undefined)
       .orderBy(desc(serviceTickets.updatedAt))
       .limit(Math.min(Math.max(opts?.limit ?? 200, 1), 200));
-    return ok(rows.map(mapTicket));
+    return ok(rows.map(mapDrizzleServiceTicket));
   } catch {
     return fail("Gagal memuat tiket servis. Coba lagi.");
   }

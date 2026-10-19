@@ -28,6 +28,7 @@ import { updateStoreSettings as updateStoreSettingsAction } from "@/lib/actions/
 import { inviteStaff as inviteStaffAction } from "@/lib/actions/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { deriveUsernameFromEmail } from "@/lib/username";
+import { getPortalPathState, prependServiceTicket } from "@/lib/service-ticket-list";
 
 /*
  * Mode live ditentukan oleh sumber yang sama dengan Server Action
@@ -200,8 +201,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
    * query yang jawabannya sudah ada: satu permintaan jaringan dan satu putaran
    * tiga query Postgres yang tidak menghasilkan apa pun.
    */
-  const isLoginPath = pathname.endsWith("/login") || pathname === "/portal/login";
-  const isPortalPath = pathname.startsWith("/portal");
+  const { isLoginPath, isPortalPath } = getPortalPathState(pathname);
 
   const loadLiveData = useCallback(async () => {
     if (!liveBackendEnabled) return;
@@ -501,7 +501,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
           photoUrls: ticketData.photoUrls ?? [],
         })
       );
-      setServiceTickets((prev) => [created, ...prev]);
+      setServiceTickets((prev) => prependServiceTicket(prev, created));
       return created;
     }
 

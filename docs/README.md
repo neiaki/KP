@@ -28,6 +28,9 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `agents/issue-tracker.md` | Konfigurasi issue tracker repo untuk skill agent: GitHub Issues lewat `gh` CLI, termasuk alur wayfinding | **Acuan agent** |
 | `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
 | `agents/domain.md` | Aturan konsumsi dokumen domain (GLOSSARY.md, docs/adr/) oleh skill agent | **Acuan agent** |
+| `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor untuk orientasi agen | **Acuan agent** |
+| `agents/roadmap.md` | Status pekerjaan, prioritas backlog, kriteria verifikasi, dan langkah awal agen berikutnya | **Roadmap agent** |
+| `agents/review-handoff-2026-10-17.md` | Hasil review repo, dokumentasi, verifikasi lokal, serta backlog dan status pemeriksaan PR | **Handoff audit** |
 
 ## Catatan
 
@@ -51,6 +54,9 @@ berbasis Supabase ketika environment production dikonfigurasi.
   render PNG dan SVG sebagai cadangan pembaca yang belum bisa menampilkan
   Mermaid.
   Indeks dan perintah render ada di `diagram-uml/README.md`.
+- Draf editorial lokal di `docs/Diagram/` sengaja di-gitignore dan tidak
+  termasuk dokumentasi repo. Diagram yang menjadi acuan ada di
+  `docs/diagram-uml/`.
 - Akses panel Coolify dijelaskan di `COOLIFY-PANEL.md`, karena panel adalah
   kendali penuh atas env production dan jalurnya tidak bisa ditebak dari
   `ufw status` saja.

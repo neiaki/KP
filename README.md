@@ -59,6 +59,12 @@ di `src/lib/store.ts`.
 
 ## Arsitektur
 
+![Alur arsitektur At Cell, dari pengunjung dan staf sampai Supabase](./docs/diagram-uml/bersama/arsitektur-alur.png)
+
+Diagram Mermaid di bawah menjadi sumber yang mudah disunting. Gambar di atas
+ditampilkan lebih dulu agar tetap terlihat di aplikasi GitHub ponsel yang
+belum merender diagram Mermaid.
+
 ```mermaid
 flowchart LR
     Public["Pengunjung"] --> Next["Next.js App Router"]
@@ -70,11 +76,6 @@ flowchart LR
     Actions --> Storage["Supabase Storage"]
     Next -.->|"mode demo"| Mock["Mock data + localStorage"]
 ```
-
-Diagram yang sama juga tersedia sebagai gambar untuk pembaca aplikasi
-GitHub di ponsel yang belum mendukung render Mermaid:
-
-![Alur arsitektur At Cell, dari pengunjung dan staf sampai Supabase](docs/diagram-uml/bersama/arsitektur-alur.png)
 
 - **Frontend dan server:** Next.js 16, React 19, TypeScript, dan Tailwind CSS 4.
 - **Data production:** Supabase PostgreSQL, Auth, dan Storage.

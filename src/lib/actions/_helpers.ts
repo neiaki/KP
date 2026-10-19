@@ -5,6 +5,7 @@ import type { Db } from "@/db/client";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Profile, UserRole } from "@/types";
+export { toISO, toNumber } from "./_value-mappers";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -31,22 +32,6 @@ export function backendOffline<T>(): ActionResult<T> {
   return fail(
     "Backend Supabase belum dikonfigurasi. Terapkan migrasi supabase/migrations lalu isi .env.local."
   );
-}
-
-/** Angka dari kolom NUMERIC kadang datang sebagai string; normalisasi ke number. */
-export function toNumber(v: unknown, fallback = 0): number {
-  const n = Number(v ?? fallback);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-/**
- * Drizzle mengembalikan timestamptz sebagai Date, supabase-js sebagai string.
- * Normalisasi ke ISO string agar tipe frontend konsisten.
- */
-export function toISO(v: unknown): string {
-  if (v instanceof Date) return v.toISOString();
-  if (typeof v === "string") return v;
-  return "";
 }
 
 /** Profil + peran user yang sedang login (null bila belum login / belum konfigurasi). */
