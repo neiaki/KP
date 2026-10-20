@@ -20,7 +20,10 @@
     "restore:postgres": "bash scripts/restore-postgres.sh",
     "restore:drill": "bash scripts/restore-drill.sh",
     "watchdog": "bash scripts/atcell-watchdog.sh",
-    "smoke:deployment": "node scripts/smoke-deployment.mjs"
+    "smoke:deployment": "node scripts/smoke-deployment.mjs",
+    "backup:storage": "bash scripts/backup-storage.sh",
+    "restore:storage": "bash scripts/restore-storage.sh",
+    "restore:storage-drill": "bash scripts/restore-storage-drill.sh"
   },
   "dependencies": {
     "@sentry/nextjs": "^11.8.0",
