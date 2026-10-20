@@ -64,10 +64,16 @@ notify() {
   # operator mengira alerting sudah hidup sementara tidak ada yang masuk.
   # Kegagalan dicatat lewat catat, bukan ditelan: token tidak ikut ke log
   # karena pesan yang dicatat tidak memuat URL.
-  if ! curl -sS --fail -m 15 -o /dev/null \
-    --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
-    --data-urlencode "text=$1" \
-    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" 2>/dev/null; then
+  #
+  # URL berisi token, jadi jangan pernah menjadikannya argumen: argv proses
+  # terbaca lewat /proc/<pid>/cmdline dan bisa ikut tercatat process monitor.
+  # curl membaca URL dari stdin lewat --config -, sehingga token hanya
+  # melewati pipe dan tidak pernah muncul di daftar argumen atau berkas.
+  if ! printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' \
+    "$TELEGRAM_BOT_TOKEN" \
+    | curl -sS --fail -m 15 -o /dev/null --config - \
+      --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+      --data-urlencode "text=$1" 2>/dev/null; then
     catat warning "Notifikasi Telegram gagal terkirim. Periksa TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID di $ENV_FILE."
   fi
 }
