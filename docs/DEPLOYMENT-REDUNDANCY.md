@@ -97,6 +97,20 @@ OFFSITE_PUT_TOKEN_FILE=
 OFFSITE_STAGING_DIR=
 OFFSITE_KEEP_ENCRYPTED=
 
+# Deployment pratinjau. Opsional, dan production TIDAK boleh mengisinya.
+#
+# Deployment pratinjau memakai environment yang sama dengan production,
+# termasuk DATABASE_URL dan service role key, jadi aksi yang mengubah data
+# ditolak di sana. Satu-satunya jalan untuk mengizinkan menulis di
+# pratinjau adalah variabel ini diisi persis "YES", dan itu hanya benar
+# kalau pratinjau memakai database sendiri, bukan database production.
+#
+# Production tidak butuh variabel ini. Production dikenali dari
+# COOLIFY_BRANCH=main (atau VERCEL_ENV=production) dan aksi tetap jalan.
+# Development lokal juga tidak butuh: tanpa penanda platform, aksi tetap
+# jalan, supaya alur uji staf lokal tidak ikut mati.
+ATCELL_ALLOW_WRITE=
+
 # Verifikasi aplikasi Android. Wajib diisi kalau my.id.atcell sudah ada
 # release, kosongkan kalau belum pernah ada APK. Sengaja tanpa prefix
 # NEXT_PUBLIC_ supaya nilainya dibaca dari env container saat runtime, bukan
@@ -190,6 +204,56 @@ pemantauan error browser dibutuhkan, `NEXT_PUBLIC_SENTRY_DSN` dan
 `DATABASE_URL` harus menunjuk ke connection pooler Supabase production, bukan
 ke `localhost` VPS. `SUPABASE_SECRET_KEY` hanya boleh tersedia sebagai secret
 server. Jangan memakai legacy `anon` atau `service_role` untuk release baru.
+
+## Deployment pratinjau
+
+Production At Cell berjalan di Coolify. Vercel dipakai untuk preview, dan
+preview itu memakai environment yang sama dengan production, termasuk
+`DATABASE_URL` dan service role key. Verified pada 20 Oktober 2026: pratinjau
+PR #128 menyajikan katalog yang identik dengan `atcell.my.id` dan
+`/api/health/ready`-nya melaporkan `serviceRoleConfigured: true`.
+
+Kalau dibiarkan begitu, setiap Server Action mutasi yang dijalankan di
+pratinjau akan mengubah data toko yang sebenarnya: penjualan POS, registrasi
+unit, tiket servis, sampai pendaftaran akun.
+
+### Yang sudah dijaga di repo
+
+`src/lib/deployment.ts` membaca penanda yang memang diisi platform:
+
+| Env | Nilai | Arti |
+|---|---|---|
+| `VERCEL_ENV` | `preview` | Deployment pratinjau Vercel |
+| `VERCEL_ENV` | `production` | Deployment production Vercel |
+| `COOLIFY_BRANCH` | `main` | Deployment production Coolify |
+| `COOLIFY_BRANCH` | selain `main` | Deployment pratinjau Coolify |
+| tidak ada | apa pun | Development lokal, atau platform yang belum dikenali |
+
+Deployment pratinjau ditolak untuk semua aksi yang mengubah data. Penolakan
+terjadi sebelum `requireRole()` dan sebelum query apa pun, jadi tidak ada
+database yang tersentuh. `ATCELL_ALLOW_WRITE=YES` mengizinkan menulis di
+pratinjau, dan hanya itu yang mengizinkannya. Production dan development lokal
+tidak butuh variabel itu.
+
+Penjaganya ada di `tests/write-gate.test.ts`. Test itu memindai source dan
+mewajibkan setiap Server Action yang mengubah data memanggil gerbang, jadi
+aksi mutasi baru yang lupa memanggilnya akan menggagalkan CI. Testnya juga
+memuat counter-example, karena penjaga yang tidak bisa gagal adalah kelas cacat
+yang sudah beberapa kali muncul di repo ini.
+
+### Yang masih harus dikerjakan owner
+
+Gerbang di repo menutup jalur Server Action, tapi akar masalahnya ada di
+dashboard: pratinjau sebaiknya tidak memegang kredensial production sama
+sekali. Dua langkah di Vercel:
+
+1. arahkan preview ke project Supabase terpisah, atau ke restore target
+   (`atcell-restore-local`) yang sudah ada di Coolify;
+2. cabut `SUPABASE_SECRET_KEY` dan `DATABASE_URL` production dari environment
+   preview.
+
+Selama langkah itu belum dikerjakan, pratinjau masih bisa membaca data
+production. Yang sudah tidak bisa adalah mengubahnya.
 
 ## Migrasi database
 

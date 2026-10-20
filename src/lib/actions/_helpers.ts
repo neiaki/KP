@@ -5,6 +5,7 @@ import type { Db } from "@/db/client";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Profile, UserRole } from "@/types";
+import { checkWriteAccess } from "@/lib/deployment";
 export { toISO, toNumber } from "./_value-mappers";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -55,6 +56,22 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     username: data.username,
     created_at: data.created_at,
   };
+}
+
+/**
+ * Gerbang tulis untuk Server Action.
+ *
+ * Satu-satunya yang ditolak adalah deployment pratinjau, karena pratinjau
+ * memakai environment yang sama dengan production, termasuk service role key.
+ * Panggil ini SEBELUM requireRole dan sebelum query apa pun, supaya penolakan
+ * terjadi tanpa menyentuh database sama sekali.
+ *
+ * Guardianya: tests/write-gate.test.ts memindai source dan mewajibkan setiap
+ * aksi mutasi memanggil fungsi ini.
+ */
+export function requireWriteAccess(): { ok: true } | { error: string } {
+  const access = checkWriteAccess();
+  return access.allowed ? { ok: true } : { error: access.reason };
 }
 
 /** Guard peran untuk Server Action. Kembalikan { profile } atau { error }. */

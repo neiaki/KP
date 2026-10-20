@@ -23,6 +23,7 @@ import {
   fail,
   ok,
   requireRole,
+  requireWriteAccess,
   setAuditActor,
   toISO,
   toNumber,
@@ -35,6 +36,8 @@ type TicketUpdateResult =
 
 /** Daftarkan tiket servis masuk (kasir/teknisi). Kode dibuat trigger DB. FR-B-01. */
 export async function createTicket(raw: CreateTicketInput): Promise<ActionResult<ServiceTicket>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = createTicketSchema.safeParse(raw);
@@ -75,6 +78,8 @@ export async function createTicket(raw: CreateTicketInput): Promise<ActionResult
  * total_fee selalu = sparepart + labor agar konsisten (FR-B-03).
  */
 export async function updateTicket(raw: UpdateTicketInput): Promise<ActionResult<ServiceTicket>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "technician", "sales"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = updateTicketSchema.safeParse(raw);

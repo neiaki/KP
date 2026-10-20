@@ -9,7 +9,7 @@ import {
   type StoreSettingsUpdateInput,
 } from "@/lib/validations";
 import type { StoreSettings } from "@/types";
-import { backendOffline, fail, ok, requireRole, type ActionResult } from "./_helpers";
+import { backendOffline, fail, ok, requireRole, requireWriteAccess, type ActionResult } from "./_helpers";
 import { getPublicStoreSettings } from "./public";
 import { mapStoreSettings } from "./_mappers";
 
@@ -23,6 +23,8 @@ export async function getStoreSettings(): Promise<ActionResult<StoreSettings>> {
 export async function updateStoreSettings(
   raw: StoreSettingsUpdateInput
 ): Promise<ActionResult<StoreSettings>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = storeSettingsUpdateSchema.safeParse(raw);
