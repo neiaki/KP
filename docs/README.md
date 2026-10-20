@@ -15,6 +15,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `DEPLOYMENT-REDUNDANCY.md` | Runbook Coolify, Supabase, health check, backup, dan rollout | **Acuan operasional** |
 | `VPS-HARDENING.md` | Catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan | **Acuan operasional** |
 | `SECRET-ROTATION.md` | Urutan mengganti secret yang pernah bocor, lengkap dengan verifikasi | **Acuan operasional** |
+| `OFFSITE-BACKUP-SETUP.md` | Langkah menyalakan backup off-site dan backup objek Storage: passphrase, tujuan upload, jadwal, dan pembuktian restore | **Acuan operasional** |
 | `CSP.md` | Cara kerja Content-Security-Policy berbasis nonce, daftar directive yang dipakai, dan alasan setiap keputusan | **Acuan keamanan** |
 | `COOLIFY-PANEL.md` | Cara masuk panel Coolify setelah port publik ditutup: SSH tunnel harian dan pengecualian darurat | **Acuan operasional** |
 | `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |

@@ -125,7 +125,11 @@ Selesai pada sesi 17 Oktober 2026:
 Off-site masih tidak jalan, dan itu bukan kode yang salah: `backup-offsite.sh`
 dan `backup-storage.sh` sama-sama keluar bukan-nol dengan pesan jelas karena
 `/root/.atcell-offsite.env` tidak ada, `rclone` tidak terpasang, dan
-`rclone.conf` tidak ada. Yang dibutuhkan owner:
+`rclone.conf` tidak ada. Perilaku itu memang yang dikehendaki: cadangan yang
+diam-diam tidak jalan lebih berbahaya daripada tidak ada.
+
+Langkah lengkap ada di [`docs/OFFSITE-BACKUP-SETUP.md`](../OFFSITE-BACKUP-SETUP.md),
+dari passphrase sampai pembuktian restore. Ringkasnya:
 
 - [ ] Buat passphrase enkripsi dan simpan di file 0600
   (`/root/.atcell-offsite.env`, variabel `OFFSITE_PASSPHRASE_FILE`).
