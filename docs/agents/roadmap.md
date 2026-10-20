@@ -37,6 +37,18 @@ Selesai pada sesi 20 Oktober 2026:
       helper aktor audit yang masuk lewat PR #122.
 - [x] Masukkan seluruh variabel `STORAGE_` dan `STORAGE_RESTORE_` ke
       `.env.example` supaya runbook dan environment tidak berbeda.
+- [x] Tutup jalur perubahan data dari deployment pratinjau. Deployment pratinjau
+      Vercel terbukti memakai database production beserta service role key,
+      jadi setiap Server Action mutasi yang dijalankan di sana akan mengubah
+      data toko yang sebenarnya. `src/lib/deployment.ts` membaca penanda
+      platform (`VERCEL_ENV`, `COOLIFY_BRANCH`) dan menolak mutasi di
+      pratinjau; `tests/write-gate.test.ts` memindai source dan mewajibkan
+      setiap aksi mutasi memanggil gerbang itu.
+- [x] Jadikan `database-tests` required check di branch protection `main`.
+      Sebelumnya hanya `verify` dan `security`, jadi PR yang merusakkan test
+      database masih bisa merge. Filter path di workflow dihapus lebih dulu,
+      karena required check yang tidak pernah dilaporkan akan memblokir merge
+      selamanya.
 
 Selesai pada sesi 17 Oktober 2026:
 
@@ -129,6 +141,11 @@ dan `backup-storage.sh` sama-sama keluar bukan-nol dengan pesan jelas karena
   malam tanpa ada yang bisa memperbaikinya.
 - [ ] Buat DNS untuk `coolify.atcell.my.id`. Selama belum ada, panel Coolify
   hanya bisa dijangkau lewat SSH tunnel, itu memang perilaku yang dimaksud.
+- [ ] Arahkan deployment pratinjau Vercel ke project Supabase terpisah, lalu
+  cabut `DATABASE_URL` dan `SUPABASE_SECRET_KEY` production dari environment
+  preview. Gerbang tulis di repo sudah menutup jalur perubahan data, tapi
+  pratinjau masih bisa MEMBACA data production sampai langkah ini selesai.
+  Detailnya di `docs/DEPLOYMENT-REDUNDANCY.md` bagian "Deployment pratinjau".
 
 ### Prioritas 6: data bisnis yang masih di bawah target
 

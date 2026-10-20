@@ -26,14 +26,17 @@ name: Database contract tests
 # dari secret.
 
 on:
+  # Filter path DIHAPUS dengan sengaja. Workflow ini menjadi required check
+  # di branch protection main, dan required check yang tidak pernah dilaporkan
+  # akan memblokir merge selamanya. Dengan filter path, PR yang tidak menyentuh
+  # src/db atau supabase/migrations tidak pernah menjalankan workflow ini, jadi
+  # check-nya tidak pernah muncul sebagai sukses.
+  #
+  # Biaya filternya hilang: workflow ini sekarang jalan di setiap PR. Itu
+  # tidak mahal karena test database-nya sendiri hanya sebentar, dan step
+  # "test yang tidak butuh database" di bawah dihapus karena job verify di
+  # ci.yml sudah menjalankan `bun run test` yang sama persis.
   pull_request:
-    paths:
-      - "supabase/migrations/**"
-      - "src/db/**"
-      - "src/lib/actions/**"
-      - "tests/**"
-      - "scripts/restore-target-bootstrap.sql"
-      - ".github/workflows/database-tests.yml"
   push:
     branches: [main]
   workflow_dispatch:
@@ -274,6 +277,3 @@ jobs:
           printf '  test dengan database: %s\n' "${db_tests[*]}"
           [ "${#db_tests[@]}" -gt 0 ] || { echo "tidak ada test database ditemukan"; exit 1; }
           node --experimental-strip-types --test "${db_tests[@]}"
-
-      - name: Pastikan test yang tidak butuh database tetap hijau
-        run: bun run test
