@@ -31,6 +31,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor untuk orientasi agen | **Acuan agent** |
 | `agents/roadmap.md` | Status pekerjaan, prioritas backlog, kriteria verifikasi, dan langkah awal agen berikutnya | **Roadmap agent** |
 | `agents/review-handoff-2026-10-17.md` | Hasil review repo, dokumentasi, verifikasi lokal, serta backlog dan status pemeriksaan PR | **Handoff audit** |
+| `agents/review-handoff-2026-10-20.md` | Handoff audit kedua: perbaikan token watchdog, backup objek Storage, pin image, verifikasi, dan keadaan nyata data produksi | **Handoff audit** |
 
 ## Catatan
 
