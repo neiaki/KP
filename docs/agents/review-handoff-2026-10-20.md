@@ -105,7 +105,56 @@ token tujuan sekali pakai:
 aktor audit yang masuk lewat PR #122. Pin dinaikkan ke `sha-0e25470`; tag itu
 sudah ada di GHCR dan workflow Build Image sukses di commit tersebut.
 
-### 4. Dokumentasi environment
+### 4. Deployment pratinjau tidak boleh mengubah data
+
+Temuan paling serius di sesi ini, dan ditemukan karena prosesnya hampir selesai.
+Deployment pratinjau di Vercel memakai environment yang sama dengan production,
+termasuk `DATABASE_URL` dan service role key. Buktinya bukan tebakan: pratinjau
+PR #128 menyajikan katalog yang identik dengan `atcell.my.id`, dan
+`/api/health/ready`-nya melaporkan `serviceRoleConfigured: true`.
+
+Akibatnya setiap Server Action mutasi yang dijalankan di pratinjau mengubah
+data toko yang sebenarnya: penjualan POS, registrasi unit, tiket servis,
+sampai pendaftaran akun.
+
+`src/lib/deployment.ts` membaca penanda yang memang diisi platform:
+`VERCEL_ENV` untuk Vercel, `COOLIFY_BRANCH` untuk Coolify. Deployment pratinjau
+ditolak untuk semua aksi yang mengubah data, dan penolakan terjadi sebelum
+`requireRole()` serta sebelum query apa pun, jadi tidak ada database yang
+tersentuh. Production (`COOLIFY_BRANCH=main`) dan development lokal tanpa
+penanda platform tetap boleh menulis, jadi production tidak butuh perubahan
+env dan alur uji staf lokal tidak ikut mati.
+
+Guardianya di `tests/write-gate.test.ts`. Test itu memindai source dan
+mewajibkan setiap Server Action yang mengubah data memanggil gerbang, jadi aksi
+mutasi baru yang lupa memanggilnya akan menggagalkan CI. Testnya juga memuat
+counter-example, karena penjaga yang tidak bisa gagal adalah kelas cacat yang
+sudah beberapa kali muncul di repo ini.
+
+Sign-in dan sign-out sengaja tidak digerbang: keduanya hanya menyentuh sesi,
+bukan data bisnis, dan mengunci keduanya akan membuat pratinjau tidak bisa
+dipakai untuk review sama sekali.
+
+### 5. database-tests jadi required check
+
+Required check di branch protection `main` sebelumnya hanya `verify` dan
+`security`. Test database yang menjaga integritas audit trail dan ledger
+migrasi tidak termasuk, jadi PR yang merusakkannya masih bisa merge. Terbukti
+dari 14 test di suite yang selalu skip di `bun run test` karena butuh
+`DATABASE_URL`, dan hanya jalan di workflow terpisah.
+
+Filter path di `database-tests.yml` dihapus lebih dulu. Required check yang
+tidak pernah dilaporkan akan memblokir merge selamanya, dan dengan filter path,
+PR yang tidak menyentuh `src/db` atau `supabase/migrations` tidak pernah
+running workflow itu. Biayanya: workflow sekarang jalan di setiap PR, dan step
+"test yang tidak butuh database" dihapus karena job `verify` di `ci.yml` sudah
+menjalankan `bun run test` yang sama persis.
+
+Branch protection `main` sudah diperbarui: required checks sekarang `verify`,
+`security`, dan `database-tests`, dengan `strict` dan `enforce_admins` tetap
+seperti sebelumnya supaya owner tidak terkunci.
+
+### 6. Dokumentasi environment
 
 Seluruh variabel `STORAGE_` dan `STORAGE_RESTORE_` sekarang ada di
 `.env.example`. Sebelumnya runbook menyebut variabel lengkap ada di sana, padahal
@@ -120,7 +169,7 @@ Semua dijalankan di `chore/atcell-hardening-2026-10-19` setelah rebase ke
 |---|---|
 | `bunx tsc --noEmit` | bersih |
 | `bun run lint` | bersih, tanpa warning |
-| `bun run test` | 791 tes: 777 lulus, 14 dilewati, 0 gagal |
+| `bun run test` | 803 tes: 789 lulus, 14 dilewati, 0 gagal |
 | `bun run build` | sukses |
 | `git diff --check` | bersih |
 | `node_modules` | disinkronkan ulang dengan lockfile (`next` 16.4.2, `ai` 7.0.142, `eslint-config-next` 16.4.2) |
@@ -197,6 +246,14 @@ upload (`rclone` atau HTTP PUT), jalankan satu kali manual dan pastikan file
 Script Storage sudah terpasang di host production, tapi sengaja belum
 dijadwalkan. Menjadwalkannya sekarang hanya menambah satu job yang gagal
 setiap malam tanpa ada yang bisa memperbaikinya.
+
+Yang sama berlaku untuk pratinjau Vercel, dengan satu perbedaan penting.
+Gerbang tulis di repo sudah menutup jalur perubahan data, tapi pratinjau
+masih bisa MEMBACA data production sampai kredensialnya dicabut dari dashboard
+Vercel. Owner perlu mengarahkan preview ke project Supabase terpisah, lalu
+mencabut `DATABASE_URL` dan `SUPABASE_SECRET_KEY` production dari environment
+preview. Detailnya di `docs/DEPLOYMENT-REDUNDANCY.md` bagian "Deployment
+pratinjau".
 
 ## Untuk sesi berikutnya
 
