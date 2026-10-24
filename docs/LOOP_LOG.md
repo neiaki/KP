@@ -451,3 +451,33 @@ baru; (5) Putaran 3 — 53/53 commit BENAR, 0 revert, 0 meragukan.
 Gerbang akhir ronde: lint 0, npm test 852/838/0/14 exit 0, build 0.
 Sisa milik owner: NEEDS_HUMAN butir 2 (sisa), 3 (banner BackendStatus
 + shift trade-in intermiten), 4 (exclusion lab), roadmap owner-only.
+
+## Konteks produksi (ronde baru, 2026-10-25) — aturan lebih ketat diterima
+
+Dibaca: CLAUDE.md (= @AGENTS.md), AGENTS.md, SECURITY.md (kebijakan
+laporan kerentanan + riwayat publik repo), docs/README.md. Yang lebih
+ketat menang bila bertentangan.
+
+- liveBackendEnabled (src/lib/store.ts:49): aktif saat
+  NODE_ENV=production ATAU Supabase terkonfigurasi. Konsekuensi tercatat:
+  (a) produksi atcell.my.id = live penuh; (b) uji lokal `next start`
+  berjalan dengan flag live TRUE namun TANPA env Supabase → server
+  action mengembalikan backendOffline dan UI memakai seed demo — uji
+  semacam itu TIDAK pernah menyentuh DB/Storage/Auth produksi; (c)
+  `npm run dev` tanpa env = mode demo murni.
+- Batas baru yang dipegang mulai ronde ini: tidak mengubah berkas di
+  supabase/migrations/ (skema = migrasi BARU tanpa dijalankan +
+  NEEDS_HUMAN), Dockerfile.coolify + tag image,
+  .github/workflows/docker-publish.yml, tests/deploy-image-pin.test.ts
+  (hanya menambah), docs/VPS-HARDENING.md (baca saja). Secret tidak
+  pernah dicetak; temuan cukup file:baris + jenis. Aturan bisnis
+  (IMEI 15 digit unik, hanya unit available dijual, kode tiket
+  SRV-YYYYMMDD-XXXXXXXX, peran) tidak berubah. Teks bisnis milik
+  pemilik (typo/tata bahasa saja).
+- Folder di luar lingkup, isinya dicatat saja: android/ = kerangka
+  proyek Gradle aplikasi Android (32 file, 196 KB; app module, gradle
+  wrapper, proguard); examples/ = 1 file ai-gateway.ts (contoh pemakaian
+  dependensi ai).
+- Tes yang butuh DB hanya dengan DATABASE_URL lokal/staging; jika tidak
+  ada, uji logika murni + catat (kondisi kini: 14 tes DB skip lokal,
+  dijalankan CI postgres:17 — sesuai aturan).
