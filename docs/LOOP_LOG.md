@@ -241,3 +241,13 @@ interaktif landing mobile (390x844) via DOM: 5 di bawah 24x24 (WCAG 2.5.8) —
 kedua kelompok dot [EKSEKUSI: ukur -> perbaiki -> tsc/lint/test/build hijau].
 Catatan operasional: pkill -f "next start" membunuh shell sendiri karena
 pattern cocok dengan baris perintah — matikan server dengan kill $PID.
+
+Iterasi 22 (2026-10-25, sesi A — Fase 2 sweep bug): sampel area berisiko
+tinggi semuanya bersih. executeSale: transaksi + SELECT FOR UPDATE pada
+unit status=available → race double-sell tertutup [BACA-KODE]. Kode tiket
+SRV- dibuat trigger SQL atomik; komponen tanggal hanya informasional
+[BACA-KODE]. formatDate/formatDateOnly tanpa timeZone AMAN karena semua
+pemakainya client component (tidak ada mismatch SSR/hidrasi) [EKSEKUSI
+grep]. normalizePhoneNumber/wa.ts punya test khusus (wa-number.test.ts)
+[BACA-KODE+TEST]. Perbaikan log: baris backlog usang F3-02/03/06/14/F4-18
+dirapikan ke bukti yang sudah tercatat (grep BELUM = 0; docs-index 8/8).
