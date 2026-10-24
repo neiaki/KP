@@ -241,3 +241,33 @@ interaktif landing mobile (390x844) via DOM: 5 di bawah 24x24 (WCAG 2.5.8) —
 kedua kelompok dot [EKSEKUSI: ukur -> perbaiki -> tsc/lint/test/build hijau].
 Catatan operasional: pkill -f "next start" membunuh shell sendiri karena
 pattern cocok dengan baris perintah — matikan server dengan kill $PID.
+
+## LOOP_SELESAI (sesi A, 2026-10-25)
+
+Kondisi keluar terpenuhi: Putaran 3 (reviewer kritis) selesai dan dua
+iterasi berturut-turut (21-22 sesi A: sweep F2 + review commit asing)
+tidak menemukan apa pun yang perlu diperbaiki.
+
+Ringkasan akhir sesi A:
+- Fase 3: 14/14 kategori DIPERIKSA berbukti (kolaborasi dua sesi; dua
+  pass independen di F3-02/03/05/06). Dua temuan HIGH FIXED-TERVERIFIKASI:
+  cookie sesi httpOnly/secure (a848557, PR #158, live) dan — jalur sesi B —
+  trigger products_sales_column_guard untuk RLS UPDATE full-row.
+- Putaran 2 red team: test e2e flag cookie sampai setAll library (e44bba1);
+  surface service-role 5 titik ter-guard; catatan LOW timing-oracle lookup
+  username (dimitigasi throttle 3 lapis, by design).
+- Fase 4: angka bundle JS (2079 KB raw/603 KB gz) dan foto tercatat tanpa
+  intervensi spekulatif; skip link a11y 0->1 (06d7f7f, 4 tes); SEO
+  terukur lengkap (sitemap 11 rute x 2 locale ber-hreflang, robots, meta
+  12/12 halaman) tanpa celah.
+- Fase 5: kandidat dead export dicatat; client.ts tetap (dirujuk docs).
+- Fase 6: state pending tombol lacak (33bd56b).
+- Operasional: deploy pin b5147fa (PR #168, deployment 111, smoke 6/6),
+  sinkron /opt/atcell/scripts (checksum terverifikasi), API Coolify 4.5.0
+  401 didokumentasikan di NEEDS_HUMAN.md, log dua sesi dikonsolidasi.
+- Verifikasi akhir tree f39e641: lint 0, test 852/838/0/14 exit 0,
+  build 0 (transkrip 2026-10-25).
+
+Sesi B masih boleh melanjutkan jalurnya (F4 a11y dsb.); log ini tetap
+sumber kebenaran bersama. Item owner-only menunggu di NEEDS_HUMAN.md dan
+roadmap.
