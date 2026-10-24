@@ -36,13 +36,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # Tanpa filter path. Check "security" adalah required check di main, dan
+  # required check yang tidak pernah dilaporkan akan memblokir merge PR apa
+  # pun yang tidak menyentuh path terpilih selamanya. Persis cacat yang sama
+  # pernah dihilangkan dari database-tests; filter path di sini terlewat dan
+  # memaksa dispatch manual setiap kali PR biasa ingin merge.
   pull_request:
-    paths:
-      - package.json
-      - bun.lock
-      - .github/dependabot.yml
-      - .github/workflows/security.yml
-      - .github/CODEOWNERS
 
 # Workflow ini hanya boleh membaca isi repo. Tidak ada hak tulis package dan
 # tidak ada akses secrets, jadi tidak mungkin mendorong image dari sini.
