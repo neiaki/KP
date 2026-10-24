@@ -38,6 +38,33 @@ Rilis 24 Oktober 2026 (selesai):
       `v_public_inventory` 7 baris, 3 profil demo, dan 4 transaksi demo
       terbagi 2/1/1.
 
+Sesi 24 Oktober 2026 (perbaikan kedua, belum di-commit): audit dua-aris atas
+diff lokal menghasilkan perbaikan berikut, semuanya sudah diverifikasi
+(`bunx tsc --noEmit`, `bun run lint`, 830 tes: 816 lulus / 14 dilewati / 0
+gagal, `bun run build`, plus pemeriksaan browser dev server):
+
+- [x] Admin dan sales bisa mengganti kata sandi pelanggan dari
+      `/portal/customers`: Server Action `updateCustomerPassword` di
+      `src/lib/actions/auth.ts` (gerbang tulis, peran admin/sales, kuota
+      10x/menit per staf, target wajib profil customer sebelum menyentuh
+      Auth), dispatcher `src/lib/store.ts` (mode demo no-op karena demo tidak
+      menyimpan kata sandi), dan modal di halaman pelanggan yang menampilkan
+      kata sandi baru sekali dengan tombol salin. Melihat kata sandi lama
+      memang tidak mungkin: Supabase Auth hanya menyimpan hash.
+- [x] Monogram teks "AT" diganti logo "Cellular Signal Tower & Apex" di SEMUA
+      permukaan: navbar publik, header portal, demo role bar, sidebar portal,
+      panel login (versi inverse berlatar biru), widget chat, ikon PWA
+      (192/512/maskable), apple-touch-icon, favicon, dan gambar Open Graph.
+      Geometri glyph bersumber dari `src/lib/brand-logo.tsx` yang dipanggil
+      sebagai fungsi di route next/og karena satori hanya menerima intrinsic
+      elements.
+- [x] Aset brand dirapikan: gradient `#145CF5/#083EB8` (warna di luar token)
+      diganti flat aksen `#0B4ED8`, `@import` Google Fonts dihapus dari
+      `logo-full.svg` (tidak berfungsi di `<img>` dan melanggar aturan font),
+      dan aset `logo-icon-inverse.svg` ditambahkan untuk latar aksen.
+- [x] Folder eksplorasi `logo/` (lima opsi logo) dihapus dari disk; hanya
+      opsi terpilih yang tersisa di `public/brand/`.
+
 Selesai pada sesi 24 Oktober 2026:
 
 - [x] Admin dan sales bisa membuat akun pelanggan dari `/portal/customers` dan

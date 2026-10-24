@@ -46,6 +46,7 @@ di `src/lib/store.ts`.
 - Trade-in dengan inspeksi unit lama dan registrasi otomatis ke inventaris.
 - Meja kerja servis dengan tiket unik serta pembaruan status pengerjaan.
 - Master produk, pengaturan toko, staf, laporan, dan akun pelanggan.
+- Admin dan sales mengganti kata sandi pelanggan dari halaman akun pelanggan; kata sandi lama hanya tersimpan sebagai hash di Supabase Auth, jadi yang bisa dilakukan adalah menetapkan kata sandi baru dan menyerahkannya sekali tampil.
 - Kontrol akses berbasis peran untuk admin, sales, teknisi, dan pelanggan.
 
 ## Peran Pengguna
@@ -261,7 +262,8 @@ src/lib/actions/            Server Actions per modul bisnis
 src/lib/supabase/           Klien Supabase untuk browser, server, dan admin
 src/lib/                    Store, validasi, auth, dan utilitas
 src/types/                  Tipe domain dan tipe baris database
-public/                     Foto produk, logo, dan aset statis
+public/                     Foto produk dan aset statis
+public/brand/               Logo ikon (normal dan inverse) serta logo penuh; geometri bersama di src/lib/brand-logo.tsx
 supabase/migrations/        Migration SQL canonical untuk production
 scripts/                    Backup, restore, dan smoke test deployment
 tests/                      Test keamanan, validasi, health, dan migrasi
