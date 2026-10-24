@@ -39,7 +39,7 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-10 | Audit rate limiting | P1 | BELUM | - |
 | F3-11 | Audit upload file | P1 | BELUM | - |
 | F3-12 | Audit SSRF & open redirect | P1 | BELUM | - |
-| F3-13 | Audit dependency rentan | P0 | BELUM | - |
+| F3-13 | Audit dependency rentan | P0 | DIPERIKSA-BERSIH | `bun audit --audit-level=high` exit 0, 558 paket (2026-10-24); 1 moderate dev-only: esbuild<=0.24.2 via drizzle-kit (GHSA-67mh-4wv8-2f99, vektor dev server, dev-only, diterima sesuai kebijakan security.yml audit-level=high + dependabot weekly) [EKSEKUSI] |
 | F3-14 | Audit pesan error bocor info internal | P2 | BELUM | - |
 
 Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.md.
