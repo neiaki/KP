@@ -7,11 +7,12 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 ## Status terbaru
 
 **Diperbarui:** 24 Oktober 2026
-**Baseline kode:** `001b6a8` (`main`, merge PR #159; pin image yang memuat
-patch cookie httpOnly + secure dan catatan gambar GSMArena)
-**Baseline rilis:** `001b6a8` (`main`, merge PR #159; production menjalankan
-image `sha-001b6a8` yang memuat patch cookie httpOnly + secure di production
-(PR #158), health 200, dan 14 model katalog berfoto render GSMArena)
+**Baseline kode:** `ccc7c31` (`main`, merge PR #165; pin image yang memuat
+preconnect CDN Simple Icons, patch cookie httpOnly + secure, dan catatan
+gambar GSMArena)
+**Baseline rilis:** `ccc7c31` (`main`, merge PR #165; production menjalankan
+image `sha-ccc7c31`: patch cookie httpOnly + secure, 14 model katalog berfoto
+render GSMArena, dan preconnect CDN Simple Icons — health 200, smoke 6/6)
 **Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 dan katalog lima model per merek sudah merge lewat PR #129. PR #130 menaikkan
@@ -367,3 +368,15 @@ Rilis 24 Oktober 2026 (perbaikan keenam, data production):
       tidak ter-export ke container psql, membuat semua kartu kembali ke
       fallback. Perbaikannya menulis ulang 12 baris dengan URL lengkap dan
       terverifikasi via kueri baca.
+
+Iterasi 15-16 (2026-10-25, Fase 4 lanjutan): hreflang id/en/x-default +
+canonical ternyata sudah lengkap di produksi (audit awal salah baca case
+atribut). Preconnect CDN Simple Icons sempat dipasang tiga cara sebelum
+berhasil: <link> di <head> layout (terverifikasi lokal), header Link di
+proxy (tertimpa header font preload Next), preconnect() react-dom (tidak
+dipancarkan Next 16 di SSR). Versi final: <link> manual di <head> layout,
+live di production dan terukur (curl: preconnect 0 -> 1 + dns-prefetch).
+Deployment pertama dengan git_commit_sha baru sempat menarik image pin
+lama karena Dockerfile.coolify pada commit tersebut belum diperbarui —
+pola pin harus selalu: merge fitur -> tunggu build -> commit pin -> merge
+-> baru deploy dengan git_commit_sha commit pin.
