@@ -6,6 +6,7 @@ import {
   getSupabaseCookieDomain,
   getSupabaseUrl,
 } from "@/lib/supabase/config";
+import { authCookieOptions } from "@/lib/supabase/cookie-options";
 import {
   canAccessPortalPath,
   defaultPortalPath,
@@ -104,6 +105,7 @@ export async function proxy(request: NextRequest) {
   if (supabaseUrl && supabaseAnonKey) {
     const cookieDomain = getSupabaseCookieDomain();
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookieOptions: authCookieOptions(),
       cookies: {
         getAll() {
           return parseCookieHeader(request.cookies.toString());

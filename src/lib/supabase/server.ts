@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient, parseCookieHeader } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 import { getSupabaseAnonKey, getSupabaseCookieDomain, getSupabaseUrl } from "./config";
+import { authCookieOptions } from "./cookie-options";
 
 /**
  * Client untuk Server Component / Server Action / Route Handler.
@@ -11,6 +12,7 @@ export async function createClient() {
   const cookieStore = await cookies();
   const cookieDomain = getSupabaseCookieDomain();
   return createServerClient<Database>(getSupabaseUrl(), getSupabaseAnonKey(), {
+    cookieOptions: authCookieOptions(),
     cookies: {
       getAll() {
         return parseCookieHeader(cookieStore.toString());

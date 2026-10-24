@@ -351,18 +351,19 @@ Rilis 24 Oktober 2026 (perbaikan kelima, ter-deploy):
 
 Rilis 24 Oktober 2026 (perbaikan keenam, data production):
 
-- [x] 12 model katalog yang belum punya foto kini memakai render resmi yang
-      relevan per model (iPhone 14 Plus/15/16, Oppo A79/Find X8/Reno 12,
-      Samsung A35/Z Flip5, Vivo V40/X100, Xiaomi 14T/Redmi Note 13 Pro 5G).
-      File diunggah ke Storage `product-images/products/` dan ditautkan lewat
-      `official_images`. Setiap gambar diverifikasi visual cocok dengan model
-      sebelum dipasang; kandidat yang ternyata model lain (S24 Ultra untuk
-      produk Galaxy S24, Vivo Y28 generasi 2014) dibuang.
-- [x] Empat model tetap tanpa foto karena tidak ada sumber yang akurat:
-      POCO X6 Pro 5G, Oppo Reno 12 Pro 5G, Samsung Galaxy S24, Vivo Y28 (2024).
-      Mereka menampilkan fallback logo merek; owner bisa menambahkan foto
-      resminya lewat Master Produk atau Etalase & Harga kapan pun, fallback
-      otomatis tergantikan.
+- [x] 14 model katalog kini memakai render resmi dari GSMArena yang relevan
+      per model, sesuai permintaan pemilik: iPhone 14 Plus/15/16, Oppo
+      A79/Find X8/Reno 12, Samsung A35/Z Flip5, Vivo V40/X100/Y28, Xiaomi
+      14T/POCO X6 Pro/Redmi Note 13 Pro 5G. Setiap gambar diverifikasi visual
+      cocok dengan modelnya sebelum dipasang; kandidat salah model (S24 Ultra
+      untuk produk Galaxy S24, Vivo Y28 generasi 2014) dibuang.
+- [x] Dua model tetap tanpa foto karena bigpic GSMArena tidak tersedia untuk
+      slug-nya: Oppo Reno 12 Pro 5G dan Samsung Galaxy S24. Keduanya menampilkan
+      fallback logo merek; owner bisa menambahkan foto resminya lewat Master
+      Produk atau Etalase & Harga kapan pun, fallback otomatis tergantikan.
+- [x] Enam file yang menimpa nama file lama diganti suffix `-gsm` supaya cache
+      CDN Storage tidak menyajikan render lama; kueri baca produksi
+      memverifikasi file yang dilayani adalah render GSMArena.
 - [x] Bug data ditemukan dan diperbaiki saat penautan: percobaan pertama
       menulis `official_images` berisi string kosong `{""}` karena variabel env
       tidak ter-export ke container psql, membuat semua kartu kembali ke
