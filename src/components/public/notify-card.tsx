@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { MessageCircle, Smartphone } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import {
   buildNotifyMeHref,
   notifyMeTargetFrom,
@@ -10,6 +10,7 @@ import {
   type SoldOutSectionCopy,
 } from "@/lib/catalogue-notify";
 import { isRealPhoto } from "@/lib/shop";
+import { BrandPhotoFallback } from "@/components/public/photo-fallback";
 import type { Product } from "@/types";
 import type { Locale } from "@/lib/translations";
 
@@ -72,7 +73,7 @@ export function NotifyCard({
   return (
     <article className="flex flex-col overflow-hidden rounded-xl border border-line bg-card opacity-80 grayscale-[35%]">
       <div className="relative aspect-[4/3] overflow-hidden bg-paper">
-        {!img && <PhotoFallback locale={locale} />}
+        {!img && <BrandPhotoFallback brand={product.brand} locale={locale} />}
         {img && (
           <Image
             fill
@@ -117,18 +118,9 @@ export function NotifyCard({
   );
 }
 
-/**
- * Placeholder untuk produk tanpa foto yang bisa dirender.
- *
- * Text-nya jujur soal apa yang terjadi: fotonya menyusul, bukan rusak.
+/*
+ * Placeholder lama PhotoFallback dipindah ke components/public/photo-fallback.tsx
+ * sebagai BrandPhotoFallback supaya kartu unit (product-card) dan kartu model
+ * tanpa unit memakai satu implementasi yang sama: logo merek bila mereknya
+ * dikenal, ikon ponsel generik bila tidak, dengan label "Foto menyusul".
  */
-function PhotoFallback({ locale }: { locale: Locale }) {
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted">
-      <Smartphone className="h-10 w-10" strokeWidth={1.25} />
-      <p className="text-[11px] font-bold">
-        {locale === "en" ? "Photo coming soon" : "Foto menyusul"}
-      </p>
-    </div>
-  );
-}
