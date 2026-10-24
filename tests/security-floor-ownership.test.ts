@@ -38,12 +38,16 @@ test("pemeriksaan batas versi juga berjalan pada commit main", () => {
     /^ {2}push:\n {4}branches:\n {6}- main$/m,
     "pemicu push harus dibatasi ke branch main"
   );
-  // Jalur cepat di PR tetap dipakai: turunnya versi harus terlihat sebelum merge.
+  // Umpan balik cepat di PR berjalan untuk SEMUA PR, tanpa filter path.
+  // Filter path dulu menutup PR biasa dari check security yang wajib, jadi
+  // filter itu dihapus; asersi di bawah mengunci bahwa filter tidak kembali,
+  // sebab filter apa pun yang hanya memilih sebagian PR memblokir PR lain.
   assert.match(workflow, /^ {2}pull_request:$/m, "umpan balik cepat di PR harus tetap ada");
-  assert.match(workflow, /^ {6}- \.github\/workflows\/security\.yml$/m);
-  // CODEOWNERS ikut memicu workflow, jadi edit pada daftar owner itu sendiri
-  // ikut diperiksa.
-  assert.match(workflow, /^ {6}- \.github\/CODEOWNERS$/m);
+  assert.doesNotMatch(
+    workflow.slice(workflow.search(/^ {2}pull_request:$/m), workflow.search(/^ {2}push:$/m)),
+    /^ {4}paths:$/m,
+    "pemicu pull_request tidak boleh punya filter paths lagi"
+  );
 });
 
 test("langkah pemeriksaan batas versi masih ada dan masih gagal saat versi di bawah", () => {
