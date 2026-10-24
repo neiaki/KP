@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import React from "react";
 import "../../globals.css";
 import { PublicNavbar } from "@/components/public/navbar";
 import { PublicFooter } from "@/components/public/footer";
@@ -108,6 +107,11 @@ export default async function PublicRootLayout({
    */
   const seed = toPublicSeed(await getPublicSnapshot().catch(() => null));
 
+  // Logo merek (chip filter dan fallback katalog) diambil browser langsung
+  // dari CDN Simple Icons di semua halaman publik. Link preconnect manual di
+  // <head>: terbukti ter-render di HTML SSR (diverifikasi lokal & produksi).
+  // preconnect() react-dom TIDAK dipancarkan Next 16 di SSR, jadi tidak dipakai.
+  // Foto produk tidak ikut karena lewat optimizer server Next, bukan browser.
   return (
     <html
       lang={locale}
@@ -115,6 +119,10 @@ export default async function PublicRootLayout({
       className={htmlClass}
       suppressHydrationWarning
     >
+      <head>
+        <link rel="preconnect" href="https://cdn.simpleicons.org" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cdn.simpleicons.org" />
+      </head>
       <body className={bodyClass} suppressHydrationWarning>
         <RootProviders publicSeed={seed}>
           <div className="flex min-h-[100dvh] flex-col">

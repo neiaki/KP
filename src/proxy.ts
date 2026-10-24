@@ -44,16 +44,8 @@ export async function proxy(request: NextRequest) {
   const continueChain = () => NextResponse.next({ request: { headers: requestHeaders } });
   const rewriteTo = (target: URL) =>
     NextResponse.rewrite(target, { request: { headers: requestHeaders } });
-  // Preconnect ke CDN Simple Icons lewat header Link: logo merek diambil
-  // browser langsung dari cdn.simpleicons.org di semua halaman publik.
-  // Dikirim sebagai header (bukan tag React) supaya tidak bergantung pada
-  // perilaku render React 19 terhadap <link> di dalam <head> manual, dan
-  // browser bisa membuka koneksi DNS+TLS sejak header tiba.
-  const PRECONNECT_LINK =
-    '<https://cdn.simpleicons.org>; rel=preconnect; crossorigin';
   const withCsp = (res: NextResponse) => {
     res.headers.set("Content-Security-Policy", csp);
-    res.headers.set("Link", PRECONNECT_LINK);
     return res;
   };
   const hostname = (request.headers.get("host") || "").toLowerCase().split(":")[0];
