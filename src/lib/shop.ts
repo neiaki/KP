@@ -247,6 +247,25 @@ export function listSoldOutProducts(
 }
 
 /**
+ * Terjemahkan nilai `?brand=` dari URL menjadi nama merek yang benar-benar
+ * ada di data, tanpa membedakan huruf besar-kecil.
+ *
+ * Chip filter memakai nama kapital ("Apple"), tetapi tautan yang dibagikan
+ * atau disalin dari address bar sering menulis `brand=apple` kecil. Membandingkan
+ * langsung membuat pencocokan gagal dan filter diam-diam jatuh ke "all": grid
+ * tetap menampilkan semua merek sementara alamat menulis filter aktif. Nilai
+ * kosong, "all", atau merek yang tidak dikenal tetap jatuh ke "all".
+ */
+export function brandFromUrl(
+  raw: string,
+  products: Array<Pick<Product, "brand">>
+): string {
+  const q = raw.trim().toLowerCase();
+  if (q === "" || q === "all") return "all";
+  return products.find((p) => p.brand.toLowerCase() === q)?.brand ?? "all";
+}
+
+/**
  * Saring daftar produk dengan aturan yang sama seperti `filterItems`.
  *
  * `filterItems` menyaring kartu Ready Stock yang basisnya unit, sedangkan
