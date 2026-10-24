@@ -31,7 +31,7 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-02 | Audit XSS (dangerouslySetInnerHTML, URL js:, sink DOM) | P0 | BELUM | - |
 | F3-03 | Audit SQL/NoSQL/command injection | P0 | DIPERIKSA-BERSIH | sweep: 0 sql.raw di src; 19 template sql Drizzle semuanya interpolasi = parameter binding; db.execute v_public_inventory memakai binding ${brand}/${condition}; tanpa child_process di src; exec di sitemap.ts = regex. Script shell hanya menerima env cron, bukan input pengguna [BACA-KODE] |
 | F3-04 | Audit path traversal | P1 | BELUM | - |
-| F3-05 | Audit autentikasi & session/token | P0 | BELUM | - |
+| F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
 | F3-07 | Audit CSRF & CORS | P1 | BELUM | - |
 | F3-08 | Audit cookie flags | P1 | BELUM | - |
@@ -67,7 +67,7 @@ Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.m
 | F3-02 | Audit XSS (dangerouslySetInnerHTML, URL js:, sink DOM) | P0 | DIPERIKSA-BERSIH | sweep grep: satu-satunya sink adalah store-json-ld.tsx dengan escape "<"→"\u003c"; tanpa href javascript:/data:; tanpa innerHTML lain; WA href pakai encodeURIComponent; tracking tidak merefleksikan input mentah [BACA-KODE] |
 | F3-02b | Tes regresi escape JSON-LD (tests/json-ld-escape.test.ts, 3 tes) + helper diekstrak escapeJsonLd() di sitemap.ts | P0 | SELESAI | [TEST] payload "</script><script>alert(1)</script>" tidak pernah lolos; nilai asli tetap terbaca Google setelah JSON.parse |
 | F3-03 | Audit SQL/NoSQL/command injection | P0 | BELUM | - |
-| F3-05 | Audit autentikasi & session/token | P0 | BELUM | - |
+| F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
 | F3-14 | Audit pesan error bocor info internal | P2 | BELUM | - |
 
@@ -81,3 +81,8 @@ di-compile menjadi parameter binding (termasuk db.execute v_public_inventory
 dengan ${brand}/${condition}); tanpa child_process; exec() di sitemap.ts adalah
 regex.exec. Script shell menerima env cron tanpa input pengguna. Tidak ada
 temuan; tidak ada perubahan kode. Berikutnya: F3-05 auth/session (P0).
+
+Iterasi 5 (2026-10-25): F3-05 auth/session. Proxy: getUser() + role dari
+profiles + canAccessPortalPath; cookie flags dari authCookieOptions (3 tes);
+rate-limit credential 3 lapis dengan anti-enumerasi; signOut server-side;
+passwordSchema 8-128. Tidak ada temuan HIGH/CRITICAL. Berikutnya: F3-06.
