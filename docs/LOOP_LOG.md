@@ -30,7 +30,7 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-01 | Audit secret ter-hardcode/ter-commit (termasuk riwayat git) | P0 | DIPERIKSA-BERSIH | git log --all diff-filter=A '.env*' → hanya .env.example (semua nilai kosong); grep pola ghp_/sk-ant/private key/JWT tersignatur di HEAD + 52 tree refs/t3 → nihil; guard tests/no-secret-in-repo.test.ts (21 test, pass) [EKSEKUSI+BACA-KODE] |
 | F3-02 | Audit XSS (dangerouslySetInnerHTML, URL js:, sink DOM) | P0 | BELUM | - |
 | F3-03 | Audit SQL/NoSQL/command injection | P0 | DIPERIKSA-BERSIH | sweep: 0 sql.raw di src; 19 template sql Drizzle semuanya interpolasi = parameter binding; db.execute v_public_inventory memakai binding ${brand}/${condition}; tanpa child_process di src; exec di sitemap.ts = regex. Script shell hanya menerima env cron, bukan input pengguna [BACA-KODE] |
-| F3-04 | Audit path traversal | P1 | BELUM | - |
+| F3-04 | Audit path traversal | P1 | DIPERIKSA-BERSIH | uploadPhoto: folder dari sesi staf (bukan argumen client), whitelist UPLOAD_BUCKETS, randomUUID server-side, fileName disanitasi [^a-zA-Z0-9._-]→_ via buildPhotoObjectKey (../ mustahil); restore-storage.sh ekstraksi terbatas 2 nama file eksplisit + wajib checksum; tes 'folder tidak aman → hasil kosong' pass [BACA-KODE+TEST] |
 | F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
 | F3-07 | Audit CSRF & CORS | P1 | BELUM | - |
@@ -146,3 +146,8 @@ Dengan ini SEMUA 14 kategori Fase 3 DIPERIKSA (dua pass independen pada
 F3-02/03/05/06) dan satu temuan TINGGI FIXED-TERVERIFIKASI. Item yang tersedia
 untuk iterasi berikutnya: Fase 4 aksesibilitas (alt/aria/heading, belum diukur),
 atau LOOP_SELESAI bila dua iterasi berturut-turut kosong.
+
+Iterasi 8 (2026-10-25): F3-04 path traversal. Upload foto: folder dari
+sesi, whitelist bucket, UUID server-side, sanitasi nama file; restore
+ekstraksi terbatas + checksum wajib; tes jalur tidak aman pass. Tidak ada
+temuan. Berikutnya: F3-07 CSRF & CORS.
