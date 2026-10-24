@@ -33,6 +33,7 @@ runbook dan test yang menjaga urutannya.
 | Mode demo dan data lokal | halaman portal | `src/lib/store-demo.ts`, `src/lib/mock-data.ts` |
 | Operasi bisnis di server | form atau halaman portal | `src/lib/actions/` per domain, dengan helper di `_helpers.ts`, `_value-mappers.ts`, dan `_mappers.ts` |
 | Identitas dan otorisasi | `src/proxy.ts`, layout portal | `src/lib/access.ts`, `src/lib/actions/auth.ts`, klien Supabase di `src/lib/supabase/` |
+| Ikon dan aset brand | navbar, portal layout, login, ikon PWA, OG image | `src/lib/brand-logo.tsx` (sumber tunggal geometri logo), `public/brand/` |
 | Database | Server Actions | `src/db/schema.ts`, `src/db/client.ts`, migration di `supabase/migrations/` |
 | Health dan integrasi HTTP | `src/app/api/` | `src/lib/health.ts`, `scripts/smoke-deployment.mjs` |
 | Backup dan pemulihan | `scripts/` | `docs/DEPLOYMENT-REDUNDANCY.md`, lalu test terkait di `tests/` |
