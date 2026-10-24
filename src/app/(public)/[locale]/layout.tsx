@@ -115,15 +115,6 @@ export default async function PublicRootLayout({
       className={htmlClass}
       suppressHydrationWarning
     >
-      <head>
-        {/* Logo merek (chip filter dan fallback katalog) diambil langsung
-            dari CDN Simple Icons oleh browser. Preconnect memangkas DNS+TLS
-            dari jalur itu pada halaman pertama; dns-prefetch menjadi cadangan
-            untuk browser lama. Foto produk tidak ikut karena lewat optimizer
-            server yang koneksinya dikelola Next, bukan browser. */}
-        <link rel="preconnect" href="https://cdn.simpleicons.org" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://cdn.simpleicons.org" />
-      </head>
       <body className={bodyClass} suppressHydrationWarning>
         <RootProviders publicSeed={seed}>
           <div className="flex min-h-[100dvh] flex-col">
