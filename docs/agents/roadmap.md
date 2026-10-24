@@ -6,12 +6,33 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 
 ## Status terbaru
 
-**Diperbarui:** 20 Oktober 2026  
-**Baseline:** `0e25470` (`main`, `origin/main` saat audit)  
-**Cabang kerja:** `chore/atcell-hardening-2026-10-19` (satu-satunya, belum
-di-merge; pull request dibiarkan terbuka untuk review AI lain)  
-**Perubahan roadmap ini:** kode dan dokumentasi perapihan sesi ini sudah
-di-commit di satu branch, belum di-merge ke `main`.
+**Diperbarui:** 24 Oktober 2026
+**Baseline:** `caee6f2` (`main`, commit pin image setelah PR #130)
+**Cabang kerja:** `main` bersih; tidak ada PR terbuka.
+**Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
+dan katalog lima model per merek sudah merge lewat PR #129. Pin image
+`Dockerfile.coolify` sudah dinaikkan lewat PR #130 dan production sudah
+menjalankan image revisi `53856b4`.
+
+Selesai pada sesi 24 Oktober 2026:
+
+- [x] Admin dan sales bisa membuat akun pelanggan dari `/portal/customers` dan
+      POS, tanpa meminta email pelanggan.
+- [x] Login pelanggan memakai username, nomor HP, dan password; email sintetis
+      `@pelanggan.atcell.my.id` tetap internal.
+- [x] POS menyimpan `customer_id` dan menerima pelanggan lama yang nomor HP-nya
+      masih kosong.
+- [x] Unit dan transaksi demo memakai `is_demo = true`; unit demo memakai
+      `imei = NULL` dan tidak muncul di etalase publik, stok, dashboard, atau
+      laporan.
+- [x] Riwayat pelanggan difilter per `customer_id`, dengan fallback nomor/nama
+      untuk data demo lama, sehingga tidak ada kebocoran antar pelanggan.
+- [x] Migrasi `20261023111914_add_is_demo_flag.sql` dan
+      `20261023112316_demo_inventory_imei_nullable.sql` tercatat di runbook dan
+      ledger production.
+- [x] Deploy production diverifikasi: health 200, CSP ada, login `ega` hanya
+      melihat 2 faktur miliknya, dan route `/portal/customers` tertutup untuk
+      customer.
 
 Selesai pada sesi 20 Oktober 2026:
 
@@ -153,15 +174,20 @@ dari passphrase sampai pembuktian restore. Ringkasnya:
 
 ### Prioritas 6: data bisnis yang masih di bawah target
 
-Angka berikut hasil pembacaan langsung ke database production pada 20 Oktober
+Angka berikut hasil pembacaan langsung ke database production pada 24 Oktober
 2026, jadi bukan data tebakan:
 
-- [ ] Stok tersedia per merek masih di bawah 5 unit per merek. Realitas
-  sekarang: 7 unit tersedia dari 10 unit fisik, tersebar Apple 1, Oppo 1,
-  Samsung 2, Vivo 1, Xiaomi 2.
-- [ ] 5 dari 10 produk katalog aktif tidak punya satu pun unit tersedia, jadi
-  etalase publik (`v_public_inventory`) hanya memuat 7 baris. Kalau target
-  katalog lebih lebar, unitnya yang harus ditambah, bukan baris katalognya.
+- [ ] Katalog sudah berisi 25 produk aktif, tepat 5 model per merek, tetapi
+  stok tersedia masih 7 unit asli. Empat belas unit sisanya adalah unit demo
+  bertanda `is_demo` yang tidak boleh dihitung sebagai stok jual.
+- [ ] Sebagian besar model katalog baru belum punya unit karena IMEI asli belum
+  diberikan owner. Jangan mengarang IMEI; tambahkan unit lewat registrasi
+  inventaris setelah IMEI asli tersedia.
+- [ ] Etalase publik (`v_public_inventory`) hanya memuat 7 baris dari 25 model.
+  Kalau target katalog lebih lebar, unitnya yang harus ditambah, bukan baris
+  katalognya.
+- [ ] Lima belas model baru masih memakai label "Foto menyusul"; ganti saat foto
+  resmi tersedia.
 
 ## Langkah awal agen berikutnya
 

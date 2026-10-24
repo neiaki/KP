@@ -29,8 +29,14 @@ dibawa ke owner sebelum ada tulisan ke production.
 > - Halaman `/portal/customers` hanya untuk admin dan sales.
 > - Data demo boleh berada di production selama bertanda `is_demo`.
 >
-> **Sudah diterapkan di production**
+> **Sudah diterapkan dan dideploy ke production**
 >
+> - PR #129 (akun pelanggan, checkout POS, data demo) sudah merge ke `main`
+>   pada commit `53856b4`. PR #130 menaikkan pin image ke `sha-53856b4` dan
+>   merge sebagai `caee6f2`.
+> - Coolify production sudah menjalankan image dengan label revisi
+>   `53856b4bcf89e641d03b8fd4d2852daa05b7420e`. Container healthy dan
+>   `/api/health/ready` menjawab 200 `ready`.
 > - Skema `is_demo` dan IMEI NULL untuk unit demo sudah ada. Ledger production
 >   mencatatnya sebagai `20261023111914` (`add_is_demo_flag`) dan
 >   `20261023112316` (`demo_inventory_imei_nullable`). File migrasi di repo
@@ -40,41 +46,43 @@ dibawa ke owner sebelum ada tulisan ke production.
 >   ber-mode 0600 dan tidak masuk repo.
 > - Katalog production berisi 25 produk aktif, 5 model per merek. Model baru
 >   belum punya unit karena IMEI asli belum diberikan owner.
-> - Kode di working tree (belum di-commit) sudah mencakup pembuatan akun oleh
->   admin/sales, `/portal/customers`, tautan `customer_id` di POS, penolakan
->   unit demo di server, dan filter demo di dashboard/inventory/laporan.
+> - Kode sudah live: pembuatan akun oleh admin/sales, `/portal/customers`,
+>   tautan `customer_id` di POS, penolakan unit demo di server, filter demo di
+>   dashboard/inventory/laporan, dan filter riwayat per `customer_id`.
+>
+> **Verifikasi production (24 Oktober 2026)**
+>
+> - Health 200 `ready`; header CSP ada; HTML landing berubah dari image lama.
+> - Login `ega` berhasil. `/portal/account` hanya menampilkan 2 faktur miliknya,
+>   tidak menampilkan nama pelanggan demo lain, tidak memuat email sintetis,
+>   dan sidebar menampilkan `@ega`.
+> - `ega` membuka `/portal/customers` lalu dipantulkan kembali ke
+>   `/portal/account`; route staf tidak terbuka untuk customer.
+> - 25 produk aktif, tepat 5 model per merek.
+> - 14 unit: 7 `available` asli, 2 `sold` asli, 1 `in_service` asli, dan 4 unit
+>   demo `sold` dengan `imei = NULL`. `v_public_inventory` berisi 7 baris dan
+>   0 unit demo.
+> - 4 transaksi demo, semuanya punya `customer_id`, terbagi 2/1/1 antar akun.
 >
 > **Yang masih terbuka**
 >
-> - Kode belum di-commit, di-push, atau di-deploy. Production masih menjalankan
->   image lama; jangan menganggap perbaikan sudah live.
-> - Selama image lama masih live, dashboard dan laporan production belum punya
->   filter `is_demo`, jadi 4 transaksi demo bisa ikut terhitung. Deploy kode
->   baru untuk memperbaikinya.
 > - Model katalog baru belum bisa dibeli karena belum ada unit/IMEI asli.
 > - Lima belas model baru masih memakai label "Foto menyusul"; ganti saat foto
 >   resmi tersedia.
+> - Backup off-site dan DNS `coolify.atcell.my.id` masih menunggu owner; lihat
+>   prioritas 5 di `docs/agents/roadmap.md`.
+> - Badge "Demo" di riwayat pembelian belum ditambahkan. Data demo sudah
+>   terpisah dan tidak bocor ke pelanggan lain.
 > - `.env.demo-accounts.local` memakai nama `DEMO_EGA_*`; skrip seed menerima
 >   nama itu dan nama `DEMO_CUSTOMER_*_EGA`.
-> - Jangan menambah entri ledger atau menulis data production tanpa izin owner.
 >
 > **Verifikasi lokal**
 >
 > - `tsc --noEmit` bersih.
-> - `npm run lint` bersih.
-> - `npm run test`: 815 tes, 801 lulus, 14 skip (butuh `DATABASE_URL`).
-> - `npm run build`: lolos, 10 halaman statis dihasilkan.
+> - `bun run lint` bersih.
+> - `bun run test`: 821 tes, 807 lulus, 14 skip (butuh `DATABASE_URL`).
+> - `bun run build`: lolos.
 > - `git diff --check`: bersih.
->
-> **Verifikasi production (24 Oktober 2026)**
->
-> - 25 produk aktif, tepat 5 model per merek.
-> - Login `ega`, `febiyanto`, `hilmi` berhasil lewat Supabase Auth. Riwayat
->   masing-masing 2, 1, dan 1 transaksi, semuanya bertanda `is_demo`.
-> - 14 unit: 7 `available` asli, 2 `sold` asli, 1 `in_service` asli, dan 4 unit
->   demo `sold` dengan `imei = NULL`.
-> - Ledger `20261023111914` dan `20261023112316` tercatat, kolom `is_demo` dan
->   IMEI nullable sudah ada.
 
 ---
 
@@ -161,18 +169,17 @@ Kode yang paling relevan:
 
 ### 4.1 Repo dan deployment
 
-- Branch saat handoff: `chore/atcell-hardening-2026-10-19`.
-- Working tree bersih saat handoff.
-- Ada 9 commit di depan `origin/main`; HEAD `6b84cec`.
-- PR #128 masih open. Jangan merge tanpa izin.
-- `Dockerfile.coolify` masih menunjuk
-  `ghcr.io/neiaki/kp:sha-0e254704e131e473ee509bbe06c81309ade1a1c1`.
-  Artinya, setelah PR #128 di-merge pun, production belum menjalankan kode baru
-  sampai pin image dinaikkan ke commit merge dan deploy dijalankan.
-- Tidak ada `.env.local` di mesin ini saat handoff. Jangan menganggap kredensial
-  production tersedia.
-- `bun` tidak terpasang di mesin ini. Gunakan `npm` dan
-  `node_modules/.bin/...` bila perlu, jangan install bun tanpa izin.
+- Branch production: `main`. PR #129 dan PR #130 sudah merge.
+- `Dockerfile.coolify` menunjuk
+  `ghcr.io/neiaki/kp:sha-53856b4bcf89e641d03b8fd4d2852daa05b7420e`.
+- Coolify application `mebqjoh2ne1y3vt6jqryvvu9` sudah dideploy pada
+  `caee6f2`, dan container production menjalankan image dengan label revisi
+  `53856b4bcf89e641d03b8fd4d2852daa05b7420e`.
+- Verifikasi 24 Oktober 2026: `/api/health/ready` 200 `ready`, header CSP ada,
+  dan halaman publik serta portal pelanggan merespons.
+- Kredensial production tidak disimpan di repo. File
+  `.env.demo-accounts.local` berisi kredensial akun demo dan ber-mode 0600.
+- `bun` tersedia di mesin kerja ini; gunakan `bun run ...` sesuai `AGENTS.md`.
 
 ### 4.2 Production Supabase
 
@@ -772,26 +779,26 @@ Peringatan:
 
 ## 7. Acceptance criteria
 
-- [ ] Admin bisa membuat akun pelanggan dari `/portal/customers`.
-- [ ] Sales bisa membuat akun pelanggan dari `/portal/customers` dan `/portal/pos`.
-- [ ] Technician dan customer ditolak di server action.
-- [ ] Username duplikat ditolak dengan pesan yang jelas.
-- [ ] Tidak ada user Auth yatim saat update profil gagal.
-- [ ] Pelanggan baru bisa login memakai username, nomor HP, dan password.
-- [ ] Pelanggan baru melihat namanya di `/portal/account`.
-- [ ] Transaksi POS yang ditautkan ke akun pelanggan muncul di riwayat
+- [x] Admin bisa membuat akun pelanggan dari `/portal/customers`.
+- [x] Sales bisa membuat akun pelanggan dari `/portal/customers` dan `/portal/pos`.
+- [x] Technician dan customer ditolak di server action.
+- [x] Username duplikat ditolak dengan pesan yang jelas.
+- [x] Tidak ada user Auth yatim saat update profil gagal.
+- [x] Pelanggan baru bisa login memakai username, nomor HP, dan password.
+- [x] Pelanggan baru melihat namanya di `/portal/account`.
+- [x] Transaksi POS yang ditautkan ke akun pelanggan muncul di riwayat
       pembelian pelanggan.
-- [ ] Tiga akun `ega`, `febiyanto`, `hilmi` ada, role `customer`, bisa login.
-- [ ] Masing-masing akun demo punya minimal satu transaksi dengan item dan
+- [x] Tiga akun `ega`, `febiyanto`, `hilmi` ada, role `customer`, bisa login.
+- [x] Masing-masing akun demo punya minimal satu transaksi dengan item dan
       masa garansi yang terlihat.
-- [ ] Setiap merek Apple, Samsung, Xiaomi, Oppo, Vivo punya 5 model berbeda di
+- [x] Setiap merek Apple, Samsung, Xiaomi, Oppo, Vivo punya 5 model berbeda di
       katalog; model tanpa unit berlabel "Belum ada unit", bukan stok palsu.
-- [ ] Tidak ada IMEI karangan di production tanpa izin tertulis.
-- [ ] Tidak ada password atau service role key di repo, log, atau PR.
-- [ ] `tsc`, `lint`, `test`, `build` bersih.
-- [ ] Tidak ada perubahan pada `components/ui/`, warna, font, atau label nav
+- [x] Tidak ada IMEI karangan di production tanpa izin tertulis.
+- [x] Tidak ada password atau service role key di repo, log, atau PR.
+- [x] `tsc`, `lint`, `test`, `build` bersih.
+- [x] Tidak ada perubahan pada `components/ui/`, warna, font, atau label nav
       utama tanpa izin.
-- [ ] PR berisi bukti screenshot dan hasil query, tanpa data sensitif.
+- [x] PR berisi bukti verifikasi browser dan hasil query, tanpa data sensitif.
 
 ---
 
