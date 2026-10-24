@@ -185,9 +185,9 @@ export function LoginPanel({ locale }: { locale: Locale }) {
           </label>
           <Input
             id="login-username"
+            autoComplete="username"
             name="username"
             type="text"
-            autoComplete="username"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
@@ -204,10 +204,10 @@ export function LoginPanel({ locale }: { locale: Locale }) {
           </label>
           <Input
             id="login-phone"
+            autoComplete="tel"
             name="phone"
             type="tel"
             inputMode="tel"
-            autoComplete="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="08123456789"
@@ -223,9 +223,9 @@ export function LoginPanel({ locale }: { locale: Locale }) {
         </label>
         <Input
           id="login-password"
+          autoComplete="current-password"
           name="password"
           type="password"
-          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Masukkan kata sandi"

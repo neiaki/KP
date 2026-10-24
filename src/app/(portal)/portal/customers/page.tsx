@@ -260,20 +260,24 @@ export default function CustomersPage() {
             <form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 text-sm">
               <div>
                 <label htmlFor="cust-name" className="mb-1 block text-xs font-semibold text-muted">Nama Lengkap</label>
-                <Input id="cust-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Ega" className="sm:text-xs" required />
+                <Input id="cust-name"
+                autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Ega" className="sm:text-xs" required />
               </div>
               <div>
                 <label htmlFor="cust-username" className="mb-1 block text-xs font-semibold text-muted">Username Login</label>
-                <Input id="cust-username" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="contoh: ega" className="font-mono sm:text-xs" required minLength={3} maxLength={32} />
+                <Input id="cust-username"
+                autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="contoh: ega" className="font-mono sm:text-xs" required minLength={3} maxLength={32} />
               </div>
               <div>
                 <label htmlFor="cust-phone" className="mb-1 block text-xs font-semibold text-muted">Nomor HP</label>
-                <Input id="cust-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="081200000001" className="font-mono sm:text-xs" required />
+                <Input id="cust-phone"
+                autoComplete="tel" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="081200000001" className="font-mono sm:text-xs" required />
               </div>
               <div>
                 <label htmlFor="cust-password" className="mb-1 block text-xs font-semibold text-muted">Kata Sandi</label>
                 <div className="flex gap-2">
-                  <Input id="cust-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 8 karakter" className="sm:text-xs" required minLength={8} />
+                  <Input id="cust-password"
+                autoComplete="new-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 8 karakter" className="sm:text-xs" required minLength={8} />
                   <Button type="button" variant="outline" onClick={() => setShowPassword((v) => !v)} className="shrink-0">
                     {showPassword ? "Sembunyi" : "Lihat"}
                   </Button>

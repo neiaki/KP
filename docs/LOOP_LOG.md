@@ -40,7 +40,8 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-11 | Audit upload file | P1 | DIPERIKSA-BERSIH | uploadPhotoSchema: bucket whitelist enum, nama file 3-160 char, contentType enum jpeg/png/webp (SVG/script ditolak), maks 5MB; path = folder sesi + randomUUID + nama disanitasi; upsert:false; signed URL TTL; bucket RLS Supabase [BACA-KODE+TEST] |
 | F3-12 | Audit SSRF & open redirect | P1 | DIPERIKSA-BERSIH | open redirect: resolveLoginDestination menolak nilai non-path, //host, backslash, origin luar; wajib di bawah /portal/ (tests/route-next-redirect). SSRF: tidak ada fetch server ke URL dari input user; getGoogleReviews ke endpoint tetap + key env; wa.me dibuka browser [BACA-KODE+TEST] |
 | F3-13 | Audit dependency rentan | P0 | DIPERIKSA-BERSIH | `bun audit --audit-level=high` exit 0, 558 paket (2026-10-24); 1 moderate dev-only: esbuild<=0.24.2 via drizzle-kit (GHSA-67mh-4wv8-2f99, vektor dev server, dev-only, diterima sesuai kebijakan security.yml audit-level=high + dependabot weekly) [EKSEKUSI] |
-| F3-14 | Audit pesan error bocor info internal | P2 | DIPERIKSA-BERSIH | semua catch di Server Action mengembalikan pesan generik ('Gagal ... Coba lagi'); pesan dari parsed.error adalah kalimat validasi Zod yang dirancang untuk pengguna; kode Postgres dipetakan friendlyDbError ke pesan bisnis; tidak ada e.stack/e.message database yang diteruskan ke klien [BACA-KODE] |
+| F3-14 | Audit pesan error bocor info internal | P2 | DIPERIKSA-BERSIH |
+| F4-18 | Audit kontras token WCAG (terang+gelap, ink/muted di paper/card) | P1 | DIPERIKSA-BERSIH | semua catch di Server Action mengembalikan pesan generik ('Gagal ... Coba lagi'); pesan dari parsed.error adalah kalimat validasi Zod yang dirancang untuk pengguna; kode Postgres dipetakan friendlyDbError ke pesan bisnis; tidak ada e.stack/e.message database yang diteruskan ke klien [BACA-KODE] |
 
 Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.md.
 
@@ -69,7 +70,8 @@ Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.m
 | F3-03 | Audit SQL/NoSQL/command injection | P0 | BELUM | - |
 | F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
-| F3-14 | Audit pesan error bocor info internal | P2 | DIPERIKSA-BERSIH | semua catch di Server Action mengembalikan pesan generik ('Gagal ... Coba lagi'); pesan dari parsed.error adalah kalimat validasi Zod yang dirancang untuk pengguna; kode Postgres dipetakan friendlyDbError ke pesan bisnis; tidak ada e.stack/e.message database yang diteruskan ke klien [BACA-KODE] |
+| F3-14 | Audit pesan error bocor info internal | P2 | DIPERIKSA-BERSIH |
+| F4-18 | Audit kontras token WCAG (terang+gelap, ink/muted di paper/card) | P1 | DIPERIKSA-BERSIH | semua catch di Server Action mengembalikan pesan generik ('Gagal ... Coba lagi'); pesan dari parsed.error adalah kalimat validasi Zod yang dirancang untuk pengguna; kode Postgres dipetakan friendlyDbError ke pesan bisnis; tidak ada e.stack/e.message database yang diteruskan ke klien [BACA-KODE] |
 
 Catatan iterasi 3: LOOP_LOG.md dipulihkan dari riwayat 820f669 (dihapus PR #153
 karena merusak tes docs-index; kini didaftarkan di docs/README.md supaya keduanya
@@ -205,3 +207,16 @@ padahal logo Simple Icons di-fetch browser di semua halaman. Perbaikan:
 preconnect + dns-prefetch cdn.simpleicons.org di layout publik. Ukur
 sesudah deploy: tag preconnect 0 -> 2 (curl). Foto produk sengaja tidak
 di-preconnect karena lewat optimizer server Next.
+
+Iterasi 17 (2026-10-25, Fase 4 aksesibilitas): sweep img/alt/aria/reduced-motion.
+img 5 total, semua punya alt (satu multiline tertangkap salah oleh grep
+satu-baris); aria-label 91 pemakaian; prefers-reduced-motion dihormati di
+globals.css + matchMedia product-card; skip link ada (sesi A); aria-hidden 9
+untuk elemen dekoratif. Tidak ada temuan; tidak ada perubahan kode.
+Berikutnya: audit kontras token warna (terukur).
+
+Iterasi 18 (2026-10-25, Fase 4 aksesibilitas): kontras dihitung WCAG
+(relative luminance) untuk 8 pasangan token, dua mode: terendah 6.72:1
+(muted di card gelap), tertinggi 17.75:1 — semua di atas AA 4.5:1
+[EKSEKUSI]. Tidak ada temuan; tidak ada perubahan warna.
+Berikutnya: atribut autocomplete form (autofill & password manager).
