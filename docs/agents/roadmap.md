@@ -178,7 +178,8 @@ Angka berikut hasil pembacaan langsung ke database production pada 24 Oktober
 2026, jadi bukan data tebakan:
 
 - [ ] Katalog sudah berisi 25 produk aktif, tepat 5 model per merek, tetapi
-  stok tersedia masih 7 unit asli. Empat belas unit sisanya adalah unit demo
+  stok tersedia masih 7 unit asli. Dari 14 baris `inventory_units`, 10 adalah
+  unit asli (7 `available`, 2 `sold`, 1 `in_service`) dan 4 adalah unit demo
   bertanda `is_demo` yang tidak boleh dihitung sebagai stok jual.
 - [ ] Sebagian besar model katalog baru belum punya unit karena IMEI asli belum
   diberikan owner. Jangan mengarang IMEI; tambahkan unit lewat registrasi
