@@ -25,7 +25,11 @@ import {
 } from "@/lib/actions/service";
 import type { DemoPosSaleParams, DemoTicketData } from "./store-demo.ts";
 import { updateStoreSettings as updateStoreSettingsAction } from "@/lib/actions/settings";
-import { inviteStaff as inviteStaffAction, createCustomerAccount as createCustomerAccountAction } from "@/lib/actions/auth";
+import {
+  inviteStaff as inviteStaffAction,
+  createCustomerAccount as createCustomerAccountAction,
+  updateCustomerPassword as updateCustomerPasswordAction,
+} from "@/lib/actions/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { deriveUsernameFromEmail } from "@/lib/username";
 import { getPortalPathState, prependServiceTicket } from "@/lib/service-ticket-list";
@@ -609,6 +613,22 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     return demo.demoAddCustomer(name, phone, password, username, setProfiles);
   };
 
+  const updateCustomerPassword = async (
+    userId: string,
+    password: string
+  ): Promise<void> => {
+    if (liveBackendEnabled) {
+      const result = await updateCustomerPasswordAction(userId, password);
+      if (!result.ok) throw new Error(result.error);
+      return;
+    }
+    // Mode demo tidak punya sesi auth dan memang tidak menyimpan kata sandi
+    // (lihat demoAddCustomer), jadi tidak ada yang perlu diubah. Terima saja
+    // supaya alur UI tetap bisa dicoba di demo.
+    void userId;
+    void password;
+  };
+
   const resetToDefault = async () => {
     if (liveBackendEnabled) return;
     const demo = await loadDemoModule();
@@ -652,6 +672,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     profiles,
     addStaff,
     addCustomer,
+    updateCustomerPassword,
     resetToDefault,
     resetToInitialData: resetToDefault,
   };

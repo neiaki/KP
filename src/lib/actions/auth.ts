@@ -11,6 +11,7 @@ import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/
 import {
   customerCreateSchema,
   customerSignUpSchema,
+  passwordSchema,
   phoneSchema,
   staffInviteSchema,
   staffRoleSchema,
@@ -282,6 +283,78 @@ export async function createCustomerAccount(input: {
   revalidatePath("/portal/customers");
   revalidatePath("/portal/pos");
   return ok({ userId: data.user.id });
+}
+
+/**
+ * Batas penggantian kata sandi pelanggan oleh staf, per profil staf dalam
+ * satu menit.
+ *
+ * Aksi ini memakai service role, jadi tanpa kuota sebuah skrip yang menemukan
+ * endpoint-nya bisa menghajar Auth terus-menerus. Kuncinya id profil staf,
+ * bukan IP: staf satu toko yang berbagi alamat tidak boleh saling mengunci,
+ * dan pelanggan tidak punya jalur ke aksi ini sama sekali.
+ */
+const CUSTOMER_PASSWORD_LIMIT = 10;
+const CUSTOMER_PASSWORD_WINDOW_MS = 60_000;
+
+/**
+ * Admin atau sales mengganti kata sandi pelanggan.
+ *
+ * Kata sandi lama TIDAK bisa dilihat siapa pun: Supabase Auth hanya menyimpan
+ * hash, dan halaman pembuatan akun pun menampilkan kata sandi sekali di akhir
+ * pembuatan. Kebutuhan staf ("pelanggan lupa sandi") diselesaikan dengan
+ * menetapkan kata sandi baru, lalu staf menyalinnya untuk diserahkan.
+ *
+ * Target divalidasi berupa profil ber-peran customer sebelum menyentuh Auth,
+ * sehingga aksi ini tidak bisa dipakai sales untuk mengganti kata sandi akun
+ * admin atau staf lain meski dipanggil langsung dari client.
+ */
+export async function updateCustomerPassword(
+  userId: string,
+  newPassword: string
+): Promise<ActionResult<{ userId: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
+  const guard = await requireRole(["admin", "sales"]);
+  if ("error" in guard) return fail(guard.error);
+  if (!isSupabaseAdminConfigured()) {
+    return fail("SUPABASE_SERVICE_ROLE_KEY belum diisi, tidak bisa mengubah kata sandi.");
+  }
+  // Kuota dipotong sebelum validasi dan query, sama seperti pola di
+  // updateMyPhoneNumber, supaya percobaan tidak valid pun tetap terhitung.
+  const verdict = consumeRateLimit(
+    `customer-password:${guard.profile.id}`,
+    CUSTOMER_PASSWORD_LIMIT,
+    CUSTOMER_PASSWORD_WINDOW_MS
+  );
+  if (!verdict.allowed) {
+    return fail(
+      `Terlalu banyak percobaan. Coba lagi dalam ${verdict.retryAfterSeconds} detik.`
+    );
+  }
+  const parsed = passwordSchema.safeParse(newPassword);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Kata sandi tidak valid.");
+  }
+
+  const db = getDb();
+  if (!db) return backendOffline();
+  const [target] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  if (!target) return fail("Pelanggan tidak ditemukan.");
+  if (target.role !== "customer") {
+    return fail("Hanya kata sandi pelanggan yang bisa diubah dari halaman ini.");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    password: parsed.data,
+  });
+  if (error) return fail("Gagal mengubah kata sandi. Coba lagi.");
+  return ok({ userId });
 }
 
 export async function signOut(): Promise<void> {
