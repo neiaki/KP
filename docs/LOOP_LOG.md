@@ -167,3 +167,13 @@ refund. Tidak ada temuan. Berikutnya: F3-11 upload file.
 Iterasi 12 (2026-10-25): F3-11 upload file. Validasi berlapis di schema +
 action: whitelist bucket/mime, batas ukuran, sanitasi path, folder sesi,
 tanpa upsert. Tidak ada temuan. Berikutnya: F3-12 SSRF & open redirect.
+
+Iterasi 7 sesi A (2026-10-25): Fase 4 aksesibilitas. UKUR: alt img penuh
+(1 kandidat multi-baris ternyata ber-alt + alasan eslint-disable), lang
+dinamis per locale, tepat 1 h1 per halaman publik, label form htmlFor
+lengkap, lightbox Escape+aria-label ✓; celah terukur: skip link = 0. UBAH:
+skip link sr-only+fokus ID/EN di layout publik, target id=konten-utama di
+<main> (06d7f7f) + 4 tes regresi a11y-skip-link. UKUR LAGI: skip link = 1.
+Verifikasi: tsc 0, lint 0, npm test 852/838/0/14 exit 0, build exit 0.
+Sisa celah a11y yang dicatat tidak diubah: lightbox tanpa focus trap
+(perilaku UI lebih besar, butuh keputusan owner).
