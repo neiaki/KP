@@ -102,3 +102,47 @@ Iterasi 7 (2026-10-25): F3-08 cookie flags. Seluruh cookie sesi Supabase
 hanya production (lokal 192.168.x tetap bisa login), sameSite lax. Set-Cookie
 di proxy dan server action memakai opsi yang sama. Tes regresi 3 pass.
 Tidak ada temuan. Berikutnya: F3-04 path traversal.
+
+## (e) Konsolidasi sesi A (2026-10-25, append-only agar tidak menimpa sesi B)
+
+Sesi paralel A sudah menuntaskan sisa kategori sebelum sesi B mencapainya.
+Bukti per kategori (detail cara verifikasi identik dengan audit sesi A):
+
+- F3-04 path traversal: DIPERIKSA-BERSIH — tanpa fs dinamis di src;
+  buildPhotoObjectKey + objectKeyBentukSah + alamatFotoSah menolak "..";
+  bucket whitelist [EKSEKUSI+BACA-KODE].
+- F3-07 CSRF & CORS: DIPERIKSA-BERSIH — serverActions.allowedOrigins
+  (atcell.my.id + wildcard + env); cookie sameSite=lax eksplisit; API route
+  read-only tanpa header CORS [BACA-KODE].
+- F3-08 cookie flags: FIXED-TERVERIFIKASI (oleh sesi A, commit a848557 via
+  PR #158, live) — temuan TINGGI: default @supabase/ssr httpOnly:false tanpa
+  secure pada chunk sb-*-auth-token; fix authCookieOptions() + 3 tes scan
+  call site + 1 tes e2e setAll via library (tests/supabase-cookie-flags-e2e
+  .test.ts) [TEST+REPRODUKSI]. Sesi B tidak perlu mengulang audit ini.
+- F3-09 security headers: DIPERIKSA-BERSIH — nosniff/DENY/Referrer-Policy/
+  Permissions-Policy/HSTS prod/poweredByHeader off + CSP nonce strict-dynamic
+  (3 file test csp) [BACA-KODE+TEST].
+- F3-10 rate limiting: DIPERIKSA-BERSIH — kredensial 3 lapis; tracking 3
+  lapis + refund; public 600/min/IP; password pelanggan 10/min/staf; phone
+  10/min/profil [BACA-KODE+TEST].
+- F3-11 upload: DIPERIKSA-BERSIH — enum bucket/tipe, maks 5MB, filename
+  disanitasi, prefix folder = id staf sesi, signed URL 600s [BACA-KODE].
+- F3-12 SSRF/open redirect: DIPERIKSA-BERSIH — fetch outbound hanya URL
+  env/konstanta; ?next= tervalidasi ketat (7 test); remotePatterns whitelist
+  [BACA-KODE+TEST].
+- F3-14 pesan error: DIPERIKSA-BERSIH — aksi pesan generik; health/ready
+  boolean saja [BACA-KODE].
+- Fase 4 (UKUR tanpa intervensi): lihat bagian (b) pembaruan; tidak ada
+  optimasi yang lolos ambang risiko/manfaat.
+- Fase 5: penghapusan src/lib/supabase/client.ts DI-REVERT (dirujuk
+  docs/CSP.md; 2 tes csp-doc gagal sebelum revert).
+- Fase 6: tombol lacak servis state pending (33bd56b, disabled + aria-busy).
+- Putaran 2 red team sesi A: service-role hanya 5 titik di auth.ts
+  (ter-guard); catatan LOW timing-oracle lookup username pra-auth
+  (dimitigasi throttle 3 lapis, by design); Sentry client teladan.
+- Putaran 3 sesi A: review diff branch vs base tanpa regresi.
+
+Dengan ini SEMUA 14 kategori Fase 3 DIPERIKSA (dua pass independen pada
+F3-02/03/05/06) dan satu temuan TINGGI FIXED-TERVERIFIKASI. Item yang tersedia
+untuk iterasi berikutnya: Fase 4 aksesibilitas (alt/aria/heading, belum diukur),
+atau LOOP_SELESAI bila dua iterasi berturut-turut kosong.
