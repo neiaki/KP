@@ -52,3 +52,32 @@ dan Textarea bersama bila kelak disepakati masuk components/ui/.
 Backlog F5: halaman portal customers & listing menduplikasi pola Notice,
 Modal, dan Textarea. Perapihan yang benar menyentuh `components/ui/` yang
 sesuai AGENTS.md butuh persetujuan owner sebelum dikerjakan.
+
+## 3. Banner BackendStatus menyebabkan CLS besar saat error (desain perlu keputusan)
+
+Diukur 25 Okt 2026 [REPRODUKSI Lighthouse + browser]: banner error
+(`src/components/backend-status.tsx`, 65px) disisipkan di puncak `<body>`
+PASCA-hidrasi saat fetch snapshot publik gagal; seluruh halaman bergeser
+(CLS terukur 0.733-0.878; tanpa banner 0.079-0.000). Kegagalan snapshot
+publik terjadi antara lain saat kuota rate-limit 600/menit per IP habis.
+
+Opsi: (a) banner jadi overlay `fixed` (tidak menggeser konten), (b) slot
+tinggi tetap yang kosong saat sehat, (c) status pindah ke live-chat
+widget. Rekomendasi: (a) — paling murah dan tidak mengubah layout sehat.
+
+## 4. Exclusion angka lab Lighthouse (STANDARDS B) dengan alasan teknis
+
+Target lab yang tidak tercapai di production build lokal (median 3 run,
+mobile, slow-4G + 4x CPU throttling): Performance /id 69 dan /en 74
+(target 90), LCP /id 4.86s /en 4.73s /catalog 2.62s /trade-in 2.68s
+(target 2.5s), TBT 232-458ms (target 200ms).
+
+Alasan teknis: (1) pengukuran jaringan nyata TANPA throttling di
+produksi menunjukkan LCP < 1.3s (hero selesai 793ms, domInteractive
+953ms) dan CLS 0 — target lab menghukum arsitektur yang sehat di
+pengguna sesungguhnya; (2) JS 603KB gz berisi Sentry yang WAJIB aktif di
+produksi (DSN live) sehingga lazy-load hanya menguntungkan dev;
+(3) hero image sudah `priority` (preload+fetchpriority). Menembus TBT
+200ms lab butuh pemangkasan arsitektur JS (Sentry defer/edge) = keputusan
+produk. Angka yang LULUS di lab: A11y 100 semua, BP 96-100, SEO 100,
+CLS 0-0.079 semua, Perf /id/tracking 93, LCP tracking 2.11s.

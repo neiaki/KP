@@ -310,3 +310,34 @@ customers & listing bermigrasi, markup identik (visual tidak berubah),
 Escape tetap di halaman (tutup-modal-teratas). Verifikasi: tsc 0, lint 0,
 838/852 tes lulus (kontrak password & listing hijau), build 0; PR #174 CI
 hijau, merged 31d220e [TEST+EKSEKUSI]. Sisa: migrasi halaman portal lain.
+
+## Goal B/C/D (STANDARDS.md) — tabel Lighthouse before/after 2026-10-25
+
+`npm run perf` (scripts/perf-lighthouse.mjs): next start lokal :3210 →
+Lighthouse@12 headless (chromium /usr/sbin/chromium via npx, TANPA
+dependency baru) → median 3 run/halaman, form-factor mobile.
+SEBELUM (run dengan perbaikan belum diterapkan):
+| Halaman | Perf | A11y | BP | SEO | LCP | CLS | TBT |
+|---|---|---|---|---|---|---|---|
+| /id | 70 | 93 | 96 | 100 | 4.79s | 0.079 | 448ms |
+| /id/catalog | 53 | 92 | 96 | 100 | 4.40s | 0.733 | 403ms |
+| /id/tracking | 90 | 96 | 96 | 100 | 2.55s | 0.079 | 297ms |
+| /id/trade-in | 49 | 92 | 93 | 100 | 4.59s | 0.878 | 424ms |
+| /en | 75 | 93 | 96 | 100 | 4.67s | 0.079 | 324ms |
+SESUDAH (b76b9e8: kontras wa-deep 4.87:1, aria-label footer, font 12px):
+| Halaman | Perf | A11y | BP | SEO | LCP | CLS | TBT |
+|---|---|---|---|---|---|---|---|
+| /id | 69 | 100 | 96 | 100 | 4.86s | 0.079 | 458ms |
+| /id/catalog | 83 | 100 | 96 | 100 | 2.62s | 0.079 | 434ms |
+| /id/tracking | 93 | 100 | 96 | 100 | 2.11s | 0.079 | 232ms |
+| /id/trade-in | 89 | 100 | 96 | 100 | 2.68s | 0.079 | 300ms |
+| /en | 74 | 100 | 96 | 100 | 4.73s | 0.000 | 368ms |
+LULUS TARGET di lab: A11y >=95 (100 semua), BP >=95, SEO >=95, CLS <=0.1
+(0.000-0.079 semua), Perf tracking 93 >=90, LCP tracking 2.11s <=2.5s.
+Exclusion berikut dengan alasan teknis tertulis di docs/NEEDS_HUMAN.md
+butir 4: Perf /id /en /catalog /trade-in, LCP non-tracking, TBT (lab
+slow-4G+4xCPU vs nyata LCP<1.3s; Sentry wajib di produksi; hero sudah
+priority). Akar CLS besar = banner BackendStatus pasca-hidrasi saat
+snapshot gagal (REPRODUKSI: run dengan banner 0.733/0.878 vs tanpa
+0.079/0.000; produksi terukur 0.805 saat kuota rate-limit habis) —
+opsi desain di NEEDS_HUMAN butir 3.
