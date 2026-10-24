@@ -2,7 +2,7 @@ import React from "react";
 import { getPublicImageUrls, getPublicStoreSettings } from "@/lib/actions/public";
 import { getGoogleReviews } from "@/lib/reviews";
 import { dbBatch } from "@/db/client";
-import { SITE_ORIGIN, STORE_IMAGE_PATH, buildLocalBusinessJsonLd } from "@/app/sitemap";
+import { SITE_ORIGIN, STORE_IMAGE_PATH, buildLocalBusinessJsonLd, escapeJsonLd } from "@/app/sitemap";
 
 /*
  * LocalBusiness untuk data kaya Google, disematkan di layout publik supaya
@@ -71,9 +71,9 @@ export async function StoreJsonLd() {
   return (
     <script
       type="application/ld+json"
-      // "&" di-escape supaya string yang memuat "</script>" tidak bisa
-      // menutup tag lebih awal dan mengorbankan halaman.
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      // Setiap "<" di-escape (lihat escapeJsonLd) supaya nilai yang memuat
+      // "</script>" tidak bisa menutup tag lebih awal dan mengorbankan halaman.
+      dangerouslySetInnerHTML={{ __html: escapeJsonLd(JSON.stringify(jsonLd)) }}
     />
   );
 }

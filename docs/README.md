@@ -28,6 +28,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor yang sudah diverifikasi ke source code | **Acuan alur** |
 | `agents/issue-tracker.md` | Konfigurasi issue tracker repo untuk skill agent: GitHub Issues lewat `gh` CLI, termasuk alur wayfinding | **Acuan agent** |
 | `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
+| `LOOP_LOG.md` | Log iterasi autoloop: baseline build/test, backlog keamanan Fase 3 (P0-P3), dan riwayat iterasi. Dipulihkan atas permintaan misi autoloop | **Acuan agent** |
 | `agents/domain.md` | Aturan konsumsi dokumen domain (GLOSSARY.md, docs/adr/) oleh skill agent | **Acuan agent** |
 | `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor untuk orientasi agen | **Acuan agent** |
 | `agents/roadmap.md` | Status pekerjaan, prioritas backlog, kriteria verifikasi, dan langkah awal agen berikutnya | **Roadmap agent** |
