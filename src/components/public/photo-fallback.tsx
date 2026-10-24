@@ -21,11 +21,10 @@ export function BrandPhotoFallback({
   brand?: string;
   locale: Locale;
 }) {
-  const kenal = brand !== undefined && isKnownBrand(brand);
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 text-muted">
-      {kenal ? (
-        <BrandLogo brand={brand as string} active={false} colored size="h-14 w-14" />
+      {brand && isKnownBrand(brand) ? (
+        <BrandLogo brand={brand} active={false} colored size="h-14 w-14" />
       ) : (
         <Smartphone className="h-10 w-10" strokeWidth={1.25} />
       )}

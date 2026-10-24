@@ -42,7 +42,8 @@ export function isKnownBrand(brand: string): boolean {
   return Object.prototype.hasOwnProperty.call(SLUGS, brand);
 }
 
-export function brandChipClass(brand: string, active: boolean) {  if (active) {
+export function brandChipClass(brand: string, active: boolean) {
+  if (active) {
     // "Semua" (default) tampil biru tebal agar status filter jelas.
     if (brand === "all") return "border-accent bg-accent text-white shadow-sm";
     switch (brand) {

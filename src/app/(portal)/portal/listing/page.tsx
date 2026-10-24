@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { RoleBadge } from "@/components/portal/role-badge";
+import { hargaAcuanLayak } from "@/lib/validations";
 
 /*
  * Etalase & Harga: satu tempat untuk memperbarui dua hal yang paling sering
@@ -61,8 +62,8 @@ export default function EtalaseHargaPage() {
 
   const simpan = async (p: Product) => {
     const harga = drafHarga.trim() === "" ? 0 : Number(drafHarga);
-    if (!Number.isFinite(harga) || harga < 0) {
-      setNotice({ type: "error", text: "Harga acuan harus angka dan tidak boleh negatif. Kosongkan untuk menyembunyikan harga." });
+    if (!hargaAcuanLayak(harga)) {
+      setNotice({ type: "error", text: "Harga acuan harus angka 0 sampai 999 miliar. Kosongkan untuk menyembunyikan harga." });
       return;
     }
     const foto = drafFoto
