@@ -303,3 +303,10 @@ Modul kritis → file test (nama berkas di tests/):
 Catatan operasional: tabrakan sesi paralel (cherry-pick B saat sesi A
 mengedit README) menimpa baris indeks STANDARDS; dibuat ulang, docs-index
 8/8. .claude/loop.md dibuat lokal (gitignored) sebagai salinan protokol.
+
+Iterasi 24 (2026-10-25, putaran baru sesi B): Item 2 NEEDS_HUMAN dikerjakan
+(disetujui owner). NoticeBanner + ModalShell diekstrak ke components/portal/,
+customers & listing bermigrasi, markup identik (visual tidak berubah),
+Escape tetap di halaman (tutup-modal-teratas). Verifikasi: tsc 0, lint 0,
+838/852 tes lulus (kontrak password & listing hijau), build 0; PR #174 CI
+hijau, merged 31d220e [TEST+EKSEKUSI]. Sisa: migrasi halaman portal lain.
