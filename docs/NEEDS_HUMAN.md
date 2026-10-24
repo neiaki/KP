@@ -81,3 +81,13 @@ produksi (DSN live) sehingga lazy-load hanya menguntungkan dev;
 200ms lab butuh pemangkasan arsitektur JS (Sentry defer/edge) = keputusan
 produk. Angka yang LULUS di lab: A11y 100 semua, BP 96-100, SEO 100,
 CLS 0-0.079 semua, Perf /id/tracking 93, LCP tracking 2.11s.
+
+### Tambahan butir 3 (25 Okt 2026): shift footer intermiten di /id/trade-in
+
+Dua run Lighthouse penuh berturut-turut: trade-in CLS 0.878-1.000 pada
+2/3 run (footer bergeser 0.800, sources kosong di laporan), run yang sama
+bisa bersih 0.079. Bukan banner BackendStatus (lokal tanpa env; banner
+mustahil dirender) dan bukan gambar (tidak ada img awal). Akar
+TIDAK-TERVERIFIKASI — perlu penyelidikan dengan trace layar per-frame.
+Opsi alat: rekaman video Lighthouse atau Chrome DevTools performance
+panel di halaman trade-in.

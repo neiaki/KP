@@ -194,8 +194,17 @@ export default function CustomersPage() {
         </Card>
       )}
 
-      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
-        {customerList.map((cust) => {
+      {customerList.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line bg-card p-8 text-center">
+          <p className="text-sm font-bold text-ink">Belum ada pelanggan terdaftar</p>
+          <p className="mt-1 text-xs text-muted">
+            Buat akun pelanggan pertama lewat form di atas. Username dan kata sandi
+            sekali buat akan tampil di sini.
+          </p>
+        </div>
+      ) : (
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+          {customerList.map((cust) => {
           const trxCount = transactions.filter((t) => t.customer_id === cust.id).length;
           return (
             <li key={cust.id}>
@@ -232,7 +241,8 @@ export default function CustomersPage() {
             </li>
           );
         })}
-      </ul>
+        </ul>
+      )}
 
       {showForm && (
         <ModalShell

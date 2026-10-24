@@ -341,3 +341,40 @@ priority). Akar CLS besar = banner BackendStatus pasca-hidrasi saat
 snapshot gagal (REPRODUKSI: run dengan banner 0.733/0.878 vs tanpa
 0.079/0.000; produksi terukur 0.805 saat kuota rate-limit habis) —
 opsi desain di NEEDS_HUMAN butir 3.
+
+## Goal F (STANDARDS.md) — bukti 2026-10-25
+
+- README dari nol: section lengkap terverifikasi — Prasyarat/Instalasi
+  (setup), Menjalankan Secara Locally (run), Konfigurasi Supabase (env),
+  Perintah Pengembangan (test/build), Health Check, Deployment, Backup
+  dan Restore [EKSEKUSI grep heading].
+- .env.example: ada, 59 variabel, semua nilai kosong (F3-01) [EKSEKUSI].
+- Workflow CI: ci.yml (verify lint+tsc+build+test), security.yml (audit),
+  database-tests.yml (postgres:17) — sudah terpasang di repo; sesi ini
+  TIDAK menjalankannya; pembuatan baru = N/A (sudah ada) [BACA-KODE].
+- 404/500: /halaman-tidak-ada mengembalikan status 404 + halaman
+  global-not-found ber-chrome lengkap; error.tsx + global-error.tsx ada
+  utk 500 [EKSEKUSI curl + ls].
+- State loading/empty/error tiap halaman data:
+  | Halaman | loading | empty | error |
+  |---|---|---|---|
+  | /id/catalog | N/A (SSR seed, tanpa fase muat klien) | 6 state (Stok Habis, belum ada unit; tes etalase-empty-product) | banner BackendStatus layout |
+  | /id/tracking | tombol pending Memeriksa (33bd56b) | kode tidak ketemu | pesan gagal + fallback WA |
+  | /id/trade-in | N/A (form) | teks pengarah | 10 handler validasi |
+  | portal/pos | 5 | 4 | 16 |
+  | portal/inventory | snapshot | 5 | 35 |
+  | portal/customers | snapshot | DITAMBAHKAN sesi ini (dulu kosong polos) | 9 |
+  | reviews publik | fallback snapshot manual saat API gagal (sentry-and-reviews) | | |
+- Responsif (browser, halaman data /id/catalog lokal):
+  320px scrollW=305 <= 320; 1440px scrollW=1425 <= 1440; tanpa overflow
+  horizontal keduanya [EKSEKUSI].
+- Lighthouse ulang (npm run perf, median 3 run mobile): /id 69->70-77,
+  /id/catalog 83->88-89, /id/tracking 93->90-92, /en 74->73-76 — tidak
+  turun (dalam derau run) A11y 100, BP 96, SEO 100 semua. PENGECUALIAN:
+  /id/trade-in turun (89 -> 50-55; CLS 0.079 -> 0.878-1.000) akibat
+  pergeseran footer INTERMITTEN (2 dari 3 run; run bersih 0.079; sumber
+  shift tidak dicatat Lighthouse; bukan banner BackendStatus karena lokal
+  tanpa env) — akar TIDAK-TERVERIFIKASI, tanpa perbaikan spekulatif,
+  dicatat di NEEDS_HUMAN butir 3 [EKSEKUSI].
+- Gerbang akhir: tsc 0, lint 0, build 0, npm test 852/838/0/14 exit 0
+  (transkrip).
