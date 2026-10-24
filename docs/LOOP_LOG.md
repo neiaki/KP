@@ -29,7 +29,7 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 |----|------|----------|--------|-------|
 | F3-01 | Audit secret ter-hardcode/ter-commit (termasuk riwayat git) | P0 | DIPERIKSA-BERSIH | git log --all diff-filter=A '.env*' → hanya .env.example (semua nilai kosong); grep pola ghp_/sk-ant/private key/JWT tersignatur di HEAD + 52 tree refs/t3 → nihil; guard tests/no-secret-in-repo.test.ts (21 test, pass) [EKSEKUSI+BACA-KODE] |
 | F3-02 | Audit XSS (dangerouslySetInnerHTML, URL js:, sink DOM) | P0 | BELUM | - |
-| F3-03 | Audit SQL/NoSQL/command injection | P0 | BELUM | - |
+| F3-03 | Audit SQL/NoSQL/command injection | P0 | DIPERIKSA-BERSIH | sweep: 0 sql.raw di src; 19 template sql Drizzle semuanya interpolasi = parameter binding; db.execute v_public_inventory memakai binding ${brand}/${condition}; tanpa child_process di src; exec di sitemap.ts = regex. Script shell hanya menerima env cron, bukan input pengguna [BACA-KODE] |
 | F3-04 | Audit path traversal | P1 | BELUM | - |
 | F3-05 | Audit autentikasi & session/token | P0 | BELUM | - |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
@@ -74,3 +74,10 @@ Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.m
 Catatan iterasi 3: LOOP_LOG.md dipulihkan dari riwayat 820f669 (dihapus PR #153
 karena merusak tes docs-index; kini didaftarkan di docs/README.md supaya keduanya
 lulus). Branch di-rebase ke main (862228b) yang memuat merge #158 cookie.
+
+Iterasi 4 (2026-10-25): F3-03 SQL/command injection. Sweep seluruh src:
+tidak ada sql.raw, semua 19 template sql Drizzle memakai interpolasi yang
+di-compile menjadi parameter binding (termasuk db.execute v_public_inventory
+dengan ${brand}/${condition}); tanpa child_process; exec() di sitemap.ts adalah
+regex.exec. Script shell menerima env cron tanpa input pengguna. Tidak ada
+temuan; tidak ada perubahan kode. Berikutnya: F3-05 auth/session (P0).
