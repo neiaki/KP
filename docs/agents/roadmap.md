@@ -133,13 +133,15 @@ Selesai pada sesi 17 Oktober 2026:
 
 ### Prioritas 4: pemeriksaan manual yang memerlukan environment
 
-- [ ] Jalankan `bun run smoke:deployment -- <staging-url>` hanya pada staging
-  yang diizinkan; jangan memakai URL production untuk eksperimen.
+- [x] Jalankan `bun run smoke:deployment -- https://atcell.my.id` sebagai
+  pemeriksaan read-only setelah deploy. Hasil 24 Oktober 2026: 6/6 PASS
+  (`live`, `ready`, `public-home`, `public-catalog`, `public-tracking`,
+  `portal-login`). Jangan memakai production untuk eksperimen yang mengubah
+  data; skrip ini hanya membaca.
 - [ ] Periksa README dan gambar arsitektur pada aplikasi GitHub mobile setelah
   perubahan dokumentasi dipublikasikan.
-- [ ] Cek GitHub PR terbaru lewat `gh` dari terminal yang punya akses jaringan;
-  hasil audit 20 Oktober 2026 menunjukkan tidak ada PR terbuka, tetapi hasil
-  itu hanya snapshot waktu tersebut.
+- [x] Cek GitHub PR terbaru lewat `gh` dari terminal yang punya akses jaringan.
+  Hasil 24 Oktober 2026: tidak ada PR terbuka setelah PR #132 merge.
 
 ### Prioritas 5: langkah yang hanya bisa dikerjakan owner
 
