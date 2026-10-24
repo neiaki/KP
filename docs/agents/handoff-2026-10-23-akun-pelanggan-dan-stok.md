@@ -87,6 +87,12 @@ dibawa ke owner sebelum ada tulisan ke production.
 > - `tsc --noEmit` bersih.
 > - `bun run lint` bersih.
 > - `bun run test`: 821 tes, 807 lulus, 14 skip (butuh `DATABASE_URL`).
+> - `DATABASE_URL=$ATCELL_DATABASE_URL node --experimental-strip-types --test
+>   tests/migration-ledger.test.ts`: 7/7 lulus. Test ini read-only dan
+>   memastikan ledger migrasi production cocok dengan file repo.
+> - `bun run smoke:deployment -- https://atcell.my.id`: 6/6 PASS (`live`,
+>   `ready`, `public-home`, `public-catalog`, `public-tracking`,
+>   `portal-login`).
 > - `bun run build`: lolos.
 > - `git diff --check`: bersih.
 

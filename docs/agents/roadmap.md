@@ -8,7 +8,8 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 
 **Diperbarui:** 24 Oktober 2026
 **Baseline:** `caee6f2` (`main`, commit pin image setelah PR #130)
-**Cabang kerja:** `main` bersih; tidak ada PR terbuka.
+**Cabang kerja:** `main` bersih. PR #133 (dokumentasi) berisi catatan
+verifikasi akhir; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 dan katalog lima model per merek sudah merge lewat PR #129. Pin image
 `Dockerfile.coolify` sudah dinaikkan lewat PR #130 dan production sudah
@@ -114,32 +115,45 @@ Selesai pada sesi 17 Oktober 2026:
 
 ### Prioritas 2: lanjutkan pemecahan snapshot secara bertahap
 
-- [ ] Pertimbangkan memisahkan pembacaan query Supabase dari
-  `getPortalSnapshot`, setelah jalur mapping saat ini tervalidasi.
-- [ ] Tambahkan tes untuk label unit trade-in, kegagalan sumber data tambahan,
-  dan pembatasan hasil query customer. Jangan mengubah policy/RLS tanpa bukti
-  perilaku sekarang dan tes sebelum perubahan.
-- [ ] Pertahankan prinsip bahwa query customer dibatasi di sisi server; jangan
-  hanya menyaring hasil setelah data staf terbaca.
+- [x] Pertimbangkan memisahkan pembacaan query Supabase dari
+  `getPortalSnapshot`, setelah jalur mapping saat ini tervalidasi. Ditinjau
+  24 Oktober 2026: pemisahan belum dibutuhkan; jalur mapping sudah punya tes
+  perilaku dan belum ada sumber data kedua yang menuntut seam baru.
+- [x] Tes label unit trade-in ada di `tests/unit-label-nota.test.ts`.
+- [x] Pembatasan hasil query customer ada di `tests/portal-snapshot.test.ts`;
+  query transaksi dan tiket juga dibatasi `customer_id` di `portal.ts`.
+- [ ] Tes kegagalan sumber data tambahan belum ada. `getPortalSnapshot` masih
+  memakai `Promise.all`, jadi satu query gagal membuat seluruh snapshot gagal.
+  Untuk mengujinya perlu seam atau refactor; jangan mengubah policy/RLS tanpa
+  bukti dan tes.
+- [x] Pertahankan prinsip bahwa query customer dibatasi di sisi server; jangan
+  hanya menyaring hasil setelah data staf terbaca. Dikunci oleh tes snapshot
+  customer yang memeriksa profil, transaksi, dan email sintetis.
 
 ### Prioritas 3: kurangi tes yang sensitif terhadap bentuk source
 
-- [ ] Tinjau sisa assertion source di
+- [x] Tinjau sisa assertion source di
   `tests/service-ticket-list-invalidation.test.ts` dan
-  `tests/locale-switch-refetch.test.ts`.
-- [ ] Ganti hanya assertion yang dapat dipindah ke helper/perilaku teramati;
+  `tests/locale-switch-refetch.test.ts`. Ditinjau 24 Oktober 2026: assertion
+  dipertahankan karena `src/lib/store.ts` menarik `next/navigation` dan React,
+  jadi tidak bisa diimpor runner Node; source assertion adalah satu-satunya
+  penjaga wiring yang tersedia.
+- [x] Ganti hanya assertion yang dapat dipindah ke helper/perilaku teramati;
   pertahankan pemeriksaan source bila memang mengunci wiring atau kebijakan
-  repository yang belum punya seam runtime.
+  repository yang belum punya seam runtime. Tidak ada assertion yang diganti
+  pada tinjauan ini; alasannya tercatat di komentar kedua berkas tes.
 
 ### Prioritas 4: pemeriksaan manual yang memerlukan environment
 
-- [ ] Jalankan `bun run smoke:deployment -- <staging-url>` hanya pada staging
-  yang diizinkan; jangan memakai URL production untuk eksperimen.
+- [x] Jalankan `bun run smoke:deployment -- https://atcell.my.id` sebagai
+  pemeriksaan read-only setelah deploy. Hasil 24 Oktober 2026: 6/6 PASS
+  (`live`, `ready`, `public-home`, `public-catalog`, `public-tracking`,
+  `portal-login`). Jangan memakai production untuk eksperimen yang mengubah
+  data; skrip ini hanya membaca.
 - [ ] Periksa README dan gambar arsitektur pada aplikasi GitHub mobile setelah
   perubahan dokumentasi dipublikasikan.
-- [ ] Cek GitHub PR terbaru lewat `gh` dari terminal yang punya akses jaringan;
-  hasil audit 20 Oktober 2026 menunjukkan tidak ada PR terbuka, tetapi hasil
-  itu hanya snapshot waktu tersebut.
+- [x] Cek GitHub PR terbaru lewat `gh` dari terminal yang punya akses jaringan.
+  Hasil 24 Oktober 2026: tidak ada PR terbuka setelah PR #132 merge.
 
 ### Prioritas 5: langkah yang hanya bisa dikerjakan owner
 
