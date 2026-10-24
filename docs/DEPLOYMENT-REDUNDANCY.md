@@ -489,11 +489,15 @@ Kalau struktur ini diubah, tiga hal ikut berubah:
 2. Pastikan migration canonical sudah tercatat dan diterapkan satu kali.
 3. Tulis tag image di `Dockerfile.coolify` memakai `sha-<commit>` sesuai bagian
    tag image di bawah, lalu commit.
-4. Deploy Coolify production dari branch `main`, cek `/api/health/ready`, lalu
-   pastikan header `content-security-policy` muncul di `/id`. Header itu hanya
-   ada di image yang sudah memuat `src/lib/csp.ts`, jadi ia penanda image baru
-   benar-benar yang jalan, bukan hanya health check yang hijau. Cara lengkapnya
-   ada di [`docs/CSP.md`](CSP.md).
+4. Deploy Coolify production dari branch `main`. Sebelum memicu deploy,
+   pastikan `git_commit_sha` aplikasi Coolify sudah menunjuk commit pin yang
+   berisi tag `sha-<commit>`; API deploy membaca nilai itu, bukan HEAD branch.
+   Kalau nilainya ketinggalan, Coolify mengulang commit lama meskipun `main`
+   sudah bergerak. Setelah itu cek `/api/health/ready`, lalu pastikan header
+   `content-security-policy` muncul di `/id`. Header itu hanya ada di image yang
+   sudah memuat `src/lib/csp.ts`, jadi ia penanda image baru benar-benar yang
+   jalan, bukan hanya health check yang hijau. Cara lengkapnya ada di
+   [`docs/CSP.md`](CSP.md).
 5. Jalankan smoke test public, login, role guard, IMEI, POS, service tracking,
    dan upload pada URL production.
 6. Verifikasi RLS, trigger, view, Storage, advisor, dan backup.
@@ -525,6 +529,11 @@ image commit Q, tuliskan `sha-Q` di `Dockerfile.coolify`, commit, lalu deploy
 lagi. Menjalankan image commit Q berarti commit yang berisi tag `sha-Q`
 belum pernah menjadi image, dan itu tidak bisa dihindari selama tag
 ditulis manual di dalam repository.
+
+Deploy API Coolify juga memakai `git_commit_sha` yang tersimpan di aplikasi,
+bukan HEAD branch. Setelah commit pin masuk ke `main`, arahkan field itu ke
+commit pin sebelum memicu deploy. Tanpa langkah ini, Coolify mengulang commit
+lama dan tag baru tidak pernah dibaca, meskipun push ke `main` sudah berhasil.
 
 Cara memastikan image yang benar-benar jalan bukan cuma lewat `/robots.txt`.
 Bandingkan ukuran dan isi HTML landing sebelum dan sesudah deploy, atau ambil

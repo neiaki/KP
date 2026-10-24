@@ -146,9 +146,9 @@ transaksi. Semuanya bertanda `is_demo = true`.
 
 ## Sisa Pekerjaan
 
-1. Kode yang ada di working tree belum di-commit, di-push, atau di-deploy.
-   Production masih menjalankan image lama, jadi perubahan akun pelanggan dan
-   filter demo belum live.
+1. Kode sudah live di production. Image `sha-53856b4` dideploy lewat commit pin
+   `caee6f2`; container sehat dan label revisinya cocok. Tidak ada lagi pekerjaan
+   commit, push, atau deploy untuk katalog ini.
 2. Ganti label "Foto menyusul" dengan foto resmi saat owner memberikannya.
    Tidak perlu menunggu foto untuk mempertahankan 5 model per merek.
 3. Tambah unit asli dan IMEI hanya jika owner menyerahkan perangkat fisiknya.

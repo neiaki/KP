@@ -37,6 +37,10 @@ dibawa ke owner sebelum ada tulisan ke production.
 > - Coolify production sudah menjalankan image dengan label revisi
 >   `53856b4bcf89e641d03b8fd4d2852daa05b7420e`. Container healthy dan
 >   `/api/health/ready` menjawab 200 `ready`.
+> - Aplikasi Coolify memakai `git_commit_sha` `caee6f2` (commit pin), bukan
+>   HEAD branch. Endpoint deploy yang bekerja adalah
+>   `POST /api/v1/deploy?uuid=mebqjoh2ne1y3vt6jqryvvu9`; bentuk
+>   `/api/v1/deploy/applications/<uuid>` mengembalikan 404.
 > - Skema `is_demo` dan IMEI NULL untuk unit demo sudah ada. Ledger production
 >   mencatatnya sebagai `20261023111914` (`add_is_demo_flag`) dan
 >   `20261023112316` (`demo_inventory_imei_nullable`). File migrasi di repo
@@ -56,6 +60,8 @@ dibawa ke owner sebelum ada tulisan ke production.
 > - Login `ega` berhasil. `/portal/account` hanya menampilkan 2 faktur miliknya,
 >   tidak menampilkan nama pelanggan demo lain, tidak memuat email sintetis,
 >   dan sidebar menampilkan `@ega`.
+> - `febiyanto` dan `hilmi` juga berhasil login; masing-masing melihat 1 faktur
+>   demo (Galaxy A55 dan Redmi Note 13) dengan garansi 12 bulan dan IMEI kosong.
 > - `ega` membuka `/portal/customers` lalu dipantulkan kembali ke
 >   `/portal/account`; route staf tidak terbuka untuk customer.
 > - 25 produk aktif, tepat 5 model per merek.

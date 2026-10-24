@@ -353,9 +353,14 @@ Semua deploy melewati endpoint bertanda tangan milik Coolify, dipanggil dari
 dalam VPS:
 
 ```
-POST $COOLIFY_BASE_URL/api/v1/deploy/applications/<uuid-aplikasi>
+POST $COOLIFY_BASE_URL/api/v1/deploy?uuid=<uuid-aplikasi>
 Authorization: Bearer $COOLIFY_API_TOKEN
 ```
+
+Endpoint ini membaca `git_commit_sha` yang tersimpan di aplikasi, bukan HEAD
+branch. Sebelum deploy, arahkan field itu ke commit pin lewat
+`PATCH /api/v1/applications/<uuid-aplikasi>`; kalau tidak, Coolify akan
+mengulang commit lama meskipun `main` sudah bergerak.
 
 `SECRET-ROTATION.md` sudah memakai bentuk yang sama untuk
 `$COOLIFY_BASE_URL/api/v1/version`, jadi tidak ada konvensi baru di sini. Nilai
