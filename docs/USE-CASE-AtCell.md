@@ -252,6 +252,13 @@ Aturan guard persis seperti `src/lib/access.ts`: `/portal/account` boleh dibuka 
 - Cara kerja: undang lewat Supabase Auth invite dan `addStaff`, lalu update `profiles.role`.
 - Aturan: `addStaff` menolak peran customer. Dilarang ubah peran diri sendiri menjadi non admin kalau satu-satunya admin.
 
+### Admin atau sales dapat kelola akun pelanggan
+
+- Jalur: `/portal/customers` berjudul Akun Pelanggan.
+- Isi: kartu pelanggan berisi nama, username, nomor HP, jumlah transaksi, dan tombol Ubah Kata Sandi. Dialog buat akun berisi nama, username login, nomor HP, dan kata sandi minimal delapan karakter plus tombol generate acak.
+- Cara kerja: buat akun lewat `createCustomerAccount` dengan email sintetis `username@pelanggan.atcell.my.id` yang tidak pernah diminta ke pelanggan; pelanggan login memakai username, nomor HP, dan kata sandi yang diberikan. Kata sandi baru ditampilkan sekali di kartu hasil dengan tombol salin.
+- Aturan: sales dan admin sama-sama boleh, teknisi dan pelanggan tidak. Kata sandi lama hanya tersimpan sebagai hash di Supabase Auth, jadi yang bisa dilakukan adalah menetapkan kata sandi baru lewat `updateCustomerPassword`; target wajib profil ber-peran customer, jadi kata sandi akun staf tidak bisa disentuh dari halaman ini.
+
 ### Admin dapat kelola pengaturan toko publik
 
 - Jalur: `/portal/settings` berjudul Profil Publik Toko.
