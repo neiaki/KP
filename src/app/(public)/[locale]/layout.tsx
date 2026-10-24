@@ -115,11 +115,29 @@ export default async function PublicRootLayout({
       className={htmlClass}
       suppressHydrationWarning
     >
+      <head>
+        {/* Logo merek (chip filter dan fallback katalog) diambil langsung
+            dari CDN Simple Icons oleh browser. Preconnect memangkas DNS+TLS
+            dari jalur itu pada halaman pertama; dns-prefetch menjadi cadangan
+            untuk browser lama. Foto produk tidak ikut karena lewat optimizer
+            server yang koneksinya dikelola Next, bukan browser. */}
+        <link rel="preconnect" href="https://cdn.simpleicons.org" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cdn.simpleicons.org" />
+      </head>
       <body className={bodyClass} suppressHydrationWarning>
         <RootProviders publicSeed={seed}>
           <div className="flex min-h-[100dvh] flex-col">
+            {/* Skip link: pengguna keyboard butuh jalan langsung ke konten
+                tanpa menekan Tab melewati seluruh menu navbar. Muncul hanya
+                saat difokuskan, jadi tata letak visual tidak berubah. */}
+            <a
+              href="#konten-utama"
+              className="sr-only z-[60] rounded-lg bg-card px-4 py-2 text-sm font-bold text-ink focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:ring-2 focus:ring-accent"
+            >
+              {locale === "en" ? "Skip to main content" : "Lewati ke konten utama"}
+            </a>
             <PublicNavbar locale={locale} />
-            <main className="flex-1">
+            <main id="konten-utama" className="flex-1">
               <StoreJsonLd />
               {children}
             </main>

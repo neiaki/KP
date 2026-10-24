@@ -676,6 +676,19 @@ export type LocalBusinessInput = {
  * sini berarti menuliskan fakta bisnis sebagai literal, sesuatu yang harus
  * datang dari portal settings.
  */
+/**
+ * Escape string JSON-LD sebelum disematkan ke <script type="application/ld+json">.
+ *
+ * JSON.stringify tidak meng-escape karakter "<", jadi nilai yang datang dari
+ * input Admin (nama toko, alamat, deskripsi) bisa memuat "</script>" yang
+ * menutup blok lebih awal dan menyuntikkan tag baru di halaman publik.
+ * Mengganti setiap "<" dengan "\u003c" aman untuk parser JSON sekaligus
+ * mencegah penutupan tag lebih awal.
+ */
+export function escapeJsonLd(html: string): string {
+  return html.replace(/</g, "\\u003c");
+}
+
 export function buildLocalBusinessJsonLd({
   origin,
   settings,
