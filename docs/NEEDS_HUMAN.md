@@ -42,7 +42,12 @@ Opsi yang bisa dicoba owner:
    (yang terbukti jalan), plus `UPDATE applications SET git_commit_sha` di
    coolify-db supaya metadata tetap akurat.
 
-## 2. Komponen bersama Notice/Modal/Textarea untuk portal (F5) — DISETUJUI owner 25 Okt 2026 ("membereskan itu juga"), dikerjakan sesi berikutnya
+## 2. ~~Komponen bersama Notice/Modal/Textarea untuk portal (F5)~~ — SELESAI 25 Okt 2026 (PR #174)
+
+NoticeBanner + ModalShell kini ada di components/portal/ dan dipakai halaman
+customers & listing. Sisa pekerjaan sukarela (bukan keputusan owner): migrasi
+halaman portal lain (products/inventory/pos/staff/service) satu per satu,
+dan Textarea bersama bila kelak disepakati masuk components/ui/.
 
 Backlog F5: halaman portal customers & listing menduplikasi pola Notice,
 Modal, dan Textarea. Perapihan yang benar menyentuh `components/ui/` yang
