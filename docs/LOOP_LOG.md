@@ -27,7 +27,7 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 
 | ID | Item | Prioritas | Status | Bukti |
 |----|------|----------|--------|-------|
-| F3-01 | Audit secret ter-hardcode/ter-commit (termasuk riwayat git) | P0 | BELUM | - |
+| F3-01 | Audit secret ter-hardcode/ter-commit (termasuk riwayat git) | P0 | DIPERIKSA-BERSIH | git log --all diff-filter=A '.env*' → hanya .env.example (semua nilai kosong); grep pola ghp_/sk-ant/private key/JWT tersignatur di HEAD + 52 tree refs/t3 → nihil; guard tests/no-secret-in-repo.test.ts (21 test, pass) [EKSEKUSI+BACA-KODE] |
 | F3-02 | Audit XSS (dangerouslySetInnerHTML, URL js:, sink DOM) | P0 | BELUM | - |
 | F3-03 | Audit SQL/NoSQL/command injection | P0 | BELUM | - |
 | F3-04 | Audit path traversal | P1 | BELUM | - |
@@ -53,3 +53,9 @@ Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.m
   build exit 0, lint bersih, tsc bersih, test 827 pass/0 fail/14 skip.
   Lanjut Fase 3 (Fase 1 sehat: tidak ada error build/lint/type yang perlu
   diperbaiki).
+- Iterasi 2 (2026-10-24): F3-01 secret. Tidak ada temuan. Bukti: hanya
+  .env.example (nilai kosong) yang pernah masuk git di semua ref termasuk 52
+  refs/t3/checkpoints; pola token/private key nihil di HEAD dan semua tree
+  checkpoint; .gitignore menutup .env*; guard test no-secret-in-repo (21 test)
+  pass. Catatan: 52 ref refs/t3/checkpoints adalah artefak tool checkpoint di
+  repo lokal, hanya berisi snapshot repo, tidak di-push (remote hanya main).
