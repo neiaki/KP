@@ -393,7 +393,17 @@ if [ "$sha_tar" != "$sha_read" ]; then
   echo "GAGAL: arsip terenkripsi tidak bisa dibaca-balik dengan hash sama aslinya." >&2
   exit 1
 fi
-tar_list="$(printf '%s' "$passphrase" | openssl enc -aes-256-cbc -d -pbkdf2 -iter 100000 -in "$enc_path" -pass stdin 2>/dev/null | tar -tf - 2>/dev/null || true)"
+# Stderr dekripsi dan tar ditampung, bukan ditelan: saat verifikasi baca-balik
+# gagal di CI (pernah terjadi tanpa jejak, 24 Oktober 2026), isi log ini yang
+# mengungkap penyebabnya — openssl maupun tar tidak dijalankan interaktif.
+tar_err="$staging/tar-verify-stderr.log"
+tar_list="$(printf '%s' "$passphrase" | openssl enc -aes-256-cbc -d -pbkdf2 -iter 100000 -in "$enc_path" -pass stdin 2>"$tar_err" | tar -tf - 2>>"$tar_err" || true)"
+if [ -z "$tar_list" ]; then
+  rm -f -- "$enc_path"
+  echo "GAGAL: verifikasi baca-balik arsip tidak menghasilkan daftar isi." >&2
+  sed 's/^/  /' "$tar_err" >&2
+  exit 1
+fi
 for mutu in metadata.sql manifest.json; do
   printf '%s\n' "$tar_list" | grep -qsE "(^|/)${mutu}\$" || {
     rm -f -- "$enc_path"
