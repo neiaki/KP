@@ -118,10 +118,13 @@ Selesai pada sesi 17 Oktober 2026:
   `getPortalSnapshot`, setelah jalur mapping saat ini tervalidasi. Ditinjau
   24 Oktober 2026: pemisahan belum dibutuhkan; jalur mapping sudah punya tes
   perilaku dan belum ada sumber data kedua yang menuntut seam baru.
-- [x] Tambahkan tes untuk label unit trade-in, kegagalan sumber data tambahan,
-  dan pembatasan hasil query customer. Sudah ada di
-  `tests/unit-label-nota.test.ts`, `tests/snapshot-retry.test.ts`, dan
-  `tests/portal-snapshot.test.ts`; policy/RLS tidak diubah tanpa bukti baru.
+- [x] Tes label unit trade-in ada di `tests/unit-label-nota.test.ts`.
+- [x] Pembatasan hasil query customer ada di `tests/portal-snapshot.test.ts`;
+  query transaksi dan tiket juga dibatasi `customer_id` di `portal.ts`.
+- [ ] Tes kegagalan sumber data tambahan belum ada. `getPortalSnapshot` masih
+  memakai `Promise.all`, jadi satu query gagal membuat seluruh snapshot gagal.
+  Untuk mengujinya perlu seam atau refactor; jangan mengubah policy/RLS tanpa
+  bukti dan tes.
 - [x] Pertahankan prinsip bahwa query customer dibatasi di sisi server; jangan
   hanya menyaring hasil setelah data staf terbaca. Dikunci oleh tes snapshot
   customer yang memeriksa profil, transaksi, dan email sintetis.
