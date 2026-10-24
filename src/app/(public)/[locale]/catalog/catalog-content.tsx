@@ -17,6 +17,7 @@ import {
   listSoldOutProducts,
   filterProducts,
   sellableUnits,
+  brandFromUrl,
   type SortOrder,
 } from "@/lib/shop";
 import { noUnitSectionCopy, soldOutSectionCopy } from "@/lib/catalogue-notify";
@@ -130,9 +131,7 @@ export function CatalogContent({ locale }: { locale: Locale }) {
     }
   }, [searchParams]);
 
-  const selectedBrand = products.some((p) => p.brand === brandDariUrl)
-    ? brandDariUrl
-    : "all";
+  const selectedBrand = brandFromUrl(brandDariUrl, products);
   const selectedCondition =
     condDariUrl === "new" || condDariUrl === "second" ? condDariUrl : "all";
   const sortOrder: SortOrder =

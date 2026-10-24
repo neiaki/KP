@@ -240,8 +240,8 @@ test("filter katalog dibaca dari URL, kolom pencarian memakai draf sinkron", () 
     "filter harus dibaca dari query string"
   );
   assert.ok(
-    /const\s+selectedBrand\s*=\s*products\.some/.test(src),
-    "merek harus dibaca dari query string, bukan dari state terpisah"
+    /const\s+selectedBrand\s*=\s*brandFromUrl\(/.test(src),
+    "merek harus dibaca dari query string lewat brandFromUrl (case-insensitive), bukan dari state terpisah"
   );
   assert.ok(
     /const\s+selectedCondition\s*=/.test(src) && !/useState[^;]*selectedCondition/.test(src),
@@ -326,11 +326,14 @@ test("filter katalog dibaca dari URL, kolom pencarian memakai draf sinkron", () 
     "penulisan filter ke URL harus memakai router.replace supaya riwayat tidak menumpuk"
   );
 
-  // Nilai dari URL tetap harus disaring, jangan dipercaya mentah.
+  // Nilai dari URL tetap harus disaring, jangan dipercaya mentah. Untuk merek,
+  // penyaringannya lewat brandFromUrl yang membandingkan tanpa membedakan
+  // huruf besar-kecil dan selalu mengembalikan merek dari data (diuji
+  // perilakunya di tests/brand-from-url.test.ts).
   for (const nilai of [
     'condDariUrl === "new"',
     'sortDariUrl === "lowest"',
-    "products.some((p) => p.brand === brandDariUrl)",
+    "brandFromUrl(brandDariUrl, products)",
   ]) {
     assert.ok(src.includes(nilai), `nilai dari URL harus divalidasi (${nilai})`);
   }
