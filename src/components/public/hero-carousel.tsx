@@ -133,7 +133,7 @@ export function HeroCarousel({
                 onClick={() => jump(i)}
                 aria-label={`${locale === "en" ? "Show" : "Tampilkan"} ${s.model}`}
                 aria-pressed={current === i}
-                className="flex h-10 items-center px-2 sm:h-6 sm:px-1.5"
+                className="flex h-10 min-w-6 items-center justify-center px-2 sm:h-6 sm:px-1.5"
               >
                 <span
                   className={`block h-1.5 rounded-full transition-all ${

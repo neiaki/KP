@@ -233,3 +233,11 @@ dan opsi di docs/NEEDS_HUMAN.md. Salinan /opt/atcell/scripts di VPS
 disinkronkan: 3 script diperbarui (dengan .bak-20261025), 3 ditambah
 (purge-ip-dari-riwayat, seed-demo-customers, smoke-deployment); checksum
 lokal = VPS terverifikasi.
+
+Iterasi 21 (2026-10-25, Fase 4 aksesibilitas): ukur tap target 73 elemen
+interaktif landing mobile (390x844) via DOM: 5 di bawah 24x24 (WCAG 2.5.8) —
+4 tombol dot indikator (hero carousel + galeri kartu, 22x40) dan skip link
+(keyboard-only, dikecualikan). Perbaikan: min-w-6 + justify-center pada
+kedua kelompok dot [EKSEKUSI: ukur -> perbaiki -> tsc/lint/test/build hijau].
+Catatan operasional: pkill -f "next start" membunuh shell sendiri karena
+pattern cocok dengan baris perintah — matikan server dengan kill $PID.
