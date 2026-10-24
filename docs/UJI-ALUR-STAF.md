@@ -34,7 +34,8 @@ Prinsip eksekusinya:
 | --- | --- | --- |
 | 16 Okt 2026 | Guard portal tanpa sesi: semua path `/portal/*` → 307 ke `/id/login?next=…` (smoke production 6/6) | PASS |
 | 17 Okt 2026 | Form login production (`isLiveBackend`): hanya username + kata sandi — chip akun demo hanya muncul di mode lokal; percobaan sandi salah sekali → alert "Username atau kata sandi salah.", tetap di halaman login | PASS |
-| Menunggu | T-0 sampai T-6, butuh akun admin (atau kredensial akun asli) dari owner | — |
+| 24 Okt 2026 | T-7 mode demo via browser: login admin → `/portal/customers` → Ubah Kata Sandi → generate → simpan → notice sukses dan kartu sekali-tampil dengan tombol salin | PASS |
+| Menunggu | T-0 sampai T-6 dan T-7 di mode live, butuh akun admin (atau kredensial akun asli) dari owner | — |
 
 ## T-0 — Fondasi: login per role dan undang staf [MUTASI]
 
@@ -141,6 +142,24 @@ waiting_approval → in_progress → testing → completed → picked_up`;
 2. Bila diminta, siapkan SQL pembersihan untuk direview manusia terlebih
    dahulu: tiket servis hanya bisa berstatus `cancelled`, unit IMEI uji bisa
    dihapus bila belum terjual, urutan FK diperhatikan.
+
+## T-7 — Ganti kata sandi pelanggan (admin atau sales) [MUTASI]
+
+1. Login admin (atau sales) → buka `/portal/customers` → tombol Ubah Kata
+   Sandi di kartu pelanggan.
+2. Modal berisi identitas pelanggan (nama, username, nomor HP) dan kolom kata
+   sandi baru dengan tombol Lihat dan generate acak.
+   Lolos jika: modal menyebut kata sandi lama hanya tersimpan sebagai hash,
+   dan tombol generate mengisi minimal 8 karakter.
+3. Simpan. Lolos jika: notice "Kata sandi pelanggan berhasil diganti." tampil
+   dan kartu hasil menampilkan kata sandi baru sekali dengan tombol Salin;
+   setelah kartu ditutup, kata sandi tidak muncul lagi di mana pun.
+4. [NEGATIF] Panggilan `updateCustomerPassword` dengan id profil staf harus
+   ditolak dengan pesan "Hanya kata sandi pelanggan yang bisa diubah dari
+   halaman ini."; teknisi dan pelanggan ditolak karena peran.
+5. Di mode live: pelanggan login dengan kata sandi baru melalui username,
+   nomor HP, dan kata sandi. Di mode demo alur berhenti di langkah 3 karena
+   demo tidak menyimpan kata sandi.
 
 ## Catatan eksekusi
 
