@@ -302,6 +302,26 @@ export function filterProducts(
 }
 
 /**
+ * Batasi daftar model tanpa unit menjadi maksimal satu per merek, mengikuti
+ * urutan BRANDS (Apple, Samsung, Xiaomi, Oppo, Vivo).
+ *
+ * Halaman utama tidak boleh menumpuk kartu "Belum ada unit": dengan lima
+ * merek, satu kartu per merek sudah cukup memberi tahu pembeli bahwa model
+ * lain dari merek itu bisa diminta. Daftar lengkap tetap ada di halaman
+ * katalog, jadi tidak ada model yang hilang dari situs. Input diasumsikan
+ * sudah terurut terbaru-dulu seperti hasil listProducts, sehingga yang
+ * terpilih adalah model terbaru tiap merek.
+ */
+export function limitOnePerBrand(
+  products: Product[],
+  brands: readonly string[] = BRANDS
+): Product[] {
+  return brands
+    .map((brand) => products.find((p) => p.brand === brand))
+    .filter((p): p is Product => p !== undefined);
+}
+
+/**
  * Unit yang benar-benar bisa dijual hari ini.
  *
  * Halaman yang membuat kartu etalase wajib lewat sini, bukan memfilter

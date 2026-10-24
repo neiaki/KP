@@ -16,6 +16,7 @@ import {
   listProductsWithoutUnits,
   sellableUnits,
   type SortOrder,
+  limitOnePerBrand,
 } from "@/lib/shop";
 import { noUnitSectionCopy } from "@/lib/catalogue-notify";
 import {
@@ -82,6 +83,9 @@ export function LandingContent({
 
   // Sama seperti katalog: produk tanpa unit tidak boleh hilang dari beranda.
   const newProducts = listProductsWithoutUnits(products, inventoryUnits);
+  // Halaman utama membatasi kartu "Belum ada unit" jadi satu per merek (total
+  // lima) supaya tidak menumpuk; model lengkapnya tetap ada di halaman katalog.
+  const newProductsEtalase = limitOnePerBrand(newProducts);
 
   /* Foto slide memakai copy yang dikurasi manusia, jadi daftarnya tetap di
      sini. Yang diambil dari database hanya lokasi filenya: photo adalah kunci
@@ -377,7 +381,7 @@ export function LandingContent({
               {noUnitCopy.requestNote}
             </p>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {newProducts.map((p) => (
+              {newProductsEtalase.map((p) => (
                 <NotifyCard
                   key={p.id}
                   product={p}
