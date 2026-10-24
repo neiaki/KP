@@ -29,7 +29,10 @@ dibawa ke owner sebelum ada tulisan ke production.
 > - Halaman `/portal/customers` hanya untuk admin dan sales.
 > - Data demo boleh berada di production selama bertanda `is_demo`.
 >
-> **Sudah diterapkan dan dideploy ke production**
+> **Sudah diterapkan dan dideploy ke production (status rilis 23 Oktober 2026)**
+>
+> Status production terbaru ada di blok **UPDATE 24 Oktober 2026, setelah PR
+> #135** di bawah; angka image di bagian ini adalah kondisi rilis 23 Oktober.
 >
 > - PR #129 (akun pelanggan, checkout POS, data demo) sudah merge ke `main`
 >   pada commit `53856b4`. PR #130 menaikkan pin image ke `sha-53856b4` dan
@@ -77,8 +80,6 @@ dibawa ke owner sebelum ada tulisan ke production.
 >   resmi tersedia.
 > - Backup off-site dan DNS `coolify.atcell.my.id` masih menunggu owner; lihat
 >   prioritas 5 di `docs/agents/roadmap.md`.
-> - Badge "Demo" di riwayat pembelian belum ditambahkan. Data demo sudah
->   terpisah dan tidak bocor ke pelanggan lain.
 > - `.env.demo-accounts.local` memakai nama `DEMO_EGA_*`; skrip seed menerima
 >   nama itu dan nama `DEMO_CUSTOMER_*_EGA`.
 >
@@ -95,6 +96,43 @@ dibawa ke owner sebelum ada tulisan ke production.
 >   `portal-login`).
 > - `bun run build`: lolos.
 > - `git diff --check`: bersih.
+
+> ## UPDATE 24 Oktober 2026, setelah PR #135
+>
+> - PR #134 (badge `Demo` di riwayat pembelian, helper
+>   `loadAdditionalSource`, dan tes sumber data tambahan) merge ke `main`
+>   sebagai `7d7f0d7`.
+> - Image `sha-7d7f0d7` sudah dibangun dan dipush oleh workflow **Build Image**.
+> - PR #135 mem-pin `Dockerfile.coolify` ke `sha-7d7f0d7` dan merge ke `main`
+>   sebagai `105a61a`.
+> - Production sudah dideploy dengan `git_commit_sha` `105a61a`. Hanya satu
+>   container aplikasi yang berjalan, label revisinya
+>   `7d7f0d7e3e809b28719aecc298def2959ac03a9a`, `/api/health/ready` menjawab
+>   `200`, dan header CSP ada di `/id`.
+> - Login `ega` sudah diverifikasi: halaman `/portal/account` menampilkan 2
+>   badge `Demo` (satu per faktur), riwayat pembelian tetap tampil, email
+>   sintetis tidak muncul di HTML, dan nama `Febiyanto`/`Hilmi` tidak bocor.
+> - `ega` membuka `/portal/customers` dan tetap dipantulkan ke
+>   `/portal/account`; route staf tidak terbuka untuk customer.
+> - `bun run smoke:deployment -- https://atcell.my.id` lulus 6/6 (`live`,
+>   `ready`, `public-home`, `public-catalog`, `public-tracking`,
+>   `portal-login`).
+> - `DATABASE_URL=$ATCELL_DATABASE_URL node --experimental-strip-types --test
+>   tests/migration-ledger.test.ts`: 7/7 lulus setelah deploy.
+> - Query production read-only setelah deploy tidak berubah: 25 produk aktif,
+>   tepat 5 model per merek; 10 unit asli (7 `available`, 2 `sold`, 1
+>   `in_service`), 4 unit demo `sold` dengan `imei = NULL`;
+>   `v_public_inventory` 7 baris; 3 profil demo; 4 transaksi demo terbagi
+>   2/1/1.
+> - Verifikasi lokal terbaru di `7d7f0d7`: `tsc --noEmit` bersih, lint bersih,
+>   `bun run test` 825 tes dengan 811 lulus dan 14 skip, `bun run build` lolos,
+>   `git diff --check` bersih.
+> - Build Image `7d7f0d7` sempat gagal sekali karena `next/font` tidak bisa
+>   mengambil font Google di runner; rerun `40071153818` berhasil dan image
+>   `sha-7d7f0d7` tersedia di GHCR.
+> - Tidak ada lagi pekerjaan rilis yang tertunda. Sisa pekerjaan hanya data
+>   owner: unit/IMEI asli, foto resmi, backup off-site, DNS Coolify, dan
+>   Supabase terpisah untuk preview Vercel.
 
 ---
 

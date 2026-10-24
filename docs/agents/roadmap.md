@@ -7,13 +7,36 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 ## Status terbaru
 
 **Diperbarui:** 24 Oktober 2026
-**Baseline:** `caee6f2` (`main`, commit pin image setelah PR #130)
-**Cabang kerja:** `main` bersih. PR #133 (dokumentasi) berisi catatan
-verifikasi akhir; tidak ada perubahan kode yang menunggu review.
+**Baseline kode:** `7d7f0d7` (`main`, merge PR #134; image `sha-7d7f0d7` sudah
+dibangun GitHub Actions)
+**Baseline rilis:** `105a61a` (`main`, merge PR #135 yang mem-pin image
+`sha-7d7f0d7`)
+**Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
-dan katalog lima model per merek sudah merge lewat PR #129. Pin image
-`Dockerfile.coolify` sudah dinaikkan lewat PR #130 dan production sudah
-menjalankan image revisi `53856b4`.
+dan katalog lima model per merek sudah merge lewat PR #129. PR #130 menaikkan
+pin ke `53856b4` dan production menjalankan image itu. PR #134 menambahkan
+badge Demo dan tes sumber data tambahan, lalu merge sebagai `7d7f0d7`. PR #135
+mem-pin image `sha-7d7f0d7`; production sudah dideploy dan menjalankan revisi
+itu.
+
+Rilis 24 Oktober 2026 (selesai):
+
+- [x] Merge `chore/pin-image-7d7f0d7` (commit `49824a5`) ke `main` lewat PR
+      #135, merge commit `105a61a`.
+- [x] Deploy Coolify dengan `git_commit_sha` `105a61a`. Container baru memakai
+      image `sha-7d7f0d7` (label revisi
+      `7d7f0d7e3e809b28719aecc298def2959ac03a9a`), health `200`, dan CSP ada.
+- [x] Login `ega` menunjukkan 2 badge `Demo` (satu per faktur), riwayat
+      pembelian tetap tampil, email sintetis tidak bocor ke HTML, dan nama
+      pelanggan demo lain tidak muncul. `/portal/customers` tetap menolak
+      customer.
+- [x] `bun run smoke:deployment -- https://atcell.my.id` lulus 6/6 pada
+      24 Oktober 2026.
+- [x] Ledger migrasi production 7/7 cocok setelah deploy.
+- [x] Query production read-only tidak berubah: 25 produk aktif, 5 model per
+      merek, 10 unit asli (7 `available`), 4 unit demo dengan `imei = NULL`,
+      `v_public_inventory` 7 baris, 3 profil demo, dan 4 transaksi demo
+      terbagi 2/1/1.
 
 Selesai pada sesi 24 Oktober 2026:
 
@@ -28,6 +51,9 @@ Selesai pada sesi 24 Oktober 2026:
       laporan.
 - [x] Riwayat pelanggan difilter per `customer_id`, dengan fallback nomor/nama
       untuk data demo lama, sehingga tidak ada kebocoran antar pelanggan.
+- [x] Badge `Demo` di riwayat pembelian dan helper `loadAdditionalSource`
+      ditambahkan lewat PR #134 (`5690b96`, merge `7d7f0d7`), lalu live di
+      production lewat deploy pin PR #135 (`105a61a`).
 - [x] Migrasi `20261023111914_add_is_demo_flag.sql` dan
       `20261023112316_demo_inventory_imei_nullable.sql` tercatat di runbook dan
       ledger production.
@@ -102,7 +128,8 @@ Selesai pada sesi 17 Oktober 2026:
 
 - [x] `bunx tsc --noEmit` lulus.
 - [x] `bun run lint` lulus tanpa warning.
-- [x] `bun run test`: 777 lulus, 14 dilewati, 0 gagal dari 791 tes.
+- [x] `npm run test`: 811 lulus, 14 dilewati, 0 gagal dari 825 tes
+      (dijalankan 24 Oktober 2026 di `7d7f0d7`).
 - [x] `bun run build` lulus; `next.config.ts` berjalan dalam mode ESM.
 - [x] `bunx drizzle-kit check` lulus dan memuat `drizzle.config.ts` dalam mode
   ESM.
@@ -122,10 +149,12 @@ Selesai pada sesi 17 Oktober 2026:
 - [x] Tes label unit trade-in ada di `tests/unit-label-nota.test.ts`.
 - [x] Pembatasan hasil query customer ada di `tests/portal-snapshot.test.ts`;
   query transaksi dan tiket juga dibatasi `customer_id` di `portal.ts`.
-- [ ] Tes kegagalan sumber data tambahan belum ada. `getPortalSnapshot` masih
-  memakai `Promise.all`, jadi satu query gagal membuat seluruh snapshot gagal.
-  Untuk mengujinya perlu seam atau refactor; jangan mengubah policy/RLS tanpa
-  bukti dan tes.
+- [x] Tes kegagalan sumber data tambahan ada di
+  `tests/additional-source.test.ts`. Helper `loadAdditionalSource` sekarang
+  menangani hasil sukses, error terstruktur, dan loader yang melempar error.
+  Query inti tetap memakai `Promise.all` dan sengaja menggagalkan seluruh
+  snapshot kalau salah satu query inti gagal, karena snapshot tanpa data inti
+  tidak boleh ditampilkan sebagian. Ditinjau 24 Oktober 2026.
 - [x] Pertahankan prinsip bahwa query customer dibatasi di sisi server; jangan
   hanya menyaring hasil setelah data staf terbaca. Dikunci oleh tes snapshot
   customer yang memeriksa profil, transaksi, dan email sintetis.
@@ -150,10 +179,13 @@ Selesai pada sesi 17 Oktober 2026:
   (`live`, `ready`, `public-home`, `public-catalog`, `public-tracking`,
   `portal-login`). Jangan memakai production untuk eksperimen yang mengubah
   data; skrip ini hanya membaca.
-- [ ] Periksa README dan gambar arsitektur pada aplikasi GitHub mobile setelah
-  perubahan dokumentasi dipublikasikan.
-- [x] Cek GitHub PR terbaru lewat `gh` dari terminal yang punya akses jaringan.
-  Hasil 24 Oktober 2026: tidak ada PR terbuka setelah PR #132 merge.
+- [x] Periksa README dan gambar arsitektur pada GitHub web dengan viewport
+  mobile 390x844. Hasil 24 Oktober 2026: gambar `arsitektur-alur.png` terlihat
+  dan berada di atas blok Mermaid. Aplikasi GitHub native tidak bisa dijalankan
+  dari environment ini, jadi pengecekan native tetap opsional untuk owner.
+- [x] Cek GitHub PR terbaru lewat API publik dari terminal yang punya akses
+  jaringan. Hasil 24 Oktober 2026: PR #135 sudah merge ke `main` dan tidak ada
+  PR terbuka yang menunggu review.
 
 ### Prioritas 5: langkah yang hanya bisa dikerjakan owner
 

@@ -146,8 +146,8 @@ transaksi. Semuanya bertanda `is_demo = true`.
 
 ## Sisa Pekerjaan
 
-1. Kode sudah live di production. Image `sha-53856b4` dideploy lewat commit pin
-   `caee6f2`; container sehat dan label revisinya cocok. Tidak ada lagi pekerjaan
+1. Kode sudah live di production. Image `sha-7d7f0d7` dideploy lewat commit pin
+   `105a61a`; container sehat dan label revisinya cocok. Tidak ada lagi pekerjaan
    commit, push, atau deploy untuk katalog ini.
 2. Ganti label "Foto menyusul" dengan foto resmi saat owner memberikannya.
    Tidak perlu menunggu foto untuk mempertahankan 5 model per merek.
