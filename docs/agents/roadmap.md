@@ -7,10 +7,10 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 ## Status terbaru
 
 **Diperbarui:** 24 Oktober 2026
-**Baseline kode:** `2f231dc` (`main`, merge PR #142; perbaikan filter merek
-katalog; image `sha-2f231dc` sudah dibangun GitHub Actions)
-**Baseline rilis:** `54b653e` (`main`, merge PR #143 yang mem-pin image
-`sha-2f231dc`; production menjalankan image itu dan health 200)
+**Baseline kode:** `9db8e82` (`main`, merge PR #150; kartu Belum ada unit di
+landing dibatasi satu per merek; image `sha-9db8e82` sudah dibangun)
+**Baseline rilis:** `78eb39f` (`main`, merge PR #151 yang mem-pin image
+`sha-9db8e82`; production menjalankan image itu dan health 200)
 **Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 dan katalog lima model per merek sudah merge lewat PR #129. PR #130 menaikkan
@@ -330,3 +330,18 @@ Angka berikut hasil pembacaan langsung ke database production pada 24 Oktober
    `review-handoff-2026-10-20.md`.
 4. Kerjakan satu item berikutnya pada satu waktu dan pertahankan kontrak
    akses customer/staf.
+
+Rilis 24 Oktober 2026 (perbaikan kelima, ter-deploy):
+
+- [x] Etalase & Harga (`/portal/listing`) untuk admin dan sales: memperbarui
+      harga acuan dan URL foto resmi tiap model katalog, termasuk model yang
+      belum menerima unit. Action `updateProductListing` hanya menulis dua
+      kolom itu; identitas katalog tetap Master Produk (admin). Policy RLS
+      `products_sales_update` untuk UPDATE sales diterapkan ke database
+      production dan tercatat di ledger + snapshot CI (PR #147, #148; pelajaran:
+      migration baru wajib diterapkan ke database dan snapshot ledger
+      diperbarui sebelum merge supaya database-tests tidak merah).
+- [x] Halaman utama membatasi kartu "Belum ada unit" jadi satu per merek
+      (total lima) lewat helper `limitOnePerBrand`; daftar lengkap tetap ada
+      di halaman katalog (PR #150, #151). Terverifikasi live: landing memuat
+      tepat 5 badge, smoke 6/6.
