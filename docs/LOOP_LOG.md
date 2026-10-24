@@ -33,7 +33,7 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-04 | Audit path traversal | P1 | DIPERIKSA-BERSIH | uploadPhoto: folder dari sesi staf (bukan argumen client), whitelist UPLOAD_BUCKETS, randomUUID server-side, fileName disanitasi [^a-zA-Z0-9._-]→_ via buildPhotoObjectKey (../ mustahil); restore-storage.sh ekstraksi terbatas 2 nama file eksplisit + wajib checksum; tes 'folder tidak aman → hasil kosong' pass [BACA-KODE+TEST] |
 | F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
-| F3-07 | Audit CSRF & CORS | P1 | BELUM | - |
+| F3-07 | Audit CSRF & CORS | P1 | DIPERIKSA-BERSIH | live: POST Server Action tanpa Origin/Action valid ditolak Next (404); cookie sameSite=lax; X-Frame-Options DENY + CSP frame-ancestors; API publik tanpa Access-Control-Allow-Origin wildcard (uji Origin asing → header CORS tidak diset) [EKSEKUSI] |
 | F3-08 | Audit cookie flags | P1 | DIPERIKSA-BERSIH | authCookieOptions(): httpOnly:true, secure di production, sameSite lax, path /; dipakai proxy.ts, supabase/server.ts, dan setAll di proxy; patch PR #158 + 3 tes regresi pass (tests/supabase-cookie-options.test.ts) [TEST] |
 | F3-09 | Audit security headers | P1 | BELUM | - |
 | F3-10 | Audit rate limiting | P1 | BELUM | - |
@@ -151,3 +151,8 @@ Iterasi 8 (2026-10-25): F3-04 path traversal. Upload foto: folder dari
 sesi, whitelist bucket, UUID server-side, sanitasi nama file; restore
 ekstraksi terbatas + checksum wajib; tes jalur tidak aman pass. Tidak ada
 temuan. Berikutnya: F3-07 CSRF & CORS.
+
+Iterasi 9 (2026-10-25): F3-07 CSRF & CORS. Uji live produksi: POST ke
+Server Action tanpa Origin ditolak (proteksi bawaan Next), API publik tidak
+mengirim Access-Control-Allow-Origin untuk Origin asing, cookie lax, XFO DENY.
+Tidak ada temuan. Berikutnya: F3-09 security headers.
