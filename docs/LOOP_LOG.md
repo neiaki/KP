@@ -205,3 +205,10 @@ padahal logo Simple Icons di-fetch browser di semua halaman. Perbaikan:
 preconnect + dns-prefetch cdn.simpleicons.org di layout publik. Ukur
 sesudah deploy: tag preconnect 0 -> 2 (curl). Foto produk sengaja tidak
 di-preconnect karena lewat optimizer server Next.
+
+Iterasi 17 (2026-10-25, Fase 4 aksesibilitas): sweep img/alt/aria/reduced-motion.
+img 5 total, semua punya alt (satu multiline tertangkap salah oleh grep
+satu-baris); aria-label 91 pemakaian; prefers-reduced-motion dihormati di
+globals.css + matchMedia product-card; skip link ada (sesi A); aria-hidden 9
+untuk elemen dekoratif. Tidak ada temuan; tidak ada perubahan kode.
+Berikutnya: audit kontras token warna (terukur).
