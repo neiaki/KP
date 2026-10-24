@@ -7,11 +7,13 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 ## Status terbaru
 
 **Diperbarui:** 24 Oktober 2026
-**Baseline kode:** `9db8e82` (`main`, merge PR #150; kartu Belum ada unit di
-landing dibatasi satu per merek; image `sha-9db8e82` sudah dibangun; 12 model
-tambah foto resmi di storage tanpa perubahan kode)
-**Baseline rilis:** `78eb39f` (`main`, merge PR #151 yang mem-pin image
-`sha-9db8e82`; production menjalankan image itu dan health 200)
+**Baseline kode:** `23c649e` (`main`, merge PR #156; perbaikan minor dari
+code review sesi: Escape modal teratas dan limitOnePerBrand disederhanakan)
+**Baseline rilis:** `67aaa41` (`main`, merge PR #155 yang mem-pin image
+`sha-93d1fa5`; production menjalankan image itu dan health 200. Code review
+dua-aris atas seluruh PR sesi dikerjakan dan temuan pentingnya ditutup lewat
+PR #154: trigger `products_sales_column_guard` menutup celah sales mengubah
+kolom identitas katalog langsung via PostgREST)
 **Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 dan katalog lima model per merek sudah merge lewat PR #129. PR #130 menaikkan
