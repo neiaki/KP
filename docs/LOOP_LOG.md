@@ -34,13 +34,13 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
 | F3-07 | Audit CSRF & CORS | P1 | DIPERIKSA-BERSIH | live: POST Server Action tanpa Origin/Action valid ditolak Next (404); cookie sameSite=lax; X-Frame-Options DENY + CSP frame-ancestors; API publik tanpa Access-Control-Allow-Origin wildcard (uji Origin asing → header CORS tidak diset) [EKSEKUSI] |
-| F3-08 | Audit cookie flags | P1 | DIPERIKSA-BERSIH | authCookieOptions(): httpOnly:true, secure di production, sameSite lax, path /; dipakai proxy.ts, supabase/server.ts, dan setAll di proxy; patch PR #158 + 3 tes regresi pass (tests/supabase-cookie-options.test.ts) [TEST] |
+| F3-08 | Audit cookie flags | P1 | DIPERIKSA — temuan DIPERBAIKI: cookie httpOnly:false tanpa secure → FIXED-TERVERIFIKASI (PR #158, live di production sha-001b6a8) | authCookieOptions(): httpOnly:true, secure di production, sameSite lax, path /; dipakai proxy.ts, supabase/server.ts, dan setAll di proxy; patch PR #158 + 3 tes regresi pass (tests/supabase-cookie-options.test.ts) [TEST] |
 | F3-09 | Audit security headers | P1 | DIPERIKSA-BERSIH | uji live curl -I produksi: CSP (default-src 'self', frame-ancestors none), HSTS max-age=63072000 includeSubDomains preload, X-Content-Type-Options nosniff, X-Frame-Options DENY, Permissions-Policy kamera/mikrofon/geolokasi tutup, Referrer-Policy strict-origin-when-cross-origin [EKSEKUSI] |
 | F3-10 | Audit rate limiting | P1 | DIPERIKSA-BERSIH | rate-limit.ts: kredensial 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) anti-enumerasi; publik 600/menit per IP (snapshot/settings/inventory); mutasi sensitif per-aktor (password pelanggan 10/menit per staf, nomor HP per profil); refundRateLimit untuk kompensasi; tes auth-rate-limit mengunci perilaku [BACA-KODE+TEST] |
 | F3-11 | Audit upload file | P1 | DIPERIKSA-BERSIH | uploadPhotoSchema: bucket whitelist enum, nama file 3-160 char, contentType enum jpeg/png/webp (SVG/script ditolak), maks 5MB; path = folder sesi + randomUUID + nama disanitasi; upsert:false; signed URL TTL; bucket RLS Supabase [BACA-KODE+TEST] |
 | F3-12 | Audit SSRF & open redirect | P1 | DIPERIKSA-BERSIH | open redirect: resolveLoginDestination menolak nilai non-path, //host, backslash, origin luar; wajib di bawah /portal/ (tests/route-next-redirect). SSRF: tidak ada fetch server ke URL dari input user; getGoogleReviews ke endpoint tetap + key env; wa.me dibuka browser [BACA-KODE+TEST] |
 | F3-13 | Audit dependency rentan | P0 | DIPERIKSA-BERSIH | `bun audit --audit-level=high` exit 0, 558 paket (2026-10-24); 1 moderate dev-only: esbuild<=0.24.2 via drizzle-kit (GHSA-67mh-4wv8-2f99, vektor dev server, dev-only, diterima sesuai kebijakan security.yml audit-level=high + dependabot weekly) [EKSEKUSI] |
-| F3-14 | Audit pesan error bocor info internal | P2 | BELUM | - |
+| F3-14 | Audit pesan error bocor info internal | P2 | DIPERIKSA-BERSIH | semua catch di Server Action mengembalikan pesan generik ('Gagal ... Coba lagi'); pesan dari parsed.error adalah kalimat validasi Zod yang dirancang untuk pengguna; kode Postgres dipetakan friendlyDbError ke pesan bisnis; tidak ada e.stack/e.message database yang diteruskan ke klien [BACA-KODE] |
 
 Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.md.
 
@@ -69,7 +69,7 @@ Detail temuan tiap kategori dicatat di bagian (d) riwayat dan/atau NEEDS_HUMAN.m
 | F3-03 | Audit SQL/NoSQL/command injection | P0 | BELUM | - |
 | F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
-| F3-14 | Audit pesan error bocor info internal | P2 | BELUM | - |
+| F3-14 | Audit pesan error bocor info internal | P2 | DIPERIKSA-BERSIH | semua catch di Server Action mengembalikan pesan generik ('Gagal ... Coba lagi'); pesan dari parsed.error adalah kalimat validasi Zod yang dirancang untuk pengguna; kode Postgres dipetakan friendlyDbError ke pesan bisnis; tidak ada e.stack/e.message database yang diteruskan ke klien [BACA-KODE] |
 
 Catatan iterasi 3: LOOP_LOG.md dipulihkan dari riwayat 820f669 (dihapus PR #153
 karena merusak tes docs-index; kini didaftarkan di docs/README.md supaya keduanya
@@ -181,3 +181,19 @@ Sisa celah a11y yang dicatat tidak diubah: lightbox tanpa focus trap
 Iterasi 13 (2026-10-25): F3-12 SSRF & open redirect. Penolak ?next=
 berlapis (path, origin sendiri, /portal/) dengan tes; server fetch hanya ke
 endpoint tetap. Tidak ada temuan. Berikutnya: F3-14 pesan error.
+
+Iterasi 14 (2026-10-25): F3-14 pesan error. Semua catch Server Action
+generik; pesan validasi Zod memang untuk pengguna; kode Postgres dipetakan
+friendlyDbError. Tidak ada temuan.
+
+## STATUS FASE 3 (2026-10-25): 14/14 kategori DIPERIKSA dengan bukti.
+
+Temuan HIGH/CRITICAL sepanjang Fase 3 — dua, keduanya FIXED-TERVERIFIKASI:
+1. RLS products_sales_update UPDATE full-row oleh sales (F3-06) → trigger
+   products_sales_column_guard, migration 20261024120000, diterapkan ke
+   production database dan terverifikasi via pg_trigger/pg_policies (PR #154).
+2. Cookie sesi httpOnly:false tanpa secure (F3-08) → authCookieOptions
+   httpOnly:true + secure production, live di production sha-001b6a8 (PR #158).
+
+Fase 3 selesai. Fase 4 (performa/aksesibilitas/SEO dengan pengukuran)
+menunggu keputusan pemilik tentang alat pengukuran yang boleh dipasang.
