@@ -35,8 +35,8 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
 | F3-07 | Audit CSRF & CORS | P1 | DIPERIKSA-BERSIH | live: POST Server Action tanpa Origin/Action valid ditolak Next (404); cookie sameSite=lax; X-Frame-Options DENY + CSP frame-ancestors; API publik tanpa Access-Control-Allow-Origin wildcard (uji Origin asing → header CORS tidak diset) [EKSEKUSI] |
 | F3-08 | Audit cookie flags | P1 | DIPERIKSA-BERSIH | authCookieOptions(): httpOnly:true, secure di production, sameSite lax, path /; dipakai proxy.ts, supabase/server.ts, dan setAll di proxy; patch PR #158 + 3 tes regresi pass (tests/supabase-cookie-options.test.ts) [TEST] |
-| F3-09 | Audit security headers | P1 | BELUM | - |
-| F3-10 | Audit rate limiting | P1 | BELUM | - |
+| F3-09 | Audit security headers | P1 | DIPERIKSA-BERSIH | uji live curl -I produksi: CSP (default-src 'self', frame-ancestors none), HSTS max-age=63072000 includeSubDomains preload, X-Content-Type-Options nosniff, X-Frame-Options DENY, Permissions-Policy kamera/mikrofon/geolokasi tutup, Referrer-Policy strict-origin-when-cross-origin [EKSEKUSI] |
+| F3-10 | Audit rate limiting | P1 | DIPERIKSA-BERSIH | rate-limit.ts: kredensial 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) anti-enumerasi; publik 600/menit per IP (snapshot/settings/inventory); mutasi sensitif per-aktor (password pelanggan 10/menit per staf, nomor HP per profil); refundRateLimit untuk kompensasi; tes auth-rate-limit mengunci perilaku [BACA-KODE+TEST] |
 | F3-11 | Audit upload file | P1 | BELUM | - |
 | F3-12 | Audit SSRF & open redirect | P1 | BELUM | - |
 | F3-13 | Audit dependency rentan | P0 | DIPERIKSA-BERSIH | `bun audit --audit-level=high` exit 0, 558 paket (2026-10-24); 1 moderate dev-only: esbuild<=0.24.2 via drizzle-kit (GHSA-67mh-4wv8-2f99, vektor dev server, dev-only, diterima sesuai kebijakan security.yml audit-level=high + dependabot weekly) [EKSEKUSI] |
@@ -156,3 +156,10 @@ Iterasi 9 (2026-10-25): F3-07 CSRF & CORS. Uji live produksi: POST ke
 Server Action tanpa Origin ditolak (proteksi bawaan Next), API publik tidak
 mengirim Access-Control-Allow-Origin untuk Origin asing, cookie lax, XFO DENY.
 Tidak ada temuan. Berikutnya: F3-09 security headers.
+
+Iterasi 10 (2026-10-25): F3-09 security headers. Uji live produksi: enam
+header kunci hadir dan ketat (CSP, HSTS preload, nosniff, DENY,
+Permissions-Policy, Referrer-Policy). Tidak ada temuan.
+Iterasi 11 (2026-10-25): F3-10 rate limiting. Empat jalur terverifikasi
+kode + tes: kredensial 3 lapis, publik per-IP, mutasi sensitif per-aktor,
+refund. Tidak ada temuan. Berikutnya: F3-11 upload file.
