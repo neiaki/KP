@@ -40,9 +40,11 @@ export default function CustomersPage() {
   useEffect(() => {
     if (!showForm && !resetTarget) return;
     const onKey = (e: KeyboardEvent) => {
+      // Escape hanya menutup modal paling atas supaya menutup form buat akun
+      // tidak sekaligus membuang modal reset yang terbuka di atasnya.
       if (e.key === "Escape") {
-        setShowForm(false);
-        setResetTarget(null);
+        if (resetTarget) setResetTarget(null);
+        else setShowForm(false);
       }
     };
     window.addEventListener("keydown", onKey);

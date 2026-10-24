@@ -312,13 +312,10 @@ export function filterProducts(
  * sudah terurut terbaru-dulu seperti hasil listProducts, sehingga yang
  * terpilih adalah model terbaru tiap merek.
  */
-export function limitOnePerBrand(
-  products: Product[],
-  brands: readonly string[] = BRANDS
-): Product[] {
-  return brands
-    .map((brand) => products.find((p) => p.brand === brand))
-    .filter((p): p is Product => p !== undefined);
+export function limitOnePerBrand(products: Product[]): Product[] {
+  return BRANDS.map((brand) => products.find((p) => p.brand === brand)).filter(
+    (p): p is Product => p !== undefined
+  );
 }
 
 /**
