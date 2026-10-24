@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, ExternalLink } from "lucide-react";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -31,9 +32,14 @@ export default function PortalLayout({
             <Menu className="h-6 w-6" />
           </button>
           <span className="flex min-w-0 items-center gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-extrabold text-white">
-              AT
-            </span>
+            <Image
+              src="/brand/logo-icon.svg"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 shrink-0"
+              unoptimized
+            />
             <span className="truncate text-sm font-extrabold tracking-tight text-ink">
               At Cell Portal
             </span>

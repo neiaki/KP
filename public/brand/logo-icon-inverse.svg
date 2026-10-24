@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Versi inverse untuk konteks berlatar biru aksen (mis. panel login):
+       squircle putih, glyph aksen. Geometri sama dengan logo-icon.svg. -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="#ffffff"/>
+
+  <!-- Outer Radiating Waves -->
+  <path d="M 172 108 A 116 116 0 0 1 340 108" stroke="#0B4ED8" stroke-width="20" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M 204 140 A 72 72 0 0 1 308 140" stroke="#0B4ED8" stroke-width="20" stroke-linecap="round" fill="none" opacity="0.55"/>
+
+  <!-- Antenna / Tower A Frame -->
+  <path d="M 148 392 L 256 182 L 364 392" stroke="#0B4ED8" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Signal Crossbar (Forms 'A') -->
+  <path d="M 194 304 L 318 304" stroke="#0B4ED8" stroke-width="36" stroke-linecap="round" fill="none"/>
+
+  <!-- Apex Signal Node -->
+  <circle cx="256" cy="182" r="16" fill="#0B4ED8"/>
+</svg>

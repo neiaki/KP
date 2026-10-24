@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { useStore } from "@/context/store-context";
 import { Locale } from "@/lib/translations";
@@ -248,9 +249,14 @@ export function LoginPanel({ locale }: { locale: Locale }) {
       <div className="relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-xl border border-line bg-card lg:grid-cols-[0.85fr_1.15fr]">
         <section className="bg-accent px-6 py-8 text-white sm:px-9 sm:py-10 lg:px-11 lg:py-12">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-lg font-extrabold text-accent">
-              AT
-            </div>
+            <Image
+              src="/brand/logo-icon-inverse.svg"
+              alt=""
+              width={44}
+              height={44}
+              className="h-11 w-11 shrink-0"
+              unoptimized
+            />
             <div>
               <div className="text-base font-extrabold">At Cell</div>
               <div className="font-mono text-xs">Portal staf &amp; pelanggan</div>

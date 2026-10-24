@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
 import { TICKET_CODE_EXAMPLE } from "@/lib/validations";
@@ -163,9 +164,14 @@ export function LiveChatWidget() {
           <div className="bg-ink text-paper p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-accent text-white flex items-center justify-center font-bold text-base shadow-md">
-                  AT
-                </div>
+                <Image
+                  src="/brand/logo-icon.svg"
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 rounded-xl"
+                  unoptimized
+                />
                 <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-good border-2 border-ink" />
               </div>
               <div>
