@@ -378,3 +378,32 @@ opsi desain di NEEDS_HUMAN butir 3.
   dicatat di NEEDS_HUMAN butir 3 [EKSEKUSI].
 - Gerbang akhir: tsc 0, lint 0, build 0, npm test 852/838/0/14 exit 0
   (transkrip).
+
+## Putaran 2 — tabel percobaan serangan (2026-10-25, localhost :3214)
+
+Target: production build lokal `next start` (tanpa env = mode demo) +
+bukti test/static untuk jalur yang butuh sesi live. Format: serangan ->
+hasil -> bukti.
+
+| Kategori | Percobaan serangan | Hasil | Bukti |
+|---|---|---|---|
+| Secret | GET /.env /.git/config /admin /products/../../.env | SEMUA GAGAL (404) | curl status transkrip |
+| Secret riwayat | scan token/private key semua ref git | GAGAL (nihil, F3-01) | git log --all + grep refs/t3 |
+| XSS | ?ticket=/<script>alert(1)</script> dan ?q=<img onerror> | GAGAL: refleksi ter-escape penuh `&lt;img ... onerror=alert(1)&gt;` di dalam atribut value | curl + grep konteks transkrip |
+| SQL injection | ?brand=' OR 1=1-- | GAGAL: 200 normal, 0 bocor postgres/syntax; parameter binding Drizzle | curl + grep |
+| Path traversal | /_next/image?url=../../.env | GAGAL: 400 (remotePatterns whitelist) | curl |
+| Auth/session | /portal/dashboard /customers /pos /staff tanpa sesi | GAGAL di produksi: guard proxy redirect saat env live (smoke portal 307); lokal 200 = mode demo by design (proxy.ts:100-104) | curl + smoke + BACA-KODE |
+| IDOR | akses data pelanggan tanpa sesi via halaman | GAGAL: 307 produksi; level aksi dijaga matriks 46 action + tes portal-snapshot | write-gate/portal-snapshot test |
+| CSRF/CORS | POST evil-Origin ke halaman; cek ACAO | GAGAL: tanpa action ID Next tak menjalankan mutasi; POST Server Action Origin asing = ditolak (bukti sesi B); ACAO tidak pernah diset | curl + bukti iterasi B |
+| Cookie | curi token via document.cookie | GAGAL: httpOnly+secure prod, terbukti e2e sampai setAll library | supabase-cookie-flags-e2e test |
+| Headers | inspeksi header respons | GAGAL menembus: CSP default-src 'self' + nonce, HSTS preload, XFO DENY, nosniff ada | curl -I transkrip |
+| Rate limiting | 11 percobaan kredensial berulang | GAGAL: percobaan ke-11 diblokir; rotasi username/IP tetap tertahan; throttle bukan oracle | tests/auth-rate-limit (4 tes transkrip) |
+| Upload | POST multipart liar ke halaman | GAGAL: 400; uploadPhoto butuh sesi staf + schema enum/tipe/5MB | curl + storage-hardening test |
+| SSRF/redirect | ?next=//evil.com; image optimizer url=evil.com | GAGAL: tidak ada redirect otomatis + resolveLoginDestination menolak (7 tes); optimizer 400 | curl + route-next-redirect test |
+| Dependency | bun audit high/critical | GAGAL menemukan: 0 (558 paket); lockfile ter-commit | transkrip |
+| Error leak | probe SQL + health/ready | GAGAL: pesan generik; health hanya boolean; 2 match 'error' = nama chunk app/error-*.js (jinak) | curl + grep konteks |
+| E: SRI | script eksternal | N/A: tidak ada (Sentry dibundel; ikon CDN = gambar) | grep F3-02 |
+
+KESIMPULAN PUTARAN 2: 0 celah baru. Semua percobaan serangan gagal dengan
+bukti runtime atau test regresi. Tidak ada perbaikan baru yang diperlukan;
+tidak ada tambahan NEEDS_HUMAN dari putaran ini.
