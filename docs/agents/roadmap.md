@@ -79,6 +79,31 @@ gagal, `bun run build`, plus pemeriksaan browser dev server):
       10MB x 3 via daemon.json. Image rollback `caee6f22`, image
       `coolify-realtime`, dan `buildkit` sengaja dipertahankan.
 
+Rilis 24 Oktober 2026 (perbaikan ketiga, ter-deploy):
+
+- [x] PR #136 (fitur + branding), #137/#138 (security check untuk semua PR
+      beserta penyesuaian kontrak tesnya), #139 (dokumentasi use case dan
+      T-7), dan #140 (pin image `sha-002ff26`) di-merge ke `main`; merge
+      commit pin `0f50449`.
+- [x] Cacat CI ditemukan dan diperbaiki: trigger `pull_request` di
+      `security.yml` punya filter path sehingga check "security" yang wajib
+      tidak pernah dilaporkan untuk PR biasa dan merge terblokir; kini
+      security check berjalan di semua PR tanpa dispatch manual. Cacat yang
+      sama pernah dihilangkan dari database-tests pada 20 Oktober.
+- [x] Deploy Coolify: `git_commit_sha` aplikasi diperbarui ke `0f50449` lalu
+      deployment dipicu lewat API Coolify
+      (deployment `ttp9ac425hxzvoxs8ccxzaxb`, finished). Container menjalankan
+      image `sha-0f50449`, health `200`, header CSP ada, logo baru tampil di
+      HTML, dan `bun run smoke:deployment -- https://atcell.my.id` lulus 6/6.
+      Token API Coolify sementara yang dipakai untuk deploy sudah dicabut dan
+      file-nya dihapus.
+- [x] Tes `backup-storage.test.ts` ("metadata via docker") terbukti flaky di
+      runner GitHub Actions: gagal sekali pada build pertama dan lulus pada
+      re-run yang sama tanpa perubahan kode (stderr verifikasi arsip ditelan
+      `2>/dev/null` di `backup-storage.sh`, sehingga penyebab aslinya tidak
+      terlihat). Bukan regresi dari perubahan ini; kalau muncul lagi, re-run
+      dulu, lalu selidiki dengan mengubah skrip agar menampilkan stderr.
+
 Selesai pada sesi 24 Oktober 2026:
 
 - [x] Admin dan sales bisa membuat akun pelanggan dari `/portal/customers` dan
