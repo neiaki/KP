@@ -64,6 +64,20 @@ gagal, `bun run build`, plus pemeriksaan browser dev server):
       dan aset `logo-icon-inverse.svg` ditambahkan untuk latar aksen.
 - [x] Folder eksplorasi `logo/` (lima opsi logo) dihapus dari disk; hanya
       opsi terpilih yang tersisa di `public/brand/`.
+- [x] Perubahan di-commit dalam tiga commit (`ecff98a` fitur, `66e0a41`
+      branding, `9847561` docs) dan di-push ke
+      `docs/status-rilis-2026-10-24`.
+- [x] VPS production dibersihkan lewat SSH (`vpsubuntu`): 3 image At Cell
+      lama (~5.1GB, tag asli masih ada di GHCR), 4 image Coolify versi lama
+      (~1.7GB), 449MB dangling image, 116MB journal lama (dis vacuum ke 7
+      hari), dan 785MB sisa di `/home/ubuntu` (`build-seed` clone lama tanpa
+      `.git` diarsipkan dulu ke
+      `/data/backups/build-seed-arsip-2026-10-24.tar.gz` sebelum dihapus,
+      `cloudflared.old.new` binary lama, build dir kosong). Disk turun 60%
+      menjadi 46% (23G menjadi 17G). Produksi tetap sehat: health 200,
+      backup harian dan standby-sync jalan, container log sudah berbatas
+      10MB x 3 via daemon.json. Image rollback `caee6f22`, image
+      `coolify-realtime`, dan `buildkit` sengaja dipertahankan.
 
 Selesai pada sesi 24 Oktober 2026:
 
