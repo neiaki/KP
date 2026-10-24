@@ -4,38 +4,23 @@ import { inArray } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { inventoryUnits } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-import type {
-  InventoryUnit,
-  Product,
-  Profile,
-  ServiceTicket,
-  StoreSettings,
-  Transaction,
-  UserRole,
-} from "@/types";
+import type { InventoryUnit } from "@/types";
 import {
   fail,
   ok,
   requireRole,
   toISO,
-  toNumber,
   type ActionResult,
 } from "./_helpers";
-import { mapTransaction, mapUnit } from "./_mappers";
+import { mapUnit, type TransactionRow } from "./_mappers";
 import { getPublicSnapshot, getPublicStoreSettings } from "./public";
+import { assemblePortalSnapshot } from "./_portal-snapshot";
+import type { PortalSnapshot as PortalSnapshotResult } from "./_portal-snapshot";
+
+export type { PortalSnapshot } from "./_portal-snapshot";
 
 const TRANSACTION_SELECT =
   "*,transaction_items(*,inventory_units(*)),trade_in_records(*)";
-
-export type PortalSnapshot = {
-  profile: Profile;
-  storeSettings: StoreSettings;
-  products: Product[];
-  inventoryUnits: InventoryUnit[];
-  transactions: Transaction[];
-  serviceTickets: ServiceTicket[];
-  profiles: Profile[];
-};
 
 /** Baris trade_in_records yang dipakai untuk melabeli unit tanpa katalog. */
 type TradeInLabelRow = {
@@ -43,113 +28,11 @@ type TradeInLabelRow = {
   original_brand_model: string;
 };
 
-type ProductDbRow = {
-  id: number;
-  brand: string;
-  model_name: string;
-  specs: string;
-  default_price: unknown;
-  image_url: string;
-  official_images: string[] | null;
-  second_images: string[] | null;
-  created_at: string;
-};
-
-type ProfileDbRow = {
-  id: string;
-  full_name: string;
-  role: UserRole;
-  phone_number: string;
-  // Wajib ikut dipetakan: halaman /portal/staff menampilkannya sebagai
-  // "@username", dan tanpa ini semua kartu berbunyi "@tanpa username".
-  username: string;
-  created_at: string;
-};
-
-type ServiceTicketDbRow = {
-  id: number;
-  ticket_code: string;
-  customer_id: string | null;
-  technician_id: string | null;
-  customer_name: string;
-  customer_phone: string;
-  device_model: string;
-  device_name: string | null;
-  imei_or_sn: string;
-  issue_notes: string;
-  problem_description: string | null;
-  technician_notes: string | null;
-  repair_status: ServiceTicket["repair_status"];
-  photo_urls: string[] | null;
-  sparepart_fee: unknown;
-  labor_fee: unknown;
-  total_fee: unknown;
-  warranty_days: number;
-  cost_breakdown: ServiceTicket["cost_breakdown"];
-  created_at: string;
-  updated_at: string;
-  picked_up_at: string | null;
-};
-
-function mapProduct(row: ProductDbRow): Product {
-  return {
-    id: Number(row.id),
-    brand: row.brand,
-    model_name: row.model_name,
-    specs: row.specs,
-    default_price: toNumber(row.default_price),
-    image_url: row.image_url,
-    official_images: row.official_images ?? [],
-    second_images: row.second_images ?? [],
-    created_at: toISO(row.created_at),
-  };
-}
-
-function mapProfile(row: ProfileDbRow, email?: string): Profile {
-  return {
-    id: row.id,
-    full_name: row.full_name,
-    role: row.role,
-    phone_number: row.phone_number,
-    email,
-    username: row.username,
-    created_at: toISO(row.created_at),
-  };
-}
-
-function mapTicket(row: ServiceTicketDbRow): ServiceTicket {
-  return {
-    id: row.id,
-    ticket_code: row.ticket_code,
-    customer_id: row.customer_id,
-    technician_id: row.technician_id,
-    customer_name: row.customer_name,
-    customer_phone: row.customer_phone,
-    device_model: row.device_model,
-    device_name: row.device_name ?? row.device_model,
-    imei_or_sn: row.imei_or_sn,
-    imei: row.imei_or_sn,
-    issue_notes: row.issue_notes,
-    problem_description: row.problem_description ?? row.issue_notes,
-    technician_notes: row.technician_notes ?? undefined,
-    repair_status: row.repair_status,
-    photo_urls: row.photo_urls ?? [],
-    sparepart_fee: toNumber(row.sparepart_fee),
-    labor_fee: toNumber(row.labor_fee),
-    total_fee: toNumber(row.total_fee),
-    warranty_days: row.warranty_days,
-    cost_breakdown: row.cost_breakdown ?? [],
-    created_at: toISO(row.created_at),
-    updated_at: toISO(row.updated_at),
-    picked_up_at: row.picked_up_at ? toISO(row.picked_up_at) : null,
-  };
-}
-
 /**
  * Ambil satu snapshot data portal setelah role tervalidasi. Provider client
  * memakai ini sebagai sumber data live; query tetap mengikuti RLS Supabase.
  */
-export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshot>> {
+export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshotResult>> {
   const guard = await requireRole(["admin", "sales", "technician", "customer"]);
   if ("error" in guard) return fail(guard.error);
   const supabase = await createClient();
@@ -258,8 +141,10 @@ export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshot>>
     }));
   }
 
-  const productRows = productsResult.data as unknown as ProductDbRow[];
-  const transactionRows = transactionsResult.data as unknown as Parameters<typeof mapTransaction>[0][];
+  const productRows = productsResult.data as unknown as Parameters<
+    typeof assemblePortalSnapshot
+  >[0]["productRows"];
+  const transactionRows = transactionsResult.data as unknown as TransactionRow[];
   if (guard.profile.role === "customer") {
     // Nested inventory_units tidak diexpos oleh RLS kepada customer. Ambil
     // hanya unit yang sudah terikat ke transaksi milik akun ini lewat DB
@@ -307,11 +192,15 @@ export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshot>>
       });
     }
   }
-  const ticketRows = ticketsResult.data as unknown as ServiceTicketDbRow[];
+  const ticketRows = ticketsResult.data as unknown as Parameters<
+    typeof assemblePortalSnapshot
+  >[0]["serviceTicketRows"];
   const profileRows =
     guard.profile.role === "customer"
-      ? [guard.profile]
-      : (profilesResult.data as unknown as ProfileDbRow[]).map((row) => mapProfile(row));
+      ? []
+      : (profilesResult.data as unknown as Parameters<
+          typeof assemblePortalSnapshot
+        >[0]["profileRows"]);
 
   let settingsResult: Awaited<ReturnType<typeof getPublicStoreSettings>>;
   try {
@@ -321,15 +210,15 @@ export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshot>>
   }
   if ("error" in settingsResult) return fail(settingsResult.error);
 
-  return ok({
-    profile: guard.profile,
-    storeSettings: settingsResult.data,
-    products: productRows.map(mapProduct),
-    inventoryUnits: portalInventoryUnits,
-    transactions: transactionRows.map((row) =>
-      mapTransaction(row, guard.profile.role !== "customer")
-    ),
-    serviceTickets: ticketRows.map(mapTicket),
-    profiles: profileRows,
-  });
+  return ok(
+    assemblePortalSnapshot({
+      profile: guard.profile,
+      storeSettings: settingsResult.data,
+      productRows,
+      inventoryUnits: portalInventoryUnits,
+      transactionRows,
+      serviceTicketRows: ticketRows,
+      profileRows,
+    })
+  );
 }

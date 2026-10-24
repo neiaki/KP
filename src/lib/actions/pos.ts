@@ -19,6 +19,7 @@ import {
   fail,
   ok,
   requireRole,
+  requireWriteAccess,
   setAuditActor,
   toNumber,
   type ActionResult,
@@ -36,6 +37,8 @@ const TX_SELECT =
  * memakai `tx`, bukan `db`, agar dieksekusi sebagai satu kesatuan.
  */
 export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Transaction>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "sales"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = posSaleSchema.safeParse(raw);

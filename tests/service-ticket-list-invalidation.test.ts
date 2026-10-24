@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { getPortalPathState, prependServiceTicket } from "../src/lib/service-ticket-list.ts";
+import type { ServiceTicket } from "../src/types/index.ts";
 
 /*
  * Gejala laporan: "setelah daftar tiket baru tidak ada" = setelah mendaftarkan
@@ -97,13 +99,17 @@ function loadLiveDataArgs(): string {
   throw new Error("useCallback loadLiveData tidak pernah ditutup");
 }
 
-test("createServiceTicket menaruh tiket baru di depan daftar seketika", () => {
+test("prependServiceTicket menaruh tiket baru di depan tanpa membuang tiket lama", () => {
+  const existing = { id: 1, ticket_code: "OLD" } as ServiceTicket;
+  const created = { id: 2, ticket_code: "NEW" } as ServiceTicket;
+  assert.deepEqual(prependServiceTicket([existing], created), [created, existing]);
+
+  // Call site live dijaga sebagai kontrak sambungan antara action dan updater.
   const body = createServiceTicketBody();
-  // Cabang live: setelah server action mengembalikan baris yang baru dibuat.
   assert.match(
     body,
-    /setServiceTickets\(\(prev\) => \[created, \.\.\.prev\]\)/,
-    "cabang live wajib prepend tiket hasil createTicketAction, kalau tidak " +
+    /setServiceTickets\(\(prev\) => prependServiceTicket\(prev, created\)\)/,
+    "cabang live harus memakai prependServiceTicket untuk menyimpan tiket hasil createTicketAction, kalau tidak " +
       "tiket baru hanya terlihat setelah ada refetch"
   );
   // Cabang demo (di store-demo.ts): prepend yang sama.
@@ -112,6 +118,21 @@ test("createServiceTicket menaruh tiket baru di depan daftar seketika", () => {
     /const updated = \[newTicket, \.\.\.prev\]/,
     "cabang demo wajib menaruh tiket baru di depan array yang ada"
   );
+});
+
+test("path portal dan login menentukan cakupan data dengan tepat", () => {
+  assert.deepEqual(getPortalPathState("/portal/service"), {
+    isLoginPath: false,
+    isPortalPath: true,
+  });
+  assert.deepEqual(getPortalPathState("/id/login"), {
+    isLoginPath: true,
+    isPortalPath: false,
+  });
+  assert.deepEqual(getPortalPathState("/en/catalog"), {
+    isLoginPath: false,
+    isPortalPath: false,
+  });
 });
 
 test("tiket baru juga disimpan ke localStorage pada cabang demo", () => {

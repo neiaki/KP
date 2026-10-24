@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { getPortalPathState } from "../src/lib/service-ticket-list.ts";
 
 /*
  * Tukar bahasa harus tidak mengulang bacaan snapshot.
@@ -124,34 +125,16 @@ test("loadLiveData tidak lagi bergantung pada pathname mentah", async () => {
   );
 });
 
-test("dua predikat area rute hanya membaca bagian path tanpa locale", async () => {
-  const isi = await readFile(STORE, "utf8");
-
-  const isLoginPath = isi.match(/const isLoginPath = ([^;]+);/)?.[1];
-  assert.equal(
-    isLoginPath,
-    'pathname.endsWith("/login") || pathname === "/portal/login"',
-    "penentu halaman login harus tetap sama supaya perpindahan ke /login tetap mereset state terlindungi"
-  );
-
-  const isPortalPath = isi.match(/const isPortalPath = ([^;]+);/)?.[1];
-  assert.equal(
-    isPortalPath,
-    'pathname.startsWith("/portal")',
-    "penentu area portal harus tetap sama supaya subdomain portal tidak salah baca snapshot publik"
-  );
-
-  // Inilah yang membuat keduanya kebal locale.
-  for (const [nama, expr] of [
-    ["isLoginPath", isLoginPath],
-    ["isPortalPath", isPortalPath],
-  ] as const) {
-    assert.doesNotMatch(
-      expr!,
-      /["'`](\/)?(id|en)["'`]/,
-      `${nama} membandingkan locale, jadi nilainya ikut berubah saat ganti bahasa dan pembacaan ulang tetap terjadi`
-    );
-  }
+test("klasifikasi route tetap sama saat locale berubah dan membedakan login", () => {
+  assert.deepEqual(getPortalPathState("/id/catalog"), getPortalPathState("/en/catalog"));
+  assert.deepEqual(getPortalPathState("/id/login"), {
+    isLoginPath: true,
+    isPortalPath: false,
+  });
+  assert.deepEqual(getPortalPathState("/portal/settings"), {
+    isLoginPath: false,
+    isPortalPath: true,
+  });
 });
 
 test("effect pemanggilannya masih bergantung pada loadLiveData", async () => {

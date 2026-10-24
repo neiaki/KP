@@ -59,7 +59,7 @@ async function migrasiTerTrack(): Promise<string[]> {
 const tracked = await migrasiTerTrack();
 
 /** Env yang disetel sendiri oleh platform, jadi tidak perlu ada di runbook. */
-const DISETEL_PLATFORM = new Set(["NODE_ENV", "VERCEL"]);
+const DISETEL_PLATFORM = new Set(["NODE_ENV", "VERCEL", "VERCEL_ENV", "COOLIFY_BRANCH"]);
 
 async function envDipakaiKode(): Promise<Set<string>> {
   // Path di dalam src relatif terhadap direktori src, jadi harus

@@ -11,7 +11,7 @@ import {
   uploadPhotoSchema,
   UPLOAD_BUCKETS,
 } from "@/lib/validations";
-import { fail, ok, requireRole, type ActionResult } from "./_helpers";
+import { fail, ok, requireRole, requireWriteAccess, type ActionResult } from "./_helpers";
 
 /**
  * Bucket yang boleh dibaca lewat signed URL. Ketiganya boleh ditandatangani
@@ -77,6 +77,8 @@ export async function uploadPhoto(
   formData: FormData,
   opts: { bucket: UploadBucket }
 ): Promise<ActionResult<{ url: string; path: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
   if (!UPLOAD_BUCKETS.includes(opts.bucket)) return fail("Bucket tidak dikenal.");

@@ -19,6 +19,7 @@ import {
   fail,
   ok,
   requireRole,
+  requireWriteAccess,
   toISO,
   toNumber,
   type ActionResult,
@@ -63,6 +64,8 @@ export async function listProducts(
 
 /** Tambah entri katalog. Eksklusif Admin (ganda ditegakkan RLS). */
 export async function createProduct(raw: ProductInput): Promise<ActionResult<Product>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = productSchema.safeParse(raw);
@@ -99,6 +102,8 @@ export async function updateProduct(
   id: number,
   raw: ProductUpdateInput
 ): Promise<ActionResult<Product>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = productUpdateSchema.safeParse(raw);
@@ -135,6 +140,8 @@ export async function setProductActive(
   id: number,
   isActive: boolean
 ): Promise<ActionResult<{ id: number }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   const db = getDb();

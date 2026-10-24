@@ -26,6 +26,7 @@ import {
   getCurrentProfile,
   ok,
   requireRole,
+  requireWriteAccess,
   type ActionResult,
 } from "./_helpers";
 
@@ -125,6 +126,8 @@ export async function signUpCustomer(input: {
   password: string;
   phoneNumber: string;
 }): Promise<ActionResult<{ userId: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   if (!isSupabaseConfigured()) return backendOffline();
   const throttled = await throttleCredential(input.email);
   if (throttled) return fail(throttled);
@@ -167,6 +170,8 @@ export async function inviteStaff(input: {
   phoneNumber: string;
   role: Exclude<UserRole, "customer">;
 }): Promise<ActionResult<{ userId: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = staffInviteSchema.safeParse(input);
@@ -232,6 +237,8 @@ const PHONE_PER_PROFILE_WINDOW_MS = 60_000;
 export async function updateMyPhoneNumber(
   raw: string
 ): Promise<ActionResult<{ phoneNumber: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "sales", "technician", "customer"]);
   if ("error" in guard) return fail(guard.error);
   // Kuota dipotong sebelum validasi dan query, jadi percobaan dengan format
@@ -305,6 +312,8 @@ export async function updateStaffRole(
   userId: string,
   role: UserRole
 ): Promise<ActionResult<{ userId: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   if (guard.profile.id === userId) return fail("Tidak bisa mengubah peran akun sendiri.");
@@ -334,6 +343,8 @@ export async function updateStaffRole(
 }
 
 export async function deactivateStaff(userId: string): Promise<ActionResult<{ userId: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin"]);
   if ("error" in guard) return fail(guard.error);
   if (guard.profile.id === userId) return fail("Tidak bisa menonaktifkan akun sendiri.");

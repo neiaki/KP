@@ -97,6 +97,20 @@ OFFSITE_PUT_TOKEN_FILE=
 OFFSITE_STAGING_DIR=
 OFFSITE_KEEP_ENCRYPTED=
 
+# Deployment pratinjau. Opsional, dan production TIDAK boleh mengisinya.
+#
+# Deployment pratinjau memakai environment yang sama dengan production,
+# termasuk DATABASE_URL dan service role key, jadi aksi yang mengubah data
+# ditolak di sana. Satu-satunya jalan untuk mengizinkan menulis di
+# pratinjau adalah variabel ini diisi persis "YES", dan itu hanya benar
+# kalau pratinjau memakai database sendiri, bukan database production.
+#
+# Production tidak butuh variabel ini. Production dikenali dari
+# COOLIFY_BRANCH=main (atau VERCEL_ENV=production) dan aksi tetap jalan.
+# Development lokal juga tidak butuh: tanpa penanda platform, aksi tetap
+# jalan, supaya alur uji staf lokal tidak ikut mati.
+ATCELL_ALLOW_WRITE=
+
 # Verifikasi aplikasi Android. Wajib diisi kalau my.id.atcell sudah ada
 # release, kosongkan kalau belum pernah ada APK. Sengaja tanpa prefix
 # NEXT_PUBLIC_ supaya nilainya dibaca dari env container saat runtime, bukan
@@ -190,6 +204,56 @@ pemantauan error browser dibutuhkan, `NEXT_PUBLIC_SENTRY_DSN` dan
 `DATABASE_URL` harus menunjuk ke connection pooler Supabase production, bukan
 ke `localhost` VPS. `SUPABASE_SECRET_KEY` hanya boleh tersedia sebagai secret
 server. Jangan memakai legacy `anon` atau `service_role` untuk release baru.
+
+## Deployment pratinjau
+
+Production At Cell berjalan di Coolify. Vercel dipakai untuk preview, dan
+preview itu memakai environment yang sama dengan production, termasuk
+`DATABASE_URL` dan service role key. Verified pada 20 Oktober 2026: pratinjau
+PR #128 menyajikan katalog yang identik dengan `atcell.my.id` dan
+`/api/health/ready`-nya melaporkan `serviceRoleConfigured: true`.
+
+Kalau dibiarkan begitu, setiap Server Action mutasi yang dijalankan di
+pratinjau akan mengubah data toko yang sebenarnya: penjualan POS, registrasi
+unit, tiket servis, sampai pendaftaran akun.
+
+### Yang sudah dijaga di repo
+
+`src/lib/deployment.ts` membaca penanda yang memang diisi platform:
+
+| Env | Nilai | Arti |
+|---|---|---|
+| `VERCEL_ENV` | `preview` | Deployment pratinjau Vercel |
+| `VERCEL_ENV` | `production` | Deployment production Vercel |
+| `COOLIFY_BRANCH` | `main` | Deployment production Coolify |
+| `COOLIFY_BRANCH` | selain `main` | Deployment pratinjau Coolify |
+| tidak ada | apa pun | Development lokal, atau platform yang belum dikenali |
+
+Deployment pratinjau ditolak untuk semua aksi yang mengubah data. Penolakan
+terjadi sebelum `requireRole()` dan sebelum query apa pun, jadi tidak ada
+database yang tersentuh. `ATCELL_ALLOW_WRITE=YES` mengizinkan menulis di
+pratinjau, dan hanya itu yang mengizinkannya. Production dan development lokal
+tidak butuh variabel itu.
+
+Penjaganya ada di `tests/write-gate.test.ts`. Test itu memindai source dan
+mewajibkan setiap Server Action yang mengubah data memanggil gerbang, jadi
+aksi mutasi baru yang lupa memanggilnya akan menggagalkan CI. Testnya juga
+memuat counter-example, karena penjaga yang tidak bisa gagal adalah kelas cacat
+yang sudah beberapa kali muncul di repo ini.
+
+### Yang masih harus dikerjakan owner
+
+Gerbang di repo menutup jalur Server Action, tapi akar masalahnya ada di
+dashboard: pratinjau sebaiknya tidak memegang kredensial production sama
+sekali. Dua langkah di Vercel:
+
+1. arahkan preview ke project Supabase terpisah, atau ke restore target
+   (`atcell-restore-local`) yang sudah ada di Coolify;
+2. cabut `SUPABASE_SECRET_KEY` dan `DATABASE_URL` production dari environment
+   preview.
+
+Selama langkah itu belum dikerjakan, pratinjau masih bisa membaca data
+production. Yang sudah tidak bisa adalah mengubahnya.
 
 ## Migrasi database
 
@@ -691,8 +755,7 @@ Urutan backup yang aman:
 1. Ambil dump logis dari Supabase dengan format custom. Script backup mencakup
    schema `public`, `private`, dan `auth`. Auth ikut karena account staf ada di
    database yang sama dengan data bisnis: `public.profiles` mereferensi
-   `auth.users(id)`. **Storage belum ikut** dan itu masih celah terbuka, lihat
-   bagian "Storage belum ikut ter-backup" di bawah.
+   `auth.users(id)`.
 2. Script backup membuktikan isi dumpnya sendiri. Kalau `auth.users` tidak ada
    di dalam daftar isi arsip, dump tetap ditulis (data bisnis lebih baik ada
    daripada tidak ada) tapi script keluar dengan kode 70 dan cron mencatat
@@ -700,29 +763,67 @@ Urutan backup yang aman:
    tidak ikut.
 3. Hitung checksum dump, enkripsi, dan kirim ke storage off-site
    (`bun run backup:offsite`; berjalan otomatis lewat cron harian).
-4. Salin dump ke restore target Coolify saat jadwal restore test.
-5. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
+4. Cadangkan objek Storage dengan `bun run backup:storage`. Arsip terenkripsi
+   berisi `metadata.sql` (skema dan data `storage`), `manifest.json`, dan byte
+   setiap objek. Lihat bagian "Backup objek Storage" di bawah.
+5. Salin dump ke restore target Coolify saat jadwal restore test.
+6. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
    `scripts/restore-target-bootstrap.sql`. Bootstrap membuat role Data API
    minimal, `auth.users`, `auth.uid()`, dan `auth.role()`.
-6. Jalankan `pg_restore --jobs=1`. Untuk dump modern, tabel `auth.users` yang
+7. Jalankan `pg_restore --jobs=1`. Untuk dump modern, tabel `auth.users` yang
    dibuat bootstrap langsung diganti oleh isi dump, sehingga akun staf ikut
    pulih. Stub hanya dipakai untuk dump lama yang belum memuat schema auth.
-7. Cek tabel wajib, RLS, trigger, view, dan jumlah akun auth asli.
-8. Hapus data restore test setelah selesai atau hentikan service agar RAM
+8. Cek tabel wajib, RLS, trigger, view, dan jumlah akun auth asli.
+9. Hapus data restore test setelah selesai atau hentikan service agar RAM
    kembali ke aplikasi.
 
-### Storage belum ikut ter-backup
+### Backup objek Storage
 
-`storage` tidak ikut dalam `pg_dump` pada `scripts/backup-postgres.sh`, sama
-seperti keadaannya sebelum Auth ikut diperbaiki. Jadi foto produk, foto servis,
-dan foto trade-in hanya ada di backup layanan Supabase, bukan di dump At Cell
-dan bukan di standby. Kalau dump itu dipakai untuk memulihkan setelah
-kejadian yang menghapus bucket, data foto tidak ikut pulih, sementara tabel
-`product_images` tetap berisi baris yang menunjuk path yang sudah tidak ada.
-Celah ini butuh keputusan tersendiri: dump `storage` menambah ukuran arsip
-secara langsung, dan bucket produksi berisi foto yang tidak boleh bocor ke
-dump yang berisi data bisnis. Yang dilakukan repo sekarang hanya mencatat
-keadaan ini supaya tidak dianggap sudah selesai.
+`scripts/backup-storage.sh` menutup celah yang tidak disentuh
+`backup-postgres.sh`: foto katalog, foto servis, dan foto trade-in hanya hidup
+di bucket Storage, sementara dump database hanya menyimpan path-nya. Script
+membuat satu arsip `atcell-storage-<timestamp>.tar.enc` berisi:
+
+- `metadata.sql`: hasil `pg_dump --schema=storage` (bucket, objek, policies).
+- `manifest.json`: `created`, `source_host`, daftar `buckets`, dan setiap
+  berkas dengan `bucket`, `path`, `sha256`, `size`, `mimetype`.
+- `<bucket>/<path>`: byte objek apa adanya.
+
+Arsip dienkripsi AES-256-CBC PBKDF2 (100.000 iterasi) dan ditulis bersama
+sidecar `.sha256`. Script menolak berhasil bila tidak ada satu pun objek
+(`STORAGE_ALLOW_EMPTY=1` untuk kasus yang disengaja), bila metadata dump tidak
+memuat `storage.buckets`/`storage.objects`, atau bila nama objek memuat
+traversal. Setelah arsip jadi, salinan terenkripsi wajib dikirim ke off-site
+lewat `STORAGE_OFFSITE_PUT_URL` atau `STORAGE_OFFSITE_RCLONE_REMOTE`; tanpa
+tujuan, script keluar bukan-nol. Passphrase dan key hanya masuk lewat file atau
+environment, tidak pernah argv curl.
+
+`scripts/restore-storage.sh` memverifikasi arsip secara default tanpa jaringan:
+checksum sidecar, dekripsi, keamanan anggota tar, kecocokan daftar berkas
+dengan manifest, ukuran, dan SHA-256 setiap objek. Upload hanya terjadi bila
+`ALLOW_STORAGE_RESTORE=YES` dan `STORAGE_RESTORE_URL` serta
+`STORAGE_RESTORE_DATABASE_URL` diisi. Metadata diterapkan lewat `psql` di dalam
+`postgres:17-alpine` dengan DSN sebagai environment container, lalu bucket yang
+belum ada dibuat dan objek diunggah dengan `x-upsert: true`. Restore bersifat
+additive: tidak ada `delete`, objek di luar arsip dibiarkan.
+
+Guard yang tidak bisa dilewati:
+
+- Target dengan host sama dengan `source_host` ditolak kecuali
+  `STORAGE_RESTORE_ALLOW_SAME_HOST=YES`.
+- Host selain localhost harus terdaftar di `STORAGE_RESTORE_ALLOWED_HOSTS`.
+- Bucket yang sudah ada di target ditolak kecuali
+  `STORAGE_RESTORE_ALLOW_EXISTING_BUCKETS=YES`.
+
+`scripts/restore-storage-drill.sh` (`bun run restore:storage-drill`) memilih
+`atcell-storage-*.tar.enc` terbaru, memeriksa sidecar, dan menjalankan mode
+verifikasi. Drill tidak butuh URL, key, atau database, sehingga bisa dijadwalkan
+seperti drill dump. Variabel lengkap ada di `.env.example` (awalan `STORAGE_`
+dan `STORAGE_RESTORE_`). Per 20 Oktober 2026 script sudah ada, teruji lokal,
+dan sudah terpasang di host produksi (`/opt/atcell/scripts/`), tetapi belum
+dijadwalkan di VPS karena tujuan off-site Storage belum dikonfigurasi. Docker
+dan image `postgres:17-alpine` sudah ada di host, jadi penghambatnya bukan
+tool, melainkan passphrase dan tujuan upload yang belum dimiliki owner.
 
 ### Apa yang masih perlu langkah manusia untuk Auth
 

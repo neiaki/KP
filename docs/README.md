@@ -15,6 +15,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `DEPLOYMENT-REDUNDANCY.md` | Runbook Coolify, Supabase, health check, backup, dan rollout | **Acuan operasional** |
 | `VPS-HARDENING.md` | Catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan | **Acuan operasional** |
 | `SECRET-ROTATION.md` | Urutan mengganti secret yang pernah bocor, lengkap dengan verifikasi | **Acuan operasional** |
+| `OFFSITE-BACKUP-SETUP.md` | Langkah menyalakan backup off-site dan backup objek Storage: passphrase, tujuan upload, jadwal, dan pembuktian restore | **Acuan operasional** |
 | `CSP.md` | Cara kerja Content-Security-Policy berbasis nonce, daftar directive yang dipakai, dan alasan setiap keputusan | **Acuan keamanan** |
 | `COOLIFY-PANEL.md` | Cara masuk panel Coolify setelah port publik ditutup: SSH tunnel harian dan pengecualian darurat | **Acuan operasional** |
 | `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |
@@ -28,6 +29,10 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `agents/issue-tracker.md` | Konfigurasi issue tracker repo untuk skill agent: GitHub Issues lewat `gh` CLI, termasuk alur wayfinding | **Acuan agent** |
 | `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
 | `agents/domain.md` | Aturan konsumsi dokumen domain (GLOSSARY.md, docs/adr/) oleh skill agent | **Acuan agent** |
+| `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor untuk orientasi agen | **Acuan agent** |
+| `agents/roadmap.md` | Status pekerjaan, prioritas backlog, kriteria verifikasi, dan langkah awal agen berikutnya | **Roadmap agent** |
+| `agents/review-handoff-2026-10-17.md` | Hasil review repo, dokumentasi, verifikasi lokal, serta backlog dan status pemeriksaan PR | **Handoff audit** |
+| `agents/review-handoff-2026-10-20.md` | Handoff audit kedua: perbaikan token watchdog, backup objek Storage, pin image, verifikasi, dan keadaan nyata data produksi | **Handoff audit** |
 
 ## Catatan
 
@@ -51,6 +56,9 @@ berbasis Supabase ketika environment production dikonfigurasi.
   render PNG dan SVG sebagai cadangan pembaca yang belum bisa menampilkan
   Mermaid.
   Indeks dan perintah render ada di `diagram-uml/README.md`.
+- Draf editorial lokal di `docs/Diagram/` sengaja di-gitignore dan tidak
+  termasuk dokumentasi repo. Diagram yang menjadi acuan ada di
+  `docs/diagram-uml/`.
 - Akses panel Coolify dijelaskan di `COOLIFY-PANEL.md`, karena panel adalah
   kendali penuh atas env production dan jalurnya tidak bisa ditebak dari
   `ufw status` saja.

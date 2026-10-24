@@ -22,6 +22,7 @@ import { access, readdir, readFile } from "node:fs/promises";
 
 const repoFile = (rel: string) => new URL(rel, import.meta.url);
 const docsUrl = new URL("../docs/", repoFile("x"));
+const rootUrl = new URL("../", docsUrl);
 
 const indeks = await readFile(new URL("README.md", docsUrl), "utf8");
 const readme = await readFile(repoFile("../README.md"), "utf8");
@@ -190,6 +191,79 @@ test("jalur relatif di indeks docs benar-benar ada", async () => {
     hilang.sort(),
     [],
     `jalur di docs/README.md menunjuk berkas yang tidak ada: ${hilang.join(", ")}`
+  );
+});
+
+test("semua tautan relatif di dokumentasi menuju berkas atau folder yang ada", async () => {
+  const docsFiles = (await readdir(docsUrl, { recursive: true }))
+    .filter((path): path is string => typeof path === "string")
+    .filter((path) => path.endsWith(".md"))
+    .map((path) => new URL(path, docsUrl));
+  const rootFiles = (await readdir(rootUrl))
+    .filter((path) => path.endsWith(".md"))
+    .map((path) => new URL(path, rootUrl));
+  const markdownFiles = [...new Set([...docsFiles, ...rootFiles].map(String))].map(
+    (url) => new URL(url)
+  );
+  const rusak: string[] = [];
+
+  function inlineLinkTargets(markdown: string): string[] {
+    const targets: string[] = [];
+    for (const start of markdown.matchAll(/!?\[[^\]]*\]\(/g)) {
+      const openParen = start.index! + start[0].length - 1;
+      let depth = 1;
+      let targetEnd = openParen + 1;
+      for (; targetEnd < markdown.length; targetEnd++) {
+        if (markdown[targetEnd] === "\\") {
+          targetEnd++;
+          continue;
+        }
+        if (markdown[targetEnd] === "(") depth++;
+        if (markdown[targetEnd] === ")" && --depth === 0) break;
+      }
+      const raw = markdown.slice(openParen + 1, targetEnd).trim();
+      if (raw.startsWith("<")) {
+        const end = raw.indexOf(">");
+        targets.push(end === -1 ? raw.slice(1) : raw.slice(1, end));
+      } else {
+        targets.push(raw.split(/\s+/, 1)[0] ?? "");
+      }
+    }
+    return targets;
+  }
+
+  for (const url of markdownFiles) {
+    const contents = (await readFile(url, "utf8"))
+      .replace(/^\s*(```|~~~)[\s\S]*?^\s*\1\s*$/gm, "")
+      .replace(/(`+)[^`\n]*?\1/g, "");
+    const targets = inlineLinkTargets(contents);
+    targets.push(
+      ...[...contents.matchAll(/^\s*\[[^\]]+\]:\s*(?:<([^>]+)>|([^\s]+))/gm)].map(
+        (match) => match[1] ?? match[2] ?? ""
+      )
+    );
+
+    for (const target of targets) {
+      if (
+        !target ||
+        target.startsWith("#") ||
+        target.startsWith("/") ||
+        /^[a-z][a-z\d+.-]*:/i.test(target)
+      ) {
+        continue;
+      }
+      try {
+        await access(new URL(target, url));
+      } catch {
+        rusak.push(`${url.pathname.replace(rootUrl.pathname, "")} -> ${target}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    rusak.sort(),
+    [],
+    `tautan relatif ini tidak punya target di repo: ${rusak.join(", ")}`
   );
 });
 

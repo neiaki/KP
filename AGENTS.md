@@ -96,6 +96,16 @@ health endpoint `/api/health/ready` sebelum Production. PRD di
 
 Issues live in this repo's GitHub Issues. See `docs/agents/issue-tracker.md`.
 
+### Project map
+
+When orienting to an unfamiliar module or tracing data flow, read
+`docs/agents/project-map.md`. It maps the main interfaces and implementations,
+points to sources of truth, and records refactor seams without repeating the
+rules above.
+
+For multi-session backlog and current work status, read
+`docs/agents/roadmap.md` before starting an item.
+
 ### Triage labels
 
 Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.

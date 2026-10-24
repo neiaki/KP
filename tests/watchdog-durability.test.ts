@@ -26,6 +26,7 @@ type Hasil = {
   log: string;
   syslog: string;
   requests: string[];
+  configs: string[];
   stateDir: string;
 };
 
@@ -49,10 +50,12 @@ function jalankan(
   mkdirSync(stateDir, { recursive: true });
 
   const catatCurl = join(akar, "curl.log");
+  const catatConfig = join(akar, "curl-config.log");
   const catatLogger = join(akar, "logger.log");
   const log = join(akar, "watchdog.log");
   const envFile = join(akar, "watchdog.env");
   writeFileSync(catatCurl, "");
+  writeFileSync(catatConfig, "");
   writeFileSync(catatLogger, "");
   writeFileSync(log, "");
 
@@ -73,16 +76,22 @@ function jalankan(
       "#!/usr/bin/env bash",
       `printf 'curl %s\\n' "$*" >> '${catatCurl}'`,
       'pakai_fail=0',
+      'pakai_config=0',
+      'permintaan="$*"',
       'for a in "$@"; do',
       '  [ "$a" = "--fail" ] && pakai_fail=1',
+      '  [ "$a" = "--config" ] && pakai_config=1',
       'done',
-      'for a in "$@"; do',
-      "  case \"$a\" in",
-      '    https://api.telegram.org/*)',
-      `      if [ "\${FAKE_TELEGRAM:-200}" -ge 400 ] && [ "$pakai_fail" = 1 ]; then exit 22; fi`,
-      "      printf 'ok'; exit 0;;",
-      "  esac",
-      'done',
+      'if [ "$pakai_config" = 1 ]; then',
+      '  konfigurasi="$(cat)"',
+      `  printf '%s\\n' "$konfigurasi" >> '${catatConfig}'`,
+      '  permintaan="$permintaan $konfigurasi"',
+      'fi',
+      'case "$permintaan" in',
+      '  *https://api.telegram.org/*)',
+      `    if [ "\${FAKE_TELEGRAM:-200}" -ge 400 ] && [ "$pakai_fail" = 1 ]; then exit 22; fi`,
+      "    printf 'ok'; exit 0;;",
+      'esac',
       'printf \'%s\' "${FAKE_KODE:-000}"',
       "",
     ].join("\n"),
@@ -123,6 +132,7 @@ function jalankan(
     log: readFileSync(log, "utf8"),
     syslog: readFileSync(catatLogger, "utf8"),
     requests: readFileSync(catatCurl, "utf8").split("\n").filter(Boolean),
+    configs: readFileSync(catatConfig, "utf8").split("\n").filter(Boolean),
     stateDir,
   };
 }
@@ -191,29 +201,37 @@ test("tanpa kredensial Telegram tidak ada permintaan ke luar sama sekali", () =>
   const h = jalankan(["503", "503"]);
 
   assert.ok(
-    !h.requests.some((r) => r.includes("api.telegram.org")),
-    `tidak boleh ada panggilan Telegram tanpa env file: ${h.requests.join(" | ")}`
+    ![...h.requests, ...h.configs].some((r) => r.includes("api.telegram.org")),
+    `tidak boleh ada panggilan Telegram tanpa env file: ${[...h.requests, ...h.configs].join(" | ")}`
   );
 });
 
 test("dengan kredensial Telegram, transisi sakit dikirim ke chat", () => {
   const h = jalankan(["503", "503"], { telegram: true });
 
-  const kiriman = h.requests.filter((r) => r.includes("api.telegram.org/") && r.includes("sendMessage"));
+  const semua = [...h.requests, ...h.configs];
+  const kiriman = semua.filter((r) => r.includes("api.telegram.org/") && r.includes("sendMessage"));
   assert.equal(
     kiriman.length,
     1,
-    `transisi ke sakit harus dikirim tepat sekali: ${h.requests.join(" | ")}`
+    `transisi ke sakit harus dikirim tepat sekali: ${semua.join(" | ")}`
   );
-  assert.match(kiriman[0], /At Cell sakit/);
+  assert.ok(
+    semua.some((r) => r.includes("At Cell sakit")),
+    `pesan transisi harus ikut terkirim: ${semua.join(" | ")}`
+  );
 });
 
 test("outage berlanjut mengirim pengingat, sehingga yang lupa tidak diam", () => {
   const h = jalankan(["503", "503", "503", "503"], { telegram: true });
 
-  const kiriman = h.requests.filter((r) => r.includes("api.telegram.org/") && r.includes("sendMessage"));
-  assert.ok(kiriman.length >= 2, `pengingat ulang harus dikirim: ${h.requests.join(" | ")}`);
-  assert.ok(kiriman.some((r) => r.includes("masih sakit")));
+  const semua = [...h.requests, ...h.configs];
+  const kiriman = semua.filter((r) => r.includes("api.telegram.org/") && r.includes("sendMessage"));
+  assert.ok(kiriman.length >= 2, `pengingat ulang harus dikirim: ${semua.join(" | ")}`);
+  assert.ok(
+    semua.some((r) => r.includes("masih sakit")),
+    `pesan pengingat harus ikut terkirim: ${semua.join(" | ")}`
+  );
 });
 
 test("kegagalan kirim Telegram dicatat, bukan ditelan diam-diam", () => {
@@ -239,6 +257,23 @@ test("token Telegram tidak ikut bocor ke log saat pengiriman gagal", () => {
     `token tidak boleh masuk log: ${h.log}`
   );
   assert.doesNotMatch(h.log, /api\.telegram\.org/);
+});
+
+test("token Telegram tidak pernah menjadi argumen proses", () => {
+  // Argumen proses bisa dibaca user lain lewat /proc/<pid>/cmdline dan ikut
+  // tercatat oleh audit atau process monitor. Token harus melewati stdin
+  // (--config -), bukan URL yang diletakkan di argv.
+  const h = jalankan(["503", "503"], { telegram: true });
+
+  assert.ok(
+    h.configs.some((r) => r.includes("api.telegram.org")),
+    `test ini hanya berarti kalau notifikasi benar-benar dipanggil: ${h.configs.join(" | ")}`
+  );
+  assert.doesNotMatch(
+    h.requests.join("\n"),
+    /token-tiruan/,
+    `token tidak boleh muncul di argumen proses: ${h.requests.join(" | ")}`
+  );
 });
 
 test("health check dipanggil lewat nama host, bukan IP publik", () => {

@@ -20,6 +20,7 @@ import {
   fail,
   ok,
   requireRole,
+  requireWriteAccess,
   setAuditActor,
   toISO,
   toNumber,
@@ -78,6 +79,8 @@ export async function listUnits(opts?: {
 export async function registerUnits(
   raw: RegisterUnitsInput
 ): Promise<ActionResult<InventoryUnit[]>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "sales"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = registerUnitsSchema.safeParse(raw);
@@ -140,6 +143,8 @@ export async function registerUnits(
 export async function updateUnitStatus(
   raw: UpdateUnitStatusInput
 ): Promise<ActionResult<InventoryUnit>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "sales", "technician"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = updateUnitStatusSchema.safeParse(raw);
@@ -213,6 +218,8 @@ export async function updateUnitStatus(
 export async function updateUnitDetails(
   raw: UpdateUnitDetailsInput
 ): Promise<ActionResult<InventoryUnit>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
   const guard = await requireRole(["admin", "sales"]);
   if ("error" in guard) return fail(guard.error);
   const parsed = updateUnitDetailsSchema.safeParse(raw);
