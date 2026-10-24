@@ -37,8 +37,12 @@ const BRAND_COLORS: Record<string, string> = {
   Vivo: "415FFF",
 };
 
-export function brandChipClass(brand: string, active: boolean) {
-  if (active) {
+/** Merek yang punya logo di Simple Icons CDN; dipakai fallback foto kartu. */
+export function isKnownBrand(brand: string): boolean {
+  return Object.prototype.hasOwnProperty.call(SLUGS, brand);
+}
+
+export function brandChipClass(brand: string, active: boolean) {  if (active) {
     // "Semua" (default) tampil biru tebal agar status filter jelas.
     if (brand === "all") return "border-accent bg-accent text-white shadow-sm";
     switch (brand) {

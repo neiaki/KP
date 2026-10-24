@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { formatIDR } from "@/lib/utils";
-import { MessageCircle, ArrowLeftRight, Check, BadgeCheck, CreditCard, ChevronLeft, ChevronRight, Flame, Smartphone } from "lucide-react";
+import { MessageCircle, ArrowLeftRight, Check, BadgeCheck, CreditCard, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { ButtonLink } from "@/components/button-link";
 import { BrandLogo } from "@/components/public/brand-mark";
+import { BrandPhotoFallback } from "@/components/public/photo-fallback";
 import { Locale } from "@/lib/translations";
 import type { UnitTag } from "@/types";
 
@@ -64,10 +65,7 @@ export function ProductCard({
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-paper">
         {gallery.length === 0 && (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted">
-            <Smartphone className="h-10 w-10" strokeWidth={1.25} />
-            <p className="text-[11px] font-bold">{locale === "en" ? "Photo coming soon" : "Foto menyusul"}</p>
-          </div>
+          <BrandPhotoFallback brand={item.brand} locale={locale} />
         )}
         {gallery.length > 0 && (
           // Foto produk adalah gambar dengan byte terbesar di situs ini

@@ -105,6 +105,8 @@ function modulStub(isi: Record<string, unknown> = {}): Record<string, unknown> {
  * Logikanya tetap modul asli src/lib, jadi aturan foto yang diuji adalah
  * yang sama dengan yang berjalan di produksi.
  */
+const BRAND_MARK = muatTsx("../src/components/public/brand-mark.tsx");
+const PHOTO_FALLBACK = muatTsx("../src/components/public/photo-fallback.tsx");
 const NOTIFY_CARD = muatTsx("../src/components/public/notify-card.tsx");
 
 /** Transpile satu .tsx dan jalankan dengan requireStub miliknya sendiri. */
@@ -126,6 +128,10 @@ function muatTsx(berkas: string): Record<string, unknown> {
     switch (id) {
       case "next/image":
         return modulStub({ default: Gambar, Image: Gambar });
+      case "@/components/public/brand-mark":
+        return BRAND_MARK;
+      case "@/components/public/photo-fallback":
+        return PHOTO_FALLBACK;
       default:
         return modulStub();
     }
@@ -365,12 +371,25 @@ test("official_images kosong jatuh ke image_url yang lolos validasi", () => {
 /* Nilai yang tidak boleh sampai ke src                                        */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * Kartu tanpa foto kini memuat TEPAT satu img: logo merek dari Simple Icons
+ * CDN (BrandPhotoFallback). Segala src lain di kartu tanpa foto berarti
+ * ada nilai yang lolos validasi.
+ */
+function srcSelainFallback(markup: string): string[] {
+  return srcGambar(markup).filter((u) => !u.includes("cdn.simpleicons.org"));
+}
+
 test("official_images yang tidak bisa dirender tidak pernah masuk ke src", () => {
   for (const nilai of NILAI_JAHAT) {
     const p = produk({ official_images: [nilai] });
     const markup = renderHalaman("katalog", tokoTanpaUnit(p));
     assertKartuJujur(markup, p, nilai);
-    assert.deepEqual(srcGambar(markup), [], `src masih berisi nilai "${nilai}"`);
+    assert.deepEqual(
+      srcSelainFallback(markup),
+      [],
+      `src masih berisi nilai "${nilai}"`
+    );
   }
 });
 
@@ -379,7 +398,11 @@ test("image_url yang tidak bisa dirender tidak pernah jadi fallback kartu", () =
     const p = produk({ official_images: [], image_url: nilai });
     const markup = renderHalaman("katalog", tokoTanpaUnit(p));
     assertKartuJujur(markup, p, nilai);
-    assert.deepEqual(srcGambar(markup), [], `src masih berisi nilai "${nilai}"`);
+    assert.deepEqual(
+      srcSelainFallback(markup),
+      [],
+      `src masih berisi nilai "${nilai}"`
+    );
   }
 });
 
@@ -388,7 +411,7 @@ test("foto generik tidak pernah diklaim sebagai foto produk", () => {
   const p = produk({ official_images: [generik], image_url: generik });
   const markup = renderHalaman("katalog", tokoTanpaUnit(p));
   assertKartuJujur(markup, p, generik);
-  assert.deepEqual(srcGambar(markup), []);
+  assert.deepEqual(srcSelainFallback(markup), []);
 });
 
 /* -------------------------------------------------------------------------- */
