@@ -34,7 +34,7 @@ Perintah: `bun run dev` | `npm run build` (wajib exit 0) | `bunx tsc --noEmit`
 | F3-05 | Audit autentikasi & session/token | P0 | DIPERIKSA-BERSIH | proxy pakai getUser() (verifikasi ke server Auth, bukan decode lokal); role dibaca dari tabel profiles per user.id, bukan klaim JWT; cookie via authCookieOptions (httpOnly+secure production, 3 tes pass); throttle 3 lapis (10/5m per IP+username, 40/5m per IP, 60/15m per akun) dipotong sebelum query profil; pesan login identik untuk username/password salah [BACA-KODE] |
 | F3-06 | Audit otorisasi & IDOR (server actions + API) | P0 | BELUM | - |
 | F3-07 | Audit CSRF & CORS | P1 | BELUM | - |
-| F3-08 | Audit cookie flags | P1 | BELUM | - |
+| F3-08 | Audit cookie flags | P1 | DIPERIKSA-BERSIH | authCookieOptions(): httpOnly:true, secure di production, sameSite lax, path /; dipakai proxy.ts, supabase/server.ts, dan setAll di proxy; patch PR #158 + 3 tes regresi pass (tests/supabase-cookie-options.test.ts) [TEST] |
 | F3-09 | Audit security headers | P1 | BELUM | - |
 | F3-10 | Audit rate limiting | P1 | BELUM | - |
 | F3-11 | Audit upload file | P1 | BELUM | - |
@@ -96,3 +96,9 @@ tetap tertaut (sold hanya via POS, admin terakhir terjaga, password target
 wajib customer, unit sold tak bisa diaktifkan ulang). Perkuatan hari ini:
 trigger products_sales_column_guard menutup jalur PostgREST langsung.
 Tidak ada temuan HIGH/CRITICAL. Berikutnya: F3-08 cookie flags.
+
+Iterasi 7 (2026-10-25): F3-08 cookie flags. Seluruh cookie sesi Supabase
+(auth-token chunks) lewat authCookieOptions: httpOnly:true selalu, secure
+hanya production (lokal 192.168.x tetap bisa login), sameSite lax. Set-Cookie
+di proxy dan server action memakai opsi yang sama. Tes regresi 3 pass.
+Tidak ada temuan. Berikutnya: F3-04 path traversal.
