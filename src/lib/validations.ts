@@ -711,3 +711,17 @@ export function wouldLeaveNoAdmin(input: {
 }): boolean {
   return input.targetIsAdmin && !input.nextIsAdmin && input.adminCount <= 1;
 }
+
+/**
+ * Etalase & harga: kolom yang boleh diperbarui sales dari /portal/listing.
+ *
+ * Sengaja TIDAK menyertakan brand, model_name, specs, second_images, dan
+ * is_active — identitas katalog dan status aktif tetap milik admin lewat
+ * Master Produk. Harga nol itu sah: berarti "belum ada harga acuan yang bisa
+ * dipertanggungjawabkan" dan baris harga disembunyikan di etalase.
+ */
+export const productListingSchema = z.object({
+  default_price: hargaAcuanSchema,
+  official_images: productOfficialImages,
+});
+export type ProductListingInput = z.infer<typeof productListingSchema>;

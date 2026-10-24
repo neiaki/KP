@@ -44,6 +44,11 @@ export function resolveEffectivePortalPath(
 
 export function canAccessPortalPath(pathname: string, role: UserRole): boolean {
   if (pathname.startsWith("/portal/account")) return true;
+  if (pathname.startsWith("/portal/listing")) {
+    // Etalase & Harga: memperbarui harga acuan dan foto model katalog,
+    // termasuk model yang belum menerima unit.
+    return role === "admin" || role === "sales";
+  }
   if (
     pathname.startsWith("/portal/dashboard") ||
     pathname.startsWith("/portal/products") ||

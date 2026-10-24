@@ -10,8 +10,10 @@ import { products, type ProductRow } from "@/db/schema";
 import {
   productSchema,
   productUpdateSchema,
+  productListingSchema,
   type ProductInput,
   type ProductUpdateInput,
+  type ProductListingInput,
 } from "@/lib/validations";
 import type { Product } from "@/types";
 import {
@@ -153,5 +155,51 @@ export async function setProductActive(
     return ok({ id });
   } catch {
     return fail("Gagal mengubah status produk. Coba lagi.");
+  }
+}
+
+/**
+ * Perbarui etalase model tanpa mengubah identitas katalog: harga acuan dan
+ * foto resmi saja.
+ *
+ * Admin sudah bisa mengedit semuanya lewat Master Produk. Sales sebelumnya
+ * tidak punya jalur apa pun, padahal kebutuhan nyatanya ada: model katalog
+ * yang belum menerima unit tetap tampil ke pembeli dengan harga acuan dan
+ * "Foto menyusul", dan memperbaruinya tidak butuh hak mengubah merek, nama
+ * model, atau status aktif. Aksi ini membatasi kolom yang ditulis agar sales
+ * tidak bisa menyentuh identitas katalog; policy RLS `products_sales_update`
+ * menegakkan hal yang sama di sisi database.
+ */
+export async function updateProductListing(
+  id: number,
+  raw: ProductListingInput
+): Promise<ActionResult<Product>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
+  const guard = await requireRole(["admin", "sales"]);
+  if ("error" in guard) return fail(guard.error);
+  const parsed = productListingSchema.safeParse(raw);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Input etalase tidak valid.");
+  }
+  const db = getDb();
+  if (!db) return backendOffline();
+  const v = parsed.data;
+  try {
+    const [updated] = await db
+      .update(products)
+      .set({
+        defaultPrice: String(v.default_price),
+        officialImages: v.official_images,
+      })
+      .where(eq(products.id, id))
+      .returning();
+    if (!updated) return fail("Produk tidak ditemukan.");
+    revalidatePath("/portal/listing");
+    revalidatePath("/portal/products");
+    revalidatePath("/id", "layout");
+    return ok(mapRow(updated));
+  } catch {
+    return fail("Gagal memperbarui etalase. Coba lagi.");
   }
 }
