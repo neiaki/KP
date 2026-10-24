@@ -197,3 +197,11 @@ Temuan HIGH/CRITICAL sepanjang Fase 3 — dua, keduanya FIXED-TERVERIFIKASI:
 
 Fase 3 selesai. Fase 4 (performa/aksesibilitas/SEO dengan pengukuran)
 menunggu keputusan pemilik tentang alat pengukuran yang boleh dipasang.
+
+Iterasi 15 (2026-10-25, Fase 4 performa/SEO): ukur dulu — hreflang
+id/en/x-default + canonical ternyata SUDAH lengkap di produksi (grep awal
+salah case: atribut dirender hrefLang); temuan nyata: preconnect = 0
+padahal logo Simple Icons di-fetch browser di semua halaman. Perbaikan:
+preconnect + dns-prefetch cdn.simpleicons.org di layout publik. Ukur
+sesudah deploy: tag preconnect 0 -> 2 (curl). Foto produk sengaja tidak
+di-preconnect karena lewat optimizer server Next.
