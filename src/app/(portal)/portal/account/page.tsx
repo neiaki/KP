@@ -109,6 +109,7 @@ export default function CustomerAccountPage() {
         expiryDate,
         remainingDays,
         isWarrantyActive,
+        isDemo: tx.is_demo === true,
       };
     })
   );
@@ -261,12 +262,19 @@ export default function CustomerAccountPage() {
                       {item.brandModel}
                     </CardTitle>
                   </div>
-                  <Badge
-                    variant={item.isWarrantyActive ? "success" : "destructive"}
-                    className="shrink-0 text-[10px] font-bold"
-                  >
-                    {item.isWarrantyActive ? "Garansi Aktif" : "Garansi Berakhir"}
-                  </Badge>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    {item.isDemo && (
+                      <Badge variant="info" className="text-[10px] font-bold">
+                        Demo
+                      </Badge>
+                    )}
+                    <Badge
+                      variant={item.isWarrantyActive ? "success" : "destructive"}
+                      className="text-[10px] font-bold"
+                    >
+                      {item.isWarrantyActive ? "Garansi Aktif" : "Garansi Berakhir"}
+                    </Badge>
+                  </div>
                 </CardHeader>
 
                 <CardContent className="space-y-4 p-4 text-sm">
