@@ -220,3 +220,16 @@ Iterasi 18 (2026-10-25, Fase 4 aksesibilitas): kontras dihitung WCAG
 (muted di card gelap), tertinggi 17.75:1 — semua di atas AA 4.5:1
 [EKSEKUSI]. Tidak ada temuan; tidak ada perubahan warna.
 Berikutnya: atribut autocomplete form (autofill & password manager).
+
+Iterasi deploy (2026-10-25, sesi handoff): PR #168 pin image sha-b5147fa
+di-merge (commit pin 811aa388). Deploy produksi BERHASIL lewat auto-deploy
+webhook Coolify (application_settings.is_auto_deploy_enabled=t; deployment
+queue id=111, finished 20:18:54, container berjalan 811aa388 healthy).
+git_commit_sha di coolify-db tetap diperbarui ke 811aa388. Verifikasi:
+health /api/health/live 200; smoke:deployment 6/6 exit 0. CATATAN: API
+Coolify 4.5.0 menolak 401 SEMUA endpoint termasuk token owner valid dan
+/version publik — dua token sementara psql juga 401 lalu dihapus; detail
+dan opsi di docs/NEEDS_HUMAN.md. Salinan /opt/atcell/scripts di VPS
+disinkronkan: 3 script diperbarui (dengan .bak-20261025), 3 ditambah
+(purge-ip-dari-riwayat, seed-demo-customers, smoke-deployment); checksum
+lokal = VPS terverifikasi.
