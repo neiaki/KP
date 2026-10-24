@@ -86,3 +86,13 @@ Iterasi 5 (2026-10-25): F3-05 auth/session. Proxy: getUser() + role dari
 profiles + canAccessPortalPath; cookie flags dari authCookieOptions (3 tes);
 rate-limit credential 3 lapis dengan anti-enumerasi; signOut server-side;
 passwordSchema 8-128. Tidak ada temuan HIGH/CRITICAL. Berikutnya: F3-06.
+
+Iterasi 6 (2026-10-25): F3-06 IDOR/otorisasi. Matriks otomatis seluruh
+Server Action (46 fungsi) vs guard: semua mutasi ber-write-gate + requireRole
+sesuai PRD; ID dari client selalu dipasangkan dengan guard peran; data
+milik-sendiri diambil dari sesi (updateMyPhoneNumber, snapshot customer
+dibatasi customer_id server-side + tes portal-snapshot); anti-abuse khusus
+tetap tertaut (sold hanya via POS, admin terakhir terjaga, password target
+wajib customer, unit sold tak bisa diaktifkan ulang). Perkuatan hari ini:
+trigger products_sales_column_guard menutup jalur PostgREST langsung.
+Tidak ada temuan HIGH/CRITICAL. Berikutnya: F3-08 cookie flags.
