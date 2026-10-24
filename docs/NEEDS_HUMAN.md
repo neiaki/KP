@@ -1,6 +1,16 @@
 # Perlu Keputusan / Tindakan Owner
 
-## 1. API Coolify 4.5.0 menolak semua request (401) — prosedur deploy via API macet
+## 1. ~~API Coolify 4.5.0 menolak semua request (401)~~ — TERPECAHKAN 25 Oktober 2026, tidak perlu tindakan owner
+
+**Akar masalah: bearer token terkontaminasi output psql.** `psql -t -A -c "INSERT ... RETURNING id"` mencetak dua baris (`id` lalu tag `INSERT 0 1`); jika keduanya masuk variabel, bearer menjadi sampah dan Sanctum menjawab 401 Unauthenticated — persis gejala yang tercatat. Tiga bukti perbaikan (25 Okt 2026):
+
+- Token segar + ekstraksi bersih (`-q` + `head -1`): `GET /api/v1/version` → **200**.
+- `POST /api/v1/deploy` bearer bersih → **200**, deployment queue selesai (deploy ac21aea).
+- Uji "token lama 401" pada laporan asal tidak valid: plain secret token owner mustahil direkonstruksi dari hash, jadi 401-nya pasti.
+
+Pola benar sudah tercatat di LOOP_LOG (iterasi 23): selalu `psql -t -A -q` + `head -1` lalu rakit `${TOKEN_ID}|${PLAIN}`.
+
+--- Riwayat laporan asli (sudah tidak berlaku) ---
 
 Ditemukan 25 Oktober 2026 saat deploy pin sha-b5147fa (PR #168):
 
@@ -30,7 +40,7 @@ Opsi yang bisa dicoba owner:
    (yang terbukti jalan), plus `UPDATE applications SET git_commit_sha` di
    coolify-db supaya metadata tetap akurat.
 
-## 2. Komponen bersama Notice/Modal/Textarea untuk portal (F5)
+## 2. Komponen bersama Notice/Modal/Textarea untuk portal (F5) — disetujui owner 25 Okt 2026 ("membereskan itu juga"), dikerjakan di iterasi 23
 
 Backlog F5: halaman portal customers & listing menduplikasi pola Notice,
 Modal, dan Textarea. Perapihan yang benar menyentuh `components/ui/` yang
