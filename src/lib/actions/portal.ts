@@ -14,6 +14,7 @@ import {
 } from "./_helpers";
 import { mapUnit, type TransactionRow } from "./_mappers";
 import { getPublicSnapshot, getPublicStoreSettings } from "./public";
+import { loadAdditionalSource } from "./_additional-source";
 import { assemblePortalSnapshot } from "./_portal-snapshot";
 import type { PortalSnapshot as PortalSnapshotResult } from "./_portal-snapshot";
 
@@ -102,13 +103,11 @@ export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshotRe
   // memuat unit available dan tidak pernah membawa purchase_cost.
   let portalInventoryUnits: InventoryUnit[];
   if (guard.profile.role === "customer") {
-    let publicResult: Awaited<ReturnType<typeof getPublicSnapshot>>;
-    try {
-      publicResult = await getPublicSnapshot();
-    } catch {
-      return fail("Gagal memuat data portal.");
-    }
-    if ("error" in publicResult) return fail(publicResult.error);
+    const publicResult = await loadAdditionalSource(
+      () => getPublicSnapshot(),
+      "Gagal memuat data portal."
+    );
+    if (!publicResult.ok) return fail(publicResult.error);
     portalInventoryUnits = publicResult.data.inventoryUnits;
   } else {
     // Unit trade-in punya product_id NULL karena tidak punya baris katalog,
@@ -202,13 +201,11 @@ export async function getPortalSnapshot(): Promise<ActionResult<PortalSnapshotRe
           typeof assemblePortalSnapshot
         >[0]["profileRows"]);
 
-  let settingsResult: Awaited<ReturnType<typeof getPublicStoreSettings>>;
-  try {
-    settingsResult = await getPublicStoreSettings();
-  } catch {
-    return fail("Gagal memuat pengaturan toko.");
-  }
-  if ("error" in settingsResult) return fail(settingsResult.error);
+  const settingsResult = await loadAdditionalSource(
+    () => getPublicStoreSettings(),
+    "Gagal memuat pengaturan toko."
+  );
+  if (!settingsResult.ok) return fail(settingsResult.error);
 
   return ok(
     assemblePortalSnapshot({
