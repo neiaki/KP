@@ -20,6 +20,10 @@ test("route guard membatasi modul portal berdasarkan role", () => {
   assert.equal(canAccessPortalPath("/portal/customers", "technician"), false);
   assert.equal(canAccessPortalPath("/portal/customers", "customer"), false);
   assert.equal(canAccessPortalPath("/portal/account", "customer"), true);
+  assert.equal(canAccessPortalPath("/portal/listing", "admin"), true);
+  assert.equal(canAccessPortalPath("/portal/listing", "sales"), true);
+  assert.equal(canAccessPortalPath("/portal/listing", "technician"), false);
+  assert.equal(canAccessPortalPath("/portal/listing", "customer"), false);
 });
 
 test("redirect fallback role mengarah ke modul default yang benar", () => {

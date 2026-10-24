@@ -16,7 +16,11 @@ import {
 import { getPortalSnapshot, type PortalSnapshot } from "@/lib/actions/portal";
 import { getPublicSnapshot, type PublicSnapshot } from "@/lib/actions/public";
 import { resolveSeed } from "@/lib/public-seed";
-import { createProduct as createProductAction, updateProduct as updateProductAction } from "@/lib/actions/products";
+import {
+  createProduct as createProductAction,
+  updateProduct as updateProductAction,
+  updateProductListing as updateProductListingAction,
+} from "@/lib/actions/products";
 import { registerUnits, updateUnitStatus as updateUnitStatusAction } from "@/lib/actions/inventory";
 import { executeSale as executeSaleAction } from "@/lib/actions/pos";
 import {
@@ -629,6 +633,30 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     void password;
   };
 
+  const updateProductListing = async (
+    id: number,
+    updates: { default_price: number; official_images: string[] }
+  ): Promise<Product | undefined> => {
+    if (liveBackendEnabled) {
+      const updated = unwrap(
+        await updateProductListingAction(id, {
+          default_price: updates.default_price,
+          official_images: updates.official_images,
+        })
+      );
+      setProducts((prev) => prev.map((product) => (product.id === id ? updated : product)));
+      return updated;
+    }
+    // Mode demo: tidak ada kolom yang dilindungi; pakai jalur edit produk
+    // yang sudah ada supaya halaman Etalase & Harga bisa dicoba di demo.
+    const demo = await loadDemoModule();
+    return demo.demoUpdateProduct(
+      id,
+      { default_price: updates.default_price, official_images: updates.official_images },
+      setProducts
+    );
+  };
+
   const resetToDefault = async () => {
     if (liveBackendEnabled) return;
     const demo = await loadDemoModule();
@@ -659,6 +687,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     products,
     addProduct,
     updateProduct,
+    updateProductListing,
     inventoryUnits,
     addInventoryUnits,
     addBatchIMEI,

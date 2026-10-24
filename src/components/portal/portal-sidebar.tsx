@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Boxes,
+  Tag,
   Wrench,
   PackagePlus,
   Users,
@@ -73,6 +74,14 @@ export function PortalSidebar({
       label: "Master Produk",
       icon: Boxes,
       roles: ["admin"],
+    },
+    {
+      // Harga acuan dan foto model katalog, termasuk model yang belum
+      // menerima unit. Sales ikut diizinkan; kolom lain tetap Master Produk.
+      href: "/portal/listing",
+      label: "Etalase & Harga",
+      icon: Tag,
+      roles: ["admin", "sales"],
     },
     {
       href: "/portal/staff",

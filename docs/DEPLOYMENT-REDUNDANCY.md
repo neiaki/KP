@@ -294,6 +294,7 @@ wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
 | `20261016081500_current_actor_id_search_path.sql` | Memin `search_path` helper aktor audit `private.current_actor_id()` lewat `ALTER FUNCTION ... SET search_path = ''` supaya nama yang di-resolve di dalamnya tidak mengikuti `search_path` pemanggil (temuan advisor `function_search_path_mutable`, lint 0011). Badan fungsi, sifat STABLE, dan ACL tidak disentuh; non-destruktif dan idempoten |
 | `20261023111914_add_is_demo_flag.sql` | Menambah kolom `is_demo` bertipe boolean dengan default `false` di `inventory_units` dan `transactions`, lalu mengganti `v_public_inventory` supaya unit demo tidak pernah tampil di etalase. Data lama tetap dianggap data asli; non-destruktif dan idempoten |
 | `20261023112316_demo_inventory_imei_nullable.sql` | Melepas `NOT NULL` pada `inventory_units.imei` supaya unit demo boleh memakai IMEI `NULL`, tetapi tetap mewajibkan 15 digit untuk unit non-demo lewat `inventory_units_demo_imei_check`. Tidak mengubah IMEI unit asli |
+| `20261024110000_products_sales_update.sql` | Menambah policy `products_sales_update` di `public.products`: sales boleh `UPDATE` (harga acuan dan foto lewat Server Action `updateProductListing`), `INSERT` dan `DELETE` tetap admin. Pembatasan kolom ada di action, bukan di RLS. Non-destruktif dan idempoten |
 `0001` aman dijalankan ulang kapan saja, termasuk `supabase db push` yang
 terhenti di tengah lalu diulang. Rananya sudah dibetulkan pada 27 Sep 2026:
 versi lama `0001` memberi `EXECUTE` pada `public.get_my_role()` dan

@@ -129,6 +129,10 @@ const SECTIONS: { label: string; source: string }[] = [
     label: "20261023112316_demo_inventory_imei_nullable",
     source: "20261023112316_demo_inventory_imei_nullable.sql",
   },
+  {
+    label: "20261024110000_products_sales_update",
+    source: "20261024110000_products_sales_update.sql",
+  },
 ];
 
 /** Setiap berkas di supabase/migrations/ wajib muncul, tanpa kecuali. */
