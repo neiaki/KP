@@ -8,7 +8,8 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 
 **Diperbarui:** 24 Oktober 2026
 **Baseline:** `caee6f2` (`main`, commit pin image setelah PR #130)
-**Cabang kerja:** `main` bersih; tidak ada PR terbuka.
+**Cabang kerja:** `main` bersih. PR #133 (dokumentasi) berisi catatan
+verifikasi akhir; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 dan katalog lima model per merek sudah merge lewat PR #129. Pin image
 `Dockerfile.coolify` sudah dinaikkan lewat PR #130 dan production sudah
