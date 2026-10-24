@@ -7,13 +7,11 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 ## Status terbaru
 
 **Diperbarui:** 24 Oktober 2026
-**Baseline kode:** `23c649e` (`main`, merge PR #156; perbaikan minor dari
-code review sesi: Escape modal teratas dan limitOnePerBrand disederhanakan)
-**Baseline rilis:** `67aaa41` (`main`, merge PR #155 yang mem-pin image
-`sha-93d1fa5`; production menjalankan image itu dan health 200. Code review
-dua-aris atas seluruh PR sesi dikerjakan dan temuan pentingnya ditutup lewat
-PR #154: trigger `products_sales_column_guard` menutup celah sales mengubah
-kolom identitas katalog langsung via PostgREST)
+**Baseline kode:** `001b6a8` (`main`, merge PR #159; pin image yang memuat
+patch cookie httpOnly + secure dan catatan gambar GSMArena)
+**Baseline rilis:** `001b6a8` (`main`, merge PR #159; production menjalankan
+image `sha-001b6a8` yang memuat patch cookie httpOnly + secure di production
+(PR #158), health 200, dan 14 model katalog berfoto render GSMArena)
 **Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 dan katalog lima model per merek sudah merge lewat PR #129. PR #130 menaikkan
