@@ -13,6 +13,7 @@ import {
   Users,
   Settings,
   UserCheck,
+  UserPlus,
   LogOut,
   ExternalLink,
   Receipt,
@@ -48,6 +49,8 @@ export function PortalSidebar({
     full_name: "Staf At Cell",
     role: currentRole,
     email: "staf@atcell.my.id",
+    phone_number: "",
+    username: "",
   };
 
   /* Host portal hanya ditampilkan kalau memang sedang berada di subdomain
@@ -95,6 +98,12 @@ export function PortalSidebar({
     },
 
     // Sales & Admin
+    {
+      href: "/portal/customers",
+      label: "Akun Pelanggan",
+      icon: UserPlus,
+      roles: ["admin", "sales"],
+    },
     {
       href: "/portal/pos",
       label: "Kasir POS & Trade-In",
@@ -209,7 +218,11 @@ export function PortalSidebar({
           {currentProfile.full_name}
         </div>
         <div className="truncate text-[11px] text-slate-400">
-          {currentProfile.email || "Email staf tidak ditampilkan"}
+          {currentRole === "customer"
+            ? currentProfile.username
+              ? `@${currentProfile.username}`
+              : currentProfile.phone_number || "Pelanggan At Cell"
+            : currentProfile.email || "Email staf tidak ditampilkan"}
         </div>
         {!isLiveBackend && (
           <Link

@@ -8,12 +8,13 @@ export type UnitRow = {
   id: number;
   // NULL untuk unit trade-in yang tidak punya baris katalog products.
   product_id: number | null;
-  imei: string;
+  imei: string | null;
   condition: InventoryUnit["condition"];
   status: InventoryUnit["status"];
   purchase_cost: unknown;
   selling_price: unknown;
   created_at: string;
+  is_demo?: boolean;
 };
 
 export function mapUnit(u: UnitRow, includePurchaseCost = true): InventoryUnit {
@@ -26,6 +27,7 @@ export function mapUnit(u: UnitRow, includePurchaseCost = true): InventoryUnit {
     purchase_cost: includePurchaseCost ? toNumber(u.purchase_cost) : 0,
     selling_price: toNumber(u.selling_price),
     created_at: u.created_at,
+    is_demo: u.is_demo ?? false,
   };
 }
 
@@ -36,6 +38,7 @@ export type TransactionRow = {
   customer_id: string | null;
   customer_name: string;
   customer_phone: string;
+  is_demo?: boolean;
   total_amount: unknown;
   trade_in_deduction: unknown;
   final_payment: unknown;
@@ -87,6 +90,7 @@ export function mapTransaction(t: TransactionRow, includePurchaseCost = true): T
     final_paid_amount: toNumber(t.final_payment),
     payment_method: t.payment_method,
     created_at: t.created_at,
+    is_demo: t.is_demo ?? false,
     items,
     trade_in: trade
       ? {

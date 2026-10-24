@@ -78,6 +78,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
   const { switchRole, isLiveBackend } = useStore();
 
   const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
   const [mounted, setMounted] = useState(false);
@@ -114,7 +115,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
     if (isLiveBackend) {
       setSubmitting(true);
       try {
-        const result = await signInWithUsername(username, password);
+        const result = await signInWithUsername(username, password, phone);
         if (!result.ok) {
           setLoginError(result.error);
           return;
@@ -197,21 +198,39 @@ export function LoginPanel({ locale }: { locale: Locale }) {
           />
         </div>
         <div className="space-y-2">
-          <label htmlFor="login-password" className="block text-xs font-bold text-ink">
-            Kata sandi
+          <label htmlFor="login-phone" className="block text-xs font-bold text-ink">
+            Nomor HP Pelanggan <span className="font-medium text-muted">(opsional untuk staf)</span>
           </label>
           <Input
-            id="login-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Masukkan kata sandi"
+            id="login-phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="08123456789"
             suppressHydrationWarning
-            className="h-11 bg-paper text-sm placeholder:text-muted"
+            className="h-11 bg-paper font-mono text-sm placeholder:text-muted"
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="login-password" className="block text-xs font-bold text-ink">
+          Kata sandi
+        </label>
+        <Input
+          id="login-password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Masukkan kata sandi"
+          suppressHydrationWarning
+          className="h-11 bg-paper text-sm placeholder:text-muted"
+        />
       </div>
 
       <Button type="submit" disabled={submitting} className="h-11 w-full gap-2 text-sm">
@@ -234,7 +253,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
             </div>
             <div>
               <div className="text-base font-extrabold">At Cell</div>
-              <div className="font-mono text-xs">Portal staf</div>
+              <div className="font-mono text-xs">Portal staf &amp; pelanggan</div>
             </div>
           </div>
 
@@ -243,7 +262,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
               Kelola toko dari satu portal.
             </h1>
             <p className="mt-4 max-w-[42ch] text-sm font-medium leading-7 sm:text-base">
-              Masuk sesuai peran untuk membuka kasir, servis, inventaris, dan laporan At Cell.
+              Masuk sesuai peran untuk membuka kasir, servis, inventaris, laporan, atau riwayat pembelian.
             </p>
           </div>
 
@@ -256,11 +275,11 @@ export function LoginPanel({ locale }: { locale: Locale }) {
             </div>
             <div>
               <div className="text-sm font-extrabold">
-                {isLiveBackend ? "Akun staf terdaftar" : "Coba tanpa konfigurasi"}
+                {isLiveBackend ? "Akun staf dan pelanggan terdaftar" : "Coba tanpa konfigurasi"}
               </div>
               <p className="mt-1 text-xs font-medium leading-5">
                 {isLiveBackend
-                  ? "Masuk memakai username dan kata sandi yang sudah terdaftar."
+                  ? "Masuk memakai username dan kata sandi. Pelanggan juga memasukkan nomor HP yang terdaftar."
                   : "Pilih akun dan coba alur kerja tanpa mengatur database."}
               </p>
             </div>
@@ -294,7 +313,7 @@ export function LoginPanel({ locale }: { locale: Locale }) {
               </div>
               <p className="mt-2 max-w-lg text-sm leading-6 text-muted">
                 {isLiveBackend
-                  ? "Gunakan akun staf yang telah terdaftar."
+                  ? "Gunakan akun staf atau pelanggan. Pelanggan memasukkan nomor HP yang terdaftar."
                   : "Pilih satu profil dan langsung menuju modul yang tepat."}
               </p>
             </div>

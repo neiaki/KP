@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   inventoryUnits,
+  profiles,
   tradeInRecords,
   transactionItems,
   transactions,
@@ -50,6 +51,8 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
   const tradeVal = v.tradeIn?.offeredPrice ?? 0;
   let txId: number;
   let committedUnit: InventoryUnitRow | null = null;
+  let committedCustomerName = v.customerName;
+  let committedCustomerPhone = v.customerPhone;
 
   try {
     txId = await db.transaction(async (tx) => {
@@ -66,17 +69,48 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
         .for("update");
       const unit = found[0];
       if (!unit) throw new Error("UNIT_NOT_AVAILABLE");
-       committedUnit = unit;
+      // Unit demo hanya untuk riwayat akun contoh. UI sudah menyembunyikannya
+      // dari daftar kasir, tapi Server Action bisa dipanggil langsung, jadi
+      // penolakan wajib ada di sini juga.
+      if (unit.isDemo) throw new Error("UNIT_IS_DEMO");
+      committedUnit = unit;
 
       const price = toNumber(unit.sellingPrice);
 
+      // Tautkan transaksi ke akun pelanggan terdaftar. Data profil dipakai
+      // sebagai sumber kebenaran, bukan input dari browser.
+      let customer: { id: string; fullName: string; phoneNumber: string } | null = null;
+      if (v.customerId) {
+        const [profile] = await tx
+          .select({
+            id: profiles.id,
+            fullName: profiles.fullName,
+            phoneNumber: profiles.phoneNumber,
+            role: profiles.role,
+          })
+          .from(profiles)
+          .where(eq(profiles.id, v.customerId))
+          .limit(1);
+        if (!profile || profile.role !== "customer") throw new Error("CUSTOMER_NOT_FOUND");
+        customer = {
+          id: profile.id,
+          fullName: profile.fullName,
+          phoneNumber: profile.phoneNumber,
+        };
+        // Akun pelanggan lama bisa punya nomor kosong. Nomor yang diketik
+        // kasir saat checkout dipakai sebagai cadangan supaya transaksi tetap
+        // punya kontak garansi, tanpa menimpa profil pelanggan.
+        committedCustomerName = profile.fullName;
+        committedCustomerPhone = profile.phoneNumber.trim() || v.customerPhone;
+      }
 
       const [t] = await tx
         .insert(transactions)
         .values({
           salesId: guard.profile.id,
-          customerName: v.customerName,
-          customerPhone: v.customerPhone,
+          customerId: customer?.id ?? v.customerId ?? null,
+          customerName: committedCustomerName,
+          customerPhone: committedCustomerPhone,
           totalAmount: String(price),
           tradeInDeduction: String(tradeVal),
           finalPayment: String(finalPaymentAmount(price, tradeVal)),
@@ -140,6 +174,12 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
     if (err.message === "UNIT_NOT_AVAILABLE") {
       return fail("Unit sudah tidak tersedia (terjual/dipesan). Pilih IMEI lain.");
     }
+    if (err.message === "UNIT_IS_DEMO") {
+      return fail("Unit demo tidak bisa dijual lewat kasir. Pilih unit stok asli.");
+    }
+    if (err.message === "CUSTOMER_NOT_FOUND") {
+      return fail("Akun pelanggan tidak ditemukan. Pilih pelanggan lain.");
+    }
     if (err.code === "23505") {
       return fail("IMEI unit trade-in sudah terdaftar di inventaris.");
     }
@@ -173,9 +213,9 @@ export async function executeSale(raw: PosSaleInput): Promise<ActionResult<Trans
       id: txId,
       invoice_number: invoiceNumber,
       sales_id: guard.profile.id,
-      customer_id: null,
-      customer_name: v.customerName,
-      customer_phone: v.customerPhone,
+      customer_id: v.customerId ?? null,
+      customer_name: committedCustomerName,
+      customer_phone: committedCustomerPhone,
       total_amount: unitPrice,
       trade_in_deduction: tradeVal,
       final_payment: finalPaymentAmount(unitPrice, tradeVal),
@@ -242,6 +282,8 @@ export async function listTransactions(opts?: {
   let q = supabase
     .from("transactions")
     .select(TX_SELECT)
+    // Laporan penjualan tidak boleh menghitung transaksi demo.
+    .eq("is_demo", false)
     .order("created_at", { ascending: false })
     .limit(Math.min(Math.max(opts?.limit ?? 200, 1), 200));
   if (opts?.from) q = q.gte("created_at", opts.from);

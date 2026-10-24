@@ -145,10 +145,11 @@ export default function MasterProductsPage() {
 
   // Satu lintasan atas inventoryUnits untuk semua kartu, bukan satu filter
   // per kartu per render. Unit trade-in punya product_id null dan tidak boleh
-  // dihitung ke model mana pun.
+  // dihitung ke model mana pun. Unit demo juga tidak boleh terlihat sebagai
+  // stok asli di halaman master produk.
   const unitCountByProductId = new Map<number, { total: number; available: number }>();
   for (const u of inventoryUnits) {
-    if (u.product_id === null) continue;
+    if (u.product_id === null || u.is_demo) continue;
     const entry = unitCountByProductId.get(u.product_id) ?? { total: 0, available: 0 };
     entry.total += 1;
     if (u.status === "available") entry.available += 1;

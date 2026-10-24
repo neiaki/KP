@@ -194,8 +194,8 @@ test("IMEI 15 digit tetap dijaga di jalur koreksi", () => {
   const body = actionBody();
   assert.match(
     body,
-    /if \(!\/\^\\d\{15\}\$\/\.test\(current\.imei\)\) \{[\s\S]*?IMEI unit ini tidak lengkap 15 digit/,
-    "unit dengan IMEI rusak harus ditolak, bukan ikut dikoreksi"
+    /if \(!current\.isDemo && \(!current\.imei \|\| !\/\^\\d\{15\}\$\/\.test\(current\.imei\)\)\) \{[\s\S]*?IMEI unit ini tidak lengkap 15 digit/,
+    "unit non-demo dengan IMEI rusak harus ditolak, unit demo tanpa IMEI boleh dikoreksi"
   );
 });
 

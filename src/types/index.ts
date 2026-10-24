@@ -97,12 +97,16 @@ export interface InventoryUnit {
   // snapshot portal dirakit. Staff butuh ini untuk tahu unit apa yang sedang
   // mereka lihat, karena product_id-nya sengaja null. Hanya terisi di portal.
   trade_in_model?: string;
-  imei: string; // strict 15 digits
+  // NULL untuk unit demo: data contoh tidak boleh mengarang IMEI. Unit asli
+  // tetap wajib 15 digit dan dijaga check constraint di database.
+  imei: string | null;
   condition: UnitCondition;
   purchase_cost: number; // Internal only, never leak to public
   selling_price: number;
   status: UnitStatus;
   created_at: string;
+  // Unit demo tidak boleh muncul sebagai stok publik dan tidak masuk laporan.
+  is_demo?: boolean;
 }
 
 export interface TradeInRecord {
@@ -156,6 +160,8 @@ export interface Transaction {
   created_at: string;
   items: TransactionItem[];
   trade_in?: TradeInRecord;
+  // Transaksi demo tidak masuk laporan penjualan.
+  is_demo?: boolean;
 }
 
 export interface ServiceCostItem {

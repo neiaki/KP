@@ -55,3 +55,5 @@
 20261013120000	redact_store_contact
 20261015000000	service_ticket_picked_up_at
 20261016081500	current_actor_id_search_path
+20261023111914	add_is_demo_flag
+20261023112316	demo_inventory_imei_nullable

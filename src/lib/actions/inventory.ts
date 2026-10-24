@@ -243,6 +243,7 @@ export async function updateUnitDetails(
           purchaseCost: inventoryUnits.purchaseCost,
           sellingPrice: inventoryUnits.sellingPrice,
           imei: inventoryUnits.imei,
+          isDemo: inventoryUnits.isDemo,
           status: inventoryUnits.status,
         })
         .from(inventoryUnits)
@@ -275,7 +276,7 @@ export async function updateUnitDetails(
       // harga, jadi memperbaikinya bukan urusan form ini. Menolak di sini lebih
       // baik daripada menandai koreksi berhasil sementara baris yang dikoreksi
       // masih menyesatkan etalase.
-      if (!/^\d{15}$/.test(current.imei)) {
+      if (!current.isDemo && (!current.imei || !/^\d{15}$/.test(current.imei))) {
         return { error: "IMEI unit ini tidak lengkap 15 digit, perbaiki dulu di katalog." } as const;
       }
 

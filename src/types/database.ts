@@ -132,28 +132,31 @@ export interface Database {
         Row: {
           id: number;
           product_id: number;
-          imei: string;
+          imei: string | null;
           condition: UnitCondition;
           status: UnitStatus;
           purchase_cost: number;
           selling_price: number;
           created_at: string;
+          is_demo: boolean;
         };
         Insert: {
           product_id: number;
-          imei: string;
+          imei?: string | null;
           condition: UnitCondition;
           status?: UnitStatus;
           purchase_cost?: number;
           selling_price?: number;
+          is_demo?: boolean;
         };
         Update: {
           product_id?: number;
-          imei?: string;
+          imei?: string | null;
           condition?: UnitCondition;
           status?: UnitStatus;
           purchase_cost?: number;
           selling_price?: number;
+          is_demo?: boolean;
         };
         Relationships: [];
       };
@@ -169,6 +172,7 @@ export interface Database {
           trade_in_deduction: number;
           final_payment: number;
           payment_method: PaymentMethod;
+          is_demo: boolean;
           created_at: string;
         };
         Insert: {
@@ -180,10 +184,12 @@ export interface Database {
           trade_in_deduction?: number;
           final_payment?: number;
           payment_method: PaymentMethod;
+          is_demo?: boolean;
         };
         Update: {
           customer_name?: string;
           customer_phone?: string;
+          is_demo?: boolean;
         };
         Relationships: [];
       };

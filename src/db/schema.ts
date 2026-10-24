@@ -190,15 +190,19 @@ export const inventoryUnits = pgTable(
     productId: bigint("product_id", { mode: "number" }).references(() => products.id, {
       onDelete: "restrict",
     }),
-    imei: text("imei").notNull().unique(),
+    // NULL hanya untuk unit demo; unit asli tetap wajib 15 digit lewat check.
+    imei: text("imei").unique(),
     condition: unitConditionEnum("condition").notNull(),
     status: unitStatusEnum("status").notNull().default("available"),
+    // Unit demo tidak boleh muncul di etalase publik dan tidak masuk laporan.
+    isDemo: boolean("is_demo").notNull().default(false),
     purchaseCost: numeric("purchase_cost").notNull().default("0"),
     sellingPrice: numeric("selling_price").notNull().default("0"),
     createdAt: createdAtCol(),
   },
   (t) => [
-    check("inventory_units_imei_check", sql`${t.imei} ~ '^\\d{15}$'`),
+    check("inventory_units_imei_check", sql`${t.imei} is null or ${t.imei} ~ '^\\d{15}$'`),
+    check("inventory_units_demo_imei_check", sql`${t.isDemo} or ${t.imei} is not null`),
     index("inventory_units_product_status_idx").on(t.productId, t.status),
     index("inventory_units_status_idx").on(t.status),
   ]
@@ -219,6 +223,8 @@ export const transactions = pgTable(
     tradeInDeduction: numeric("trade_in_deduction").notNull().default("0"),
     finalPayment: numeric("final_payment").notNull().default("0"),
     paymentMethod: paymentMethodEnum("payment_method").notNull(),
+    // Transaksi demo tidak masuk laporan penjualan.
+    isDemo: boolean("is_demo").notNull().default(false),
     createdAt: createdAtCol(),
   },
   (t) => [

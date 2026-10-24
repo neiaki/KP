@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, eq, gte, notInArray } from "drizzle-orm";
+import { and, desc, eq, gte, notInArray } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { inventoryUnits, products, profiles, serviceTickets, transactions } from "@/db/schema";
 import {
@@ -37,7 +37,12 @@ export async function getBusinessSummary(): Promise<ActionResult<BusinessSummary
   const txs = await db
     .select({ finalPayment: transactions.finalPayment, createdAt: transactions.createdAt })
     .from(transactions)
-    .where(gte(transactions.createdAt, startOfDay(since)))
+    .where(
+      and(
+        gte(transactions.createdAt, startOfDay(since)),
+        eq(transactions.isDemo, false)
+      )
+    )
     .orderBy(transactions.createdAt);
   // Tiket aktif = status apa pun kecuali selesai/diambil/batal.
   const activeTickets = await db
@@ -88,7 +93,12 @@ export async function getLowStockAlerts(
   const availableUnits = await db
     .select({ productId: inventoryUnits.productId })
     .from(inventoryUnits)
-    .where(eq(inventoryUnits.status, "available"));
+    .where(
+      and(
+        eq(inventoryUnits.status, "available"),
+        eq(inventoryUnits.isDemo, false)
+      )
+    );
   // Unit trade-in punya product_id NULL. Mengabaikannya di sini penting:
   // kalau ikut dihitung, satu bucket null akan menggabungkan semua handset
   // tukar-tukar menjadi satu "produk", dan low-stock ikut salah.

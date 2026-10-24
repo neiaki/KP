@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   REPAIR_FLOW,
   createTicketSchema,
+  customerCreateSchema,
   imeiSchema,
   isAllowedTransition,
+  phoneSchema,
   posSaleSchema,
   registerUnitsSchema,
   ticketCodeSchema,
@@ -17,6 +19,50 @@ test("IMEI hanya menerima tepat 15 digit angka", () => {
   assert.equal(imeiSchema.safeParse("12345678901234").success, false);
   assert.equal(imeiSchema.safeParse("1234567890123456").success, false);
   assert.equal(imeiSchema.safeParse("12345678901234A").success, false);
+});
+
+test("nomor telepon dihitung dari digit, bukan panjang karakter mentah", () => {
+  assert.equal(phoneSchema.safeParse("081234567890").success, true);
+  assert.equal(phoneSchema.safeParse("+62 812-3456-7890").success, true);
+  assert.equal(phoneSchema.safeParse("(021) 555-1234").success, true);
+  // Tanda baca saja dulu lolos .min(9) lalu dinormalkan menjadi kosong.
+  assert.equal(phoneSchema.safeParse("---------").success, false);
+  assert.equal(phoneSchema.safeParse("   ").success, false);
+  assert.equal(phoneSchema.safeParse("12345678").success, false);
+  assert.equal(phoneSchema.safeParse("1234567890123456").success, false);
+});
+
+test("akun pelanggan buatan staf tidak meminta email", () => {
+  const tanpaEmail = customerCreateSchema.safeParse({
+    fullName: "Ega",
+    username: "ega",
+    password: "rahasia123",
+    phoneNumber: "081200000001",
+  });
+  assert.equal(tanpaEmail.success, true);
+  assert.equal(
+    customerCreateSchema.safeParse({
+      fullName: "Ega",
+      username: "ega",
+      password: "rahasia123",
+      phoneNumber: "---------",
+    }).success,
+    false
+  );
+  // Username ini sah menurut aturan umum, tetapi bukan bagian lokal email yang
+  // sah untuk email sintetis Supabase Auth.
+  for (const username of [".ega", "ega.", "eg..a"]) {
+    assert.equal(
+      customerCreateSchema.safeParse({
+        fullName: "Ega",
+        username,
+        password: "rahasia123",
+        phoneNumber: "081200000001",
+      }).success,
+      false,
+      `username ${username} harus ditolak`
+    );
+  }
 });
 
 test("batch IMEI menolak duplikasi di dalam input", () => {

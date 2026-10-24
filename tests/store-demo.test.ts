@@ -7,6 +7,7 @@ import {
   demoAddInventoryUnits,
   demoAddProduct,
   demoAddStaff,
+  demoAddCustomer,
   demoCreateServiceTicket,
   demoExecutePosSale,
   demoInitialState,
@@ -281,6 +282,67 @@ test("POS menolak double-sell dan mencatat nota", () => {
       ),
     /tidak ditemukan/
   );
+});
+
+test("POS menolak unit demo meski statusnya available", () => {
+  pasangStorageAwal();
+  const demoUnit: InventoryUnit = {
+    ...unit(1, "350000000000001"),
+    imei: null,
+    is_demo: true,
+  };
+  const units = penampung<InventoryUnit[]>([demoUnit]);
+  const nota = penampung<Transaction[]>([]);
+  assert.throws(
+    () =>
+      demoExecutePosSale(
+        units.nilai(),
+        {
+          unitId: 1,
+          customerName: "Budi",
+          customerPhone: "081234567890",
+          paymentMethod: "cash",
+          warrantyDurationMonths: 3,
+        },
+        units.set,
+        nota.set
+      ),
+    /demo tidak bisa dijual/
+  );
+  // Penolakan terjadi sebelum mutasi apa pun.
+  assert.equal(units.nilai()[0]!.status, "available");
+  assert.equal(nota.nilai().length, 0);
+});
+
+test("POS menautkan transaksi ke akun pelanggan terdaftar", () => {
+  pasangStorageAwal();
+  const units = penampung<InventoryUnit[]>([unit(1, "350000000000001")]);
+  const nota = penampung<Transaction[]>([]);
+  const hasil = demoExecutePosSale(
+    units.nilai(),
+    {
+      unitId: 1,
+      customerId: "cust-ega",
+      customerName: "Ega",
+      customerPhone: "081200000001",
+      paymentMethod: "cash",
+      warrantyDurationMonths: 12,
+    },
+    units.set,
+    nota.set
+  );
+  assert.equal(hasil.customer_id, "cust-ega");
+  assert.equal(nota.nilai()[0]!.customer_id, "cust-ega");
+});
+
+test("akun pelanggan demo tidak menyimpan email sintetis", () => {
+  pasangStorageAwal();
+  const profiles = penampung<Profile[]>([]);
+  const baru = demoAddCustomer("Ega", "081200000001", "rahasia123", "ega", profiles.set);
+  assert.equal(baru?.username, "ega");
+  assert.equal(baru?.role, "customer");
+  assert.equal(baru?.email, undefined);
+  assert.equal(profiles.nilai()[0]?.email, undefined);
 });
 
 test("POS trade-in mendaftarkan unit lama sebagai stok second", () => {

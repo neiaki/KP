@@ -154,6 +154,26 @@ test("snapshot customer membatasi profil dan menyembunyikan modal pembelian unit
   assert.deepEqual(snapshot.products[0]?.official_images, []);
 });
 
+test("snapshot pelanggan tidak membocorkan email sintetis", () => {
+  const denganEmail = {
+    ...profile,
+    email: "ayu@pelanggan.atcell.my.id",
+  };
+  const snapshot = assemblePortalSnapshot({
+    profile: denganEmail,
+    storeSettings: settings,
+    productRows,
+    inventoryUnits: [],
+    transactionRows,
+    serviceTicketRows: [],
+    profileRows: [],
+  });
+
+  assert.equal(snapshot.profile.email, undefined);
+  assert.equal(snapshot.profiles[0]?.email, undefined);
+  assert.equal(snapshot.profile.username, "ayu");
+});
+
 test("snapshot staf mempertahankan profil dan nilai internal yang memang diizinkan", () => {
   const staffProfile = { ...profile, id: "staff-1", role: "admin" as const };
   const snapshot = assemblePortalSnapshot({

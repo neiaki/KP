@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
 import {
+  customerCreateSchema,
   customerSignUpSchema,
   phoneSchema,
   staffInviteSchema,
@@ -19,6 +20,7 @@ import {
 import { pickClientIp } from "@/lib/client-ip";
 import { consumeCredentialAttempt, consumeRateLimit } from "@/lib/rate-limit";
 import { deriveUsernameFromEmail } from "@/lib/username";
+import { normalizePhoneNumber } from "@/lib/wa";
 import type { UserRole } from "@/types";
 import {
   backendOffline,
@@ -56,16 +58,25 @@ async function throttleCredential(identifier: string): Promise<string | null> {
 /**
  * Login portal staf/pelanggan memakai username, bukan email.
  *
+ * Pelanggan yang sudah punya nomor terdaftar juga wajib memasukkan nomor HP.
+ * Nomor itu dicocokkan sebelum password diverifikasi, tetapi pesan gagal
+ * dibuat sama untuk semua sebab supaya username dan nomor tidak bisa
+ * dienumerasi lewat percobaan login. Password tetap diverifikasi Supabase
+ * sebelum sesi dibuat. Akun pelanggan lama yang nomornya masih kosong tetap
+ * bisa masuk dengan username dan kata sandi, lalu diminta melengkapi nomor
+ * di halaman akun. Tanpa toleransi ini, akun lama akan terkunci sebelum
+ * sempat diisi.
+ *
  * Supabase Auth hanya menerima email di signInWithPassword, jadi username
  * dipetakan ke email lewat service_role (bypass RLS, karena policies hanya
- * mengizinkan user membaca baris profil sendiri). Pesan gagal sengaja sama
- * untuk "username tidak ada" dan "password salah" supaya username tidak
- * bisa dienumerasi. Throttle dipotong lebih dulu lagi, di sebelum pencarian
- * profil, supaya pesan "terlalu banyak percobaan" juga tidak jadi oracle.
+ * mengizinkan user membaca baris profil sendiri). Throttle dipotong lebih
+ * dulu lagi, di sebelum pencarian profil, supaya pesan "terlalu banyak
+ * percobaan" juga tidak jadi oracle.
  */
 export async function signInWithUsername(
   username: string,
-  password: string
+  password: string,
+  phone?: string
 ): Promise<ActionResult<{ role: UserRole; redirectTo: string }>> {
   if (!isSupabaseConfigured()) return backendOffline();
   if (!isSupabaseAdminConfigured()) {
@@ -86,11 +97,26 @@ export async function signInWithUsername(
   const admin = createAdminClient();
   const { data: row, error: lookupError } = await admin
     .from("profiles")
-    .select("email")
+    .select("email, role, phone_number")
     .eq("username", parsed.data)
     .maybeSingle();
   if (lookupError) return fail("Masuk sedang tidak dapat diproses. Coba lagi sebentar.");
   if (!row?.email) return fail("Username atau kata sandi salah.");
+
+  if (row.role === "customer") {
+    const storedPhone = normalizePhoneNumber(row.phone_number);
+    // Nomor lama bisa kosong atau berisi tanda baca saja. Nomor yang tidak
+    // menghasilkan 9 sampai 15 digit tidak boleh mengunci akun: pelanggan
+    // harus tetap bisa masuk dengan username + password, lalu melengkapi
+    // nomornya di halaman akun. Nomor yang valid tetap wajib dicocokkan.
+    const storedPhoneUsable = storedPhone.length >= 9 && storedPhone.length <= 15;
+    if (storedPhoneUsable) {
+      const suppliedPhone = normalizePhoneNumber(phone);
+      if (!suppliedPhone || suppliedPhone !== storedPhone) {
+        return fail("Username atau kata sandi salah.");
+      }
+    }
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
@@ -155,6 +181,109 @@ export async function signUpCustomer(input: {
   return ok({ userId: data.user.id });
 }
 
+/**
+ * Domain email sintetis untuk akun pelanggan yang dibuat staf.
+ *
+ * Pelanggan tidak pernah melihat atau mengisi alamat ini. Supabase Auth tetap
+ * membutuhkan email unik sebagai identitas login, jadi username yang sudah
+ * unik dipetakan ke alamat yang tidak punya kotak masuk. Kalau nanti pemilik
+ * ingin memberi email asli, alamat Auth bisa diperbarui tanpa mengubah
+ * username pelanggan.
+ */
+const CUSTOMER_EMAIL_DOMAIN = "pelanggan.atcell.my.id";
+
+function customerEmailFor(username: string): string {
+  return `${username}@${CUSTOMER_EMAIL_DOMAIN}`;
+}
+
+/**
+ * Admin atau sales membuat akun pelanggan tanpa meminta email.
+ *
+ * Alur ini sengaja tidak memakai signUpCustomer: signUpCustomer berjalan
+ * dengan sesi anon, bisa mengirim email konfirmasi, dan tidak bisa menetapkan
+ * peran. Di sini user dibuat lewat Admin API dengan email sudah terkonfirmasi,
+ * lalu profil dikoreksi. Kalau koreksi profil gagal, user Auth baru dihapus
+ * supaya tidak meninggalkan akun yatim yang tidak bisa dipakai siapa pun.
+ */
+export async function createCustomerAccount(input: {
+  fullName: string;
+  username: string;
+  password: string;
+  phoneNumber: string;
+}): Promise<ActionResult<{ userId: string }>> {
+  const write = requireWriteAccess();
+  if ("error" in write) return fail(write.error);
+  const guard = await requireRole(["admin", "sales"]);
+  if ("error" in guard) return fail(guard.error);
+
+  const parsed = customerCreateSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Data pelanggan tidak valid.");
+  }
+  if (!isSupabaseAdminConfigured()) {
+    return fail("SUPABASE_SERVICE_ROLE_KEY belum diisi, tidak bisa membuat akun pelanggan.");
+  }
+
+  const admin = createAdminClient();
+  const email = customerEmailFor(parsed.data.username);
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: parsed.data.password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: parsed.data.fullName,
+      phone_number: parsed.data.phoneNumber,
+      username: parsed.data.username,
+    },
+  });
+
+  if (error || !data.user) {
+    const message = error?.message.toLowerCase() ?? "";
+    if (
+      message.includes("already") ||
+      message.includes("duplicate") ||
+      message.includes("registered")
+    ) {
+      return fail("Username sudah dipakai. Coba username lain.");
+    }
+    return fail("Gagal membuat akun pelanggan. Periksa data dan coba lagi.");
+  }
+
+  const { data: updatedProfile, error: profileError } = await admin
+    .from("profiles")
+    .update({
+      full_name: parsed.data.fullName,
+      phone_number: parsed.data.phoneNumber,
+      role: "customer",
+      username: parsed.data.username,
+      email,
+    })
+    .eq("id", data.user.id)
+    .select("id")
+    .maybeSingle();
+
+  // Update yang tidak mengenai baris apa pun juga dianggap gagal. Tanpa
+  // pemeriksaan ini, trigger profil yang tidak berjalan meninggalkan user Auth
+  // tanpa profil, dan akun itu tidak bisa dipakai siapa pun.
+  if (profileError || !updatedProfile) {
+    // Jangan biarkan user Auth tanpa profil yang bisa dipakai. Kalau rollback
+    // ikut gagal, pesan tetap tidak membocorkan detail internal.
+    await admin.auth.admin.deleteUser(data.user.id);
+    // Username juga punya unique constraint sendiri. Kalau email Auth lolos
+    // tetapi username sudah dipakai profil lain, beri pesan yang bisa
+    // ditindaklanjuti, bukan "coba lagi" yang tidak akan pernah berhasil.
+    if (profileError?.code === "23505") {
+      return fail("Username sudah dipakai. Coba username lain.");
+    }
+    return fail("Akun pelanggan gagal disimpan. Coba lagi.");
+  }
+
+  revalidatePath("/portal/staff");
+  revalidatePath("/portal/customers");
+  revalidatePath("/portal/pos");
+  return ok({ userId: data.user.id });
+}
+
 export async function signOut(): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = await createClient();
@@ -191,7 +320,7 @@ export async function inviteStaff(input: {
     },
   });
   if (error || !data.user) return fail("Gagal membuat user. Periksa email dan coba lagi.");
-  const { error: roleError } = await admin
+  const { data: updatedProfile, error: roleError } = await admin
     .from("profiles")
     .update({
       full_name: parsed.data.fullName,
@@ -200,8 +329,15 @@ export async function inviteStaff(input: {
       username: parsed.data.username,
       email: parsed.data.email,
     })
-    .eq("id", data.user.id);
-  if (roleError) return fail("User dibuat, tetapi peran belum berhasil disimpan. Coba lagi.");
+    .eq("id", data.user.id)
+    .select("id")
+    .maybeSingle();
+  if (roleError || !updatedProfile) {
+    // Sama seperti createCustomerAccount: user Auth tanpa profil yang benar
+    // tidak bisa dipakai, jadi jangan ditinggalkan sebagai akun yatim.
+    await admin.auth.admin.deleteUser(data.user.id);
+    return fail("Gagal membuat user. Periksa data dan coba lagi.");
+  }
   revalidatePath("/portal/staff");
   return ok({ userId: data.user.id });
 }

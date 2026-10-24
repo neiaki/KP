@@ -53,7 +53,11 @@ export function canAccessPortalPath(pathname: string, role: UserRole): boolean {
   ) {
     return role === "admin";
   }
-  if (pathname.startsWith("/portal/pos") || pathname.startsWith("/portal/inventory")) {
+  if (
+    pathname.startsWith("/portal/pos") ||
+    pathname.startsWith("/portal/inventory") ||
+    pathname.startsWith("/portal/customers")
+  ) {
     return role === "admin" || role === "sales";
   }
   if (pathname.startsWith("/portal/service")) {

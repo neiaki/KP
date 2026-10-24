@@ -8,6 +8,7 @@ import { uploadPhoto } from "@/lib/actions/storage";
 import { TRADE_IN_MODELS } from "@/lib/trade-in-models";
 import { UNIT_LABEL_UNKNOWN, unitLabel } from "@/lib/shop";
 import { finalPaymentAmount } from "@/lib/pricing";
+import { phoneDigits } from "@/lib/wa";
 import { PaymentMethod, Transaction, UnitCondition } from "@/types";
 import {
   ShoppingCart,
@@ -28,9 +29,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CustomerAccountForm } from "@/components/portal/customer-account-form";
 
 export default function SalesPosPage() {
-  const { products, inventoryUnits, processSale, storeSettings, isLiveBackend } = useStore();
+  const { products, inventoryUnits, processSale, storeSettings, isLiveBackend, profiles } = useStore();
 
   // Selected physical unit (must be available)
   const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
@@ -38,6 +40,8 @@ export default function SalesPosPage() {
   // Walk-in Guest Customer Info
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
 
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris");
@@ -89,10 +93,21 @@ export default function SalesPosPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [completedInvoice]);
 
-  // Filter available physical units
-  const availableUnits = inventoryUnits.filter((u) => u.status === "available");
+  // Filter available physical units. Unit demo tidak boleh dijual lewat POS.
+  const availableUnits = inventoryUnits.filter(
+    (u) => u.status === "available" && !u.is_demo
+  );
 
   const selectedUnit = inventoryUnits.find((u) => u.id === selectedUnitId);
+  const selectedCustomer = profiles.find((p) => p.id === selectedCustomerId);
+  // Akun pelanggan lama bisa belum punya nomor HP. Nomor itu wajib ada untuk
+  // garansi, jadi kasir harus bisa mengisinya di sini; kalau profil sudah punya
+  // nomor yang lolos aturan yang sama dengan phoneSchema, kolomnya dikunci
+  // supaya nota tidak berbeda dari data pelanggan. Nomor lama yang hanya berisi
+  // tanda baca tidak boleh mengunci kasir pada nilai yang pasti ditolak server.
+  const customerPhoneDigits = phoneDigits(selectedCustomer?.phone_number);
+  const customerPhoneLocked =
+    customerPhoneDigits.length >= 9 && customerPhoneDigits.length <= 15;
   // Nama unit SELALU lewat unitLabel(). Unit trade-in punya product_id null,
   // jadi products.find di sini selalu undefined untuk unit itu dan nota
   // garansi pernah tercetak menamai handset "At Cell Smartphone". Label juga
@@ -145,6 +160,13 @@ export default function SalesPosPage() {
       setNotice({ type: "error", text: "Nama pelanggan wajib diisi untuk registrasi kartu garansi IMEI!" });
       return;
     }
+    if (!customerPhone.trim()) {
+      setNotice({
+        type: "error",
+        text: "Nomor HP pelanggan wajib diisi untuk aktivasi garansi.",
+      });
+      return;
+    }
 
     if (hasTradeIn && !tradeInBrandModel) {
       setNotice({ type: "error", text: "Pilih model handphone lama pada dropdown!" });
@@ -172,6 +194,7 @@ export default function SalesPosPage() {
         // salesId sengaja tidak dikirim: processSale memakai guard.profile.id
         // dari sesi, bukan nilai dari browser.
         unitId: selectedUnitId,
+        customerId: selectedCustomerId,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         paymentMethod,
@@ -211,6 +234,7 @@ export default function SalesPosPage() {
        setTradeInPhotoUrls([]);
       setCustomerName("");
       setCustomerPhone("");
+      setSelectedCustomerId(null);
     } catch (err: unknown) {
       setNotice({
         type: "error",
@@ -612,6 +636,64 @@ export default function SalesPosPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
+                <label htmlFor="pos-customer-select" className="mb-1 block text-xs font-semibold text-muted">
+                  Pelanggan terdaftar (opsional)
+                </label>
+                <select
+                  id="pos-customer-select"
+                  value={selectedCustomerId ?? ""}
+                  onChange={(e) => {
+                    const id = e.target.value || null;
+                    setSelectedCustomerId(id);
+                    if (id) {
+                      const p = profiles.find((x) => x.id === id);
+                      if (p) {
+                        setCustomerName(p.full_name);
+                        setCustomerPhone(p.phone_number ?? "");
+                      }
+                    } else {
+                      setCustomerName("");
+                      setCustomerPhone("");
+                    }
+                  }}
+                  className="h-11 w-full rounded-lg border border-line bg-card px-3 text-base font-medium text-ink sm:h-10 sm:text-xs"
+                >
+                  <option value="">Walk-in / tanpa akun</option>
+                  {profiles
+                    .filter((p) => p.role === "customer")
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name}{" "}
+                        {p.username
+                          ? `(@${p.username})`
+                          : p.phone_number
+                            ? `(${p.phone_number})`
+                            : ""}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerModal(true)}
+                  className="mt-1 text-[11px] font-semibold text-accent-deep hover:underline"
+                >
+                  Buat akun pelanggan baru
+                </button>
+                {selectedCustomerId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomerId(null);
+                      setCustomerName("");
+                      setCustomerPhone("");
+                    }}
+                    className="ml-3 mt-1 text-[11px] font-semibold text-muted hover:underline"
+                  >
+                    Lepas tautan
+                  </button>
+                )}
+              </div>
+              <div>
                 <label
                   htmlFor="pos-customer-name"
                   className="mb-1 block text-xs font-semibold text-muted"
@@ -626,6 +708,7 @@ export default function SalesPosPage() {
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Contoh: Anisa Rahmawati"
                   className="sm:text-xs"
+                  disabled={!!selectedCustomerId}
                 />
               </div>
 
@@ -634,7 +717,7 @@ export default function SalesPosPage() {
                   htmlFor="pos-customer-phone"
                   className="mb-1 block text-xs font-semibold text-muted"
                 >
-                  Nomor WhatsApp / HP Pelanggan
+                  Nomor WhatsApp / HP Pelanggan <span className="text-bad">*</span>
                 </label>
                 <Input
                   id="pos-customer-phone"
@@ -646,7 +729,14 @@ export default function SalesPosPage() {
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="Contoh: 082155667788"
                   className="font-mono sm:text-xs"
+                  disabled={customerPhoneLocked}
                 />
+                {selectedCustomerId && !customerPhoneLocked && (
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                    Akun pelanggan ini belum punya nomor HP. Isi nomornya di sini agar
+                    garansi bisa dihubungi. Profil pelanggan tidak ikut diubah.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -750,7 +840,7 @@ export default function SalesPosPage() {
 
               <Button
                 onClick={handleCheckout}
-                disabled={isSubmitting || !selectedUnitId || !customerName.trim()}
+                disabled={isSubmitting || !selectedUnitId || !customerName.trim() || !customerPhone.trim()}
                 className="w-full gap-2 bg-accent py-6 text-sm font-bold shadow-md shadow-accent/20 hover:bg-accent-deep"
               >
                 <ShoppingCart className="w-4 h-4" />
@@ -868,6 +958,22 @@ export default function SalesPosPage() {
                 Selesai / Transaksi Baru
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
+          <div role="dialog" aria-modal="true" aria-label="Buat akun pelanggan" className="rise my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+              <h3 className="flex items-center gap-2 text-base font-bold text-ink sm:text-lg">
+                <span>Buat Akun Pelanggan</span>
+              </h3>
+              <button type="button" onClick={() => setShowCustomerModal(false)} aria-label="Tutup modal" className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink sm:h-10 sm:w-10">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <CustomerAccountForm onDone={() => setShowCustomerModal(false)} />
           </div>
         </div>
       )}

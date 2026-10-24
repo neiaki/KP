@@ -2,7 +2,7 @@
 
 import { cache } from "react";
 import { headers } from "next/headers";
-import { eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb, dbBatch } from "@/db/client";
 import {
   inventoryUnits as inventoryUnitsTable,
@@ -300,7 +300,12 @@ async function bacaSnapshot(db: Db): Promise<PublicSnapshot> {
       db
         .selectDistinct({ productId: inventoryUnitsTable.productId })
         .from(inventoryUnitsTable)
-        .where(isNotNull(inventoryUnitsTable.productId)),
+        .where(
+          and(
+            isNotNull(inventoryUnitsTable.productId),
+            eq(inventoryUnitsTable.isDemo, false)
+          )
+        ),
   ]);
   if ("error" in settingsResult) throw new Error(settingsResult.error);
   if ("error" in inventoryResult) throw new Error(inventoryResult.error);

@@ -15,6 +15,10 @@ test("route guard membatasi modul portal berdasarkan role", () => {
   assert.equal(canAccessPortalPath("/portal/inventory", "technician"), false);
   assert.equal(canAccessPortalPath("/portal/service", "technician"), true);
   assert.equal(canAccessPortalPath("/portal/settings", "sales"), false);
+  assert.equal(canAccessPortalPath("/portal/customers", "admin"), true);
+  assert.equal(canAccessPortalPath("/portal/customers", "sales"), true);
+  assert.equal(canAccessPortalPath("/portal/customers", "technician"), false);
+  assert.equal(canAccessPortalPath("/portal/customers", "customer"), false);
   assert.equal(canAccessPortalPath("/portal/account", "customer"), true);
 });
 

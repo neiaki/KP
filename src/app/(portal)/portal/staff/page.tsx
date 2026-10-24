@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "@/components/portal/role-badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CustomerAccountForm } from "@/components/portal/customer-account-form";
 
 /* Nilai enum peran dari database ditampilkan apa adanya, jadi "technician"
    bocor ke layar. Sama seperti peta di portal-sidebar. */
@@ -20,7 +21,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function StaffManagementPage() {
-  const { profiles, addStaff, isLiveBackend, currentRole } = useStore();
+  const { profiles, transactions, addStaff, isLiveBackend, currentRole } = useStore();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState("");
@@ -31,6 +32,7 @@ export default function StaffManagementPage() {
   const [role, setRole] = useState<UserRole>("sales");
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
 
   useEffect(() => {
     if (!showAddModal) return;
@@ -193,6 +195,69 @@ export default function StaffManagementPage() {
           </li>
         ))}
       </ul>
+
+      {/* Akun pelanggan (admin) */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-bold text-ink">Akun Pelanggan</h2>
+          <Button
+            onClick={() => setShowCustomerModal(true)}
+            className="w-full gap-2 text-sm font-bold shadow-md sm:w-auto sm:text-xs"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Buat Akun Pelanggan</span>
+          </Button>
+        </div>
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+          {profiles
+            .filter((p) => p.role === "customer")
+            .map((cust) => {
+              const trxCount = transactions.filter((t) => t.customer_id === cust.id).length;
+              return (
+                <li key={cust.id}>
+                  <Card className="h-full border-line shadow-sm">
+                    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 border-b border-line p-4 pb-3 sm:p-6 sm:pb-3">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-ink">{cust.full_name}</h3>
+                        <div className="truncate font-mono text-[11px] text-muted">
+                          @{cust.username || "tanpa username"}
+                        </div>
+                      </div>
+                      <Badge variant="info" className="font-mono text-[10px]">Pelanggan</Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-2 p-4 text-sm">
+                      <div className="flex flex-wrap justify-between gap-x-3 text-muted">
+                        <span>Nomor HP:</span>
+                        <span className="break-all font-mono text-ink">{cust.phone_number || "belum diisi"}</span>
+                      </div>
+                      <div className="flex flex-wrap justify-between gap-x-3 text-muted">
+                        <span>Transaksi:</span>
+                        <span className="font-semibold text-ink">{trxCount}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </li>
+              );
+            })}
+        </ul>
+      </div>
+
+      {showCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
+          <div role="dialog" aria-modal="true" aria-label="Buat akun pelanggan" className="rise my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+              <h3 className="flex items-center gap-2 text-base font-bold text-ink sm:text-lg">
+                <UserPlus className="h-5 w-5 shrink-0 text-accent-deep" />
+                <span>Buat Akun Pelanggan</span>
+              </h3>
+              <button type="button" onClick={() => setShowCustomerModal(false)} aria-label="Tutup modal" className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink sm:h-10 sm:w-10">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <CustomerAccountForm onDone={() => setShowCustomerModal(false)} />
+          </div>
+        </div>
+      )}
 
       {/* Dialog undang staf */}
       {showAddModal && (

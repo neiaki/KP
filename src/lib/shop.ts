@@ -126,7 +126,7 @@ export function toCardItem(
   const used = secondReal.length > 0 ? secondReal : officialOrFallback;
   return {
     unitId: unit.id,
-    imeiTail: unit.imei.slice(-4),
+    imeiTail: unit.imei?.slice(-4) ?? "",
     brand: product?.brand || "HP",
     modelName: product?.model_name || "Smartphone",
     specs: product?.specs || "",

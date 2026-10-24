@@ -75,7 +75,7 @@ export function resolveTradeInTarget(
     modelName: product.model_name,
     condition: unit.condition,
     price: unit.selling_price,
-    imeiTail: unit.imei.slice(-4),
+    imeiTail: unit.imei?.slice(-4) ?? "",
   };
 }
 

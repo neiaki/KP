@@ -87,14 +87,19 @@ export function assemblePortalSnapshot(input: {
   profileRows: ProfileDbRow[];
 }): PortalSnapshot {
   const isCustomer = input.profile.role === "customer";
+  // Email pelanggan adalah alamat sintetis internal yang dipakai Supabase Auth.
+  // Jangan pernah mengirimkannya ke browser pelanggan; identitas login mereka
+  // adalah username + nomor HP, dan email itu tidak boleh muncul di UI mana pun.
+  const profile: Profile = { ...input.profile };
+  if (isCustomer) delete profile.email;
 
   return {
-    profile: input.profile,
+    profile,
     storeSettings: input.storeSettings,
     products: input.productRows.map(mapProduct),
     inventoryUnits: input.inventoryUnits,
     transactions: input.transactionRows.map((row) => mapTransaction(row, !isCustomer)),
     serviceTickets: input.serviceTicketRows.map(mapSupabaseServiceTicket),
-    profiles: isCustomer ? [input.profile] : input.profileRows.map(mapProfile),
+    profiles: isCustomer ? [profile] : input.profileRows.map(mapProfile),
   };
 }

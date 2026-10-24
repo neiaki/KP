@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { phoneDigits } from "./wa.ts";
 import type { RepairStatus } from "@/types";
 
 /**
@@ -56,12 +57,28 @@ export const ticketCodeSchema = z
     `Format kode tiket: SRV-YYYYMMDD-XXXXXXXX, contoh ${TICKET_CODE_EXAMPLE}.`
   );
 
+/**
+ * Nomor telepon pelanggan dan staf.
+ *
+ * Panjangnya dihitung dari DIGIT, bukan karakter. Versi lama memakai
+ * `.min(9)` pada string mentah, jadi "---------" lolos validasi lalu
+ * dinormalkan menjadi string kosong. Akibatnya akun bisa dibuat dengan nomor
+ * yang tidak pernah cocok saat login, dan pelanggan terkunci permanen tanpa
+ * pesan yang menjelaskan sebabnya.
+ *
+ * Bentuk yang diketik staf tetap disimpan apa adanya supaya nomor yang sudah
+ * punya spasi dan tanda hubung tidak berubah di layar. normalisasi hanya
+ * dipakai untuk menghitung digit, sama seperti yang nanti dipakai login.
+ */
 export const phoneSchema = z
   .string()
   .trim()
-  .min(9, "Nomor telepon minimal 9 digit.")
-  .max(16, "Nomor telepon maksimal 16 digit.")
-  .regex(/^[0-9+()\-.\s]+$/, "Nomor telepon hanya boleh berisi angka dan +()-.");
+  .max(24, "Nomor telepon terlalu panjang.")
+  .regex(/^[0-9+()\-.\s]+$/, "Nomor telepon hanya boleh berisi angka dan +()-.")
+  .refine((value) => {
+    const digits = phoneDigits(value);
+    return digits.length >= 9 && digits.length <= 15;
+  }, "Nomor telepon harus berisi 9 sampai 15 digit angka.");
 
 // Username portal. Aturan ini harus sama dengan check
 // profiles_username_format_check di supabase/migrations/0005_username_login.sql
@@ -88,6 +105,28 @@ export const customerSignUpSchema = z.object({
   password: passwordSchema,
   phoneNumber: phoneSchema,
 });
+
+/**
+ * Akun pelanggan yang dibuat staf tidak meminta email.
+ *
+ * Supabase Auth masih membutuhkan identitas email di balik layar. Action yang
+ * membuat akun ini menurunkan email sintetis dari username, jadi email tidak
+ * pernah menjadi data yang harus diisi pelanggan atau kasir.
+ *
+ * Karena email diturunkan dari username, bentuk yang tidak sah sebagai bagian
+ * lokal email (titik di awal/akhir atau dua titik berturut-turut) harus ditolak
+ * di sini. Tanpa ini Supabase menolak createUser dengan pesan internal yang
+ * tidak bisa ditindaklanjuti kasir.
+ */
+const customerUsernameSchema = usernameSchema.refine(
+  (value) => !/^\.|\.$|\.\./.test(value),
+  "Username tidak boleh diawali, diakhiri, atau berisi dua titik berturut-turut."
+);
+
+export const customerCreateSchema = customerSignUpSchema
+  .omit({ email: true })
+  .extend({ username: customerUsernameSchema });
+export type CustomerCreateInput = z.infer<typeof customerCreateSchema>;
 
 export const staffInviteSchema = customerSignUpSchema.extend({
   username: usernameSchema,
@@ -249,6 +288,7 @@ export type TradeInGradingInput = z.infer<typeof tradeInGradingSchema>;
 // Checkout POS, opsional dengan trade-in (FR-A-02, FR-C-03).
 export const posSaleSchema = z.object({
   unitId: z.coerce.number().int().positive("Pilih unit fisik (IMEI) dulu."),
+  customerId: z.string().uuid("Akun pelanggan tidak valid.").optional().nullable(),
   customerName: z.string().trim().min(2, "Nama pelanggan minimal 2 huruf."),
   customerPhone: phoneSchema,
   paymentMethod: z.enum(["cash", "transfer", "qris", "debit", "credit"]),

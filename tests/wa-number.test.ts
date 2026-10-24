@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanWaNumber, FALLBACK_WA_NUMBER } from "../src/lib/wa.ts";
+import { cleanWaNumber, FALLBACK_WA_NUMBER, normalizePhoneNumber } from "../src/lib/wa.ts";
 
 /*
  * cleanWaNumber melindungi satu hal: link wa.me tidak boleh pernah menunjuk
@@ -48,6 +48,16 @@ test("prefix operator internasional 00 dan 011 dibuang", () => {
   assert.equal(cleanWaNumber("0116280000000000"), EWA);
   // Angka di awal yang bukan 00 atau 011 harus tetap utuh.
   assert.equal(cleanWaNumber("081234567890"), "6281234567890");
+});
+
+test("kode negara 62 yang diikuti nol lokal tidak menyisakan nol", () => {
+  // "+62 0812..." sering diketik staf. Tanpa koreksi ini hasilnya 620812...,
+  // yang diawali 62 sehingga lolos pemeriksaan format tetapi tidak pernah
+  // cocok dengan nomor yang sama saat pelanggan mengetik 0812....
+  assert.equal(normalizePhoneNumber("+62 0812-3456-7890"), "6281234567890");
+  assert.equal(normalizePhoneNumber("62 0812 3456 7890"), "6281234567890");
+  assert.equal(normalizePhoneNumber("+62081234567890"), "6281234567890");
+  assert.equal(normalizePhoneNumber("0812-3456-7890"), "6281234567890");
 });
 
 test("nomor kosong, null, dan undefined jatuh ke nomor cadangan", () => {

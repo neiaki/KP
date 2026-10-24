@@ -318,6 +318,7 @@ export type DemoPosSaleParams = {
    * dan tidak bisa dipalsukan dari browser.
    */
   salesId?: string;
+  customerId?: string | null;
   unitId: number;
   customerName: string;
   customerPhone: string;
@@ -340,9 +341,12 @@ export function demoExecutePosSale(
 ): Transaction {
   const unit = inventoryUnits.find((u) => u.id === params.unitId);
   if (!unit) throw new Error("Unit fisik tidak ditemukan!");
+  if (unit.is_demo) {
+    throw new Error("Unit demo tidak bisa dijual lewat kasir. Pilih unit stok asli.");
+  }
   if (unit.status !== "available") {
     throw new Error(
-      `Unit ${unit.imei} sudah berstatus "${unit.status}" dan tidak bisa dijual lagi. Pilih unit lain yang tersedia.`
+      `Unit ${unit.imei ?? "tanpa IMEI"} sudah berstatus "${unit.status}" dan tidak bisa dijual lagi. Pilih unit lain yang tersedia.`
     );
   }
   const tradeIn = params.tradeIn;
@@ -397,7 +401,7 @@ export function demoExecutePosSale(
   const newTransaction: Transaction = {
     id: transactionId,
     sales_id: params.salesId ?? "local-sales",
-    customer_id: null,
+    customer_id: params.customerId ?? null,
     customer_name: params.customerName,
     customer_phone: params.customerPhone,
     total_amount: unit.selling_price,
@@ -556,6 +560,30 @@ export function demoAddStaff(
     return updated;
   });
   return newStaff;
+}
+
+export function demoAddCustomer(
+  name: string,
+  phone: string,
+  _password: string,
+  username: string,
+  setProfiles: DemoSetter<Profile[]>
+): Profile | undefined {
+  void _password;
+  const newCustomer: Profile = {
+    id: `prof-cust-${Date.now()}`,
+    full_name: name,
+    role: "customer",
+    phone_number: phone,
+    username,
+    created_at: new Date().toISOString(),
+  };
+  setProfiles((prev) => {
+    const updated = [...prev, newCustomer];
+    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(updated));
+    return updated;
+  });
+  return newCustomer;
 }
 
 export type DemoResetSetters = {

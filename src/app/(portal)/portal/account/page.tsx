@@ -18,6 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { updateMyPhoneNumber } from "@/lib/actions/auth";
+import {
+  filterCustomerTickets,
+  filterCustomerTransactions,
+} from "@/lib/customer-history";
 
 export default function CustomerAccountPage() {
   const {
@@ -70,8 +74,15 @@ export default function CustomerAccountPage() {
     setPhoneDraft(null);
   };
 
+  // Data live sudah difilter server lewat customer_id. Mode demo memakai
+  // seluruh isi localStorage, jadi filter yang sama harus diulang di sini
+  // supaya pelanggan tidak melihat faktur milik pelanggan lain.
+  const myTransactions = isLiveBackend
+    ? transactions
+    : filterCustomerTransactions(transactions, currentProfile);
+
   // Find purchased units from transactions
-  const purchasedItems = transactions.flatMap((tx) =>
+  const purchasedItems = myTransactions.flatMap((tx) =>
     (tx.items || []).map((item) => {
       const unit = inventoryUnits.find((u) => u.id === item.unit_id) || item.unit;
       const product = unit ? products.find((p) => p.id === unit.product_id) : null;
@@ -102,16 +113,14 @@ export default function CustomerAccountPage() {
     })
   );
 
-  // Customer service tickets. Data live sudah difilter oleh customer_id;
-  // fallback nama/telepon hanya berlaku untuk mode demo lokal.
+  // Customer service tickets. Data live sudah difilter oleh customer_id.
+  // Tiket demo lama belum punya customer_id, jadi cocokkan nama atau nomor HP
+  // milik profil yang sedang aktif, bukan nama pelanggan contoh yang hardcoded.
   const myTickets = isLiveBackend
-    ? serviceTickets.filter((ticket) => ticket.customer_id === currentProfile?.id)
-    : serviceTickets.filter(
-        (ticket) =>
-          ticket.customer_name.toLowerCase().includes("anisa") ||
-          ticket.customer_phone?.includes("7766") ||
-          serviceTickets.length <= 2
-      );
+    ? serviceTickets.filter(
+        (ticket) => ticket.customer_id === currentProfile?.id
+      )
+    : filterCustomerTickets(serviceTickets, currentProfile);
 
   return (
 

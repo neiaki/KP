@@ -42,8 +42,10 @@ test("snapshot menandai produk yang pernah punya unit", () => {
     "penanda harus dihitung dari tabel inventory_units, bukan dari view publik"
   );
   // product_id null adalah unit trade-in tanpa katalog, dan tidak boleh
-  // membuat produk mana pun ditandai punya unit.
-  assert.match(isi, /where\(isNotNull\(inventoryUnitsTable\.productId\)\)/);
+  // membuat produk mana pun ditandai punya unit. Unit demo juga bukan bukti
+  // stok asli pernah ada, jadi riwayat ini harus menghitung unit non-demo.
+  assert.match(isi, /isNotNull\(inventoryUnitsTable\.productId\)/);
+  assert.match(isi, /eq\(inventoryUnitsTable\.isDemo, false\)/);
   assert.match(isi, /if \(row\.productId !== null\) pernahPunyaUnit\.add/);
 });
 

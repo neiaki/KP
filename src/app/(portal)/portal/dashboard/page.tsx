@@ -24,10 +24,14 @@ export default function AdminDashboardPage() {
     useStore();
   const [stockThreshold, setStockThreshold] = useState<number>(2);
 
+  // Metrik dan daftar transaksi staf tidak boleh menghitung transaksi demo.
+  // Transaksi demo hanya untuk riwayat akun pelanggan contoh, bukan omzet toko.
+  const realTransactions = transactions.filter((tx) => !tx.is_demo);
+
   // Financial metrics
-  const totalRevenue = transactions.reduce((acc, curr) => acc + (curr.final_payment ?? curr.final_paid_amount ?? 0), 0);
-  const totalTradeInDeductions = transactions.reduce((acc, curr) => acc + (curr.trade_in_deduction ?? 0), 0);
-  const totalTransactionsCount = transactions.length;
+  const totalRevenue = realTransactions.reduce((acc, curr) => acc + (curr.final_payment ?? curr.final_paid_amount ?? 0), 0);
+  const totalTradeInDeductions = realTransactions.reduce((acc, curr) => acc + (curr.trade_in_deduction ?? 0), 0);
+  const totalTransactionsCount = realTransactions.length;
 
   // Active tickets (not completed or picked up)
   const activeTickets = serviceTickets.filter(
@@ -40,7 +44,7 @@ export default function AdminDashboardPage() {
   // Low Stock Warnings Calculation per Product Model
   const productStockMap = products.map((prod) => {
     const availableCount = inventoryUnits.filter(
-      (u) => u.product_id === prod.id && u.status === "available"
+      (u) => u.product_id === prod.id && u.status === "available" && !u.is_demo
     ).length;
     return {
       product: prod,
@@ -360,12 +364,12 @@ export default function AdminDashboardPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-line xl:hidden">
-            {transactions.length === 0 ? (
+            {realTransactions.length === 0 ? (
               <p className="p-8 text-center text-sm text-muted">
                 Belum ada transaksi kasir tercatat.
               </p>
             ) : (
-              transactions.slice(0, 8).map((tx) => (
+              realTransactions.slice(0, 8).map((tx) => (
                 <div key={tx.id} className="space-y-2 p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     {/* Kolom ini berjudul ID Faktur, jadi isinya harus nomor
@@ -438,14 +442,14 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {transactions.length === 0 ? (
+                {realTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-muted">
                       Belum ada transaksi kasir tercatat.
                     </td>
                   </tr>
                 ) : (
-                  transactions.slice(0, 8).map((tx) => (
+                  realTransactions.slice(0, 8).map((tx) => (
                     <tr key={tx.id} className="hover:bg-paper/80">
                       <td className="whitespace-nowrap p-3 font-mono font-bold text-accent-deep">
                         {tx.invoice_number ?? `#${tx.id}`}

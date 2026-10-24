@@ -21,17 +21,34 @@ export const FALLBACK_WA_NUMBER = "6280000000000";
  * tidak sampai ke mana pun. Jadi formatnya dinormalkan di sini, satu-satunya
  * tempat sebelum nomor itu masuk URL.
  */
-export function cleanWaNumber(raw?: string | null): string {
-  let digits = (raw || "").replace(/\D/g, "");
-  // Prefix operator internasional: 00 dan 011 (exit code AS) keduanya berarti
-  // "panggil lewat luar negeri", jadi angka setelahnya yang sebenarnya.
-  // Tanpa langkah ini 0062812... menjadi 62062812..., yang diawali 62 dan
-  // lolos semua pemeriksaan format tapi menunjuk ke nomor yang tidak pernah ada.
-  digits = digits.replace(/^(?:00|011)/, "");
-  if (!digits) return FALLBACK_WA_NUMBER;
+/**
+ * Digit setelah prefix operator internasional dibuang. Dipakai juga oleh
+ * phoneSchema supaya validasi dan normalisasi menghitung angka yang sama.
+ */
+export function phoneDigits(raw?: string | null): string {
+  return (raw || "").replace(/\D/g, "").replace(/^(?:00|011)/, "");
+}
+
+/**
+ * Bentuk nomor yang bisa dibandingkan tanpa peduli spasi, tanda hubung, atau
+ * awalan lokal. String kosong tetap kosong supaya pemanggil bisa membedakan
+ * "belum diisi" dari nomor cadangan.
+ */
+export function normalizePhoneNumber(raw?: string | null): string {
+  let digits = phoneDigits(raw);
+  if (!digits) return "";
+  // "+62 0812..." dan "62 0812..." sama-sama masuk sebagai 620812.... Angka 0
+  // setelah kode negara adalah trunk prefix lokal yang tidak boleh ikut
+  // dikirim; tanpa langkah ini nomor tersimpan sebagai 620812... dan tidak
+  // pernah cocok dengan nomor yang sama yang diketik sebagai 0812....
+  if (/^620\d/.test(digits)) digits = `62${digits.slice(3)}`;
   if (digits.startsWith("62")) return digits;
   // 0812..., 021..., 031... -> 62812..., 6221..., 6231...
   if (digits.startsWith("0")) return `62${digits.slice(1)}`;
   // 857..., 815... tanpa prefix -> 62857..., 62815...
   return `62${digits}`;
+}
+
+export function cleanWaNumber(raw?: string | null): string {
+  return normalizePhoneNumber(raw) || FALLBACK_WA_NUMBER;
 }

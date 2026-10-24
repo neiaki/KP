@@ -302,7 +302,7 @@ export default function InventoryManagementPage() {
       closeCorrection();
       setNotice({
         type: "success",
-        text: `Kondisi dan harga unit ${editingUnit.imei} sudah diperbarui.`,
+        text: `Kondisi dan harga unit ${editingUnit.imei ?? "tanpa IMEI"} sudah diperbarui.`,
       });
     } catch (error) {
       setEditError(
@@ -313,10 +313,14 @@ export default function InventoryManagementPage() {
     }
   };
 
+  // Unit demo hanya untuk riwayat akun contoh, bukan stok fisik toko. Jangan
+  // tampilkan di inventaris supaya tidak terlihat seperti unit asli tanpa IMEI.
+  const realUnits = inventoryUnits.filter((unit) => !unit.is_demo);
+
   // Filter units
-  const filteredUnits = inventoryUnits.filter((unit) => {
+  const filteredUnits = realUnits.filter((unit) => {
     const matchesSearch =
-      unit.imei.includes(search) ||
+      (unit.imei ?? "").includes(search) ||
       unitLabel(unit, products).toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || unit.status === statusFilter;
     const matchesCondition = conditionFilter === "all" || unit.condition === conditionFilter;
@@ -381,7 +385,7 @@ export default function InventoryManagementPage() {
         <div className="rounded-xl border border-line bg-card p-3 shadow-xs sm:p-4">
           <div className="text-xs font-semibold text-muted">Unit tersedia</div>
           <div className="mt-1 text-2xl font-black text-good">
-            {inventoryUnits.filter((u) => u.status === "available").length}
+            {realUnits.filter((u) => u.status === "available").length}
           </div>
           <div className="mt-0.5 text-[11px] text-muted">Siap dijual di POS</div>
         </div>
@@ -389,7 +393,7 @@ export default function InventoryManagementPage() {
         <div className="rounded-xl border border-line bg-card p-3 shadow-xs sm:p-4">
           <div className="text-xs font-semibold text-muted">Unit terjual</div>
           <div className="mt-1 text-2xl font-black text-ink">
-            {inventoryUnits.filter((u) => u.status === "sold").length}
+            {realUnits.filter((u) => u.status === "sold").length}
           </div>
           <div className="mt-0.5 text-[11px] text-muted">Aktif masa garansi</div>
         </div>
@@ -397,7 +401,7 @@ export default function InventoryManagementPage() {
         <div className="rounded-xl border border-line bg-card p-3 shadow-xs sm:p-4">
           <div className="text-xs font-semibold text-muted">Unit seken / trade-in</div>
           <div className="mt-1 text-2xl font-black text-accent-deep">
-            {inventoryUnits.filter((u) => u.condition === "second").length}
+            {realUnits.filter((u) => u.condition === "second").length}
           </div>
           <div className="mt-0.5 text-[11px] text-muted">Hasil tukar tambah</div>
         </div>
@@ -405,7 +409,7 @@ export default function InventoryManagementPage() {
         <div className="rounded-xl border border-line bg-card p-3 shadow-xs sm:p-4">
           <div className="text-xs font-semibold text-muted">Total terdata</div>
           <div className="mt-1 text-2xl font-black text-ink">
-            {inventoryUnits.length}
+            {realUnits.length}
           </div>
           <div className="mt-0.5 text-[11px] text-muted">Seluruh unit fisik</div>
         </div>
@@ -499,7 +503,7 @@ export default function InventoryManagementPage() {
                         <p className="text-sm font-bold text-ink">{label}</p>
                         <p className="mt-0.5 flex items-center gap-1 break-all font-mono text-xs font-bold text-accent-deep">
                           <Barcode className="h-3.5 w-3.5 shrink-0 text-muted" />
-                          {unit.imei}
+                          {unit.imei ?? "Tanpa IMEI"}
                         </p>
                       </div>
                       <Badge
@@ -607,7 +611,7 @@ export default function InventoryManagementPage() {
                         <td className="p-3 font-mono font-bold text-accent-deep">
                           <span className="flex items-center gap-1">
                             <Barcode className="w-3.5 h-3.5 text-muted" />
-                            {unit.imei}
+                            {unit.imei ?? "Tanpa IMEI"}
                           </span>
                         </td>
                         <td className="p-3">
@@ -892,14 +896,14 @@ export default function InventoryManagementPage() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={`Koreksi kondisi dan harga unit ${editingUnit.imei}`}
+            aria-label={`Koreksi kondisi dan harga unit ${editingUnit.imei ?? "tanpa IMEI"}`}
             className="rise my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
           >
             <div className="flex items-start justify-between gap-2 border-b border-line pb-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-ink">Koreksi Unit</h3>
                 <p className="mt-0.5 break-all font-mono text-xs text-muted">
-                  {editingUnit.imei}
+                  {editingUnit.imei ?? "Tanpa IMEI"}
                 </p>
               </div>
               <button

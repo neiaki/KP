@@ -98,6 +98,7 @@ test("tipe baris database dan unit frontend ikut menerima NULL", () => {
     purchaseCost: "1000000",
     sellingPrice: "1500000",
     createdAt: new Date("2026-09-27T00:00:00.000Z"),
+    isDemo: false,
   };
   const fromClient: InventoryUnit = unit({ product_id: null });
   assert.equal(row.productId, null);

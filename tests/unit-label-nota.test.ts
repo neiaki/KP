@@ -112,7 +112,7 @@ function notaFor(unit: InventoryUnit) {
     customerName: "Budi",
     unitModel,
     unitModelKnown: unitModel !== UNIT_LABEL_UNKNOWN,
-    imei: unit.imei,
+    imei: unit.imei ?? "",
     warrantyMonths: 3,
     paymentMethod: "cash",
     total: 12_000_000,

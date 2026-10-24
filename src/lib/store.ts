@@ -25,7 +25,7 @@ import {
 } from "@/lib/actions/service";
 import type { DemoPosSaleParams, DemoTicketData } from "./store-demo.ts";
 import { updateStoreSettings as updateStoreSettingsAction } from "@/lib/actions/settings";
-import { inviteStaff as inviteStaffAction } from "@/lib/actions/auth";
+import { inviteStaff as inviteStaffAction, createCustomerAccount as createCustomerAccountAction } from "@/lib/actions/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { deriveUsernameFromEmail } from "@/lib/username";
 import { getPortalPathState, prependServiceTicket } from "@/lib/service-ticket-list";
@@ -457,6 +457,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
       const transaction = unwrap(
         await executeSaleAction({
           unitId: params.unitId,
+          customerId: params.customerId,
           customerName: params.customerName,
           customerPhone: params.customerPhone,
           paymentMethod: params.paymentMethod,
@@ -583,6 +584,31 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     return demo.demoAddStaff(name, role, phone, email, password, username, setProfiles);
   };
 
+  const addCustomer = async (
+    name: string,
+    phone: string,
+    password: string,
+    username: string
+  ): Promise<Profile | undefined> => {
+    if (liveBackendEnabled) {
+      const result = await createCustomerAccountAction({
+        fullName: name,
+        phoneNumber: phone,
+        password,
+        username,
+      });
+      if (!result.ok) throw new Error(result.error);
+      await refresh();
+      return undefined;
+    }
+
+    const demo = await loadDemoModule();
+    if (profiles.some((profile) => profile.username === username)) {
+      throw new Error("Username sudah dipakai. Coba username lain.");
+    }
+    return demo.demoAddCustomer(name, phone, password, username, setProfiles);
+  };
+
   const resetToDefault = async () => {
     if (liveBackendEnabled) return;
     const demo = await loadDemoModule();
@@ -625,6 +651,7 @@ export function useAtCellStore(publicSeed?: PublicSnapshot | null) {
     updateServiceTicket,
     profiles,
     addStaff,
+    addCustomer,
     resetToDefault,
     resetToInitialData: resetToDefault,
   };
