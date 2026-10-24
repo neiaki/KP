@@ -6,12 +6,13 @@ import { useStore } from "@/context/store-context";
 import { formatIDR } from "@/lib/utils";
 import { isRealPhoto } from "@/lib/shop";
 import { Product } from "@/types";
-import { Tag, Search, X, Check } from "lucide-react";
+import { Tag, Search, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { RoleBadge } from "@/components/portal/role-badge";
+import { NoticeBanner } from "@/components/portal/notice-banner";
 import { hargaAcuanLayak } from "@/lib/validations";
 
 /*
@@ -116,19 +117,7 @@ export default function EtalaseHargaPage() {
         </p>
       </div>
 
-      {notice && (
-        <div
-          role={notice.type === "error" ? "alert" : "status"}
-          className={`flex items-center justify-between gap-3 rounded-lg border p-3 text-sm font-semibold ${
-            notice.type === "error" ? "border-bad/20 bg-bad-bg text-bad" : "border-good/20 bg-good-bg text-good"
-          }`}
-        >
-          <span>{notice.text}</span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Tutup pemberitahuan" className="-mr-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:opacity-70">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      )}
+      <NoticeBanner notice={notice} onClose={() => setNotice(null)} />
 
       <div className="relative">
         <label htmlFor="listing-search" className="sr-only">

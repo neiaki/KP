@@ -260,3 +260,46 @@ healthy; tap target produksi 5 -> 1 (sisa skip link keyboard-only,
 dikecualikan WCAG 2.5.8). Item 2 (komponen bersama portal) disetujui owner,
 menjadi tugas pertama sesi berikutnya. Pola bearer bersih wajib:
 psql -t -A -q + head -1.
+
+## Goal A+E (STANDARDS.md) — bukti 2026-10-25 sesi A
+
+Empat gerbang (transkrip): `bunx tsc --noEmit` exit 0; `npx eslint .
+--max-warnings 0` exit 0 (bukti eksplisit 0 warning); `npm run lint` 0;
+`npm run build` 0; `npm test` 852/838/0/14 exit 0 (satu run pernah 1 fail:
+flaky backup-storage terkenal + sekali docs-index karena baris indeks
+STANDARDS tertimpa tabrakan branch — keduanya pulih, run ulang hijau).
+Audit dependency: `bun audit --audit-level=high` "No vulnerabilities
+found (558 paket)" exit 0 — tanpa high/critical, tidak perlu NEEDS_HUMAN.
+
+Tidak ada test dihapus/di-skip/dilemahkan sejak base loop fc639dc, bukti EKSEKUSI git diff base..HEAD -- tests/
+(file test terhapus 0, baris assert.* terhapus 0, baris assert.* baru
++26, penanda .skip atau .only di tests 0). 14 skip DATABASE_URL adalah desain opt-in pra-loop dan
+dijalankan penuh CI postgres:17 (workflow database-tests).
+
+Modul kritis → file test (nama berkas di tests/):
+| Modul | Test |
+|---|---|
+| lib/actions/auth.ts | auth-rate-limit, customer-password-reset, sec-last-admin, username, write-gate |
+| lib/rate-limit.ts + client-ip.ts | auth-rate-limit, client-ip, tracking-safety |
+| lib/login-redirect.ts + access.ts | route-next-redirect, access |
+| lib/validations.ts | validations, validation-symmetry, password |
+| lib/wa.ts | wa-number, error-state-wa |
+| proxy.ts + csp.ts | csp, csp-doc, csp-sentry-connect-src |
+| supabase server/config/cookie-options | supabase-cookie-options, supabase-cookie-flags-e2e, supabase-key-precedence |
+| actions/pos.ts | pos-demo-guard, inventory-unit-status-gate, unit-label-nota |
+| actions/service.ts + _ticket-mappers | service-ticket-mapper, service-ticket-list-invalidation, ticket-code-security, service-cost-breakdown, serah-terima-servis |
+| actions/storage.ts | sec-photo-folder-scope, sec-storage-key, storage-hardening |
+| actions/public.ts + shop.ts | public-snapshot-unit-history, snapshot-retry, etalase-empty-product, etalase-image-source, catalog-filter-all-sections, brand-from-url, limit-one-per-brand, no-unit-card-photo |
+| db/client + batch | db-batch, db-client-guard-crash, db-client-recovery, db-client-statement-timeout, db-client-transaction-guard, db-pool-vercel, db-backlog-replay |
+| supabase/migrations + ledger | migration-ledger, migration-safety, run-all-pending, readme-migrations |
+| trigger audit | audit-trail, audit-trail-db, audit-actor-actor, audit-actor-search-path |
+| deployment/write-gate | write-gate, smoke-gate, deploy-image-pin, deployment-runbook, vercel-runtime-config |
+| scripts backup/restore | backup-offsite, backup-safety, backup-storage, storage-backup, restore-drill, restore-sigpipe, restore-target-guard, watchdog-durability |
+| print-nota.ts | nota-code-emphasis |
+| sitemap.ts | json-ld-escape, seo-surface |
+| sentry + reviews | sentry-privacy, sentry-and-reviews |
+| health.ts | health |
+
+Catatan operasional: tabrakan sesi paralel (cherry-pick B saat sesi A
+mengedit README) menimpa baris indeks STANDARDS; dibuat ulang, docs-index
+8/8. .claude/loop.md dibuat lokal (gitignored) sebagai salinan protokol.

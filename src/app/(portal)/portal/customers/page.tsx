@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { RoleBadge } from "@/components/portal/role-badge";
+import { NoticeBanner } from "@/components/portal/notice-banner";
+import { ModalShell } from "@/components/portal/modal-shell";
 import { generatePassword } from "@/lib/password";
 import type { Profile } from "@/types";
 
@@ -168,19 +170,7 @@ export default function CustomersPage() {
         </Button>
       </div>
 
-      {notice && (
-        <div
-          role={notice.type === "error" ? "alert" : "status"}
-          className={`flex items-center justify-between gap-3 rounded-lg border p-3 text-sm font-semibold ${
-            notice.type === "error" ? "border-bad/20 bg-bad-bg text-bad" : "border-good/20 bg-good-bg text-good"
-          }`}
-        >
-          <span>{notice.text}</span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Tutup pemberitahuan" className="-mr-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:opacity-70">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      )}
+      <NoticeBanner notice={notice} onClose={() => setNotice(null)} />
 
       {hasil && (
         <Card className="border-good/30 bg-good-bg/40">
@@ -245,19 +235,17 @@ export default function CustomersPage() {
       </ul>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
-          <div role="dialog" aria-modal="true" aria-label="Buat akun pelanggan" className="rise my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
-            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
-              <h3 className="flex items-center gap-2 text-base font-bold text-ink sm:text-lg">
-                <UserPlus className="h-5 w-5 shrink-0 text-accent-deep" />
-                <span>Buat Akun Pelanggan</span>
-              </h3>
-              <button type="button" onClick={() => setShowForm(false)} aria-label="Tutup modal" className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink sm:h-10 sm:w-10">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 text-sm">
+        <ModalShell
+          label="Buat akun pelanggan"
+          title={
+            <>
+              <UserPlus className="h-5 w-5 shrink-0 text-accent-deep" />
+              <span>Buat Akun Pelanggan</span>
+            </>
+          }
+          onClose={() => setShowForm(false)}
+        >
+<form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 text-sm">
               <div>
                 <label htmlFor="cust-name" className="mb-1 block text-xs font-semibold text-muted">Nama Lengkap</label>
                 <Input id="cust-name"
@@ -294,28 +282,24 @@ export default function CustomersPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
 
       {resetTarget && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
-          <div role="dialog" aria-modal="true" aria-label="Ubah kata sandi pelanggan" className="rise my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col space-y-4 rounded-xl border border-line bg-card p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
-            <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
-              <h3 className="flex items-center gap-2 text-base font-bold text-ink sm:text-lg">
-                <KeyRound className="h-5 w-5 shrink-0 text-accent-deep" />
-                <span>Ubah Kata Sandi</span>
-              </h3>
-              <button type="button" onClick={() => setResetTarget(null)} aria-label="Tutup modal" className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-paper hover:text-ink sm:h-10 sm:w-10">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-muted">
-              Kata sandi lama tidak bisa dilihat karena hanya tersimpan sebagai hash. Tetapkan kata sandi baru untuk @{resetTarget.username || resetTarget.full_name}, lalu serahkan ke pelanggan.
-            </p>
-
-            <form onSubmit={handleResetSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 text-sm">
+        <ModalShell
+          label="Ubah kata sandi pelanggan"
+          title={
+            <>
+              <KeyRound className="h-5 w-5 shrink-0 text-accent-deep" />
+              <span>Ubah Kata Sandi</span>
+            </>
+          }
+          onClose={() => setResetTarget(null)}
+        >
+          <p className="text-xs text-muted">
+            Kata sandi lama tidak bisa dilihat karena hanya tersimpan sebagai hash. Tetapkan kata sandi baru untuk @{resetTarget.username || resetTarget.full_name}, lalu serahkan ke pelanggan.
+          </p>
+<form onSubmit={handleResetSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 text-sm">
               <div className="rounded-lg border border-line bg-paper p-3 text-xs">
                 <div className="text-ink">Nama: {resetTarget.full_name}</div>
                 <div className="font-mono text-ink">Username: {resetTarget.username || "tanpa username"}</div>
@@ -341,9 +325,9 @@ export default function CustomersPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );
 }
+
