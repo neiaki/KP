@@ -251,3 +251,12 @@ pemakainya client component (tidak ada mismatch SSR/hidrasi) [EKSEKUSI
 grep]. normalizePhoneNumber/wa.ts punya test khusus (wa-number.test.ts)
 [BACA-KODE+TEST]. Perbaikan log: baris backlog usang F3-02/03/06/14/F4-18
 dirapikan ke bukti yang sudah tercatat (grep BELUM = 0; docs-index 8/8).
+
+Iterasi 23 (2026-10-25, sesi B — resolusi NEEDS_HUMAN): Item 1 API Coolify
+401 TERPECAHKAN, bukan regresi: bearer terkontaminasi dua baris output psql
+(id + tag INSERT). Bukti: token segar + ekstraksi bersih (-q, head -1) ->
+GET /api/v1/version 200; deploy API ac21aea 200; queue finished; container
+healthy; tap target produksi 5 -> 1 (sisa skip link keyboard-only,
+dikecualikan WCAG 2.5.8). Item 2 (komponen bersama portal) disetujui owner,
+menjadi tugas pertama sesi berikutnya. Pola bearer bersih wajib:
+psql -t -A -q + head -1.

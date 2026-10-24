@@ -1,6 +1,18 @@
 # Perlu Keputusan / Tindakan Owner
 
-## 1. API Coolify 4.5.0 menolak semua request (401) — prosedur deploy via API macet
+## 1. API Coolify 401 — TERPECAHKAN 25 Okt 2026, tidak perlu tindakan owner
+
+Akar: bearer terkontaminasi output psql dua baris (id + tag `INSERT 0 1`).
+Bukti: token segar + ekstraksi bersih (`psql -t -A -q` + `head -1`) →
+GET /api/v1/version **200**; POST deploy **200** (queue finished, container
+ac21aea healthy); tap target produksi diukur ulang 5 → 1 (sisa skip link
+keyboard-only, dikecualikan WCAG 2.5.8). Uji "token lama 401" laporan asal
+tidak valid (plain secret mustahil direkonstruksi). Pola bearer bersih
+wajib dicatat di LOOP_LOG.
+
+### Laporan asli (arsip, sudah tidak berlaku)
+
+### ~~API Coolify 4.5.0 menolak semua request (401) — prosedur deploy via API macet~~
 
 Ditemukan 25 Oktober 2026 saat deploy pin sha-b5147fa (PR #168):
 
@@ -30,7 +42,7 @@ Opsi yang bisa dicoba owner:
    (yang terbukti jalan), plus `UPDATE applications SET git_commit_sha` di
    coolify-db supaya metadata tetap akurat.
 
-## 2. Komponen bersama Notice/Modal/Textarea untuk portal (F5)
+## 2. Komponen bersama Notice/Modal/Textarea untuk portal (F5) — DISETUJUI owner 25 Okt 2026 ("membereskan itu juga"), dikerjakan sesi berikutnya
 
 Backlog F5: halaman portal customers & listing menduplikasi pola Notice,
 Modal, dan Textarea. Perapihan yang benar menyentuh `components/ui/` yang
