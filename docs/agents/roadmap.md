@@ -114,22 +114,30 @@ Selesai pada sesi 17 Oktober 2026:
 
 ### Prioritas 2: lanjutkan pemecahan snapshot secara bertahap
 
-- [ ] Pertimbangkan memisahkan pembacaan query Supabase dari
-  `getPortalSnapshot`, setelah jalur mapping saat ini tervalidasi.
-- [ ] Tambahkan tes untuk label unit trade-in, kegagalan sumber data tambahan,
-  dan pembatasan hasil query customer. Jangan mengubah policy/RLS tanpa bukti
-  perilaku sekarang dan tes sebelum perubahan.
-- [ ] Pertahankan prinsip bahwa query customer dibatasi di sisi server; jangan
-  hanya menyaring hasil setelah data staf terbaca.
+- [x] Pertimbangkan memisahkan pembacaan query Supabase dari
+  `getPortalSnapshot`, setelah jalur mapping saat ini tervalidasi. Ditinjau
+  24 Oktober 2026: pemisahan belum dibutuhkan; jalur mapping sudah punya tes
+  perilaku dan belum ada sumber data kedua yang menuntut seam baru.
+- [x] Tambahkan tes untuk label unit trade-in, kegagalan sumber data tambahan,
+  dan pembatasan hasil query customer. Sudah ada di
+  `tests/unit-label-nota.test.ts`, `tests/snapshot-retry.test.ts`, dan
+  `tests/portal-snapshot.test.ts`; policy/RLS tidak diubah tanpa bukti baru.
+- [x] Pertahankan prinsip bahwa query customer dibatasi di sisi server; jangan
+  hanya menyaring hasil setelah data staf terbaca. Dikunci oleh tes snapshot
+  customer yang memeriksa profil, transaksi, dan email sintetis.
 
 ### Prioritas 3: kurangi tes yang sensitif terhadap bentuk source
 
-- [ ] Tinjau sisa assertion source di
+- [x] Tinjau sisa assertion source di
   `tests/service-ticket-list-invalidation.test.ts` dan
-  `tests/locale-switch-refetch.test.ts`.
-- [ ] Ganti hanya assertion yang dapat dipindah ke helper/perilaku teramati;
+  `tests/locale-switch-refetch.test.ts`. Ditinjau 24 Oktober 2026: assertion
+  dipertahankan karena `src/lib/store.ts` menarik `next/navigation` dan React,
+  jadi tidak bisa diimpor runner Node; source assertion adalah satu-satunya
+  penjaga wiring yang tersedia.
+- [x] Ganti hanya assertion yang dapat dipindah ke helper/perilaku teramati;
   pertahankan pemeriksaan source bila memang mengunci wiring atau kebijakan
-  repository yang belum punya seam runtime.
+  repository yang belum punya seam runtime. Tidak ada assertion yang diganti
+  pada tinjauan ini; alasannya tercatat di komentar kedua berkas tes.
 
 ### Prioritas 4: pemeriksaan manual yang memerlukan environment
 
