@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import {
@@ -168,9 +169,14 @@ export function PortalSidebar({
       {/* Brand */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-800 p-4">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white shadow-md">
-            AT
-          </div>
+          <Image
+            src="/brand/logo-icon.svg"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 shrink-0"
+            unoptimized
+          />
           <div className="min-w-0">
             <div className="truncate text-sm font-bold tracking-wide text-white">
               At Cell Portal

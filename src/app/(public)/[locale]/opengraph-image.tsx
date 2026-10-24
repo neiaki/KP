@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { toLocale } from "@/app/sitemap";
 import { translations } from "@/lib/translations";
+import { BrandLogoGlyph, BrandSquircle } from "@/lib/brand-logo";
 
 /*
  * Kartu Open Graph untuk seluruh halaman publik.
@@ -79,16 +80,38 @@ export default async function OpengraphImage({
             padding: "0 88px",
           }}
         >
+          {/* Logo icon + brand name */}
           <div
             style={{
               display: "flex",
-              fontSize: 116,
-              lineHeight: 1.05,
-              letterSpacing: -4,
-              color: INK,
+              alignItems: "center",
+              gap: 28,
             }}
           >
-            {t.nav.brand}
+            {/* Cellular Signal Apex logo icon; geometri dari brand-logo.tsx.
+                Dipanggil sebagai fungsi karena satori (next/og) hanya
+                menerima intrinsic elements di dalam <svg>. */}
+            <svg
+              width={100}
+              height={100}
+              viewBox="0 0 512 512"
+              fill="none"
+              style={{ flexShrink: 0 }}
+            >
+              {BrandSquircle({ fill: ACCENT })}
+              {BrandLogoGlyph({ stroke: "#ffffff" })}
+            </svg>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 116,
+                lineHeight: 1.05,
+                letterSpacing: -4,
+                color: INK,
+              }}
+            >
+              {t.nav.brand}
+            </div>
           </div>
           <div
             style={{

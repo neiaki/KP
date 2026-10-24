@@ -1,23 +1,24 @@
 import { ImageResponse } from "next/og";
 import { APPLE_ICON_SIZE } from "@/lib/pwa";
+import { BRAND_ACCENT, BrandLogoGlyph } from "@/lib/brand-logo";
 
 /*
  * apple-touch-icon untuk iOS.
  *
- * iOS tidak memakai manifest untuk icon layar utama. Safari membaca
- * <link rel="apple-touch-icon">, dan tanpa berkas ini app yang ter-install
- * akan memakai screenshot halaman sebagai ikon, yaitu gambar berteks kecil
- * yang tidak terbaca di layar 60px.
- *
- * iOS juga tidak mendukung maskable, dan selalu memotong ikon jadi rounded
- * rectangle. Jadi ikon ini sengaja dibuat tanpa ruang aman: iOS yang
- * memotong, bukan Android.
+ * Safari di iOS membaca <link rel="apple-touch-icon"> untuk icon homescreen.
+ * iOS selalu memotong ikon secara otomatis menjadi squircle (rounded rect),
+ * jadi ikon ini sengaja dibuat aksen penuh tanpa ruang aman tepi: iOS yang
+ * memotong. Glyph dikecilkan ke 84% supaya lengkungan sinyal tidak menabrak
+ * sudut potongan. Geometri glyph bersumber dari src/lib/brand-logo.tsx,
+ * sama dengan public/brand/logo-icon.svg.
  */
 
 export const contentType = "image/png";
 export const size = { width: APPLE_ICON_SIZE, height: APPLE_ICON_SIZE };
 
 export default function AppleIcon() {
+  const s = APPLE_ICON_SIZE;
+
   return new ImageResponse(
     (
       <div
@@ -27,28 +28,14 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          // iOS menempel ikon di wall paper, jadi latar dibuat aksen pekat
-          // dan tidak ada margin putih yang akan menyatu dengan wall paper.
-          backgroundColor: "#0b4ed8",
+          backgroundColor: BRAND_ACCENT,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "66%",
-            height: "66%",
-            borderRadius: "26%",
-            backgroundColor: "#ffffff",
-            color: "#0b4ed8",
-            fontSize: "50%",
-            fontWeight: 800,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          AT
-        </div>
+        <svg width={s} height={s} viewBox="0 0 512 512" fill="none">
+          {/* Dipanggil sebagai fungsi: satori hanya menerima intrinsic
+              elements di dalam <svg>. */}
+          {BrandLogoGlyph({ stroke: "#ffffff", scale: 0.84 })}
+        </svg>
       </div>
     ),
     { ...size }

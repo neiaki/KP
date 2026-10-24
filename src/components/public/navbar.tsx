@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { translations, Locale } from "@/lib/translations";
 import { Search, Menu, X, LogIn } from "lucide-react";
@@ -65,9 +66,14 @@ export function PublicNavbar({ locale }: { locale: Locale }) {
             onClick={() => setMobileMenuOpen(false)}
             className="flex shrink-0 items-center gap-2"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-base font-extrabold text-white">
-              AT
-            </span>
+            <Image
+              src="/brand/logo-icon.svg"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9"
+              unoptimized
+            />
             <span className="leading-tight">
               <span className="block text-[17px] font-extrabold tracking-tight text-ink">
                 At Cell

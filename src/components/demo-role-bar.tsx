@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/context/store-context";
 import { UserRole } from "@/types";
@@ -71,9 +72,14 @@ export function DemoRoleBar() {
     <header className="relative z-50 w-full border-b border-line bg-card/95 text-ink backdrop-blur">
       <div className="no-scrollbar mx-auto flex h-12 max-w-[1600px] items-center gap-2 overflow-x-auto px-3 sm:px-4 lg:px-6">
         <div className="flex shrink-0 items-center gap-2 pr-1">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[11px] font-extrabold text-white">
-            AT
-          </span>
+          <Image
+            src="/brand/logo-icon.svg"
+            alt=""
+            width={28}
+            height={28}
+            className="h-7 w-7"
+            unoptimized
+          />
           <span className="hidden text-xs font-extrabold sm:inline">At Cell</span>
           <span className="hidden text-xs text-muted lg:inline">Mode demo</span>
         </div>
