@@ -148,6 +148,7 @@ export function TrackingContent({ locale }: { locale: Locale }) {
   const [hasSearched, setHasSearched] = useState(initialTicket !== "");
   const [remoteTicket, setRemoteTicket] = useState<ServiceTicket | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
   const searchRequestId = useRef(0);
   const [copied, setCopied] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -176,6 +177,10 @@ export function TrackingContent({ locale }: { locale: Locale }) {
 
     if (!isLiveBackend) return;
 
+    // Tombol dinonaktifkan selama pencarian live berjalan supaya klik ganda
+    // tidak memotong kuota rate limit lacak dua kali. Guard requestId di
+    // finally menjaga hasil lama tidak mematikan indikator pencarian baru.
+    setSearching(true);
     try {
       const result = await trackTicketPublic(normalizedCode);
       if (requestId !== searchRequestId.current) return;
@@ -213,6 +218,8 @@ export function TrackingContent({ locale }: { locale: Locale }) {
       if (requestId !== searchRequestId.current) return;
       setRemoteTicket(null);
       setSearchError("Layanan pelacakan sedang tidak dapat dihubungi. Coba lagi sebentar.");
+    } finally {
+      if (requestId === searchRequestId.current) setSearching(false);
     }
   }, [isLiveBackend]);
 
@@ -292,8 +299,19 @@ export function TrackingContent({ locale }: { locale: Locale }) {
                   className="h-11 bg-card pl-10 font-mono text-sm uppercase"
                 />
               </div>
-              <Button type="submit" className="h-11 shrink-0 px-6">
-                {locale === "en" ? "Check" : "Cek nota"}
+              <Button
+                type="submit"
+                disabled={searching}
+                aria-busy={searching}
+                className="h-11 shrink-0 px-6"
+              >
+                {searching
+                  ? locale === "en"
+                    ? "Checking..."
+                    : "Memeriksa..."
+                  : locale === "en"
+                    ? "Check"
+                    : "Cek nota"}
               </Button>
             </div>
           </form>
