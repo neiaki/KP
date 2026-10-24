@@ -297,7 +297,7 @@ export function CatalogContent({ locale }: { locale: Locale }) {
             href={`https://wa.me/${cleanWa}?text=${encodeURIComponent("Halo At Cell, saya cari HP. Apa yang ready sekarang?")}`}
             target="_blank"
             rel="noreferrer"
-            className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-lg bg-wa px-5 text-[13px] font-bold text-white hover:bg-wa-deep"
+            className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-lg bg-wa-deep px-5 text-[13px] font-bold text-white hover:brightness-95"
           >
             <MessageCircle className="h-4 w-4" /> Tanya via WA
           </a>
