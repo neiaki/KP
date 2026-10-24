@@ -58,3 +58,4 @@
 20261023111914	add_is_demo_flag
 20261023112316	demo_inventory_imei_nullable
 20261024110000	products_sales_update
+20261024120000	products_sales_column_guard
