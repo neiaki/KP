@@ -7,17 +7,19 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 ## Status terbaru
 
 **Diperbarui:** 24 Oktober 2026
-**Baseline kode:** `7d7f0d7` (`main`, merge PR #134; image `sha-7d7f0d7` sudah
-dibangun GitHub Actions)
-**Baseline rilis:** `105a61a` (`main`, merge PR #135 yang mem-pin image
-`sha-7d7f0d7`)
+**Baseline kode:** `2f231dc` (`main`, merge PR #142; perbaikan filter merek
+katalog; image `sha-2f231dc` sudah dibangun GitHub Actions)
+**Baseline rilis:** `54b653e` (`main`, merge PR #143 yang mem-pin image
+`sha-2f231dc`; production menjalankan image itu dan health 200)
 **Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 dan katalog lima model per merek sudah merge lewat PR #129. PR #130 menaikkan
 pin ke `53856b4` dan production menjalankan image itu. PR #134 menambahkan
 badge Demo dan tes sumber data tambahan, lalu merge sebagai `7d7f0d7`. PR #135
 mem-pin image `sha-7d7f0d7`; production sudah dideploy dan menjalankan revisi
-itu.
+itu. Sesi 24 Oktober menambahkan PR #136 sampai #143 (fitur ganti kata sandi
+pelanggan, rebranding logo, perbaikan security check, pembersihan VPS, dan
+perbaikan filter merek katalog yang ditemukan saat testing production).
 
 Rilis 24 Oktober 2026 (selesai):
 
@@ -103,6 +105,22 @@ Rilis 24 Oktober 2026 (perbaikan ketiga, ter-deploy):
       `2>/dev/null` di `backup-storage.sh`, sehingga penyebab aslinya tidak
       terlihat). Bukan regresi dari perubahan ini; kalau muncul lagi, re-run
       dulu, lalu selidiki dengan mengubah skrip agar menampilkan stderr.
+
+Rilis 24 Oktober 2026 (perbaikan keempat, ter-deploy):
+
+- [x] Testing production menyeluruh (read-only) menemukan satu bug nyata:
+      `/id/catalog?brand=apple` huruf kecil diabaikan diam-diam (27 kartu semua
+      merek) karena pencocokan case-sensitive, sementara `?brand=Apple`
+      bekerja (5 kartu Apple). Diperbaiki lewat PR #142 dengan helper
+      `brandFromUrl` di `src/lib/shop.ts` plus tes regresi perilaku; merge
+      commit `2f231dc`, dipin lewat PR #143 (`54b653e`), dideploy, dan
+      diverifikasi di production: `?brand=apple` kini menyaring (0 kartu
+      merek lain), health 200, smoke 6/6 (tracking sempat fail sekali karena
+      jaringan runner; dua re-run PASS).
+- [x] Temuan data untuk owner/staf (bukan kode): katalog memuat model dengan
+      nama ganda "Xiaomi Xiaomi 14T 12/256GB" karena model menyimpan prefix
+      merek. Perbaikannya lewat `/portal/products` (edit nama model), bukan
+      lewat kode.
 
 Selesai pada sesi 24 Oktober 2026:
 
