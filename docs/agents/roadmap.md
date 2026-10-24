@@ -8,7 +8,8 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 
 **Diperbarui:** 24 Oktober 2026
 **Baseline kode:** `9db8e82` (`main`, merge PR #150; kartu Belum ada unit di
-landing dibatasi satu per merek; image `sha-9db8e82` sudah dibangun)
+landing dibatasi satu per merek; image `sha-9db8e82` sudah dibangun; 12 model
+tambah foto resmi di storage tanpa perubahan kode)
 **Baseline rilis:** `78eb39f` (`main`, merge PR #151 yang mem-pin image
 `sha-9db8e82`; production menjalankan image itu dan health 200)
 **Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
@@ -345,3 +346,23 @@ Rilis 24 Oktober 2026 (perbaikan kelima, ter-deploy):
       (total lima) lewat helper `limitOnePerBrand`; daftar lengkap tetap ada
       di halaman katalog (PR #150, #151). Terverifikasi live: landing memuat
       tepat 5 badge, smoke 6/6.
+
+Rilis 24 Oktober 2026 (perbaikan keenam, data production):
+
+- [x] 12 model katalog yang belum punya foto kini memakai render resmi yang
+      relevan per model (iPhone 14 Plus/15/16, Oppo A79/Find X8/Reno 12,
+      Samsung A35/Z Flip5, Vivo V40/X100, Xiaomi 14T/Redmi Note 13 Pro 5G).
+      File diunggah ke Storage `product-images/products/` dan ditautkan lewat
+      `official_images`. Setiap gambar diverifikasi visual cocok dengan model
+      sebelum dipasang; kandidat yang ternyata model lain (S24 Ultra untuk
+      produk Galaxy S24, Vivo Y28 generasi 2014) dibuang.
+- [x] Empat model tetap tanpa foto karena tidak ada sumber yang akurat:
+      POCO X6 Pro 5G, Oppo Reno 12 Pro 5G, Samsung Galaxy S24, Vivo Y28 (2024).
+      Mereka menampilkan fallback logo merek; owner bisa menambahkan foto
+      resminya lewat Master Produk atau Etalase & Harga kapan pun, fallback
+      otomatis tergantikan.
+- [x] Bug data ditemukan dan diperbaiki saat penautan: percobaan pertama
+      menulis `official_images` berisi string kosong `{""}` karena variabel env
+      tidak ter-export ke container psql, membuat semua kartu kembali ke
+      fallback. Perbaikannya menulis ulang 12 baris dengan URL lengkap dan
+      terverifikasi via kueri baca.
