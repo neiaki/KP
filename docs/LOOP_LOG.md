@@ -585,3 +585,39 @@ Anon-read final: products, store_settings, product_images,
 v_public_inventory, bucket product-images. Tidak ada celah HIGH;
 tidak ada nilai secret tercetak (audit hanya file:baris). Skema TIDAK
 diubah (tanpa migrasi baru — tidak diperlukan).
+
+## Goal 3 (C+D): peta halaman, smoke render, marquee lokal, JS per rute
+
+Pemetaan halaman publik (build output + kode): semua halaman publik ƒ
+dinamis SSR (seed dari getPublicSnapshot di layout); /api/reviews ○ ISR
+24 jam. Perilaku DB lambat/mati: snapshot retry 1x + pembacaan
+dipakai-bersama (public.ts) + seed layout catch→null sehingga halaman
+tetap 200 dengan copy cadangan; cacheImageUrls gagal→peta kosong (foto
+jatuh ke path lokal); reviews fetch AbortSignal 8 detik; statement
+timeout DB (tes db-client-statement-timeout); portal: proxy 503 eksplisit
+saat backend auth mati (proxy.ts). Tidak ada jalur menggantung [BACA-KODE
++ smoke render eksperimen].
+
+Smoke render: BARU `npm run smoke:render` (scripts/smoke-render.mjs):
+next start lokal :3299 tanpa kredensial → 5 halaman 200 + konten kunci
+(/id /en 103KB, catalog 48KB, tracking 42KB+SRV-, trade-in 51KB) →
+SEMUA PASS exit 0 (transkrip) [EKSEKUSI].
+
+Gambar & marquee (STANDAR D): BrandLogo semula 5 merek x varian = URL
+cdn.simpleicons.org; marquee menggandakan x8 → 104 URL pihak ketiga di
+HTML /id [EKSEKUSI grep]. FIX: 45 SVG Simple Icons disalin ke
+public/brand/icons (180KB), src lokal via iconUrl(); markup/warna/dark-
+mode identik. AFTER: URL pihak ketiga tinggal 14 (ikon sosmed footer,
+bukan puluhan) + 90 ikon merek same-origin; test fallback kartu
+diperbarui (filter mengenali fallback lokal; asersi nilai-jahat tetap,
+10/10 pass). Kartu katalog sudah benar: next/image fill + sizes
+(max-640 100vw, 1024 50vw, 25vw) — tanpa permintaan 3840px.
+
+JS first-load per rute (jumlah chunk <script> HTML SSR, raw KB):
+SEBELUM = SESUDAH (perubahan murni aset jaringan): /id & /en 1039KB/22,
+catalog 1032KB/21, tracking & trade-in 1009KB/19, portal/dashboard
+1064KB/22 — delta portal vs publik hanya +25..55KB → kode portal TIDAK
+membebani rute publik; basis bersama = React/Next/Sentry/store [EKSEKUSI].
+Font: next/font 2 keluarga woff2 preload (STANDAR D terpenuhi sebelumnya).
+
+Gerbang: npm test 861/847/0/14 exit 0; tsc 0; lint 0; build 0.

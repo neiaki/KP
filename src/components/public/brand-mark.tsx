@@ -2,23 +2,20 @@ import React from "react";
 import Image from "next/image";
 
 /*
- * Logo brand diambil dari Simple Icons CDN dan selalu berukuran 16px (h-4 w-4)
- * atau kelipatan thereof. Dua alasan kenapa bukan <img> biasa:
+ * Logo brand adalah berkas SVG lokal di public/brand/icons (diambil dari
+ * Simple Icons, disalin sekali per merek per warna) dan selalu berukuran
+ * 16px (h-4 w-4) atau kelipatan thereof. Alasan aset disimpan lokal, bukan
+ * dimuat dari cdn.simpleicons.org saat halaman dibuka:
  *
- * 1. Lint. @next/next/no-img-element muncul karena <img> melewatkan
- *    optimizer, dan untuk foto produk itu memang kerugian nyata. Untuk ikon
- *    sekecil ini, optimizer justru pure overhead: ia menambah satu
- *    round-trip ke /_next/image untuk mengubah SVG 1 KB yang sudah
- *    dioptimalkan menjadi raster satu warna.
- * 2. Layout stability. Logo dimuat dari domain luar, jadi tanpa dimensi
- *    yang dipesan browser, chip filter akan bergeser saat SVG tiba.
- *    width dan height di bawah itulah yang mencegahnya; keduanya hanya
- *    dipakai untuk menghitung rasio, karena ukuran sebenarnya dikendalikan
- *    className h-full w-full.
+ * 1. Marquee merek menggandakan logo 8x (4 set x 2 trek) supaya loop
+ *    mulus. Dengan CDN itu berarti puluhan permintaan pihak ketiga per
+ *    halaman; dengan berkas lokal semuanya same-origin, dicache sekali,
+ *    dan bebas bergantung padaketersediaannya CDN.
+ * 2. Layout stability tetap dijaga width/height eksplisit; ukuran nyata
+ *    tetap dikendalikan className h-full w-full.
  *
- * unoptimized: yang dikirim ke browser adalah SVG asli dari CDN, bukan
- * turunan yang sudah di-decode ulang. Itu yang membuat warna logo tetap
- * persis seperti Simple Icons menetapkannya.
+ * unoptimized: SVG dikirim apa adanya tanpa melewati optimizer gambar,
+ * karena merasterisasi ikon satu warna 1 KB hanya menambah round-trip.
  */
 const SLUGS: Record<string, string> = {
   Apple: "apple",
@@ -28,7 +25,7 @@ const SLUGS: Record<string, string> = {
   Vivo: "vivo",
 };
 
-// Warna resmi logo brand saat aktif (hex tanpa # untuk Simple Icons CDN)
+/** Warna resmi logo brand saat aktif (nama berkas lokal, tanpa #). */
 const BRAND_COLORS: Record<string, string> = {
   Apple: "000000",
   Samsung: "1428A0",
@@ -36,6 +33,11 @@ const BRAND_COLORS: Record<string, string> = {
   Oppo: "00755A",
   Vivo: "415FFF",
 };
+
+/** URL berkas ikon lokal: /brand/icons/<slug>-<hex>.svg */
+function iconUrl(slug: string, hex: string): string {
+  return `/brand/icons/${slug}-${hex}.svg`;
+}
 
 /** Merek yang punya logo di Simple Icons CDN; dipakai fallback foto kartu. */
 export function isKnownBrand(brand: string): boolean {
@@ -106,7 +108,7 @@ export function BrandLogo({
     return (
       <span className={box} aria-hidden="true">
         <Image
-          src={`https://cdn.simpleicons.org/${slug}/${hex}`}
+          src={`${iconUrl(slug, hex)}`}
           alt=""
           width={24}
           height={24}
@@ -121,7 +123,7 @@ export function BrandLogo({
     return (
       <span className={box} aria-hidden="true">
         <Image
-          src={`https://cdn.simpleicons.org/${slug}/101828`}
+          src={`${iconUrl(slug, "101828")}`}
           alt=""
           width={24}
           height={24}
@@ -129,7 +131,7 @@ export function BrandLogo({
           className={`${img} dark:hidden`}
         />
         <Image
-          src={`https://cdn.simpleicons.org/${slug}/ffffff`}
+          src={`${iconUrl(slug, "ffffff")}`}
           alt=""
           width={24}
           height={24}
@@ -143,7 +145,7 @@ export function BrandLogo({
   return (
     <span className={box} aria-hidden="true">
       <Image
-        src={`https://cdn.simpleicons.org/${slug}/475467`}
+        src={`${iconUrl(slug, "475467")}`}
         alt=""
         width={24}
         height={24}
@@ -151,7 +153,7 @@ export function BrandLogo({
         className={`${img} dark:hidden`}
       />
       <Image
-        src={`https://cdn.simpleicons.org/${slug}/A8B0C0`}
+        src={`${iconUrl(slug, "A8B0C0")}`}
         alt=""
         width={24}
         height={24}

@@ -377,7 +377,11 @@ test("official_images kosong jatuh ke image_url yang lolos validasi", () => {
  * ada nilai yang lolos validasi.
  */
 function srcSelainFallback(markup: string): string[] {
-  return srcGambar(markup).filter((u) => !u.includes("cdn.simpleicons.org"));
+  // Fallback yang sah kini berkas lokal /brand/icons (dulu CDN Simple
+  // Icons); asersi tetap: nilai tak-sah TIDAK boleh muncul di src.
+  return srcGambar(markup).filter(
+    (u) => !u.includes("cdn.simpleicons.org") && !u.includes("/brand/icons/")
+  );
 }
 
 test("official_images yang tidak bisa dirender tidak pernah masuk ke src", () => {
