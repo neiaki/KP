@@ -153,7 +153,7 @@ klien tanpa menimpanya. Tindakan owner: pastikan Coolify/Traefik menimpa
 `X-Forwarded-Host` dengan host asli (atau set `SERVER_ACTIONS_ALLOWED_ORIGINS`
 sesuai domain final). Tidak ada perubahan kode tanpa persetujuan owner.
 
-## 8. Verifikasi DB-level belum dijalankan (DATABASE_URL UNSET)
+## 8. Verifikasi DB-level belum dijalankan (perbaikan test siap; DATABASE_URL UNSET)
 
 Gerbang 25 Oktober 2026 berjalan tanpa `DATABASE_URL`, jadi 14 test yang
 membutuhkan database di-skip. Yang sudah diverifikasi: logika murni, migrasi
@@ -162,3 +162,20 @@ Yang belum: SELECT/INSERT nyata sebagai anon/authenticated, policy RLS pada
 data hidup, dan transaksi POS. Tindakan owner: jalankan
 `DATABASE_URL=<staging> npm test` di database lokal/staging sebelum deploy.
 Jangan memakai database produksi untuk pengujian ini.
+
+Pembaruan 25 Oktober 2026: lapis 2 `tests/pos-concurrent-sale.test.ts`
+diperbaiki agar bisa berjalan di CI. Seed sekarang membuat baris `auth.users`
+lebih dulu (FK `profiles.id` ON DELETE CASCADE), lalu menaikkan peran profil
+menjadi admin; env Supabase stub diisi sebelum `executeSale` diimpor supaya
+`requireRole` tidak menolak sebelum perlombaan. Cleanup menghapus `auth.users`
+sehingga profil ikut terhapus. Verifikasi lokal masih belum bisa karena tidak
+ada server PostgreSQL dan `DATABASE_URL` belum diisi. Jalankan di database
+sekali pakai, bukan production:
+
+```bash
+DATABASE_URL=postgres://... node --experimental-strip-types \
+  --test tests/pos-concurrent-sale.test.ts
+```
+
+CI `database-tests` akan menjalankan file ini otomatis saat PR dibuat karena
+file memakai `process.env.DATABASE_URL`.

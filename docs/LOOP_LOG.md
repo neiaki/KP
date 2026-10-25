@@ -736,3 +736,19 @@ Gerbang resmi Goal 4 (semua exit 0):
 
 Catatan: `DATABASE_URL` tidak diisi saat suite dijalankan, jadi 14 tes database
 tetap skip dan tidak ada data production yang tersentuh.
+
+## Iterasi 25 — perbaikan test DB konkuren (2026-10-25)
+
+Item 8 `NEEDS_HUMAN.md`. Lapis 2 `tests/pos-concurrent-sale.test.ts`
+sebelumnya menyisipkan `profiles` tanpa baris `auth.users`, padahal
+`profiles.id` punya FK `ON DELETE CASCADE` ke `auth.users.id` (migrasi
+0001/0004). Seed juga tidak membuka `isSupabaseConfigured()`, sehingga
+`requireRole` akan menolak sebelum transaksi dijalankan. Perbaikan: seed
+`auth.users` lebih dulu, upsert profil admin, isi env Supabase stub sebelum
+`executeSale` diimpor, dan cleanup menghapus `auth.users` (profil ikut
+cascade). Bukti: [BACA-KODE] migrasi 0001/0004/0005 dan `_helpers.ts`;
+[TEST] `node --experimental-strip-types --test tests/pos-concurrent-sale.test.ts`
+2/2 pass tanpa database; gerbang penuh `npm test` 870 tes/856 pass/14 skip,
+tsc 0, lint 0, build 0. Lapis 2 belum dieksekusi karena tidak ada server
+PostgreSQL dan `DATABASE_URL` UNSET; verifikasi menunggu CI `database-tests`
+atau database sekali pakai. Tidak ada data production yang disentuh.
