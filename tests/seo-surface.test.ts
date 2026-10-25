@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import robots from "../src/app/robots.ts";
 import sitemap, {
   DEFAULT_LOCALE,
@@ -12,6 +13,7 @@ import sitemap, {
   buildLocalBusinessJsonLd,
   buildOpeningHoursSpecification,
   buildRouteMetadata,
+  buildTrackingMetadata,
   isSupportedLocale,
   languageAlternates,
   buildLoginMetadata,
@@ -410,6 +412,52 @@ test("LocalBusiness memakai data store_settings, bukan literal di kode", () => {
   ]);
 });
 
+test("JSON-LD tidak menyimpan identitas toko sebagai literal di komponen", async () => {
+  const sumber = await readFile(
+    new URL("../src/components/public/store-json-ld.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(sumber, /getPublicStoreSettings\(/, "komponen wajib membaca store_settings");
+  assert.doesNotMatch(
+    sumber,
+    /Paku Jaya|Serpong|62812|0812|atcell\.my\.id/i,
+    "nama, alamat, nomor, dan origin tidak boleh ditulis sebagai literal di komponen"
+  );
+
+  const lain: StoreSettings = {
+    ...SETTINGS,
+    store_name: "Toko Uji",
+    description_id: "Deskripsi uji",
+    address: "Jl. Uji 1",
+    phone_number: "+62 811-0000-0001",
+    whatsapp_number: "6281100000001",
+    maps_url: "https://maps.example.test/toko-uji",
+    latitude: -6.1,
+    longitude: 106.7,
+    social_facebook: "https://facebook.com/toko-uji",
+    social_tiktok: "",
+    opening_hours: {
+      monday_friday: "08:00 - 17:00 WIB",
+      saturday_sunday: "09:00 - 12:00 WIB",
+    },
+  };
+
+  const asli = buildLocalBusinessJsonLd({ origin: SITE_ORIGIN, settings: SETTINGS, reviews: null });
+  const ubah = buildLocalBusinessJsonLd({ origin: SITE_ORIGIN, settings: lain, reviews: null });
+  for (const field of [
+    "name",
+    "description",
+    "telephone",
+    "hasMap",
+    "address",
+    "geo",
+    "openingHoursSpecification",
+    "sameAs",
+  ] as const) {
+    assert.notDeepEqual(asli[field], ubah[field], `${field} harus ikut berubah bersama store_settings`);
+  }
+});
+
 test("koordinat 0,0 yang belum diisi portal tidak dipancarkan", () => {
   const node = buildLocalBusinessJsonLd({
     origin: SITE_ORIGIN,
@@ -554,6 +602,22 @@ test("halaman login menyatakan noindex lewat meta, bukan hanya robots.txt", () =
   // Halaman yang boleh diindeks tidak boleh ikut membawa meta robots.
   for (const path of ROUTE_PATHS) {
     assert.equal(buildRouteMetadata(path, "id").robots, undefined);
+  }
+});
+
+test("tracking tetap indexable, tapi URL berkode tiket tidak diindeks", () => {
+  for (const locale of LOCALES) {
+    const landing = buildTrackingMetadata(locale, false);
+    assert.equal(landing.robots, undefined, "halaman lacak servis harus tetap bisa ditemukan");
+    assert.equal(landing.alternates?.canonical, routeUrl("tracking", locale));
+
+    const ticketUrl = buildTrackingMetadata(locale, true);
+    assert.deepEqual(ticketUrl.robots, { index: false, follow: true });
+    assert.equal(
+      ticketUrl.alternates?.canonical,
+      routeUrl("tracking", locale),
+      "canonical harus tetap URL bersih, bukan URL dengan kode tiket"
+    );
   }
 });
 

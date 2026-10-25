@@ -429,6 +429,28 @@ export function buildRouteMetadata(path: PublicRoutePath, locale: unknown): Meta
 }
 
 /**
+ * Metadata halaman tracking.
+ *
+ * Halaman tanpa query tetap diindeks karena "lacak servis" adalah kata kunci
+ * yang memang dicari calon pelanggan. Begitu URL membawa ?ticket=, halaman itu
+ * berisi kode nota milik satu pelanggan dan tidak boleh muncul di hasil
+ * pencarian, jadi robots-nya noindex, follow. Canonical tetap menunjuk URL
+ * bersih supaya sinyal SEO tidak terpecah ke setiap kode tiket.
+ */
+export function buildTrackingMetadata(
+  locale: unknown,
+  hasTicketQuery: boolean
+): Metadata {
+  const { locale: resolved, copy } = resolveCopy("tracking", locale);
+  return buildPageMetadata(
+    resolved,
+    copy,
+    "tracking",
+    hasTicketQuery ? { index: false, follow: true } : undefined
+  );
+}
+
+/**
  * Metadata halaman login staf.
  *
  * robots.index false adalah pernyataan eksplisit bahwa halaman ini tidak
