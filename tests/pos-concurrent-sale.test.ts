@@ -116,6 +116,12 @@ if (url) {
   await probe.end({ timeout: 1 }).catch(() => {});
 
   if (reachable) {
+    // requireRole() memeriksa isSupabaseConfigured() sebelum membaca profil.
+    // Nilai di bawah hanya membuka gerbang itu; createClient sudah diganti
+    // stub, jadi tidak ada request jaringan ke Supabase.
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||= "https://stub.supabase.test";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= "stub-anon-key";
+
     const { executeSale } = await import("../src/lib/actions/pos.ts");
 
     test("dua penjualan bersamaan ke satu unit: tepat satu yang berhasil", async () => {
@@ -123,9 +129,22 @@ if (url) {
       const suffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       const imei = ("9" + suffix.replace(/\D/g, "").padStart(14, "0")).slice(0, 15);
       try {
+        // profiles.id punya FK ke auth.users.id (migrasi 0001/0004). Tanpa
+        // baris auth.users, seed ini gagal sebelum perlombaan penjualan
+        // sempat diuji. Trigger handle_new_user membuat profil customer,
+        // lalu upsert di bawah menaikkan perannya menjadi admin.
+        await pg`insert into auth.users (id, email, raw_user_meta_data)
+                 values (${ADMIN_ID}, 'tes-konkuren@atcell.test',
+                         '{"full_name":"Tes Konkuren","username":"tes-konkuren"}'::jsonb)
+                 on conflict (id) do nothing`;
         await pg`insert into profiles (id, full_name, role, phone_number, username, email, created_at)
                  values (${ADMIN_ID}, 'Tes Konkuren', 'admin', '081200000000', 'tes-konkuren', 'tes-konkuren@atcell.test', now())
-                 on conflict (id) do nothing`;
+                 on conflict (id) do update set
+                   full_name = excluded.full_name,
+                   role = excluded.role,
+                   phone_number = excluded.phone_number,
+                   username = excluded.username,
+                   email = excluded.email`;
         const p = await pg`insert into products (brand, model_name, specs, default_price, is_active, is_demo)
                  values ('TesKonkuren', ${"TK-" + suffix}, '', 100000, true, false) returning id`;
         const productId = p[0].id;
@@ -168,7 +187,8 @@ if (url) {
         await pg`delete from transactions where customer_name in ('Pembeli A','Pembeli B')`;
         await pg`delete from inventory_units where product_id in (select id from products where model_name like 'TK-%')`;
         await pg`delete from products where model_name like 'TK-%'`;
-        await pg`delete from profiles where id = ${ADMIN_ID} and full_name = 'Tes Konkuren'`;
+        // Hapus pemilik auth-nya; profiles ikut terhapus lewat ON DELETE CASCADE.
+        await pg`delete from auth.users where id = ${ADMIN_ID}`;
         await pg.end({ timeout: 3 }).catch(() => {});
       }
     });
