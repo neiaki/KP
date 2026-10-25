@@ -510,3 +510,22 @@ Cakupan (semua hijau; 857 total test, 843 pass, 14 skip DB lokal → CI):
   DATABASE_URL pra-ada, dijalankan CI postgres:17).
 Gerbang resmi berurutan: npm test 857/843/0/14 exit 0 → tsc 0 → lint 0
 → build 0.
+
+## STANDAR At Cell — Bagian B: keamanan spesifik (2026-10-25)
+
+| Butir | Hasil | Bukti |
+|---|---|---|
+| RLS per tabel | 20 tabel RLS-on; policy per peran lengkap | grep migrasi: products(public read/sales update kolom via trigger/admin all), inventory_units(staff only), transactions/tiket/trade-in/audit(staff read, tx admin update), profiles(self read/admin write), store_settings(public read/admin write) [BACA-KODE migrasi] |
+| Anon bisa baca apa | products, store_settings, product_images, view v_public_inventory, storage product-images saja | inventaris policy + harden 20260927160000 [BACA-KODE] |
+| /trade-in?unit=<id> | AMAN: resolveTradeInTarget hanya cocokkan unit PUBLIK di store klien; IMEI ekor-4; tanpa harga modal; ID sembarang → null | tests/trade-in-target-linkage [TEST] |
+| Pelacakan servis | respons hanya field terbatas ke PEMEGANG kode (imei_or_sn milik perangkatnya sendiri); kode 40-bit + rate limit 3 lapis | service.ts select + auth-rate-limit [BACA-KODE+TEST] |
+| View etalase | v_public_inventory tanpa purchase_cost; IMEI ****tail | migrasi + getPublicSnapshot [TEST] |
+| Bucket Storage | service/trade-in privat (public=false + limit 5MB/mime DI BUCKET), listing anon hanya product-images, upload hanya staf (is_staff) | 20260927160000 + policy grep [BACA-KODE] |
+| Cookie lintas subdomain | default host-only (tidak menyeberang subdomain); SUPABASE_COOKIE_DOMAIN opsional server-side untuk berbagi sesi atcell.my.id↔subdomain | config.ts + proxy/server.ts [BACA-KODE] |
+| Open redirect login | ditolak ketat | route-next-redirect 7 tes [TEST] |
+| Upload foto | enum bucket/tipe, 5MB, nama disanitasi, folder id-staf | F3-11 + storage-hardening [TEST] |
+| Service role di bundle klien | NIHIL: 0 kemunculan di .next/static/chunks; 0 NEXT_PUBLIC secret | grep bundle [EKSEKUSI] |
+| Demo/mock di production | TIDAK BISA: liveBackendEnabled wajib true saat NODE_ENV=production; mesin demo hanya import() dinamis; import type boleh (terhapus kompilator) | BARU tests/prod-no-demo.test.ts 4 tes + mutasi B1 (flag tanpa kondisi prod → gagal) dan B2 (import dinamis→statis → gagal) [REPRODUKSI+TEST] |
+| Scan riwayat git | bersih (F3-01: seluruh ref termasuk 52 refs/t3; format laporan bila ada = file:baris + jenis) | git log --all grep [EKSEKUSI] |
+
+Gerbang resmi: npm test 861/847/0/14 exit 0 → tsc 0 → lint 0 → build 0.
