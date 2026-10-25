@@ -529,3 +529,59 @@ Gerbang resmi berurutan: npm test 857/843/0/14 exit 0 → tsc 0 → lint 0
 | Scan riwayat git | bersih (F3-01: seluruh ref termasuk 52 refs/t3; format laporan bila ada = file:baris + jenis) | git log --all grep [EKSEKUSI] |
 
 Gerbang resmi: npm test 861/847/0/14 exit 0 → tsc 0 → lint 0 → build 0.
+
+## Goal 1+A (ronde ketat): tabel aturan bisnis + bukti mutasi ulang
+
+| Aturan bisnis | File test | Hasil |
+|---|---|---|
+| IMEI tepat 15 digit + unik | tests/validations.test.ts | 11 pass |
+| Unit non-available tak dijual (gate) | tests/inventory-unit-status-gate.test.ts | 6 pass |
+| Dua penjualan bersamaan (kunci) | tests/pos-concurrent-sale.test.ts | 2 pass (+DB CI) |
+| Format+keunikan kode tiket | tests/ticket-code-security.test.ts | 10 pass |
+| Peran salah ditolak tiap aksi + safeParse | tests/server-action-role-guard.test.ts | 3 pass |
+
+Bukti mutasi ronde ini (rusak→GAGAL→pulih→hijau, git diff bersih=0):
+M1 hapus .for(update) → 2 GAGAL; M2 rusak requireRole settings → 1 GAGAL;
+M3 safeParse→parse inventory → 1 GAGAL; M4 flag demo tanpa kondisi prod →
+1 GAGAL. Gerbang: test 861/847/0/14 exit 0; tsc 0; lint 0; build 0.
+
+## Goal 2+B (ronde ketat): audit statis dengan file:baris
+
+RLS aktif semua tabel (file:baris penegak): profiles/0001:360+0002:356,
+products/0001:362+0002:358, store_settings/0001:361+0002:357,
+inventory_units/0001:363+0002:359, transactions/0001:364+0002:360,
+transaction_items/0001:365+0002:361, trade_in_records/0001:366+0002:362,
+service_tickets/0002:363 + auto-RLS-trigger
+20260927120000:33, service_ticket_audit/0007:156,
+unit_status_audit/20260927130000:61, product_images/0007:157.
+Auto-RLS untuk tabel baru: migrasi 20260927120000 (trigger) — tabel baru
+tidak bisa lupa RLS.
+
+Policy per tabel (versi efektif = drop+create terakhir di 0002 dan
+sesudahnya; contoh baris): products public read 0002:388 / sales update
+20261024110000:15 (kolom dibatasi trigger 20261024120000) / admin all
+0002:393; inventory_units staff-only 0002:399-415 (anon TIDAK bisa baca);
+transactions 0002:436+449 (tx_read staff, tx_admin_update admin);
+tiket 0002:464-480 staff; trade-in 0002:454-459 staff; audit read
+0007:165 + unit audit 20260927130000; profiles self 0002:366 / admin
+0002:371; settings public 0002:377 / admin 0002:382; product_images
+public 20260927130000:64 / staff 71,78 / admin-delete 86.
+
+Storage bucket (20260927160000_harden): service-photos & trade-in-photos
+public=false + file_size_limit 5242880 + allowed_mime jpeg/png/webf di
+bucket; storage_public_read hanya product-images (listing anon privat
+bucket nihil); insert/update/delete hanya authenticated is_staff()
+(is_staff dikunci 0003:5-7: hanya service_role yang bisa execute).
+
+Server Action (39, guard file:baris — daftar lengkap transkrip): semua
+aksi internal requireRole pada baris pertamanya (audit 56/97, auth
+217/318/377/451/526/557/584, dashboard 31/85/133, inventory 53/84/148/223,
+portal 37, pos 43/279, products 48/71/109/147/179, service 41/83/182,
+settings 17/28, storage 82/213); 8 PUBLIK beralasan (auth 77/150/360,
+public.ts 107/192/242/384, service 295) — konsisten dengan
+tests/server-action-role-guard.
+
+Anon-read final: products, store_settings, product_images,
+v_public_inventory, bucket product-images. Tidak ada celah HIGH;
+tidak ada nilai secret tercetak (audit hanya file:baris). Skema TIDAK
+diubah (tanpa migrasi baru — tidak diperlukan).
