@@ -54,7 +54,7 @@ di `src/lib/store.ts`.
 | Peran | Halaman utama | Hak akses utama |
 |-------|---------------|------------------|
 | `admin` | `/portal/dashboard` | Dashboard, produk, staf, pengaturan, laporan, dan seluruh modul operasional |
-| `sales` | `/portal/pos` | POS, inventaris, transaksi, trade-in, dan servis |
+| `sales` | `/portal/pos` | POS, inventaris, transaksi, trade-in, servis, etalase & harga, dan akun pelanggan |
 | `technician` | `/portal/service` | Tiket servis, diagnosa, biaya, dan progres pengerjaan |
 | `customer` | `/portal/account` | Riwayat transaksi, garansi, dan tiket milik akun tersebut |
 
@@ -167,7 +167,11 @@ Jangan pernah commit `.env.local`, password database, service role key, atau tok
 | `bun run test` | Menjalankan test suite |
 | `bunx tsc --noEmit` | Melakukan typecheck |
 | `bun run lint` | Menjalankan ESLint |
+| `bun run smoke:render` | Merender halaman publik terhadap build lokal |
+| `bun run perf` | Menjalankan Lighthouse mobile untuk halaman publik |
 | `bun run smoke:deployment -- <primary-url> <fallback-url>` | Memeriksa endpoint health pada deployment |
+
+Perintah `npm`/`npx` yang setara juga didukung: `npm test`, `npx tsc --noEmit`, `npm run lint`, `npm run build`. CI memakai bun.
 
 Validasi lengkap sebelum rilis:
 

@@ -379,6 +379,100 @@ opsi desain di NEEDS_HUMAN butir 3.
 - Gerbang akhir: tsc 0, lint 0, build 0, npm test 852/838/0/14 exit 0
   (transkrip).
 
+## Goal 5 (F) — sinkronisasi docs vs kode dan migrasi (2026-10-25)
+
+Lingkup: dokumen saja, tanpa perubahan perilaku aplikasi. Sumber kebenaran:
+`src/lib/access.ts`, `src/lib/actions/*.ts`, `src/lib/supabase/config.ts`,
+`src/components/portal/portal-sidebar.tsx`, dan `supabase/migrations/`.
+
+| Dokumen | Klaim lama | Kenyataan kode/migrasi (file:baris) | Tindakan |
+|---|---|---|---|
+| PRD §4 | Admin `/dashboard`, Sales `/pos`, Teknisi `/service`, Pelanggan `/account` | `defaultPortalPath` memakai `/portal/...` (`src/lib/access.ts:3-8`) | Diperbaiki |
+| PRD §4/§7 | Tracking publik menampilkan total biaya | `trackTicketPublic` hanya mengembalikan status/model/akhir IMEI/garansi/waktu (`src/lib/actions/service.ts:229-237,372`); biaya/foto/keluhan tidak dikirim | Diperbaiki |
+| PRD §7 | Cookie wildcard `.atcell.my.id` selalu di production | `getSupabaseCookieDomain()` opsional; tanpa env cookie host-only (`src/lib/supabase/config.ts:23-28`) | Diperbaiki |
+| PRD §7 | Trade-in lewat PostgreSQL RPC | `executeSale` memakai `db.transaction` (`src/lib/actions/pos.ts:33-39,58`) | Diperbaiki |
+| PRD §3/§7 | Sales tidak boleh mengubah `products` | `updateProductListing` mengizinkan admin+sales (`src/lib/actions/products.ts:173-204`); policy `products_sales_update` (`supabase/migrations/20261024110000_products_sales_update.sql:14-18`); trigger kolom (`supabase/migrations/20261024120000_products_sales_column_guard.sql:17-41`) | Diperbaiki |
+| PRD §7 | Stok/POS hanya sales; service hanya technician; anon hanya view | Inventory/POS admin+sales (`src/lib/actions/pos.ts:43`, policy `supabase/migrations/0002_harden_atcell_schema.sql:403-412`), service admin+sales+technician dengan batas sales (`src/lib/actions/service.ts:83,115-123`), anon SELECT `products`/`store_settings`/`product_images`; view `v_public_inventory` hanya `service_role` (`0002_harden_atcell_schema.sql:350-351,387-390,527-528`, `20260927130000_product_image_registry.sql:63-68`, `20261023111914_add_is_demo_flag.sql:34-35`) | Diperbaiki |
+| PRD §6 | ERD 8 tabel; migrasi 11 tabel | ERD menyatakan parsial dan menunjuk `DEPLOYMENT-REDUNDANCY` (`docs/PRD-AtCell.md:141`); daftar migrasi memuat 11 tabel termasuk `product_images` dan dua audit | Tidak diubah, bukti parsial |
+| USE-CASE peta menu | Admin 9 menu, Sales 3 menu | `portal-sidebar.tsx:64-148`: admin 11, sales 5 (termasuk Etalase & Harga, Akun Pelanggan) | Diperbaiki |
+| USE-CASE guard | Hanya account/POS/inventory/service disebut | `canAccessPortalPath` juga mengizinkan listing/customers untuk admin+sales (`src/lib/access.ts:45-72`) | Diperbaiki |
+| USE-CASE POS/trade-in | RPC atomik | `db.transaction` (`src/lib/actions/pos.ts:58`) | Diperbaiki |
+| USE-CASE service | Hanya technician boleh update, ditegakkan RLS | `requireRole(["admin","technician","sales"])` + batas sales (`src/lib/actions/service.ts:83,115-123`); RLS staff (`0002_harden_atcell_schema.sql:473-477`) | Diperbaiki |
+| USE-CASE products | RLS menolak INSERT/UPDATE/DELETE sales | Policy sales UPDATE + trigger kolom (`20261024110000_products_sales_update.sql`, `20261024120000_products_sales_column_guard.sql`) | Diperbaiki |
+| USE-CASE tracking | Hasil selalu memuat biaya/foto | Mode live mengosongkan biaya/foto/keluhan (`src/lib/actions/service.ts:229-237,372`; `docs/USE-CASE-AtCell.md:99-101`) | Diperbaiki |
+| USE-CASE diagram | "lima use case per aktor" | Diagram berisi 7/4/8/4/8 use case per aktor (`docs/diagram-uml/*/usecase-*.puml`) | Diperbaiki |
+| requirement-2.0 | Admin/Owner seolah peran terpisah | Enum hanya `admin` (`supabase/migrations/0001_atcell_schema.sql:13-25`); Owner memakai `admin` | Diperbaiki |
+| requirement-2.0 | Sales tidak berwenang katalog (tanpa nuansa) | Sales boleh update harga/foto, bukan identitas (`src/lib/actions/products.ts:173-204`) | Diperbaiki |
+| README peran | Sales: POS/inventaris/servis | Sidebar+guard juga memberi Etalase & Harga dan Akun Pelanggan (`portal-sidebar.tsx:78-85,110-116`) | Diperbaiki |
+| README perintah | Tidak mencantumkan smoke:render/perf | Script ada di `package.json` | Ditambahkan |
+| README verifikasi | Hanya bun | npm/npx setara juga didukung; CI memakai bun | Catatan ditambahkan |
+
+Tabel/enum: `user_role`, `unit_condition`, `unit_status`, `repair_status`,
+`payment_method` di PRD §7 sama persis dengan `0001_atcell_schema.sql:13-25`.
+Alur servis 8 status di `docs/requirement-2.0.md:50-52` sama dengan
+`REPAIR_FLOW` (`src/lib/validations.ts:313-322`). Tidak ada perubahan enum.
+
+Keputusan owner: dua klaim yang diselaraskan ke kode dicatat di
+`docs/NEEDS_HUMAN.md` butir 6 (Sales boleh ubah harga/foto; tracking publik
+tanpa biaya/foto/keluhan). Tidak ada perubahan perilaku aplikasi.
+
+Gerbang akhir (25 Okt 2026):
+- `npm test` exit 0: 870 test, 856 pass, 14 skip, 0 fail.
+- `npx tsc --noEmit` exit 0.
+- `npm run lint` exit 0, 0 warning.
+- `npm run build` exit 0, Next.js 16.4.2.
+
+## Goal 6 (B): red-team ulang butir keamanan (2026-10-25, localhost :3214/:3215)
+
+Target: production build lokal (`npm start`) tanpa env Supabase di :3214,
+plus server env palsu di :3215 untuk menguji guard. Tidak ada koneksi ke
+Supabase produksi; `DATABASE_URL` UNSET. Format: percobaan serangan -> hasil
+-> bukti.
+
+| Butir B / kategori | Percobaan serangan | Hasil | Bukti |
+|---|---|---|---|
+| B1 RLS per tabel | Baca/tulis langsung 11 tabel public sebagai anon lewat PostgREST | RLS-on 11/11; tidak ada grant/policy tulis anon; `storage.objects` RLS Supabase | `rg` migrasi: 11 tabel; `tests/migration-safety.test.ts` 12 pass [BACA-KODE+TEST] |
+| B2 Anon bisa baca apa | `SELECT` view `v_public_inventory` dan `inventory_units` sebagai anon | Ditolak grant; anon hanya `products`, `store_settings`, `product_images`; view hanya `service_role` | `0001:495` dicabut `0002:350-351` dan `20261023111914:34-35`; `20260927150000:24-27`; `20260927190000:57` [BACA-KODE] |
+| B3 `/trade-in?unit=<id>` | ID acak, unit bukan publik, unit milik orang lain | `null`; tidak ada unit lain yang terpilih; IMEI hanya ekor-4 | `tests/trade-in-target-linkage.test.ts` (bagian 78 pass) [TEST] |
+| B4 Pelacakan servis | Tebak kode, baca PII/biaya/foto lewat `?ticket=` | Hanya status/model/akhir IMEI/garansi/waktu; kode 40-bit; kuota per IP, per kode, global | `src/lib/actions/service.ts:229-237,246-283`; `tests/tracking-safety.test.ts` [BACA-KODE+TEST] |
+| B5 View etalase | Cari `purchase_cost` atau IMEI penuh di view | Kolom modal tidak ada; IMEI `****tail`; unit demo dan non-available tersaring | `0002:330-351`; `20261023111914:13-35`; `tests/public-snapshot-unit-history.test.ts` 12 pass [TEST] |
+| B6 Bucket Storage | Ambil foto service/trade-in lewat URL publik; upload tanpa staf | Bucket privat; upload hanya `private.is_staff()`; limit 5MB dan MIME di bucket | `20260927160000`; `0002:490-512`; `0003:5-7`; `tests/storage-hardening.test.ts` [BACA-KODE+TEST] |
+| B7 Cookie lintas subdomain | Baca cookie sesi lewat `document.cookie`; kirim lewat HTTP | `httpOnly` + `secure` di production; default host-only; domain hanya jika env diisi | `tests/supabase-cookie-flags-e2e.test.ts` 1 pass; `tests/supabase-cookie-options.test.ts` [TEST] |
+| B8 Open redirect login | `?next=//evil.example`, `https://evil.example`, `/\evil.example`, path role lain | Ditolak; fallback ke path resmi role | `tests/route-next-redirect.test.ts` 7 tes (bagian 78 pass) [TEST] |
+| B9 Upload foto | File MIME/size/nama aneh, bucket asing, tanpa sesi | Enum bucket, MIME, 5MB, nama disanitasi, folder id staf, wajib role | `tests/storage-hardening.test.ts` + `tests/sec-storage-key.test.ts` (78 pass) [TEST] |
+| B10 Service role di bundle | Grep `service_role`/`SUPABASE_SERVICE_ROLE_KEY` di `.next/static` dan komponen klien | 0 kemunculan; 0 `NEXT_PUBLIC_*SERVICE/SECRET` | `rg -l ... .next/static` = 0 [EKSEKUSI] |
+| B11 Demo/mock di production | `NODE_ENV=production` tanpa env, lalu env palsu buka portal | Flag live wajib true; demo hanya import dinamis; env palsu -> 307 ke login; lokal tanpa env 200 demo by design | `tests/prod-no-demo.test.ts` 4 tes; runtime :3215 307 [TEST+EKSEKUSI] |
+| B12 Riwayat git | Scan token/private key di semua ref | 0 match; file env di riwayat hanya `.env.example` | `git grep` semua ref = 0 baris; `git log --all --diff-filter=A` [EKSEKUSI] |
+| Secret path | `/.env`, `/.env.local`, `/.git/config`, `/.git/HEAD`, `/admin`, `/%2e%2e/.env`, `/.env%00` | Semua 404; tidak ada isi env/git | curl status :3214 [EKSEKUSI] |
+| XSS | `?ticket=<script>alert(1)</script>` dan `?q=<img src=x onerror=alert(1)>` | Tag mentah 0; payload ter-escape di dalam atribut `value`; tidak ada elemen baru | curl + grep konteks HTML [EKSEKUSI] |
+| SQL injection | `?brand=' OR 1=1--` | 200 normal; 0 penanda `SQLSTATE`/`postgres`/`syntax error` | curl + grep [EKSEKUSI] |
+| Path traversal | `/_next/image?url=../../.env`, versi encoded, URL absolut localhost, `/products/../../.env` | Optimizer 400; path biasa 404 | curl status [EKSEKUSI] |
+| Auth/session | Buka `/portal/dashboard`, `/portal/pos`, `/portal/service` tanpa sesi | Lokal tanpa env 200 demo by design; env palsu 307 ke `/id/login?next=...`; produksi smoke 307 | curl :3214/:3215 + `src/proxy.ts` [EKSEKUSI+BACA-KODE] |
+| IDOR | Panggil aksi internal dengan role salah / tanpa sesi | 39 aksi diperiksa; 8 publik beralasan; sisanya wajib `requireRole`/`getCurrentProfile` | `tests/server-action-role-guard.test.ts` (78 pass) [TEST] |
+| CSRF/CORS | POST action asli dengan `Origin: https://evil.example`; cek ACAO | Tanpa `X-Forwarded-Host` action dibatalkan (500, digest, tanpa mutasi); ACAO tidak ada; action ID palsu 404 | curl :3214 + log server [EKSEKUSI] |
+| `X-Forwarded-Host` | `Origin: evil.example` + `X-Forwarded-Host: evil.example` | Action dieksekusi; bukan CSRF browser karena preflight/CORS, tetapi proxy wajib menimpa header | curl :3214; dicatat `docs/NEEDS_HUMAN.md` butir 7 [EKSEKUSI] |
+| Header keamanan | GET `/id` lalu cek header | CSP, HSTS, XFO DENY, nosniff, referrer, permissions semua ada | `curl -I` :3214 [EKSEKUSI] |
+| Rate limit | Login salah berulang dan tracking tebak kode | Kuota per akun+IP, per IP, per kode, dan global; tidak jadi oracle username | `tests/auth-rate-limit.test.ts` + `tests/tracking-safety.test.ts` (78 pass) [TEST] |
+| SSRF/redirect | Gambar dari host asing, URL internal, redirect `?next=` | Optimizer 400; redirect login hanya path internal | curl + `route-next-redirect` [EKSEKUSI+TEST] |
+| Dependency | `bun audit --audit-level=high` | 558 paket, 0 kerentanan high | exit 0 [EKSEKUSI] |
+| Error leak | `/api/health/ready`, action error, tracking invalid | Health 503 hanya boolean; action error hanya digest; tanpa stack/SQLSTATE | curl body + log [EKSEKUSI] |
+| SRI | Hitung script eksternal di HTML `/id` | 0 script `https://`; aset same-origin | grep HTML [EKSEKUSI] |
+
+Kesimpulan Goal 6: tidak ada celah HIGH+ baru yang bisa dieksploitasi dari
+browser. Tiga koreksi dokumen ditemukan dan diperbaiki: (1) view
+`v_public_inventory` bukan grant anon, (2) jumlah tabel RLS 11, bukan 20,
+(3) policy Storage memakai `private.is_staff()`, bukan `public.is_staff`
+legacy. Satu residual risk proxy (`X-Forwarded-Host`) dicatat di
+`docs/NEEDS_HUMAN.md` butir 7 dan tidak diubah tanpa persetujuan owner.
+
+Bukti test terarah: 78 pass (tracking, rate limit, redirect, storage,
+trade-in, demo, cookie, JSON-LD, secret), 12 pass (view/snapshot/migrasi),
+14 pass (write gate), 1 pass (cookie e2e), 0 fail.
+
+Gerbang akhir Goal 6 (25 Okt 2026): `npm test` exit 0 (870 test, 856 pass,
+14 skip, 0 fail); `npx tsc --noEmit` exit 0; `npm run lint` exit 0;
+`npm run build` exit 0 (Next.js 16.4.2).
+
 ## Putaran 2 — tabel percobaan serangan (2026-10-25, localhost :3214)
 
 Target: production build lokal `next start` (tanpa env = mode demo) +
@@ -515,12 +609,12 @@ Gerbang resmi berurutan: npm test 857/843/0/14 exit 0 → tsc 0 → lint 0
 
 | Butir | Hasil | Bukti |
 |---|---|---|
-| RLS per tabel | 20 tabel RLS-on; policy per peran lengkap | grep migrasi: products(public read/sales update kolom via trigger/admin all), inventory_units(staff only), transactions/tiket/trade-in/audit(staff read, tx admin update), profiles(self read/admin write), store_settings(public read/admin write) [BACA-KODE migrasi] |
-| Anon bisa baca apa | products, store_settings, product_images, view v_public_inventory, storage product-images saja | inventaris policy + harden 20260927160000 [BACA-KODE] |
+| RLS per tabel | 11 tabel public aplikasi RLS-on (koreksi Goal 6; bukan 20); policy per peran lengkap; `storage.objects` RLS milik Supabase | grep migrasi: products(public read/sales update kolom via trigger/admin all), inventory_units(staff only), transactions/tiket/trade-in/audit(staff read, tx admin update), profiles(self read/admin write), store_settings(public read/admin write) [BACA-KODE migrasi] |
+| Anon bisa baca apa | products, store_settings, product_images, storage product-images saja. View v_public_inventory hanya service_role, bukan anon (koreksi Goal 6) | 0002:350-351,387-390,527-528 + 20260927150000:24-27 + 20260927160000:60-64 + 20261023111914:34-35 [BACA-KODE] |
 | /trade-in?unit=<id> | AMAN: resolveTradeInTarget hanya cocokkan unit PUBLIK di store klien; IMEI ekor-4; tanpa harga modal; ID sembarang → null | tests/trade-in-target-linkage [TEST] |
 | Pelacakan servis | respons hanya field terbatas ke PEMEGANG kode (imei_or_sn milik perangkatnya sendiri); kode 40-bit + rate limit 3 lapis | service.ts select + auth-rate-limit [BACA-KODE+TEST] |
 | View etalase | v_public_inventory tanpa purchase_cost; IMEI ****tail | migrasi + getPublicSnapshot [TEST] |
-| Bucket Storage | service/trade-in privat (public=false + limit 5MB/mime DI BUCKET), listing anon hanya product-images, upload hanya staf (is_staff) | 20260927160000 + policy grep [BACA-KODE] |
+| Bucket Storage | service/trade-in privat (public=false + limit 5MB/mime DI BUCKET), listing anon hanya product-images, upload hanya staf lewat `private.is_staff()` (executable authenticated); `public.is_staff` legacy hanya service_role | 20260927160000 + 0002:490-512 + 0003:5-7 [BACA-KODE] |
 | Cookie lintas subdomain | default host-only (tidak menyeberang subdomain); SUPABASE_COOKIE_DOMAIN opsional server-side untuk berbagi sesi atcell.my.id↔subdomain | config.ts + proxy/server.ts [BACA-KODE] |
 | Open redirect login | ditolak ketat | route-next-redirect 7 tes [TEST] |
 | Upload foto | enum bucket/tipe, 5MB, nama disanitasi, folder id-staf | F3-11 + storage-hardening [TEST] |
@@ -528,7 +622,7 @@ Gerbang resmi berurutan: npm test 857/843/0/14 exit 0 → tsc 0 → lint 0
 | Demo/mock di production | TIDAK BISA: liveBackendEnabled wajib true saat NODE_ENV=production; mesin demo hanya import() dinamis; import type boleh (terhapus kompilator) | BARU tests/prod-no-demo.test.ts 4 tes + mutasi B1 (flag tanpa kondisi prod → gagal) dan B2 (import dinamis→statis → gagal) [REPRODUKSI+TEST] |
 | Scan riwayat git | bersih (F3-01: seluruh ref termasuk 52 refs/t3; format laporan bila ada = file:baris + jenis) | git log --all grep [EKSEKUSI] |
 
-Gerbang resmi: npm test 861/847/0/14 exit 0 → tsc 0 → lint 0 → build 0.
+Gerbang resmi saat audit B: npm test 861/847/0/14 exit 0 → tsc 0 → lint 0 → build 0. Hasil akhir Goal 6 ada di bagian Goal 6 di atas.
 
 ## Goal 1+A (ronde ketat): tabel aturan bisnis + bukti mutasi ulang
 
@@ -570,8 +664,9 @@ public 20260927130000:64 / staff 71,78 / admin-delete 86.
 Storage bucket (20260927160000_harden): service-photos & trade-in-photos
 public=false + file_size_limit 5242880 + allowed_mime jpeg/png/webf di
 bucket; storage_public_read hanya product-images (listing anon privat
-bucket nihil); insert/update/delete hanya authenticated is_staff()
-(is_staff dikunci 0003:5-7: hanya service_role yang bisa execute).
+bucket nihil); insert/update/delete hanya authenticated lewat
+private.is_staff() (executable authenticated); public.is_staff legacy
+dikunci 0003:5-7 dan hanya service_role yang bisa execute.
 
 Server Action (39, guard file:baris — daftar lengkap transkrip): semua
 aksi internal requireRole pada baris pertamanya (audit 56/97, auth
@@ -581,10 +676,10 @@ settings 17/28, storage 82/213); 8 PUBLIK beralasan (auth 77/150/360,
 public.ts 107/192/242/384, service 295) — konsisten dengan
 tests/server-action-role-guard.
 
-Anon-read final: products, store_settings, product_images,
-v_public_inventory, bucket product-images. Tidak ada celah HIGH;
-tidak ada nilai secret tercetak (audit hanya file:baris). Skema TIDAK
-diubah (tanpa migrasi baru — tidak diperlukan).
+Anon-read final: products, store_settings, product_images, bucket
+product-images. View v_public_inventory hanya service_role, bukan anon.
+Tidak ada celah HIGH; tidak ada nilai secret tercetak (audit hanya
+file:baris). Skema TIDAK diubah (tanpa migrasi baru — tidak diperlukan).
 
 ## Goal 3 (C+D): peta halaman, smoke render, marquee lokal, JS per rute
 
@@ -621,3 +716,23 @@ membebani rute publik; basis bersama = React/Next/Sentry/store [EKSEKUSI].
 Font: next/font 2 keluarga woff2 preload (STANDAR D terpenuhi sebelumnya).
 
 Gerbang: npm test 861/847/0/14 exit 0; tsc 0; lint 0; build 0.
+
+## Goal 4 (E): i18n ID-EN, tracking noindex, JSON-LD store_settings, marquee
+
+| Butir | Temuan | Perbaikan | Bukti |
+|---|---|---|---|
+| Kunci terjemahan ID vs EN | Struktur `translations.ts` sudah identik, tidak ada kunci yang hanya ada di satu bahasa dan tidak ada nilai string kosong. Yang gagal justru test barunya: `registerHooks` memakai signature yang tidak cocok dengan tipe `@types/node`, sehingga `tsc` dan `build` merah. | Test `tests/translations-symmetric.test.ts` dirapikan dengan cast sempit pola repo; tiga perilaku tetap diuji: pohon kunci sama, tipe daun sama, tidak ada nilai kosong. | `node --experimental-strip-types --test tests/translations-symmetric.test.ts` 3/3 pass; `bunx tsc --noEmit` exit 0 [TEST] |
+| Tracking dan noindex | Konflik desain: halaman `/tracking` adalah landing page kata kunci "lacak servis", tetapi URL `?ticket=SRV-...` membawa kode servis milik satu pelanggan. Sebelumnya seluruh halaman indexable. | `buildTrackingMetadata()`: tanpa query tetap indexable, dengan `?ticket=` memakai `robots: { index: false, follow: true }` dan canonical tetap URL bersih. Konflik dicatat di `docs/NEEDS_HUMAN.md` item 5. | `tests/seo-surface.test.ts` tes "tracking tetap indexable, tapi URL berkode tiket tidak diindeks" pass [TEST+BACA-KODE] |
+| JSON-LD hanya dari store_settings | Tidak ada nama, alamat, telepon, jam buka, atau koordinat toko yang ditulis sebagai literal di `store-json-ld.tsx`; semua dibaca dari `getPublicStoreSettings()`. | Tidak ada perubahan perilaku. Ditambah penjaga agar komponen tidak diam-diam menyimpan identitas toko sebagai literal dan agar setiap field bisnis ikut berubah saat store_settings berubah. | `tests/seo-surface.test.ts` tes "JSON-LD tidak menyimpan identitas toko sebagai literal di komponen" pass [TEST] |
+| Marquee bisa dijeda + reduced motion | Marquee merek (32 detik) dan ulasan (30 detik) hanya berhenti saat hover. Pengguna keyboard dan layar sentuh tidak punya kontrol jeda yang stabil, sehingga belum memenuhi WCAG 2.2.2. `prefers-reduced-motion` sudah mematikan animasi lewat CSS global. | Komponen baru `MarqueePauseButton` dengan `aria-pressed`, ikon Pause/Play, label ID/EN. Kedua marquee memakai tombol itu, ditambah jeda saat `group-focus-within` dan `motion-reduce:animate-none`. | `tests/marquee-accessibility.test.ts` 4/4 pass: tombol, aria, fokus, dan media query [TEST] |
+| Kebersihan gerbang | Dua warning lint dari import `fileURLToPath` yang tidak dipakai di `tests/prod-no-demo.test.ts` dan `tests/server-action-role-guard.test.ts`. | Import dihapus. | `bun run lint` exit 0 tanpa warning [EKSEKUSI] |
+
+Gerbang resmi Goal 4 (semua exit 0):
+
+1. `bun run test`: 870 tes, 856 pass, 14 skip (butuh `DATABASE_URL`), 0 fail.
+2. `bunx tsc --noEmit`: 0 error.
+3. `bun run lint`: 0 error, 0 warning.
+4. `bun run build`: exit 0.
+
+Catatan: `DATABASE_URL` tidak diisi saat suite dijalankan, jadi 14 tes database
+tetap skip dan tidak ada data production yang tersentuh.

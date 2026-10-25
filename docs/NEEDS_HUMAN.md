@@ -91,3 +91,74 @@ mustahil dirender) dan bukan gambar (tidak ada img awal). Akar
 TIDAK-TERVERIFIKASI — perlu penyelidikan dengan trace layar per-frame.
 Opsi alat: rekaman video Lighthouse atau Chrome DevTools performance
 panel di halaman trade-in.
+
+## 5. Tracking: noindex halaman hasil lacak vs SEO landing page
+
+Konflik desain yang ditemukan 25 Oktober 2026 saat audit bagian E:
+
+- Halaman `/id/tracking` dan `/en/tracking` adalah landing page yang
+  menargetkan pencarian "lacak servis HP". Kalau seluruh halaman diberi
+  noindex, kata kunci itu kehilangan satu-satunya halaman publik yang
+  relevan.
+- Tetapi URL hasil pencarian membawa `?ticket=SRV-...`. Kode tiket adalah
+  identitas servis milik satu pelanggan; URL yang dibagikan atau ditemukan
+  crawler tidak boleh muncul di hasil pencarian.
+
+Keputusan yang sudah diterapkan: landing page tanpa query tetap indexable,
+sedangkan URL dengan `?ticket=` memakai `robots: { index: false, follow: true }`
+dan canonical tetap menunjuk URL bersih. Implementasi ada di
+`buildTrackingMetadata()` (`src/app/sitemap.ts`), dipakai
+`src/app/(public)/[locale]/tracking/page.tsx`, dan dikunci
+`tests/seo-surface.test.ts`.
+
+Tindakan owner: tidak ada, kecuali owner lebih memilih noindex total untuk
+seluruh halaman tracking. Kalau itu dipilih, hilangkan `buildTrackingMetadata`
+dan pakai `buildRouteMetadata` dengan robots noindex permanen, lalu update
+tes yang sama.
+
+## 6. Dua kebijakan produk yang tersirat dari kode, perlu konfirmasi owner
+
+Audit F menemukan dua klaim PRD lama yang tidak cocok dengan kode. Dokumen
+sudah diselaraskan ke perilaku yang berjalan, tanpa mengubah kode. Owner
+perlu mengonfirmasi apakah perilaku itu memang yang diinginkan.
+
+- **Sales mengubah harga acuan dan foto etalase.** Kode mengizinkan
+  `updateProductListing` untuk `admin` dan `sales`, policy
+  `products_sales_update`, dan trigger `products_sales_column_guard`
+  membatasi sales ke `default_price` dan `official_images`. PRD lama
+  menyebut master produk eksklusif Admin. Kalau owner ingin admin-only,
+  perlu perubahan kode dan migrasi baru; jangan hanya mengubah dokumen.
+- **Tracking publik tidak menampilkan biaya, foto, atau keluhan.** Server
+  Action `trackTicketPublic` hanya mengembalikan status, model, akhir
+  IMEI, garansi, dan waktu. PRD lama menyebut total biaya. Kalau owner
+  ingin biaya terlihat publik, itu perubahan perilaku dan keputusan
+  privasi baru, bukan sekadar perbaikan dokumen.
+
+## 7. Server Action mempercayai `X-Forwarded-Host` (verifikasi proxy, bukan celah browser)
+
+Ditemukan 25 Oktober 2026 saat red-team ulang bagian B. Next.js membandingkan
+`Origin` Server Action dengan `X-Forwarded-Host` lebih dulu, baru `Host`.
+Probe lokal dengan action ID asli:
+
+- `Origin: https://evil.example` tanpa `X-Forwarded-Host` → action dibatalkan,
+  HTTP 500, body hanya digest, tanpa mutasi.
+- `Origin: https://evil.example` + `X-Forwarded-Host: evil.example` → action
+  dieksekusi (respons `backendOffline` di mode tanpa env).
+
+Ini **bukan CSRF browser**: `X-Forwarded-Host` adalah header non-simple, jadi
+`fetch` lintas origin memicu preflight dan server tidak mengirim
+`Access-Control-Allow-Origin`; form HTML juga tidak bisa menyetel header itu.
+Risikonya hanya muncul kalau reverse proxy meneruskan `X-Forwarded-Host` dari
+klien tanpa menimpanya. Tindakan owner: pastikan Coolify/Traefik menimpa
+`X-Forwarded-Host` dengan host asli (atau set `SERVER_ACTIONS_ALLOWED_ORIGINS`
+sesuai domain final). Tidak ada perubahan kode tanpa persetujuan owner.
+
+## 8. Verifikasi DB-level belum dijalankan (DATABASE_URL UNSET)
+
+Gerbang 25 Oktober 2026 berjalan tanpa `DATABASE_URL`, jadi 14 test yang
+membutuhkan database di-skip. Yang sudah diverifikasi: logika murni, migrasi
+statis, RLS/grant lewat pembacaan migrasi, dan test migrasi tanpa koneksi.
+Yang belum: SELECT/INSERT nyata sebagai anon/authenticated, policy RLS pada
+data hidup, dan transaksi POS. Tindakan owner: jalankan
+`DATABASE_URL=<staging> npm test` di database lokal/staging sebelum deploy.
+Jangan memakai database produksi untuk pengujian ini.
