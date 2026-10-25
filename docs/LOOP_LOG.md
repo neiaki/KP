@@ -481,3 +481,32 @@ ketat menang bila bertentangan.
 - Tes yang butuh DB hanya dengan DATABASE_URL lokal/staging; jika tidak
   ada, uji logika murni + catat (kondisi kini: 14 tes DB skip lokal,
   dijalankan CI postgres:17 — sesuai aturan).
+
+## STANDAR At Cell — Bagian A: test aturan bisnis (2026-10-25)
+
+Cakupan (semua hijau; 857 total test, 843 pass, 14 skip DB lokal → CI):
+- IMEI tepat 15 digit: tests/validations.test.ts (pra-ada) + check DB
+  15-digit di schema [TEST].
+- Unit non-available tidak bisa dijual: tests/inventory-unit-status-gate
+  (6 tes, pra-ada: sold terminal DB + gerbang teknisi). BARU
+  tests/pos-concurrent-sale.test.ts: lapis statis mengunci tiga syarat
+  (db.transaction + .for("update") + filter available sekaligus) dan
+  lapis DB (DATABASE_URL/CI) menembak DUA executeSale bersamaan ke satu
+  unit — tepat satu boleh lolos, unit berakhir sold; seed/pulihkan
+  lengkap (profiles/products/units/transactions/items).
+- Format+keunikan kode tiket: tests/ticket-code-security (5 tes format
+  base32 tanpa huruf ambigu) + trigger DB pembuat kode atomik + unique
+  [TEST+BACA-KODE].
+- Tiap Server Action menolak peran salah / input Zod invalid: BARU
+  tests/server-action-role-guard.test.ts — matriks statis 39 aksi: semua
+  ber-requireRole atau terdaftar AKSI_PUBLIK (8 aksi publik beralasan
+  tertulis); scan safeParse (bukan parse yang bisa 500).
+- Bukti MUTASI (aturan dirusak sementara → test gagal → dipulihkan →
+  hijau) [REPRODUKSI, transkrip]: (1) hapus .for("update") di pos.ts →
+  2 tes GAGAL; (2) rusak requireRole di settings.ts → matriks GAGAL
+  menyebut aksi+berkas; (3) safeParse→parse di inventory.ts → scan
+  GAGAL.
+- Tidak ada test di-skip/dilemahkan ronde ini (14 skip = gerbang
+  DATABASE_URL pra-ada, dijalankan CI postgres:17).
+Gerbang resmi berurutan: npm test 857/843/0/14 exit 0 → tsc 0 → lint 0
+→ build 0.
