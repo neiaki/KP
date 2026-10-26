@@ -29,7 +29,6 @@
 # tidak cukup untuk mengubahnya.
 .github/CODEOWNERS          @neiaki
 .github/workflows/          @neiaki
-.github/dependabot.yml      @neiaki
 
 # Jalur yang bisa menghapus data produksi: script restore menjalankan
 # pg_restore --clean, dan backup adalah satu-satunya cadangan.

@@ -26,8 +26,8 @@ on:
     #   standby (03.17, 09.17, 15.17, 21.17) yang semuanya di menit 17;
     # - bukan menit 0, jadi tidak ikut antrean jadwal Github Actions yang
     #   menumpuk di awal jam;
-    # - setelah Dependabot membuka PR versi mingguan, sehingga lockfile yang
-    #   dipindai sudah mencakup versi yang baru.
+    # - pada hari kerja, sehingga hasil audit mingguan langsung terlihat di
+    #   riwayat Actions tanpa menunggu commit baru.
     - cron: "37 3 * * 1"
   # Commit yang sudah di-merge ke main. Jalur ini murni deteksi, lihat catatan
   # di kepala berkas: mencegah PR yang menghapus pemeriksaan ini sendiri adalah
