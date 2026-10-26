@@ -910,3 +910,34 @@ verifikasi DB staging masih NEEDS_HUMAN.
 | marquee dijeda + reduced-motion | dulu hanya hover-pause | SELESAI sesi B (be7e96b): tombol jeda eksplisit + group-focus-within pause + motion-reduce | tests/marquee-accessibility (55 baris) [TEST] |
 
 Gerbang ronde ini: npm test 870/856/0/14 exit 0; tsc 0; lint 0; build 0.
+
+## Goal 5 (F) ronde LOOP v3 — audit ulang dokumen vs kode (2026-10-25)
+
+Lingkup: `docs/PRD-AtCell.md`, `docs/requirement-2.0.md`,
+`docs/USE-CASE-AtCell.md`, `README.md` dibandingkan dengan `src/db/schema.ts`,
+`supabase/migrations/`, dan kode saat ini. Tabel Goal 5 sebelumnya tetap
+berlaku; audit ini mencari sisa klaim yang belum cocok setelah perubahan
+kode terbaru. Tidak ada perubahan perilaku aplikasi.
+
+| Dokumen | Klaim | Kenyataan (file:baris) | Tindakan |
+|---|---|---|---|
+| PRD §4 alur Admin | Admin memantau ringkasan di `/dashboard` | Rute portal selalu berprefiks `/portal`; `defaultPortalPath` mengembalikan `/portal/dashboard` (`src/lib/access.ts:3-8`) | **Diperbaiki** menjadi `/portal/dashboard` |
+| PRD §7 Form Engine | Form memakai React Hook Form + Zod | Tidak ada dependensi `react-hook-form` dan tidak ada `useForm` di `src/`; form memakai state React terkontrol, validasi Zod di Server Action (`package.json:20-38`, `src/lib/validations.ts:1-40`) | **Diperbaiki** menjadi state React + Zod, tanpa React Hook Form |
+| README daftar dokumen | USE-CASE berisi 31 kemampuan | Dokumen berisi 33 heading kemampuan: 8 pengunjung, 4 pelanggan, 8 sales, 4 teknisi, 9 admin (`docs/USE-CASE-AtCell.md:68-287`) | **Diperbaiki** menjadi 33 |
+| PRD §3.2 Ringkasan Bisnis | Dashboard menampilkan grafik omzet harian/bulanan | Dashboard hanya menghitung total omzet, jumlah transaksi, tiket aktif, dan stok rendah; tidak ada komponen grafik/deret waktu (`src/app/(portal)/portal/dashboard/page.tsx:26-56,102-177`) | **NEEDS_HUMAN butir 10**: bangun grafik atau ubah PRD |
+| PRD §3.2 + requirement FR-D-03 | Laporan performa teknisi memuat rata-rata waktu pengerjaan per teknisi | Laporan menghitung total unit selesai, unit dikerjakan, omzet jasa, dan omzet meja servis secara global; tidak ada grouping `technician_id` maupun durasi rata-rata (`src/app/(portal)/portal/reports/page.tsx:11-40,46-110`; `docs/requirement-2.0.md:65`) | **NEEDS_HUMAN butir 10**: tambah agregasi atau selaraskan requirement |
+| requirement NFR-07 | Setiap mutasi status unit/tiket mencatat identitas pengguna | Server Action mengisi `atcell.actor_id` (`src/lib/actions/_helpers.ts:27-29`), tetapi RLS masih mengizinkan staf menulis langsung ke `inventory_units`/`service_tickets`; trigger audit membaca aktor dan bisa NULL (`supabase/migrations/0002_harden_atcell_schema.sql:407-415,473-477`; `0007_audit_trail.sql:111-136`) | **NEEDS_HUMAN butir 11**: perketat RLS/trigger atau batasi klaim NFR-07 ke jalur Server Action |
+| PRD §3.2 Manajemen Akun Staf | Undang/nonaktifkan/ubah peran akun Sales dan Teknisi | Kode juga mengizinkan peran `admin` (`src/lib/actions/auth.ts:367-373`); cakupan kode lebih luas, bukan kontradiksi | Tidak diubah; bukan klaim salah |
+| PRD §7 enum + requirement FR-B-02 | Lima enum dan alur servis 8 status | `user_role`, `unit_condition`, `unit_status`, `repair_status`, `payment_method` sama dengan `src/db/schema.ts:40-63` dan `0001_atcell_schema.sql:13-25`; `REPAIR_FLOW` sama dengan `src/lib/validations.ts:313-322` | Terverifikasi, tidak diubah |
+| USE-CASE peta menu | Admin 11, Sales 5, Teknisi 1, Customer 1 | `portal-sidebar.tsx:64-148` dan `canAccessPortalPath` (`src/lib/access.ts:45-72`) cocok | Terverifikasi, tidak diubah |
+| README tabel peran | Halaman utama tiap peran | `defaultPortalPath` (`src/lib/access.ts:3-8`) cocok untuk admin/sales/technician/customer | Terverifikasi, tidak diubah |
+
+Bukti audit: `rg` per klaim + pembacaan file:baris di atas [BACA-KODE];
+penghitungan heading USE-CASE 33 [EKSEKUSI]. Tidak ada test yang diubah atau
+dilemahkan.
+
+Gerbang resmi Goal 5 (berurutan, 25 Okt 2026):
+- `npm test` exit 0: 870 tes, 856 pass, 14 skip DB, 0 fail.
+- `npx tsc --noEmit` exit 0.
+- `npm run lint` exit 0, 0 warning.
+- `npm run build` exit 0.

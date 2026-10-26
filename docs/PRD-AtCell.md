@@ -72,7 +72,7 @@ Fitur-fitur kunci yang wajib diimplementasikan:
      - **Pelanggan:** Diarahkan ke riwayat faktur garansi `/portal/account`.
 
 3. **Alur Admin/Owner (Dashboard & Master Data):**
-   - Admin memantau ringkasan omzet, jumlah transaksi, dan panel peringatan stok menipis di `/dashboard`.
+   - Admin memantau ringkasan omzet, jumlah transaksi, dan panel peringatan stok menipis di `/portal/dashboard`.
    - Admin menambah atau memperbarui katalog `products`, mengelola akun staf, serta memperbarui konten profil publik toko (`store_settings`).
    - Admin meninjau laporan performa teknisi secara berkala.
 
@@ -263,7 +263,7 @@ Bagian ini mengatur batasan teknis dan panduan desain yang harus dipatuhi.
    - **Framework & Styling:** Next.js (App Router, Server Actions) dengan Tailwind CSS dan komponen antarmuka shadcn/ui.
    - **Internasionalisasi:** segmen rute `/[locale]` untuk seluruh halaman pada domain publik (`/id` default, `/en`), dengan kamus di `src/lib/translations.ts`. Tidak memakai pustaka `next-intl` (tidak ada di `package.json`).
    - **Backend & Storage:** Supabase (PostgreSQL Database, Supabase Auth, Supabase Storage untuk foto kondisi barang servis/trade-in).
-   - **Form Engine:** React Hook Form terintegrasi dengan validasi skema Zod.
+   - **Form Engine:** komponen form React terkontrol dengan validasi skema Zod di Server Action; tidak memakai pustaka React Hook Form.
 
 2. **Domain, Subdomain & Routing Rules:**
    - **Proxy (`src/proxy.ts`):** mengatur rewrite internal untuk request dari hostname `login.atcell.my.id` ke `/id/login`, redirect `/` ke `/id`, redirect URL lama `/portal/login` ke `/id/login`, serta guard akses `/portal/*` per peran.

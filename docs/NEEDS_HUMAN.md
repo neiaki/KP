@@ -211,3 +211,37 @@ Keputusan owner yang dibutuhkan:
   jalur DB-nya belum dijalankan ulang. Jalankan
   `DATABASE_URL=<staging> node --experimental-strip-types --test tests/pos-concurrent-sale.test.ts`
   di database sekali pakai.
+
+## 10. Klaim PRD yang belum sepenuhnya ada di UI
+
+Dua klaim di `docs/PRD-AtCell.md` §3.2 belum sesuai kenyataan halaman portal:
+
+- **Grafik omzet harian/bulanan.** Dashboard
+  (`src/app/(portal)/portal/dashboard/page.tsx:26-46`) hanya menampilkan
+  kartu total omzet, jumlah transaksi, tiket aktif, dan stok rendah; tidak ada
+  grafik deret waktu. Keputusan owner: bangun grafiknya, atau ubah PRD menjadi
+  ringkasan total.
+- **Laporan performa teknisi berisi rata-rata waktu pengerjaan per teknisi.**
+  Halaman laporan (`src/app/(portal)/portal/reports/page.tsx:11-40`) menghitung
+  total unit selesai, unit dikerjakan, omzet jasa, dan omzet meja servis secara
+  global; rincian tiket tidak dikelompokkan per `technician_id` dan tidak
+  menghitung durasi rata-rata. Keputusan owner: tambah agregasi per teknisi,
+  atau selaraskan PRD/FR-D-03 dengan laporan global yang ada.
+
+Tidak ada perubahan perilaku pada sesi ini; dokumen PRD tetap menjadi
+requirement sampai owner memutuskan.
+
+## 11. NFR-07 baru menjamin aktor pada jalur Server Action
+
+`docs/requirement-2.0.md` NFR-07 meminta setiap mutasi status unit dan tiket
+servis mencatat identitas pengguna. Trigger audit
+(`supabase/migrations/0007_audit_trail.sql:111-136`) membaca
+`private.current_actor_id()`, dan Server Action mengisinya lewat
+`setAuditActor` (`src/lib/actions/_helpers.ts:27-29`). Namun policy RLS masih
+mengizinkan staf menulis langsung ke `inventory_units` dan `service_tickets`
+(`supabase/migrations/0002_harden_atcell_schema.sql:407-415,473-477`), sehingga
+tulis langsung lewat PostgREST dapat menghasilkan baris audit dengan
+`actor_id` NULL. Keputusan owner: perketat RLS/trigger agar aktor wajib, atau
+ubah NFR-07 menjadi "mutasi lewat Server Action". Usulan SQL terkait ada di
+`docs/migrations-proposed/20261025090000_db_integrity.sql` dan belum
+dijalankan.
