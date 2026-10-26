@@ -752,3 +752,161 @@ cascade). Bukti: [BACA-KODE] migrasi 0001/0004/0005 dan `_helpers.ts`;
 tsc 0, lint 0, build 0. Lapis 2 belum dieksekusi karena tidak ada server
 PostgreSQL dan `DATABASE_URL` UNSET; verifikasi menunggu CI `database-tests`
 atau database sekali pakai. Tidak ada data production yang disentuh.
+
+## Iterasi 26 — peta cakupan LOOP v3 (2026-10-25)
+
+Iterasi pertama LOOP v3 hanya membangun peta. Preflight: branch
+`improve/autoloop`, HEAD `4365983`; tidak ada perubahan kode. Working tree
+memuat dokumen usulan integritas DB yang belum di-commit (dibuat di iterasi
+27); dokumen itu diselesaikan di commit yang sama, bukan diabaikan. Empat
+gerbang lokal pada tree ini: `npm test` 870 tes (856 pass, 14 skip DB, 0 fail),
+`npx tsc --noEmit` bersih, `npm run lint` bersih, `npm run build` 0. Build
+dijalankan di tree ini; `.next/` diabaikan git. Uji `docs-index` sempat merah
+karena entri indeks dokumen usulan belum ada; entri ditambahkan bersama
+dokumen usulan, lalu suite hijau.
+
+Aturan sel: `B` = BELUM, `S1`..`S7` = SELESAI dengan bukti di bawah, `N` =
+N-A. `N` dipakai untuk L7 di baris non-publik, L4 di komponen presentasional,
+L5/L6 di migrasi dan skrip statis, serta L8 bila tidak ada test pelindung.
+Baris = unit kode; kolom = L1 bug/edge case, L2 celah test, L3 keamanan,
+L4 penyalahgunaan bisnis, L5 ketahanan, L6 performa, L7 a11y/i18n/SEO,
+L8 kualitas kode, L9 dokumen = kenyataan.
+
+| Baris | L1 | L2 | L3 | L4 | L5 | L6 | L7 | L8 | L9 |
+|---|---|---|---|---|---|---|---|---|---|
+| public/landing | B | S3 | S1 | N | B | B | S2 | B | S5 |
+| public/about | B | B | S1 | N | B | B | S2 | B | B |
+| public/catalog | S3 | S3 | S1 | N | B | B | S2 | B | B |
+| public/contact | B | B | S1 | N | B | B | S2 | B | B |
+| public/customer-service | B | B | S1 | N | B | B | S2 | B | B |
+| public/login | S3 | S3 | S1 | N | B | B | S2 | B | B |
+| public/payment | B | B | S1 | N | B | B | S2 | B | B |
+| public/shipping | B | B | S1 | N | B | B | S2 | B | B |
+| public/terms | B | B | S1 | N | B | B | S2 | B | B |
+| public/tracking | S3 | S3 | S1 | N | B | B | S2 | B | S5 |
+| public/trade-in | S3 | S3 | S1 | B | B | B | S2 | B | B |
+| public/warranty | B | B | S1 | N | B | B | S2 | B | B |
+| portal/account | B | S3 | S1 | B | B | B | N | B | B |
+| portal/customers | B | S3 | S1 | B | B | B | N | B | B |
+| portal/dashboard | B | B | S1 | B | B | B | N | B | B |
+| portal/inventory | S6 | S3 | S1 | B | B | B | N | B | B |
+| portal/listing | B | S3 | S1 | B | B | B | N | B | B |
+| portal/login | S3 | S3 | S1 | B | B | B | N | B | B |
+| portal/pos | S6 | S3 | S1 | B | B | B | N | B | B |
+| portal/products | B | S3 | S1 | B | B | B | N | B | B |
+| portal/reports | B | B | S1 | B | B | B | N | B | B |
+| portal/service | S6 | S3 | S1 | B | B | B | N | B | B |
+| portal/service/new | B | B | S1 | B | B | B | N | B | B |
+| portal/settings | B | S3 | S1 | B | B | B | N | B | B |
+| portal/staff | S6 | S3 | S1 | B | B | B | N | B | B |
+| actions/audit | B | S3 | S1 | B | B | N | N | B | B |
+| actions/auth | B | S3 | S1 | B | B | N | N | B | B |
+| actions/dashboard | B | B | S1 | B | B | N | N | B | B |
+| actions/inventory | S6 | S3 | S1 | B | B | N | N | B | B |
+| actions/portal | B | S3 | S1 | B | B | N | N | B | B |
+| actions/pos | S6 | S3 | S1 | B | B | N | N | B | B |
+| actions/products | B | S3 | S1 | B | B | N | N | B | B |
+| actions/public | B | S3 | S1 | B | B | N | N | B | B |
+| actions/service | S6 | S3 | S1 | B | B | N | N | B | B |
+| actions/settings | B | S3 | S1 | B | B | N | N | B | B |
+| actions/storage | B | S3 | S1 | B | B | N | N | B | B |
+| actions/helpers | B | S3 | S1 | B | B | N | N | B | B |
+| actions/additional-source | B | B | B | B | B | N | N | B | B |
+| actions/mappers | B | B | B | B | B | N | N | B | B |
+| actions/portal-snapshot | B | B | B | B | B | N | N | B | B |
+| actions/ticket-mappers | B | B | B | B | B | N | N | B | B |
+| actions/value-mappers | B | B | B | B | B | N | N | B | B |
+| components/public | B | S3 | S1 | N | B | B | S2 | B | B |
+| components/portal | B | S3 | S1 | N | B | B | N | B | B |
+| components/ui | B | B | S1 | N | B | B | S2 | B | B |
+| components/chat | B | B | S1 | N | B | B | B | B | B |
+| components/pwa | B | S3 | S1 | N | S4 | B | N | B | B |
+| components/root | B | S3 | S1 | N | B | B | S2 | B | B |
+| lib/auth | B | S3 | S1 | B | B | N | N | B | B |
+| lib/store | B | S3 | S1 | B | B | N | N | B | B |
+| lib/validations | B | S3 | S1 | B | N | N | N | B | B |
+| lib/lain | B | S3 | S1 | B | S4 | N | N | B | B |
+| proxy | B | S3 | S1 | B | B | N | N | B | B |
+| db/client | B | S3 | S1 | N | S4 | N | N | B | B |
+| api/health/live | B | S3 | S1 | N | S4 | N | N | B | B |
+| api/health/ready | B | S3 | S1 | N | S4 | N | N | B | B |
+| api/reviews | B | S3 | S1 | N | S4 | N | N | B | B |
+| migrations | B | S3 | S1 | S7 | N | N | N | B | B |
+| storage-policy | B | S3 | S1 | B | N | N | N | B | B |
+| scripts | B | S3 | S1 | N | S4 | N | N | B | B |
+| Dependensi | N | N | B | N | N | N | N | N | N |
+
+Bukti sel S:
+
+- **S1 (L3 keamanan)**: F3-01 sampai F3-14 selesai 14/14, log bagian
+  "STATUS FASE 3"; workflow security `40154309126`; rentang commit
+  `fc639dc..54c9d68`. S1 berarti lensa L3 sudah diperiksa di tingkat
+  kategori, bukan bukti setiap baris bebas temuan; Ronde 2 menyerang ulang.
+- **S2 (L7 publik)**: Goal B/C/D/E; Lighthouse A11y 100; test SEO, a11y,
+  marquee, dan tracking; log bagian Goal B/C/D, Goal 3 (C+D), Goal 4 (E);
+  commit `54c9d68`.
+- **S3 (L2 test)**: `npm test` 870 total, 856 pass, 14 skip, 0 fail; test yang
+  disebut di log; fixture DB commit `ee4a8a2`. S3 berarti baseline test hijau
+  dan baris punya test yang tercatat, bukan jaminan tidak ada celah test;
+  L2 diperiksa ulang saat sel dipilih.
+- **S4 (L5 ketahanan)**: `health.test.ts`, `watchdog-durability.test.ts`,
+  `restore-drill.test.ts`, `db-client-*.test.ts`; `npm test`.
+- **S5 (L9 dokumen)**: Goal 5 sinkronisasi docs vs kode; `docs/README.md`,
+  `docs/LOOP_LOG.md`, `docs/NEEDS_HUMAN.md`; commit `54c9d68`.
+- **S6 (L1 aturan bisnis)**: `pos-concurrent-sale.test.ts`,
+  `inventory-unit-status-gate.test.ts`, `inventory-unit-correction.test.ts`,
+  `sec-last-admin.test.ts`, `serah-terima-servis.test.ts`; commit `ee4a8a2`;
+  jalur DB belum diverifikasi.
+- **S7 (L4 usulan DB)**: `docs/db-integrity-proposals.md` dan
+  `docs/migrations-proposed/20261025090000_db_integrity.sql`; 25 aturan,
+  usulan A-M, tidak ada migrasi lama yang diubah, migrasi belum dijalankan;
+  keputusan owner di `docs/NEEDS_HUMAN.md` item 9. S7 berarti audit dan
+  usulan selesai; penerapan serta verifikasi DB staging tetap NEEDS_HUMAN,
+  bukan sel tuntas.
+
+Sel berikutnya: `actions/pos.ts x L4` (Goal 3), lalu `actions/inventory.ts x L4`
+dan `actions/service.ts x L4`. `migrations x L4` tidak diulang sampai ada
+keputusan owner atau database staging.
+
+## Iterasi 27 — migrations x L4: usulan integritas DB (2026-10-25)
+
+Temuan sebelum perbaikan, semuanya [BACA-KODE]: F5-01 unit available tidak
+dijaga DB saat insert item transaksi; F5-02 status sold bisa di-set langsung
+tanpa item; F5-03 unit sold bisa diubah harga/kondisi lewat update langsung;
+F5-04 `final_payment` tidak punya check rumus; F5-05 `total_fee` tidak punya
+check komponen; F5-06 `total_amount` tidak harus sama dengan jumlah item;
+F5-07 teknisi tiket tidak divalidasi role di action; F5-08 sales bisa mengubah
+biaya/status lewat PostgREST meski action menolak; F5-09 `sales_id` transaksi
+tidak harus aktor sesi; F5-10 minimal satu admin tidak atomik dan tidak dijaga
+DB; F5-11 harga item transaksi tidak harus harga DB; F5-12 belum ada audit
+harga/stok; F5-13 sales masih bisa mengubah `costBreakdown` dan
+`technicianId`; F5-14 `registerUnits` belum memeriksa harga di bawah modal;
+F5-15 RPC lama belum memeriksa `is_demo`.
+
+Tindakan: menulis 25 aturan di `docs/db-integrity-proposals.md`, SQL usulan
+A-M di `docs/migrations-proposed/20261025090000_db_integrity.sql`, dan item 9
+`docs/NEEDS_HUMAN.md`. Tidak ada file `supabase/migrations/` yang diubah dan
+tidak ada SQL yang dijalankan. Usulan A-L direkomendasikan; M (harga di bawah
+modal) menunggu keputusan owner. Verifikasi di tree ini: `npm test`
+870/856 pass/14 skip/0 fail, `npx tsc --noEmit` 0, `npm run lint` 0,
+`npm run build` 0. Sel `migrations x L4` ditandai S7 dengan catatan
+verifikasi DB staging masih NEEDS_HUMAN.
+
+## Goal 4 (E) — tabel temuan -> perbaikan -> bukti (2026-10-25, sesi A append)
+
+| Butir E | Temuan | Perbaikan | Bukti |
+|---|---|---|---|
+| Kunci ID vs EN lengkap | tak ada test simetri sebelumnya | BARU tests/translations-symmetric.test.ts: pohon kunci rekursif + tipe daun + nilai kosong (3 tes) | mutasi: hapus nav.brand EN sementara -> 2 GAGAL -> pulih -> 3/3 hijau (transkrip); file diserap sesi B ke HEAD |
+| Teks hard-code | komponen publik memakai `locale === "en" ? ... : ...` inline (pola repo, bukan kamus) | N/A ubah: pola terpusat di translations.ts untuk UI inti; audit grep tidak menemukan teks pelanggan satu bahasa di komponen publik bersama | grep + Lighthouse SEO 100 |
+| tracking noindex | konflik desain: halaman lacak punya konten unik tapi query ?ticket= berisiko terindeks | SELESAI sesi B (be7e96b): buildTrackingMetadata noindex,follow + canonical tetap; sitemap tak menyertakan query | tests/seo-surface (sitemap tanpa duplikat/relatif) + komentar sitemap.ts |
+| hreflang/canonical | sudah benar 11 rute x 2 locale | - | seo-surface 6+ tes [TEST] |
+| sitemap.xml + robots | ada + portal disallow | - | robots.ts + seo-surface [TEST] |
+| JSON-LD dari store_settings | terbukti: nama/alamat/telepon/koordinat/jam dari settings; rating = data yang sama dengan ReviewsSection; null saat demo | - | store-json-ld.tsx:10-20 [BACA-KODE] |
+| lang per halaman | dinamis per locale | - | layout.tsx lang={locale} [BACA-KODE] |
+| heading berurutan | 1 h1/halaman | - | audit a11y sebelumnya [EKSEKUSI] |
+| kontras terang/gelap | min 6,72:1 | - | iterasi 18 [EKSEKUSI] |
+| label+fokus form | htmlFor + focus-visible | - | audit + button.tsx [BACA-KODE] |
+| alt gambar produk | lengkap | - | audit a11y [EKSEKUSI] |
+| marquee dijeda + reduced-motion | dulu hanya hover-pause | SELESAI sesi B (be7e96b): tombol jeda eksplisit + group-focus-within pause + motion-reduce | tests/marquee-accessibility (55 baris) [TEST] |
+
+Gerbang ronde ini: npm test 870/856/0/14 exit 0; tsc 0; lint 0; build 0.
