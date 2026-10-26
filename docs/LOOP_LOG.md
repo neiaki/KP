@@ -988,3 +988,69 @@ Gerbang resmi Goal 6 (berurutan, 25 Okt 2026):
 - `npx tsc --noEmit` exit 0.
 - `npm run lint` exit 0, 0 warning.
 - `npm run build` exit 0.
+
+## Goal 7 — verdict commit `main..HEAD` dan penutupan LOOP v3 (2026-10-25)
+
+Rentang: `git log --oneline --no-merges main..HEAD` = 16 commit. Setiap commit
+dibaca diff-nya, dicocokkan dengan test/gerbang, lalu diberi verdict
+BENAR/SALAH/MERAGUKAN. Tidak ada commit yang di-revert.
+
+| Commit | Ringkasan | Verdict | Bukti / catatan |
+|---|---|---|---|
+| `5577c7a` | Empty state daftar pelanggan + bukti Goal F | **BENAR** | Diff hanya menambah kartu kosong dan dokumentasi; tidak mengubah query/mutasi; `npm test` hijau [BACA-KODE+TEST] |
+| `51c79ce` | Tabel Putaran 2 red-team 16 kategori | **BENAR** | Docs-only; klaim serangan sesuai bukti lokal yang tercatat; `tests/docs-index.test.ts` pass [BACA-KODE+TEST] |
+| `283fdb7` | Verdict 53 commit + LOOP_SELESAI ronde STANDARDS | **BENAR** | Docs-only; tabel verdict konsisten dengan commit yang ada; tidak ada kode berubah [BACA-KODE] |
+| `a23cefc` | Konteks produksi dan batas ketat | **BENAR** | Docs-only; `liveBackendEnabled` di `src/lib/store.ts:49-50` cocok dengan klaim [BACA-KODE] |
+| `1b797dd` | Matriks peran 39 aksi + kunci double-sell + safeParse | **BENAR** | Tiga test statis baru berjalan; lapis DB awalnya gagal FK `profiles_id_fkey` di CI dan diperbaiki `ee4a8a2`; tidak ada asersi yang dilemahkan [TEST+BACA-KODE] |
+| `d023a17` | `prod-no-demo` 4 tes + tabel B | **BENAR** | 4 tes lulus; catatan "RLS 20 tabel" di pesan commit adalah klaim lama yang dikoreksi menjadi 11 di `54c9d68`; kode tes tetap benar [TEST+BACA-KODE] |
+| `321253e` | Bukti Goal 1+2 dan audit file:baris | **BENAR** | Docs-only; daftar guard 39 aksi cocok dengan `tests/server-action-role-guard` [BACA-KODE+TEST] |
+| `10df6d0` | 45 ikon merek lokal + `smoke:render` | **BENAR** | 45 SVG lokal ada; `src` hanya menyisakan ikon sosmed/preconnect/CDN di footer dan CSP; `npm run build`/smoke render hijau; tidak ada perilaku bisnis berubah [EKSEKUSI+TEST] |
+| `be7e96b` | Tracking noindex + marquee pause | **BENAR** | `buildTrackingMetadata` memakai `index:false` hanya saat `?ticket=`; `MarqueePauseButton` dipakai dua marquee; 115 test terarah lulus; dua import tak terpakai dihapus, bukan asersi [TEST+BACA-KODE] |
+| `54c9d68` | Sinkronisasi docs + audit keamanan | **BENAR** | Perbaikan path/RLS/cookie sesuai kode; sisa `/dashboard` dan klaim fitur yang belum ada dicatat/diperbaiki di `744e9c9` + `NEEDS_HUMAN` 10/11; bukan regresi [BACA-KODE+TEST] |
+| `ee4a8a2` | Perbaiki seed uji konkuren database | **BENAR** | Seed `auth.users` sebelum `profiles`, upsert admin, cleanup cascade; 2/2 test lokal lulus; jalur DB tetap `[BACA-KODE]` sampai CI `database-tests`/staging [TEST+BACA-KODE] |
+| `4365983` | Catat perbaikan uji konkuren | **BENAR** | Docs-only; catatan verifikasi DB yang belum dijalankan jujur; tidak mengklaim lulus DB [BACA-KODE] |
+| `cdf5b69` | Tabel Goal 4 (E) | **BENAR** | Docs-only; tabel temuan/perbaikan/bukti konsisten dengan test SEO/marquee yang ada [BACA-KODE+TEST] |
+| `b54da47` | Usulan integritas DB + keputusan owner | **BENAR** | 25 aturan dan SQL A-M berada di `docs/migrations-proposed/`, bukan `supabase/migrations/`; tidak dijalankan; keputusan owner di `NEEDS_HUMAN` 9 [BACA-KODE] |
+| `744e9c9` | Selaraskan PRD/README/NEEDS_HUMAN | **BENAR** | Memperbaiki `/dashboard`, klaim React Hook Form, dan hitungan 31->33; gap grafik/per teknisi/audit aktor masuk `NEEDS_HUMAN` 10/11 [BACA-KODE+TEST] |
+| `84f86c4` | Bukti red-team localhost Goal 6 | **BENAR** | Docs-only; hasil :3216/:3217 dan 115 test terarah sesuai transkrip; tidak ada production yang disentuh [EKSEKUSI+TEST] |
+
+Hasil: **16 BENAR, 0 SALAH, 0 MERAGUKAN**. Tidak ada revert. Dua catatan
+transparansi: (a) `1b797dd` membawa cacat fixture DB yang sudah ditutup
+`ee4a8a2`; (b) `ee4a8a2` belum dijalankan terhadap PostgreSQL karena
+`DATABASE_URL` UNSET, jadi klaim DB tetap `[BACA-KODE]` sampai CI/staging.
+
+Bukti area terlarang:
+
+```text
+$ git diff main..HEAD -- supabase/migrations/ Dockerfile.coolify .github/workflows/docker-publish.yml
+(kosong)
+PROTECTED_DIFF_EMPTY=yes
+```
+
+`git diff --check main..HEAD` exit 0 (tidak ada whitespace error). Tidak ada
+perubahan pada migrasi lama, pin image, atau workflow build image.
+
+Gerbang resmi Goal 7 (berurutan, 25/26 Okt 2026):
+- `npm test` exit 0: 870 tes, 856 pass, 14 skip DB, 0 fail.
+- `npx tsc --noEmit` exit 0.
+- `npm run lint` exit 0, 0 warning.
+- `npm run build` exit 0.
+
+## LOOP_SELESAI — ronde LOOP v3 (2026-10-25/26)
+
+Ronde LOOP v3 selesai. Ringkasan:
+
+- **Goal 5 (F)**: audit ulang dokumen vs kode; 3 dokumen diperbaiki
+  (`/dashboard`, React Hook Form, hitungan kemampuan 31->33), 3 gap
+  behavior dicatat di `NEEDS_HUMAN` 10/11, tidak ada perubahan perilaku.
+- **Goal 6 (B)**: red-team 12 butir B + 7 percobaan tambahan di localhost
+  `:3216`/`:3217` tanpa `.env*` dan tanpa production; 0 celah HIGH+ baru;
+  residual `X-Forwarded-Host` tetap di `NEEDS_HUMAN` 7.
+- **Goal 7**: 16/16 commit `main..HEAD` BENAR, 0 SALAH, 0 MERAGUKAN;
+  `supabase/migrations/`, `Dockerfile.coolify`, dan workflow build image
+  tidak berubah; tidak ada push.
+
+Sisa milik owner/manusia: `NEEDS_HUMAN` 2-11, terutama penerapan migrasi
+integritas DB (9), verifikasi DB staging (8), grafik omzet + laporan per
+teknisi (10), dan penegakan aktor audit pada tulis langsung (11). Branch
+`improve/autoloop` tetap lokal dan belum di-push.
