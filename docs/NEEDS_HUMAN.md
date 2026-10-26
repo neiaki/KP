@@ -214,7 +214,9 @@ Keputusan owner yang dibutuhkan:
 
 ## 10. Klaim PRD yang belum sepenuhnya ada di UI
 
-Dua klaim di `docs/PRD-AtCell.md` §3.2 belum sesuai kenyataan halaman portal:
+Dua klaim di `docs/PRD-AtCell.md` §3.2 belum sesuai kenyataan halaman portal.
+Opsi, risiko, dan rekomendasi ada di `docs/OWNER-DECISION-BRIEF.md` bagian
+D1 dan D2.
 
 - **Grafik omzet harian/bulanan.** Dashboard
   (`src/app/(portal)/portal/dashboard/page.tsx:26-46`) hanya menampilkan
@@ -244,4 +246,5 @@ tulis langsung lewat PostgREST dapat menghasilkan baris audit dengan
 `actor_id` NULL. Keputusan owner: perketat RLS/trigger agar aktor wajib, atau
 ubah NFR-07 menjadi "mutasi lewat Server Action". Usulan SQL terkait ada di
 `docs/migrations-proposed/20261025090000_db_integrity.sql` dan belum
-dijalankan.
+dijalankan. Opsi dan rekomendasi ada di `docs/OWNER-DECISION-BRIEF.md` bagian
+D3; langkah verifikasinya ada di `docs/DB-VERIFICATION-RUNBOOK.md`.

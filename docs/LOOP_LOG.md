@@ -1059,3 +1059,32 @@ Catatan pasca-commit: `0eec65a` (dan commit catatan ini) adalah commit
 docs-only yang memuat tabel verdict dan penutupan; yang dinilai adalah 16
 commit sebelumnya. `git diff main..HEAD -- supabase/migrations/ Dockerfile.coolify
 .github/workflows/docker-publish.yml` tetap kosong.
+
+## Pasca-LOOP v3: brief keputusan owner dan runbook verifikasi DB (2026-10-26)
+
+Tindak lanjut aman setelah `LOOP_SELESAI`: tidak mengubah kode, schema,
+migrasi, atau perilaku. Dua dokumen baru dibuat supaya keputusan owner punya
+bahan yang bisa dibandingkan, bukan pertanyaan terbuka:
+
+- `docs/OWNER-DECISION-BRIEF.md`: opsi D1 grafik omzet, D2 laporan per
+  teknisi, D3 aktor audit pada tulis langsung, dan D4 urutan migrasi. Setiap
+  opsi memuat kelebihan, kekurangan, rekomendasi, dan perkiraan usaha yang
+  ditandai `[ASUMSI]`.
+- `docs/DB-VERIFICATION-RUNBOOK.md`: jalur CI `database-tests`, Supabase
+  lokal, PostgreSQL polos, query pelanggaran, uji negatif, `VALIDATE
+  CONSTRAINT`, rollback, dan template bukti.
+
+Keduanya ditautkan dari `docs/README.md`; `docs/NEEDS_HUMAN.md` butir 10 dan
+11 sekarang menunjuk brief dan runbook. Tidak ada migrasi yang dijalankan dan
+tidak ada data production yang disentuh.
+
+Bukti:
+- `node --experimental-strip-types --test tests/docs-index.test.ts`: 8/8 pass.
+- `npm test`: 870 tes, 856 pass, 14 skip DB, 0 fail.
+- `npx tsc --noEmit`: 0.
+- `npm run lint`: 0 error, 0 warning.
+- `npm run build`: exit 0.
+
+Keputusan yang masih menunggu owner: D1, D2, D3, D4, dan bagian M. Jalur DB
+tetap `[BACA-KODE]` sampai `DATABASE_URL` staging atau CI `database-tests`
+dijalankan.

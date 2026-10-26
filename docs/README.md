@@ -39,6 +39,8 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `agents/handoff-2026-10-23-akun-pelanggan-dan-stok.md` | Prompt kerja akun pelanggan, tiga akun simulasi, katalog lima model per merek, dan keputusan owner yang wajib dikonfirmasi | **Handoff aktif** |
 | `agents/katalog-5-model-per-merek.md` | Hasil katalog 25 model aktif, 5 per merek, aturan model tanpa unit, dan verifikasi production | **Selesai** |
 | `db-integrity-proposals.md` | Perbandingan aturan integritas kode vs PostgreSQL, usulan migrasi baru yang belum dijalankan, query pelanggaran, dan rollback | **Usulan, belum disetujui** |
+| `OWNER-DECISION-BRIEF.md` | Opsi, risiko, dan rekomendasi untuk grafik omzet, laporan per teknisi, dan aktor audit pada tulis langsung | **Usulan, belum disetujui** |
+| `DB-VERIFICATION-RUNBOOK.md` | Langkah aman menguji migrasi usulan dan test database di CI, Supabase lokal, atau PostgreSQL sekali pakai | **Acuan operasional, belum dijalankan** |
 
 ## Catatan
 
