@@ -179,3 +179,35 @@ DATABASE_URL=postgres://... node --experimental-strip-types \
 
 CI `database-tests` akan menjalankan file ini otomatis saat PR dibuat karena
 file memakai `process.env.DATABASE_URL`.
+
+## 9. Usulan migrasi integritas DB: butuh keputusan owner dan verifikasi staging
+
+`docs/db-integrity-proposals.md` membandingkan aturan yang dijaga Server Action
+dengan yang dijaga PostgreSQL. Usulan SQL ada di
+`docs/migrations-proposed/20261025090000_db_integrity.sql` dan **belum
+dijalankan**. File itu sengaja tidak diletakkan di `supabase/migrations/` agar
+tidak dianggap sudah disetujui oleh test ledger/runbook.
+
+Keputusan owner yang dibutuhkan:
+
+- Setujui atau tolak bagian A-L: unique item transaksi, guard harga/status
+  item, penandaan sold otomatis, larangan edit unit sold, check
+  `final_payment`, check `total_fee`, total transaksi sama dengan item,
+  role teknisi, guard biaya/status tiket untuk sales, `sales_id` aktor,
+  serta minimal satu admin.
+- Bagian M (`selling_price >= purchase_cost`) adalah kebijakan harga.
+  Rekomendasi: setujui untuk mencegah jual di bawah modal, kecuali toko
+  sengaja memakai loss leader. Harga impas tetap diizinkan.
+- Temuan terpisah yang belum diputuskan: sales masih bisa mengubah
+  `costBreakdown`, `technicianNotes`, `warrantyDays`, dan `technicianId`;
+  belum ada audit harga/stok; `registerUnits` belum memeriksa harga di bawah
+  modal; RPC lama `process_trade_in_sale` belum memeriksa `is_demo`.
+- Verifikasi DB belum bisa dilakukan di sesi ini: `DATABASE_URL` tidak
+  tersedia dan MISI melarang docker/psql/push. Setelah disetujui, pindahkan
+  SQL ke `supabase/migrations/` dengan timestamp baru, perbarui
+  `RUN-ALL-PENDING.sql`, ledger, dan runbook, lalu jalankan di database
+  lokal/staging. Jangan memakai production untuk pengujian.
+- Test fixture `tests/pos-concurrent-sale.test.ts` sudah diperbaiki, tetapi
+  jalur DB-nya belum dijalankan ulang. Jalankan
+  `DATABASE_URL=<staging> node --experimental-strip-types --test tests/pos-concurrent-sale.test.ts`
+  di database sekali pakai.
