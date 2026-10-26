@@ -941,3 +941,50 @@ Gerbang resmi Goal 5 (berurutan, 25 Okt 2026):
 - `npx tsc --noEmit` exit 0.
 - `npm run lint` exit 0, 0 warning.
 - `npm run build` exit 0.
+
+## Goal 6 (B) ronde LOOP v3 — red-team localhost (2026-10-25)
+
+Target: salinan bersih repo tanpa `.env*`, build production lokal, dua server
+localhost: `:3216` tanpa env Supabase dan `:3217` dengan env Supabase palsu
+(`http://127.0.0.1:9`, key palsu). Tidak ada koneksi ke Supabase production,
+tidak ada `DATABASE_URL`, tidak ada data production yang disentuh. Format:
+percobaan -> hasil -> bukti.
+
+| Butir B | Percobaan | Hasil | Bukti |
+|---|---|---|---|
+| B1 RLS per tabel | Hitung tabel public yang RLS-on dan baca policy tulis | 11/11 tabel aplikasi RLS-on; tidak ada grant tulis anon | `rg` migrasi = 11 tabel; `tests/migration-safety.test.ts` pass [BACA-KODE+TEST] |
+| B2 Anon bisa baca apa | Cari grant `SELECT` untuk anon dan view etalase | Anon hanya `products`, `store_settings`, `product_images`; `v_public_inventory` dicabut dari anon dan hanya `service_role` | `0002:350-351,387-390,527-528`; `20260927190000:57`; `20261023111914:34-35` [BACA-KODE] |
+| B3 `/trade-in?unit=<id>` | Unit acak, unit bukan publik, unit milik orang lain | Tidak ada unit lain yang terpilih; IMEI hanya ekor-4; ID rusak -> null | `tests/trade-in-target-linkage.test.ts` dalam 115 test terarah pass [TEST] |
+| B4 Pelacakan servis | Kirim `?ticket=<script>alert(1)</script>`; baca field respons | Tag mentah 0, payload ter-escape 1; respons live hanya status/model/akhir IMEI/garansi/waktu | `curl` :3216 + `src/lib/actions/service.ts:229-237`; `tests/tracking-safety.test.ts` pass [EKSEKUSI+TEST+BACA-KODE] |
+| B5 View etalase | Cari `purchase_cost`/IMEI penuh di view | Kolom modal tidak ada; IMEI `****tail`; unit demo/non-available tersaring | `0002:330-351`; `20261023111914:13-35`; `tests/public-snapshot-unit-history.test.ts` pass [TEST] |
+| B6 Bucket Storage | Baca bucket service/trade-in tanpa sesi; cek limit/MIME | Bucket privat; upload hanya staf; limit 5MB dan MIME di bucket | `20260927160000`; `0002:490-512`; `tests/storage-hardening.test.ts` pass [TEST+BACA-KODE] |
+| B7 Cookie lintas subdomain | Cek `Set-Cookie` halaman publik; jalankan test flag cookie | Tidak ada cookie pada halaman publik; `httpOnly`+`secure` production dan default host-only diuji | `curl -I` :3216; `tests/supabase-cookie-flags-e2e.test.ts` + `tests/supabase-cookie-options.test.ts` pass [EKSEKUSI+TEST] |
+| B8 Open redirect login | `?next=//evil.example`, `https://evil.example`, `/\evil.example`, path role lain | Tidak ada meta refresh/redirect otomatis; `next` hanya nilai form; fungsi menolak host luar | `curl` :3217 + `tests/route-next-redirect.test.ts` 7 tes pass [EKSEKUSI+TEST] |
+| B9 Upload foto | File MIME/size/nama aneh, bucket asing, tanpa sesi | Enum bucket, MIME, 5MB, nama disanitasi, folder id staf, wajib role | `tests/storage-hardening.test.ts` + `tests/sec-storage-key.test.ts` pass [TEST] |
+| B10 Service role di bundle | Grep `service_role`/`SUPABASE_SERVICE_ROLE_KEY` di `.next/static`; hitung script eksternal | 0 kemunculan; 0 `NEXT_PUBLIC_*SECRET/SERVICE`; 0 script `https://` di `/id` | `grep -r` :3216 build = 0 [EKSEKUSI] |
+| B11 Demo/mock di production | Buka `/portal/*` tanpa sesi di :3216 (tanpa env) dan :3217 (env palsu) | :3216 200 demo by design + health/ready 503; :3217 semua 307 ke `/id/login?next=...` | `curl` kedua server; `tests/prod-no-demo.test.ts` 4 tes pass [EKSEKUSI+TEST] |
+| B12 Riwayat git | Scan private key/token di semua ref | 0 match | `git rev-list --all` + `git grep` pola private key/`ghp_`/`sk-` = 0 [EKSEKUSI] |
+
+Percobaan tambahan:
+
+| Percobaan | Hasil | Bukti |
+|---|---|---|
+| `/.env`, `/.env.local`, `/.git/config`, `/.git/HEAD`, `/admin`, `/%2e%2e/.env`, `/.env%00`, `/products/../../.env` | Semua 404; tidak ada isi env/git | `curl` status :3216 [EKSEKUSI] |
+| `/_next/image?url=../../.env`, versi encoded, URL absolut localhost | 400 | `curl` :3216 [EKSEKUSI] |
+| `?brand=' OR 1=1--`, `'; DROP TABLE products;--`, `UNION SELECT` | 200 normal; 0 penanda `SQLSTATE`/`postgres`/`syntax error` | `curl` + grep :3216 [EKSEKUSI] |
+| Header keamanan `/id` | CSP, HSTS preload, XFO DENY, nosniff, referrer, permissions ada | `curl -I` :3216 [EKSEKUSI] |
+| POST `Origin: https://evil.example` ke login/tracking/portal; action ID palsu | Tidak ada `Access-Control-Allow-Origin`; action palsu 500 tanpa mutasi | `curl` :3216 [EKSEKUSI] |
+| `bun audit --audit-level=high` | 558 paket, 0 kerentanan high | exit 0 [EKSEKUSI] |
+| `/api/health/ready` tanpa env | 503, hanya boolean check; tanpa nama host/secret | `curl` :3216 [EKSEKUSI] |
+
+Kesimpulan: tidak ada celah HIGH+ baru yang bisa dieksploitasi dari browser
+pada build lokal. Satu residual risk lama tetap berlaku: Server Action
+mempercayai `X-Forwarded-Host` bila reverse proxy meneruskannya; sudah dicatat
+di `docs/NEEDS_HUMAN.md` butir 7 dan tidak diubah tanpa keputusan owner. Tidak
+ada test regresi baru yang dibutuhkan karena tidak ada temuan baru.
+
+Gerbang resmi Goal 6 (berurutan, 25 Okt 2026):
+- `npm test` exit 0: 870 tes, 856 pass, 14 skip DB, 0 fail.
+- `npx tsc --noEmit` exit 0.
+- `npm run lint` exit 0, 0 warning.
+- `npm run build` exit 0.
