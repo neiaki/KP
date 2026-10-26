@@ -1054,3 +1054,8 @@ Sisa milik owner/manusia: `NEEDS_HUMAN` 2-11, terutama penerapan migrasi
 integritas DB (9), verifikasi DB staging (8), grafik omzet + laporan per
 teknisi (10), dan penegakan aktor audit pada tulis langsung (11). Branch
 `improve/autoloop` tetap lokal dan belum di-push.
+
+Catatan pasca-commit: `0eec65a` (dan commit catatan ini) adalah commit
+docs-only yang memuat tabel verdict dan penutupan; yang dinilai adalah 16
+commit sebelumnya. `git diff main..HEAD -- supabase/migrations/ Dockerfile.coolify
+.github/workflows/docker-publish.yml` tetap kosong.
