@@ -205,6 +205,12 @@ memakai email lowercase supaya tidak bentrok. Perbaikan produksi butuh
 migrasi baru, persetujuan owner, dan uji staging; dicatat sebagai N13 di
 [`PENDING-TASKS.md`](PENDING-TASKS.md).
 
+Pada sesi 28 Oktober 2026, environment ini tidak punya Supabase CLI,
+`supabase/config.toml` tidak ada, dan `DATABASE_URL` kosong. Verifikasi
+staging/lokal karena itu belum bisa dijalankan dari sini. Jangan mengisi
+`DATABASE_URL` dengan connection string production hanya untuk mengejar
+verifikasi.
+
 ## 9. Usulan migrasi integritas DB: butuh keputusan owner dan verifikasi staging
 
 `docs/db-integrity-proposals.md` membandingkan aturan yang dijaga Server Action
