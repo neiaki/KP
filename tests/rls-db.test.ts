@@ -57,10 +57,13 @@ type Seed = {
     customerA: string;
     customerB: string;
   };
-  activeBrand: string;
-  inactiveBrand: string;
+  activeModel: string;
+  inactiveModel: string;
+  unitId: string;
   transactionA: string;
+  transactionB: string;
   ticketA: string;
+  ticketB: string;
 };
 
 class Rollback extends Error {
@@ -86,7 +89,9 @@ async function seedData(tx: postgres.TransactionSql): Promise<Seed> {
   // Trigger handle_new_user membuat profil customer. Peran staf diubah
   // setelahnya supaya test juga memakai jalur pembuatan akun yang sama.
   for (const [name, id] of Object.entries(ids)) {
-    const username = `rls_${name.toLowerCase()}_${suffix}`.slice(0, 32);
+    // Username berbasis id, bukan nama, supaya trigger handle_new_user tidak
+    // pernah menghasilkan username yang sama untuk dua akun seed.
+    const username = `u_${id.replace(/-/g, "").slice(0, 24)}`;
     await tx`
       insert into auth.users (id, email, raw_user_meta_data)
       values (
@@ -101,18 +106,18 @@ async function seedData(tx: postgres.TransactionSql): Promise<Seed> {
   await tx`update public.profiles set role = 'sales'::user_role where id = ${ids.sales}`;
   await tx`update public.profiles set role = 'technician'::user_role where id = ${ids.technician}`;
 
-  const activeBrand = `RLS Active ${suffix}`;
-  const inactiveBrand = `RLS Inactive ${suffix}`;
+  const activeModel = `Active ${suffix}`;
+  const inactiveModel = `Inactive ${suffix}`;
   const [active] = rows<{ id: string }>(
     await tx`
       insert into public.products (brand, model_name, is_active)
-      values ('RLS', ${activeBrand}, true)
+      values ('RLS', ${activeModel}, true)
       returning id
     `
   );
   await tx`
     insert into public.products (brand, model_name, is_active)
-    values ('RLS', ${inactiveBrand}, false)
+    values ('RLS', ${inactiveModel}, false)
   `;
 
   // IMEI harus tepat 15 digit dan unik. Angka acak menghindari tabrakan
@@ -133,10 +138,13 @@ async function seedData(tx: postgres.TransactionSql): Promise<Seed> {
       returning id
     `
   );
-  await tx`
-    insert into public.transactions (customer_id, customer_name, payment_method)
-    values (${ids.customerB}, 'RLS Customer B', 'cash'::payment_method)
-  `;
+  const [transactionB] = rows<{ id: string }>(
+    await tx`
+      insert into public.transactions (customer_id, customer_name, payment_method)
+      values (${ids.customerB}, 'RLS Customer B', 'cash'::payment_method)
+      returning id
+    `
+  );
   await tx`
     insert into public.transaction_items (transaction_id, unit_id, unit_price)
     values (${transactionA.id}, ${unit.id}, 100)
@@ -149,20 +157,26 @@ async function seedData(tx: postgres.TransactionSql): Promise<Seed> {
       returning id
     `
   );
-  await tx`
-    insert into public.service_tickets (customer_id, customer_name, device_model)
-    values (${ids.customerB}, 'RLS Customer B', 'Phone B')
-  `;
+  const [ticketB] = rows<{ id: string }>(
+    await tx`
+      insert into public.service_tickets (customer_id, customer_name, device_model)
+      values (${ids.customerB}, 'RLS Customer B', 'Phone B')
+      returning id
+    `
+  );
 
   // Perubahan status menulis satu baris audit lewat trigger 0007.
   await tx`update public.inventory_units set status = 'reserved'::unit_status where id = ${unit.id}`;
 
   return {
     ids,
-    activeBrand,
-    inactiveBrand,
+    activeModel,
+    inactiveModel,
+    unitId: String(unit.id),
     transactionA: String(transactionA.id),
+    transactionB: String(transactionB.id),
     ticketA: String(ticketA.id),
+    ticketB: String(ticketB.id),
   };
 }
 
@@ -201,11 +215,11 @@ test.after(async () => {
 test("anon hanya melihat produk aktif", { skip }, async () => {
   await withSeed(async (tx, seed) => {
     const produk = await asRole(tx, "anon", null, () =>
-      tx`select brand from public.products order by brand`
+      tx`select model_name as model from public.products where brand = 'RLS' order by model`
     );
     assert.deepEqual(
-      rows<{ brand: string }>(produk).map((p) => p.brand),
-      [seed.activeBrand],
+      rows<{ model: string }>(produk).map((p) => p.model),
+      [seed.activeModel],
       "anon tidak boleh melihat produk nonaktif"
     );
   });
@@ -249,10 +263,10 @@ test("customer hanya melihat profil, transaksi, item, dan tiket miliknya", { ski
         "customer bukan staf, jadi tidak boleh melihat stok"
       );
 
-      const produk = await tx`select brand from public.products order by brand`;
+      const produk = await tx`select model_name as model from public.products where brand = 'RLS' order by model`;
       assert.deepEqual(
-        rows<{ brand: string }>(produk).map((p) => p.brand),
-        [seed.activeBrand],
+        rows<{ model: string }>(produk).map((p) => p.model),
+        [seed.activeModel],
         "customer hanya melihat produk aktif"
       );
     });
@@ -262,22 +276,40 @@ test("customer hanya melihat profil, transaksi, item, dan tiket miliknya", { ski
 test("sales melihat data staf dan produk nonaktif", { skip }, async () => {
   await withSeed(async (tx, seed) => {
     await asRole(tx, "authenticated", seed.ids.sales, async () => {
-      const profil = await tx`select count(*)::int as n from public.profiles`;
-      assert.equal(rows<{ n: number }>(profil)[0].n, 5, "sales harus melihat semua profil");
+      const profil = await tx`select id::text as id from public.profiles`;
+      const seedProfileIds = Object.values(seed.ids);
+      assert.equal(
+        rows<{ id: string }>(profil).filter((p) => seedProfileIds.includes(p.id)).length,
+        5,
+        "sales harus melihat semua profil seed"
+      );
 
-      const unit = await tx`select count(*)::int as n from public.inventory_units`;
-      assert.equal(rows<{ n: number }>(unit)[0].n, 1, "sales harus melihat stok");
+      const unit = await tx`select id::text as id from public.inventory_units`;
+      assert.ok(
+        rows<{ id: string }>(unit).some((u) => u.id === seed.unitId),
+        "sales harus melihat stok seed"
+      );
 
-      const transaksi = await tx`select count(*)::int as n from public.transactions`;
-      assert.equal(rows<{ n: number }>(transaksi)[0].n, 2, "sales harus melihat semua transaksi");
+      const transaksi = await tx`select id::text as id from public.transactions`;
+      const seedTxIds = [seed.transactionA, seed.transactionB];
+      assert.equal(
+        rows<{ id: string }>(transaksi).filter((t) => seedTxIds.includes(t.id)).length,
+        2,
+        "sales harus melihat semua transaksi seed"
+      );
 
-      const tiket = await tx`select count(*)::int as n from public.service_tickets`;
-      assert.equal(rows<{ n: number }>(tiket)[0].n, 2, "sales harus melihat semua tiket");
+      const tiket = await tx`select id::text as id from public.service_tickets`;
+      const seedTicketIds = [seed.ticketA, seed.ticketB];
+      assert.equal(
+        rows<{ id: string }>(tiket).filter((t) => seedTicketIds.includes(t.id)).length,
+        2,
+        "sales harus melihat semua tiket seed"
+      );
 
-      const produk = await tx`select brand from public.products order by brand`;
+      const produk = await tx`select model_name as model from public.products where brand = 'RLS' order by model`;
       assert.deepEqual(
-        rows<{ brand: string }>(produk).map((p) => p.brand),
-        [seed.activeBrand, seed.inactiveBrand],
+        rows<{ model: string }>(produk).map((p) => p.model),
+        [seed.activeModel, seed.inactiveModel],
         "staf boleh melihat produk nonaktif"
       );
     });
@@ -305,15 +337,18 @@ test("audit hanya terlihat oleh admin atau staf", { skip }, async () => {
 test("service_role melewati RLS", { skip }, async () => {
   await withSeed(async (tx, seed) => {
     await asRole(tx, "service_role", null, async () => {
-      const produk = await tx`select brand from public.products order by brand`;
+      const produk = await tx`select model_name as model from public.products where brand = 'RLS' order by model`;
       assert.deepEqual(
-        rows<{ brand: string }>(produk).map((p) => p.brand),
-        [seed.activeBrand, seed.inactiveBrand],
+        rows<{ model: string }>(produk).map((p) => p.model),
+        [seed.activeModel, seed.inactiveModel],
         "service_role harus melihat semua produk"
       );
 
-      const unit = await tx`select count(*)::int as n from public.inventory_units`;
-      assert.equal(rows<{ n: number }>(unit)[0].n, 1, "service_role harus melihat stok");
+      const unit = await tx`select id::text as id from public.inventory_units`;
+      assert.ok(
+        rows<{ id: string }>(unit).some((u) => u.id === seed.unitId),
+        "service_role harus melihat stok seed"
+      );
     });
   });
 });
