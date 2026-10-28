@@ -71,15 +71,21 @@ end
 == Daftarkan unit batch IMEI ==
 S -> UI : Buka /portal/inventory, pilih produk dan isi daftar IMEI
 UI -> SV : Ajukan registrasi batch (1 sampai 200 IMEI)
-SV -> SV : Validasi isian dan cek peran admin atau sales
-alt Semua IMEI tepat 15 digit angka dan unik
-  SV -> DB : Simpan seluruh batch dalam satu insert atomik
-  DB --> SV : Semua unit status available plus modal dan harga jual
-  SV --> UI : Daftar unit yang berhasil
-  UI --> S : Tampilkan hasil registrasi
-else Ada IMEI duplikat atau tidak valid
+SV -> SV : Validasi isian, cek peran admin atau sales, dan duplikat di batch
+alt Isian tidak valid
   SV --> UI : Tolak seluruh batch
-  UI --> S : Tampilkan pesan galat, tidak ada unit tersimpan
+  UI --> S : Tampilkan pesan validasi, tidak ada unit tersimpan
+else Isian valid
+  SV -> DB : Simpan seluruh batch dalam satu insert atomik
+  alt Insert berhasil
+    DB --> SV : Semua unit status available plus modal dan harga jual
+    SV --> UI : Daftar unit yang berhasil
+    UI --> S : Tampilkan hasil registrasi
+  else IMEI sudah terdaftar (kode 23505)
+    DB --> SV : Unique violation
+    SV --> UI : Tolak seluruh batch
+    UI --> S : Tampilkan pesan IMEI duplikat, tidak ada unit tersimpan
+  end
 end
 
 == Pantau status unit ==

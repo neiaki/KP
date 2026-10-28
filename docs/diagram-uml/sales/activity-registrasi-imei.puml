@@ -59,6 +59,8 @@ partition Basis Data {
 :Simpan semua unit status available dalam satu insert atomik;
 note right
   Satu IMEI duplikat membatalkan seluruh batch.
+  Kalau database menolak karena IMEI sudah ada (23505),
+  alur berhenti di sini dan tidak ada unit tersimpan.
   Tidak ada keberhasilan sebagian.
 end note
 }

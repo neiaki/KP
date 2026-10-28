@@ -90,7 +90,7 @@ Lima temuan terpenting:
 Sebelas temuan diagram dari audit awal sudah diperbaiki di sumber `.puml`
 dan render PNG/SVG pada 28 Oktober 2026. Sisa keputusan owner hanya apakah
 grant anon ke view publik dipulihkan; diagram saat ini mengikuti jalur
-koneksi database server yang berjalan.
+koneksi database langsung yang berjalan.
 
 | # | Temuan | Perbaikan |
 |---|---|---|

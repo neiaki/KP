@@ -177,6 +177,6 @@ dan dokumentasi PlantUML terkini via Context7:
   Setiap sumber lolos `plantuml -checkonly` dan render PNG plus SVG
   di-commit di folder diagramnya. Perintah render ada di `README.md` folder ini.
 - Render ulang 28 Oktober 2026 menyelaraskan sumber dan render dengan
-  temuan audit: akses view etalase lewat service role, batch IMEI
+  temuan audit: akses view etalase lewat koneksi database langsung, batch IMEI
   all-or-nothing, otorisasi tiket lewat `requireRole`, batas kolom produk
   sales, `imei` nullable untuk unit demo, dan state machine unit lengkap.
