@@ -113,7 +113,7 @@ export function ErrorState({
                 rel="noreferrer"
                 className={cn(
                   "mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg",
-                  "bg-wa px-4 text-sm font-bold text-white shadow-sm",
+                  "bg-wa-deep px-4 text-sm font-bold text-white shadow-sm",
                   "transition-all duration-200 hover:bg-wa-deep active:scale-[0.98]"
                 )}
               >

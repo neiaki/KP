@@ -61,13 +61,14 @@ Portal --> Proxy : teruskan rute portal
 Proxy --> Auth : cek sesi dan baca peran
 Publik --> Aksi : snapshot etalase dan lacak tiket
 Portal --> Aksi : tulis dan baca portal
-Aksi --> DB : tulis dicek peran dulu, baca ikut RLS
+Aksi --> DB : tulis dicek peran dulu, baca lewat koneksi server
 Aksi --> ST : simpan foto
 Aksi --> Auth : undang staf
 Aksi ..> Pustaka : validasi dan hitung
 Publik ..> Pustaka : filter etalase
 note bottom of DB
-  View etalase publik hanya boleh dibaca anon.
+  View etalase publik dibaca server lewat koneksi database langsung;
+  anon tidak punya grant SELECT langsung.
   Status sold terminal dan hanya lewat kasir.
 end note
 @enduml

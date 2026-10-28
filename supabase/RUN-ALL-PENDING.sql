@@ -7,14 +7,16 @@
 -- bagian 1 (0001) yang membuat tabel, enum, RLS, view, trigger, dan bucket
 -- Storage, jadi tidak ada satu langkah pun yang harus dijalankan sebelumnya.
 --
--- STATUS untuk project At Cell yang sekarang: bagian 1 sampai 32 SUDAH
+-- STATUS untuk project At Cell yang sekarang: bagian 1 sampai 34 SUDAH
 -- TERJALAN. Bagian 31 dan 32 diterapkan lewat MCP dan tercatat di ledger
 -- production sebagai versi 20261023111914 (add_is_demo_flag) dan
--- 20261023112316 (demo_inventory_imei_nullable); nama berkas di repo memakai
--- versi ledger itu supaya `db push` tidak menjalankannya ulang. Kolom is_demo
--- dan IMEI NULL untuk unit demo sudah diverifikasi ada di production. File ini
--- tetap perlu di-paste utuh hanya untuk project yang belum ter-provision:
--- akun Supabase baru, staging terpisah, atau database yang di-reset dari nol.
+-- 20261023112316 (demo_inventory_imei_nullable); bagian 33 dan 34 tercatat
+-- sebagai 20261024110000 (products_sales_update) dan 20261024120000
+-- (products_sales_column_guard). Nama berkas di repo memakai versi ledger itu
+-- supaya `db push` tidak menjalankannya ulang. Kolom is_demo dan IMEI NULL
+-- untuk unit demo sudah diverifikasi ada di production. File ini tetap perlu
+-- di-paste utuh hanya untuk project yang belum ter-provision: akun Supabase
+-- baru, staging terpisah, atau database yang di-reset dari nol.
 --
 -- DAFTAR BAGIAN, sesuai urutan di file ini:
 --   1  0001_atcell_schema                            tabel, enum, RLS, trigger, view, Storage, seed
@@ -49,6 +51,8 @@
 --  30 20261016081500_current_actor_id_search_path     pin search_path helper aktor audit, tutup temuan advisor lint 0011
 --  31 20261023111914_add_is_demo_flag                  kolom is_demo di unit + transaksi, view publik mengecualikan demo
 --  32 20261023112316_demo_inventory_imei_nullable      unit demo boleh IMEI NULL, unit asli tetap wajib 15 digit
+--  33 20261024110000_products_sales_update             policy RLS sales boleh update harga acuan dan foto resmi
+--  34 20261024120000_products_sales_column_guard       trigger pembatas kolom yang boleh diubah sales
 --
 -- CATATAN soal tabel schema_migrations: job database-tests mengisi ledger
 -- sementara dari supabase/migrations-ledger.snapshot, lalu

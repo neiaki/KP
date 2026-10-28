@@ -195,9 +195,11 @@ Lakukan ini **sebelum** menyentuh `ufw`, dan jangan lewati:
    disimpan sebagai jaring pengaman. Kalau `tmux` atau `screen` tersedia,
    jalankan sesi kedua di dalamnya, karena sesi yangiputus bisa diputus juga
    oleh koneksi yang sama.
-2. Dari mesin operator, buka panel Coolify di `https://<IP>:8000/` dan pastikan
-   halaman login benar-benar muncul, bukan timeout.
-3. Dari mesin operator, buka `https://<IP>:6001/` dan pastikan tidak timeout.
+2. Dari mesin operator, buka panel Coolify di `http://<IP>:8000/` dan pastikan
+   halaman login benar-benar muncul, bukan timeout. Panel ini tidak memakai
+   TLS; utamakan SSH tunnel dan pakai akses langsung hanya sebagai jalur
+   darurat.
+3. Dari mesin operator, buka `http://<IP>:6001/` dan pastikan tidak timeout.
 4. Pastikan health check aplikasi masih hijau dari luar:
 
    ```bash

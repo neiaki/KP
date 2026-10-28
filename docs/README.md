@@ -25,11 +25,12 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `UJI-ALUR-STAF.md` | Skenario uji end-to-end alur ber-kredensial staf: login per role, undang staf, IMEI, POS, workflow tiket sampai serah terima, dan lintasan akses, plus status eksekusinya | **Acuan operasional** |
 | `diagram-uml/README.md` | Indeks folder diagram UML dan aturan render PNG dan SVG pendamping | **Wadah diagram** |
 | `Diagram/README.md` | Indeks dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; draf lokal di-gitignore, tidak ikut repo | **Arsip lokal** |
-| `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor yang sudah diverifikasi ke source code | **Acuan alur** |
+| `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor; sumber `.puml` dan render sudah diselaraskan dengan kode per 28 Oktober 2026 | **Acuan alur** |
 | `agents/issue-tracker.md` | Konfigurasi issue tracker repo untuk skill agent: GitHub Issues lewat `gh` CLI, termasuk alur wayfinding | **Acuan agent** |
 | `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
 | `LOOP_LOG.md` | Log iterasi autoloop: baseline build/test, backlog keamanan Fase 3 (P0-P3), dan riwayat iterasi. Dipulihkan atas permintaan misi autoloop | **Acuan agent** |
 | `NEEDS_HUMAN.md` | Temuan dan keputusan yang menunggu tindakan owner (mis. API Coolify 401, komponen bersama portal) | **Acuan agent** |
+| `PENDING-TASKS.md` | Daftar task tertunda: UI/UX dan fitur yang sengaja ditunda, plus task non-UI yang menunggu owner atau staging | **Acuan agent** |
 | `STANDARDS.md` | Standar best practice A-G (kualitas, performa, a11y, SEO, keamanan lanjutan, produksi) yang diterapkan loop dengan bukti di LOOP_LOG | **Acuan agent** |
 | `agents/domain.md` | Aturan konsumsi dokumen domain (GLOSSARY.md, docs/adr/) oleh skill agent | **Acuan agent** |
 | `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor untuk orientasi agen | **Acuan agent** |
@@ -38,6 +39,10 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `agents/review-handoff-2026-10-20.md` | Handoff audit kedua: perbaikan token watchdog, backup objek Storage, pin image, verifikasi, dan keadaan nyata data produksi | **Handoff audit** |
 | `agents/handoff-2026-10-23-akun-pelanggan-dan-stok.md` | Prompt kerja akun pelanggan, tiga akun simulasi, katalog lima model per merek, dan keputusan owner yang wajib dikonfirmasi | **Handoff aktif** |
 | `agents/katalog-5-model-per-merek.md` | Hasil katalog 25 model aktif, 5 per merek, aturan model tanpa unit, dan verifikasi production | **Selesai** |
+| `db-integrity-proposals.md` | Perbandingan aturan integritas kode vs PostgreSQL, usulan migrasi baru yang belum dijalankan, query pelanggaran, dan rollback | **Usulan, belum disetujui** |
+| `OWNER-DECISION-BRIEF.md` | Opsi, risiko, dan rekomendasi untuk grafik omzet, laporan per teknisi, dan aktor audit pada tulis langsung | **Usulan, belum disetujui** |
+| `DB-VERIFICATION-RUNBOOK.md` | Langkah aman menguji migrasi usulan dan test database di CI, Supabase lokal, atau PostgreSQL sekali pakai | **Acuan operasional, sebagian dijalankan di CI** |
+| `DOCS-REVIEW-2026-10-27.md` | Hasil audit seluruh dokumen: temuan P0/P1/P2, perbaikan yang sudah diterapkan, dan keputusan owner yang masih tertunda | **Laporan audit** |
 
 ## Catatan
 

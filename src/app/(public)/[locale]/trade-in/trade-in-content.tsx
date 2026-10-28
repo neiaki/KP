@@ -232,7 +232,7 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                 </SectionTitle>
               </CardHeader>
               <CardContent className="space-y-5">
-                <p className="flex items-start gap-1.5 rounded-lg bg-accent-soft p-2.5 text-left text-[11px] leading-relaxed text-accent-deep">
+                <p className="flex items-start gap-1.5 rounded-lg bg-accent-soft p-2.5 text-left text-xs leading-relaxed text-accent-deep">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   {en
                     ? "Trade-in currently accepts iPhone 11 and newer only."
@@ -404,7 +404,7 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                       e.target.value = "";
                     }}
                   />
-                  <p className="mt-1 text-[11px] text-muted">
+                  <p className="mt-1 text-xs text-muted">
                     {en
                       ? "Photos help the counter check go faster. You send them manually in the WhatsApp chat after tapping submit."
                       : "Foto bikin cek di konter lebih cepat. Foto dikirim manual di chat WhatsApp setelah tombol ajukan ditekan."}
@@ -423,7 +423,7 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                     inputMode="numeric"
                     className="bg-card font-mono text-sm font-medium"
                   />
-                  <p className="mt-1 text-[11px] text-muted">
+                  <p className="mt-1 text-xs text-muted">
                     {en
                       ? "Dial *#06# to see it. Speeds up the counter check."
                       : "Tekan *#06# untuk melihatnya. Mempercepat cek di konter."}
@@ -446,30 +446,30 @@ export function TradeInContent({ locale }: { locale: Locale }) {
                   <p className="font-mono text-3xl font-bold tracking-tight text-accent-deep">
                     {formatIDR(estimatedValue)}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted">
+                  <p className="mt-1 text-xs text-muted">
                     {deviceLabel} · {grade}
                   </p>
                 </div>
                 {target !== null && (
                   <div className="rounded-lg border border-line bg-paper px-3 py-2.5 text-left">
-                    <p className="text-[11px] font-bold text-muted">
+                    <p className="text-xs font-bold text-muted">
                       {en ? "Trading up to" : "Tukar ke"}
                     </p>
                     <p className="text-sm font-extrabold leading-snug text-ink">
                       {target.brand} {target.modelName}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-muted">
+                    <p className="mt-0.5 text-xs text-muted">
                       {conditionLabel(target.condition, locale)} · {formatIDR(target.price)}
                     </p>
                   </div>
                 )}
                 {error !== "" && (
-                  <p role="alert" className="flex items-start gap-1.5 rounded-lg bg-bad-bg p-2.5 text-left text-[11px] font-bold leading-relaxed text-bad">
+                  <p role="alert" className="flex items-start gap-1.5 rounded-lg bg-bad-bg p-2.5 text-left text-xs font-bold leading-relaxed text-bad">
                     <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     {error}
                   </p>
                 )}
-                <p className="flex items-start gap-1.5 rounded-lg bg-good-bg p-2.5 text-left text-[11px] leading-relaxed text-good">
+                <p className="flex items-start gap-1.5 rounded-lg bg-good-bg p-2.5 text-left text-xs leading-relaxed text-good">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   {en
                     ? "Final price is set at the counter after physical and IMEI check. This estimate is free."

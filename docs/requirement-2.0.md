@@ -10,7 +10,7 @@ Dokumen ini mendefinisikan kebutuhan fungsional dan non-fungsional sistem sebaga
 
 ## 3. Aktor Sistem & Hak Akses
 
-* **Admin / Owner** *(baru ditambahkan — sebelumnya belum ada di draf ini)*
+* **Admin / Owner** *(baru ditambahkan, sebelumnya belum ada di draf ini; di kode Owner memakai peran `admin`, tidak ada enum `owner`)*
   * Mengelola data master katalog produk (merek, model, spesifikasi, harga acuan).
   * Mengelola akun staf (Sales & Teknisi): mengundang, menonaktifkan, atau mengubah peran.
   * Memantau dashboard ringkasan penjualan, peringatan stok menipis, dan performa teknisi.
@@ -18,7 +18,7 @@ Dokumen ini mendefinisikan kebutuhan fungsional dan non-fungsional sistem sebaga
   * Memiliki akses penuh ke seluruh data transaksi untuk keperluan audit/laporan.
 
 * **Sales / Kasir**
-  * Meregistrasi unit fisik baru/bekas (nomor IMEI) **di bawah katalog produk yang telah didefinisikan Admin** — Sales tidak berwenang membuat entri katalog produk baru.
+  * Meregistrasi unit fisik baru/bekas (nomor IMEI) **di bawah katalog produk yang telah didefinisikan Admin**. Sales tidak berwenang membuat entri katalog produk baru, tetapi boleh memperbarui harga acuan dan foto resmi model yang sudah ada lewat Etalase & Harga.
   * Memproses transaksi penjualan reguler dan cetak struk/faktur.
   * Memproses transaksi *trade-in* (penilaian kondisi, potong harga, dan registrasi unit masuk).
   * Memantau ketersediaan stok fisik per IMEI.

@@ -45,31 +45,30 @@ title Daftarkan unit batch IMEI
 start
 partition Sales {
 :Pilih produk master, kondisi, modal, harga jual;
-:Tempel daftar IMEI;
+:Tempel daftar IMEI (1 sampai 200 baris);
 :Ajukan registrasi;
 }
 partition Sistem {
-if (Modal dan harga valid dan jual tidak di bawah modal?) then (tidak)
-  :Tolak batch;
+if (Isian valid dan semua IMEI 15 digit dan unik?) then (tidak)
+  :Tolak seluruh batch;
   stop
 else (ya)
 endif
 }
 partition Basis Data {
-while (Masih ada IMEI? (..200)) is (ya)
-  if (Tepat 15 digit angka dan unik?) then (ya)
-    :Simpan unit status available;
-  else (tidak)
-    :Tandai baris gagal;
-  endif
-endwhile (tidak)
+:Simpan semua unit status available dalam satu insert atomik;
+note right
+  Satu IMEI duplikat membatalkan seluruh batch.
+  Kalau database menolak karena IMEI sudah ada (23505),
+  alur berhenti di sini dan tidak ada unit tersimpan.
+  Tidak ada keberhasilan sebagian.
+end note
 }
 partition Sales {
-:Tampilkan ringkasan berhasil dan gagal;
+:Tampilkan seluruh unit yang berhasil didaftarkan;
 stop
 }
 note right
-  Baris gagal tidak menggagalkan baris valid.
   Status sold tidak bisa diisi manual,
   hanya lewat transaksi kasir.
 end note

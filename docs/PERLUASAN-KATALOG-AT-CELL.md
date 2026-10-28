@@ -244,8 +244,10 @@ dan penautan unit id 9 tidak bisa terpisah satu sama lain.
 `psql`. Sesudah tiap berkas berhasil, catat di
 `supabase_migrations.schema_migrations` memakai nama berkas tanpa ekstensi.
 
-Status ledger: migrasi ini **belum** dicatat di mana pun dan ledger itu belum
-disentuh. Mencatatnya tetap keputusan operator.
+Status ledger saat dokumen ini ditulis: migrasi ini **belum** dicatat dan
+ledger belum disentuh. Per 25 Oktober 2026, kelima migrasi sudah tercatat di
+`supabase/migrations-ledger.snapshot`; verifikasi production tetap harus lewat
+`supabase_migrations.schema_migrations`, bukan dari dokumen ini.
 
 Setelah dijalankan, cek hasilnya:
 

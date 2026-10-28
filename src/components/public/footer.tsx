@@ -198,6 +198,10 @@ export function PublicFooter({ locale }: { locale: Locale }) {
               href={storeSettings.maps_url || "https://maps.app.goo.gl/8Qbpvqs6FwihDrk7A"}
               target="_blank"
               rel="noreferrer"
+              aria-label={
+                storeSettings.address ||
+                (locale === "en" ? "Store location on Google Maps" : "Lokasi toko di Google Maps")
+              }
               className="text-[13px] leading-relaxed text-ink underline decoration-line underline-offset-4 hover:text-accent"
             >
               {storeSettings.address}
@@ -207,6 +211,11 @@ export function PublicFooter({ locale }: { locale: Locale }) {
                 href={`https://wa.me/${cleanWa}`}
                 target="_blank"
                 rel="noreferrer"
+                aria-label={
+                  storeSettings.whatsapp_number
+                    ? `WhatsApp ${storeSettings.whatsapp_number}`
+                    : "WhatsApp At Cell"
+                }
                 className="inline-flex items-center gap-1.5 font-bold text-wa hover:underline"
               >
                 <MessageCircle className="h-3.5 w-3.5" />

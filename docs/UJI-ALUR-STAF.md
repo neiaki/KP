@@ -80,8 +80,9 @@ Prinsip eksekusinya:
 2. Lolos jika: transaksi tersimpan, nota tampil, unit tadi berubah `sold`.
 3. Cek database (read-only): transaksi terakhir punya `unit_id` unit tadi dan
    `payment_method='cash'`; `inventory_units` terkait `sold`.
-4. Admin buka `/portal/reports`: total hari ini naik sesuai transaksi, tren
-   harian menampilkan titik hari ini.
+4. Admin buka `/portal/dashboard`: kartu Total Omzet bertambah sebesar
+   `final_payment` transaksi tadi. Dashboard menampilkan total all-time, bukan
+   tren harian; grafik omzet belum diimplementasikan (keputusan D1).
 5. [NEGATIF] Checkout tanpa memilih unit → ditolak ("Pilih unit fisik (IMEI)
    dulu."); memasukkan unit yang sudah `sold` → ditolak oleh gate status unit.
 

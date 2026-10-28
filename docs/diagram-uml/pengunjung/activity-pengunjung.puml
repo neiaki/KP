@@ -46,8 +46,10 @@ start
 :Buka web tanpa login;
 note right
   Jalur awal diteruskan ke /id oleh proxy.
-  Peran anon hanya baca view etalase publik,
-  harga modal tidak ikut terkirim.
+  Peramban tidak membaca database langsung.
+  Server membaca view etalase lewat koneksi database langsung;
+  anon tidak punya grant SELECT ke view.
+  Harga modal tidak ikut terkirim.
 end note
 :Pilih bahasa di navbar (/id atau /en);
 if (Butuh apa?) then (lihat HP dijual)

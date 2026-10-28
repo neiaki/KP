@@ -107,7 +107,7 @@ export function NotifyCard({
             href={buildNotifyMeHref({ locale, waNumber, target, alasan })}
             target="_blank"
             rel="noreferrer"
-            className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa px-4 text-[13px] font-bold text-white hover:bg-wa-deep"
+            className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-wa-deep px-4 text-[13px] font-bold text-white hover:brightness-95"
           >
             <MessageCircle className="h-4 w-4" />
             {copy.notifyLabel}

@@ -121,14 +121,15 @@ jobs:
             created_at timestamptz not null default now()
           );
 
-          -- auth.uid() adalah fungsi yang selalu mengembalikan NULL di
-          -- koneksi langsung, sama seperti di Supabase ketika RLS tidak
-          -- punya sesi JWT. Nilai NULL justru yang exercising jalur
-          -- production: setiap Server Action lewat koneksi Drizzle punya
-          -- auth.uid() NULL, dan itu yang membuat actor_id ikut NULL kalau
-          -- set_config tidak dipakai.
+          -- auth.uid() membaca klaim JWT dari setting transaction-local,
+          -- sama seperti bootstrap restore. Koneksi Drizzle langsung tidak
+          -- punya klaim, jadi hasilnya tetap NULL dan actor_id ikut NULL
+          -- kalau set_config tidak dipakai. Test RLS dapat mengisi
+          -- request.jwt.claim.sub untuk mensimulasikan pengguna authenticated.
           create or replace function auth.uid() returns uuid
-            language sql stable as $$ select null::uuid $$;
+            language sql stable as $$
+              select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+            $$;
 
           -- storage.objects dipakai policy dan test storage-hardening.
           -- Kolom bucket di bawah bukan pilihan implementasi Supabase: storage.buckets

@@ -14,7 +14,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-paper hover:text-ink",
         link: "text-accent underline-offset-4 hover:underline",
         destructive: "bg-bad text-white shadow-sm hover:brightness-95",
-        wa: "bg-wa text-white shadow-sm hover:bg-wa-deep",
+        wa: "bg-wa-deep text-white shadow-sm hover:brightness-95",
       },
       size: {
         default: "h-11 px-4 py-2 sm:h-10",

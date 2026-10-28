@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Star } from "lucide-react";
+import { MarqueePauseButton } from "@/components/public/marquee-pause-button";
 import { Locale } from "@/lib/translations";
 import type { GoogleReviewsData } from "@/lib/reviews";
 
@@ -59,6 +60,7 @@ export function ReviewsSection({
 }) {
   const [data, setData] = useState<GoogleReviewsData | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "fallback">("loading");
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -116,29 +118,44 @@ export function ReviewsSection({
             </a>
           </div>
 
-          {/* Marquee endless, pause murni CSS saat hover */}
+          {/* Marquee endless: hover/fokus menjeda, tombol jeda eksplisit
+              untuk keyboard dan layar sentuh. */}
           <div
-            className="group relative min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]"
+            className="group flex min-w-0 flex-1 flex-col"
             role="region"
             aria-label={locale === "en" ? "Customer reviews" : "Ulasan pelanggan"}
           >
-            <div className="flex w-max gap-4 py-1 animate-[review-marquee_30s_linear_infinite] group-hover:[animation-play-state:paused] motion-reduce:animate-none">
-              {[...list, ...list].map((r, i) => (
-                <figure
-                  key={`${r.author}-${i}`}
-                  className="relative flex w-72 shrink-0 flex-col rounded-2xl border border-line bg-card p-5 transition-shadow hover:shadow-md sm:w-80"
-                >
-                  <GoogleG className="absolute right-4 top-4 h-4 w-4" />
-                  <div className="flex items-center gap-2 pr-6">
-                    <Stars value={r.rating} />
-                    {r.time ? <span className="text-[11px] text-muted">{r.time}</span> : null}
-                  </div>
-                  <blockquote className="mt-3 flex-1 text-[13px] leading-relaxed text-ink">
-                    {r.text || " "}
-                  </blockquote>
-                  <figcaption className="mt-4 text-sm font-bold text-ink">{r.author}</figcaption>
-                </figure>
-              ))}
+            <div className="mb-2 flex justify-end">
+              <MarqueePauseButton
+                paused={paused}
+                onToggle={() => setPaused((value) => !value)}
+                locale={locale}
+                controls={locale === "en" ? "customer reviews" : "ulasan pelanggan"}
+              />
+            </div>
+            <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]">
+              <div
+                className={`flex w-max gap-4 py-1 animate-[review-marquee_30s_linear_infinite] group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused] motion-reduce:animate-none ${
+                  paused ? "[animation-play-state:paused]" : ""
+                }`}
+              >
+                {[...list, ...list].map((r, i) => (
+                  <figure
+                    key={`${r.author}-${i}`}
+                    className="relative flex w-72 shrink-0 flex-col rounded-2xl border border-line bg-card p-5 transition-shadow hover:shadow-md sm:w-80"
+                  >
+                    <GoogleG className="absolute right-4 top-4 h-4 w-4" />
+                    <div className="flex items-center gap-2 pr-6">
+                      <Stars value={r.rating} />
+                      {r.time ? <span className="text-[11px] text-muted">{r.time}</span> : null}
+                    </div>
+                    <blockquote className="mt-3 flex-1 text-[13px] leading-relaxed text-ink">
+                      {r.text || " "}
+                    </blockquote>
+                    <figcaption className="mt-4 text-sm font-bold text-ink">{r.author}</figcaption>
+                  </figure>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -53,6 +53,9 @@ rectangle "At Cell Web - Portal" {
     usecase "Proses Tukar Tambah" as TukarTambah
     usecase "Daftarkan Unit Batch IMEI" as DaftarBatch
     usecase "Pantau Status Unit" as PantauUnit
+    usecase "Kelola Etalase & Harga" as KelolaEtalase
+    usecase "Kelola Akun Pelanggan" as KelolaPelanggan
+    usecase "Pantau Antrean Servis" as PantauServis
   }
   rectangle "Meja servis" {
     usecase "Masuk dan Dibuka ke Meja Servis" as MasukServis
@@ -75,8 +78,10 @@ S --> JualKasir
 S --> TukarTambah
 S --> DaftarBatch
 S --> PantauUnit
+S --> KelolaEtalase
+S --> KelolaPelanggan
 S --> BuatTiket
-S --> SerahTerima
+S --> PantauServis
 T --> MasukServis
 T --> BuatTiket
 T --> UpdateTiket

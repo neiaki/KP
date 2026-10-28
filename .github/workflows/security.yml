@@ -13,8 +13,10 @@ name: Security
 #   dijalankan adalah berkas yang sudah dihapus itu. Menjalankan workflow yang
 #   sama pada commit main yang sudah ter-merge tidak mencegah apa pun, tapi
 #   membuat hasilnya langsung terlihat di riwayat build main, bukan menunggu
-#   jadwal mingguan. Pencegahan sebenarnya ada di .github/CODEOWNERS, yang
-#   meminta persetujuan kedua untuk edit di .github/workflows/.
+#   jadwal mingguan. Pencegahan bergantung pada branch protection yang
+#   mengaktifkan CODEOWNERS dan mewajibkan persetujuan untuk edit di
+#   .github/workflows/. Jangan menganggap CODEOWNERS aktif tanpa memeriksa
+#   setelan branch protection.
 # - schedule: advisory baru terhadap versi yang sudah dipin tidak akan pernah
 #   terlihat tanpa commit baru, karena keduanya hanya berjalan saat ada push ke
 #   main.

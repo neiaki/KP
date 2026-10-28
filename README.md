@@ -54,7 +54,7 @@ di `src/lib/store.ts`.
 | Peran | Halaman utama | Hak akses utama |
 |-------|---------------|------------------|
 | `admin` | `/portal/dashboard` | Dashboard, produk, staf, pengaturan, laporan, dan seluruh modul operasional |
-| `sales` | `/portal/pos` | POS, inventaris, transaksi, trade-in, dan servis |
+| `sales` | `/portal/pos` | POS, inventaris, transaksi, trade-in, servis, etalase & harga, dan akun pelanggan |
 | `technician` | `/portal/service` | Tiket servis, diagnosa, biaya, dan progres pengerjaan |
 | `customer` | `/portal/account` | Riwayat transaksi, garansi, dan tiket milik akun tersebut |
 
@@ -89,7 +89,7 @@ flowchart LR
 
 | Teknologi | Versi atau penggunaan |
 |-----------|----------------------|
-| Next.js | `16.4.1`, App Router dan Server Actions |
+| Next.js | `16.4.2`, App Router dan Server Actions |
 | React | `19.3.1` |
 | TypeScript | Mode strict |
 | Tailwind CSS | `4` |
@@ -167,7 +167,11 @@ Jangan pernah commit `.env.local`, password database, service role key, atau tok
 | `bun run test` | Menjalankan test suite |
 | `bunx tsc --noEmit` | Melakukan typecheck |
 | `bun run lint` | Menjalankan ESLint |
+| `bun run smoke:render` | Merender halaman publik terhadap build lokal |
+| `bun run perf` | Menjalankan Lighthouse mobile untuk halaman publik |
 | `bun run smoke:deployment -- <primary-url> <fallback-url>` | Memeriksa endpoint health pada deployment |
+
+Perintah `npm`/`npx` yang setara juga didukung: `npm test`, `npx tsc --noEmit`, `npm run lint`, `npm run build`. CI memakai bun.
 
 Validasi lengkap sebelum rilis:
 
@@ -298,7 +302,7 @@ Ikuti runbook lengkap di [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUN
 Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 
 - [`docs/PRD-AtCell.md`](docs/PRD-AtCell.md): vision, kebutuhan, fitur, user flow, dan rancangan arsitektur.
-- [`docs/USE-CASE-AtCell.md`](docs/USE-CASE-AtCell.md): 31 kemampuan per aktor, dari membuka web sampai semua menu portal, plus relasi antarkemampuan.
+- [`docs/USE-CASE-AtCell.md`](docs/USE-CASE-AtCell.md): 33 kemampuan per aktor, dari membuka web sampai semua menu portal, plus relasi antarkemampuan.
 - [`docs/requirement-2.0.md`](docs/requirement-2.0.md): SRS aktif yang memuat aktor dan kebutuhan aplikasi. `docs/requirement.md` adalah SRS v1 yang sudah digantikan, jangan dipakai sebagai acuan.
 - [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md): deployment, migration, DNS, backup, restore, dan rollout.
 - [`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md): urutan mengganti secret yang pernah bocor, lengkap dengan verifikasinya.

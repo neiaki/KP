@@ -54,7 +54,9 @@ T --> BuatTiket
 T --> UpdateTiket
 T --> SerahTerima
 note bottom of UpdateTiket
-  Hanya peran technician yang lolos RLS.
+  Otorisasi lewat requireRole, bukan RLS.
+  Status dan biaya hanya admin dan teknisi;
+  sales hanya mencatat tiket masuk.
   testing boleh kembali ke in_progress.
 end note
 @enduml

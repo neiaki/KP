@@ -62,9 +62,11 @@ UI --> P : Tampilkan hero, keunggulan, jam buka, peta, alamat, telepon
 == Buka etalase dan filter ==
 P -> UI : Buka /id/catalog, pilih filter merek dan kondisi
 UI -> SV : Minta daftar unit sesuai filter
-SV -> DB : Baca view etalase publik (bukan tabel langsung)
+SV -> DB : Baca view etalase lewat koneksi database
 note right of DB
-  Peran anon hanya boleh baca view publik.
+  Peramban tidak membaca database langsung.
+  Server membaca view etalase lewat koneksi database langsung;
+  anon tidak punya grant SELECT ke view.
   Harga modal tidak ikut terkirim.
 end note
 DB --> SV : Merek, model, kondisi, harga jual

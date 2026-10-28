@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { BRANDS, type BrandFilter } from "@/lib/shop";
 import { BrandLogo, brandRingClass } from "@/components/public/brand-mark";
+import { MarqueePauseButton } from "@/components/public/marquee-pause-button";
 import { Locale } from "@/lib/translations";
 
 /* Strip merek berjalan endless. Logo digandakan 4 set agar setengah trek
@@ -20,14 +21,27 @@ export function BrandMarquee({
   // Satu track lebih lebar dari viewport; track identik kedua membuat
   // translateX(-50%) kembali ke posisi visual yang sama tanpa blank spot.
   const track = Array.from({ length: 4 }, () => logos).flat();
+  const [paused, setPaused] = useState(false);
 
   return (
     <section
       aria-label={locale === "en" ? "Brands available" : "Merek yang tersedia"}
       className="mt-10 overflow-hidden border-y border-line bg-card py-8 sm:mt-14 sm:py-10"
     >
+      <div className="mx-auto mb-2 flex max-w-7xl justify-end px-4 sm:px-6 lg:px-8">
+        <MarqueePauseButton
+          paused={paused}
+          onToggle={() => setPaused((value) => !value)}
+          locale={locale}
+          controls={locale === "en" ? "brand strip" : "strip merek"}
+        />
+      </div>
       <div className="group [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
-        <div className="flex w-max animate-[brand-marquee_32s_linear_infinite] group-hover:[animation-play-state:paused] motion-reduce:animate-none">
+        <div
+          className={`flex w-max animate-[brand-marquee_32s_linear_infinite] group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused] motion-reduce:animate-none ${
+            paused ? "[animation-play-state:paused]" : ""
+          }`}
+        >
           {[0, 1].flatMap((copy) =>
             track.map((b, index) => {
               const active = selected === b;

@@ -50,20 +50,28 @@ rectangle "At Cell Web" {
   usecase "Proses Tukar Tambah" as TukarTambah
   usecase "Daftarkan Unit Batch IMEI" as DaftarBatch
   usecase "Pantau Status Unit" as PantauUnit
+  usecase "Kelola Etalase & Harga" as KelolaEtalase
+  usecase "Kelola Akun Pelanggan" as KelolaPelanggan
   usecase "Buat Tiket Servis" as BuatTiket
-  usecase "Catat Serah Terima Unit" as SerahTerima
+  usecase "Pantau Antrean Servis" as PantauServis
 }
 S --> MasukKasir
 S --> JualKasir
 S --> TukarTambah
 S --> DaftarBatch
 S --> PantauUnit
+S --> KelolaEtalase
+S --> KelolaPelanggan
 S --> BuatTiket
-S --> SerahTerima
+S --> PantauServis
 JualKasir ..> ValidasiIMEI : <<include>>
 TukarTambah ..> JualKasir : <<extend>>
 note bottom of JualKasir
   Checkout menolak unit selain available
   lalu rollback total (anti double-sell).
+end note
+note bottom of PantauServis
+  Serah terima completed ke picked_up
+  hanya boleh admin dan teknisi.
 end note
 @enduml

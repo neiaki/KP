@@ -1,5 +1,8 @@
 # Perlu Keputusan / Tindakan Owner
 
+Daftar task yang sengaja ditunda, termasuk UI/UX dan fitur, ada di
+[`PENDING-TASKS.md`](PENDING-TASKS.md).
+
 ## 1. API Coolify 401 — TERPECAHKAN 25 Okt 2026, tidak perlu tindakan owner
 
 Akar: bearer terkontaminasi output psql dua baris (id + tag `INSERT 0 1`).
@@ -52,3 +55,278 @@ dan Textarea bersama bila kelak disepakati masuk components/ui/.
 Backlog F5: halaman portal customers & listing menduplikasi pola Notice,
 Modal, dan Textarea. Perapihan yang benar menyentuh `components/ui/` yang
 sesuai AGENTS.md butuh persetujuan owner sebelum dikerjakan.
+
+## 3. Banner BackendStatus menyebabkan CLS besar saat error (desain perlu keputusan)
+
+Diukur 25 Okt 2026 [REPRODUKSI Lighthouse + browser]: banner error
+(`src/components/backend-status.tsx`, 65px) disisipkan di puncak `<body>`
+PASCA-hidrasi saat fetch snapshot publik gagal; seluruh halaman bergeser
+(CLS terukur 0.733-0.878; tanpa banner 0.079-0.000). Kegagalan snapshot
+publik terjadi antara lain saat kuota rate-limit 600/menit per IP habis.
+
+Opsi: (a) banner jadi overlay `fixed` (tidak menggeser konten), (b) slot
+tinggi tetap yang kosong saat sehat, (c) status pindah ke live-chat
+widget. Rekomendasi: (a) — paling murah dan tidak mengubah layout sehat.
+
+## 4. Exclusion angka lab Lighthouse (STANDARDS B) dengan alasan teknis
+
+Target lab yang tidak tercapai di production build lokal (median 3 run,
+mobile, slow-4G + 4x CPU throttling): Performance /id 69 dan /en 74
+(target 90), LCP /id 4.86s /en 4.73s /catalog 2.62s /trade-in 2.68s
+(target 2.5s), TBT 232-458ms (target 200ms).
+
+Alasan teknis: (1) pengukuran jaringan nyata TANPA throttling di
+produksi menunjukkan LCP < 1.3s (hero selesai 793ms, domInteractive
+953ms) dan CLS 0 — target lab menghukum arsitektur yang sehat di
+pengguna sesungguhnya; (2) JS 603KB gz berisi Sentry yang WAJIB aktif di
+produksi (DSN live) sehingga lazy-load hanya menguntungkan dev;
+(3) hero image sudah `priority` (preload+fetchpriority). Menembus TBT
+200ms lab butuh pemangkasan arsitektur JS (Sentry defer/edge) = keputusan
+produk. Angka yang LULUS di lab: A11y 100 semua, BP 96-100, SEO 100,
+CLS 0-0.079 semua, Perf /id/tracking 93, LCP tracking 2.11s.
+
+### Tambahan butir 3 (25 Okt 2026): shift footer intermiten di /id/trade-in
+
+Dua run Lighthouse penuh berturut-turut: trade-in CLS 0.878-1.000 pada
+2/3 run (footer bergeser 0.800, sources kosong di laporan), run yang sama
+bisa bersih 0.079. Bukan banner BackendStatus (lokal tanpa env; banner
+mustahil dirender) dan bukan gambar (tidak ada img awal). Akar
+TIDAK-TERVERIFIKASI — perlu penyelidikan dengan trace layar per-frame.
+Opsi alat: rekaman video Lighthouse atau Chrome DevTools performance
+panel di halaman trade-in.
+
+## 5. Tracking: noindex halaman hasil lacak vs SEO landing page (selesai 25 Okt 2026)
+
+Konflik desain yang ditemukan 25 Oktober 2026 saat audit bagian E:
+
+- Halaman `/id/tracking` dan `/en/tracking` adalah landing page yang
+  menargetkan pencarian "lacak servis HP". Kalau seluruh halaman diberi
+  noindex, kata kunci itu kehilangan satu-satunya halaman publik yang
+  relevan.
+- Tetapi URL hasil pencarian membawa `?ticket=SRV-...`. Kode tiket adalah
+  identitas servis milik satu pelanggan; URL yang dibagikan atau ditemukan
+  crawler tidak boleh muncul di hasil pencarian.
+
+Keputusan yang sudah diterapkan: landing page tanpa query tetap indexable,
+sedangkan URL dengan `?ticket=` memakai `robots: { index: false, follow: true }`
+dan canonical tetap menunjuk URL bersih. Implementasi ada di
+`buildTrackingMetadata()` (`src/app/sitemap.ts`), dipakai
+`src/app/(public)/[locale]/tracking/page.tsx`, dan dikunci
+`tests/seo-surface.test.ts`.
+
+Tindakan owner: tidak ada, kecuali owner lebih memilih noindex total untuk
+seluruh halaman tracking. Kalau itu dipilih, hilangkan `buildTrackingMetadata`
+dan pakai `buildRouteMetadata` dengan robots noindex permanen, lalu update
+tes yang sama.
+
+## 6. Dua kebijakan produk yang tersirat dari kode, perlu konfirmasi owner
+
+Audit F menemukan dua klaim PRD lama yang tidak cocok dengan kode. Dokumen
+sudah diselaraskan ke perilaku yang berjalan, tanpa mengubah kode. Owner
+perlu mengonfirmasi apakah perilaku itu memang yang diinginkan.
+
+- **Sales mengubah harga acuan dan foto etalase.** Kode mengizinkan
+  `updateProductListing` untuk `admin` dan `sales`, policy
+  `products_sales_update`, dan trigger `products_sales_column_guard`
+  membatasi sales ke `default_price` dan `official_images`. PRD lama
+  menyebut master produk eksklusif Admin. Kalau owner ingin admin-only,
+  perlu perubahan kode dan migrasi baru; jangan hanya mengubah dokumen.
+- **Tracking publik tidak menampilkan biaya, foto, atau keluhan.** Server
+  Action `trackTicketPublic` hanya mengembalikan status, model, akhir
+  IMEI, garansi, dan waktu. PRD lama menyebut total biaya. Kalau owner
+  ingin biaya terlihat publik, itu perubahan perilaku dan keputusan
+  privasi baru, bukan sekadar perbaikan dokumen.
+
+## 7. Server Action mempercayai `X-Forwarded-Host` (verifikasi proxy, bukan celah browser)
+
+Ditemukan 25 Oktober 2026 saat red-team ulang bagian B. Next.js membandingkan
+`Origin` Server Action dengan `X-Forwarded-Host` lebih dulu, baru `Host`.
+Probe lokal dengan action ID asli:
+
+- `Origin: https://evil.example` tanpa `X-Forwarded-Host` → action dibatalkan,
+  HTTP 500, body hanya digest, tanpa mutasi.
+- `Origin: https://evil.example` + `X-Forwarded-Host: evil.example` → action
+  dieksekusi (respons `backendOffline` di mode tanpa env).
+
+Ini **bukan CSRF browser**: `X-Forwarded-Host` adalah header non-simple, jadi
+`fetch` lintas origin memicu preflight dan server tidak mengirim
+`Access-Control-Allow-Origin`; form HTML juga tidak bisa menyetel header itu.
+Risikonya hanya muncul kalau reverse proxy meneruskan `X-Forwarded-Host` dari
+klien tanpa menimpanya. Tindakan owner: pastikan Coolify/Traefik menimpa
+`X-Forwarded-Host` dengan host asli (atau set `SERVER_ACTIONS_ALLOWED_ORIGINS`
+sesuai domain final). Tidak ada perubahan kode tanpa persetujuan owner.
+
+## 8. Verifikasi DB-level: PostgreSQL polos dan RLS CI lulus, staging belum
+
+Gerbang 25 Oktober 2026 berjalan tanpa `DATABASE_URL`, jadi test yang
+membutuhkan database di-skip di suite lokal. Pada 28 Oktober 2026 CI
+`database-tests` menjalankan SELECT/INSERT nyata, trigger audit, ledger,
+transaksi POS, dan policy RLS di PostgreSQL polos. Run `40695117148` lulus
+untuk lapis POS; run `40700897417` lulus 40/40, termasuk 6 test RLS baru di
+`tests/rls-db.test.ts` yang menguji anon, customer, sales, admin/audit,
+service_role, dan grant anon. Bootstrap CI sekarang mengisi `auth.uid()` dari
+`request.jwt.claim.sub` transaction-local. Yang belum: perilaku Supabase
+Auth/PostgREST/Storage dan RLS di staging/lokal. Tindakan owner: jalankan
+`DATABASE_URL=<staging> bun run test` di database lokal/staging sebelum
+deploy. Jangan memakai database produksi.
+
+Pembaruan 25 Oktober 2026: lapis 2 `tests/pos-concurrent-sale.test.ts`
+diperbaiki agar bisa berjalan di CI. Seed sekarang membuat baris `auth.users`
+lebih dulu (FK `profiles.id` ON DELETE CASCADE), lalu menaikkan peran profil
+menjadi admin; env Supabase stub diisi sebelum `executeSale` diimpor supaya
+`requireRole` tidak menolak sebelum perlombaan. Cleanup menghapus `auth.users`
+sehingga profil ikut terhapus. Verifikasi lokal masih belum bisa karena tidak
+ada server PostgreSQL dan `DATABASE_URL` belum diisi. Jalankan di database
+sekali pakai, bukan production:
+
+```bash
+DATABASE_URL=postgres://... node --experimental-strip-types \
+  --test tests/pos-concurrent-sale.test.ts
+```
+
+CI `database-tests` akan menjalankan file ini otomatis saat PR dibuat karena
+file memakai `process.env.DATABASE_URL`.
+
+Pembaruan 28 Oktober 2026: workflow `database-tests` dijalankan di CI. Run
+`40691860281` gagal karena seed memakai kolom `products.is_demo` yang tidak
+ada; flag demo hanya ada di `inventory_units` dan `transactions`. Setelah seed
+diperbaiki di `a21cecd` dan stub nota dilengkapi di `a4a69aa`, run
+`40695117148` lulus. Lapis 2 POS kini terbukti di PostgreSQL polos CI. Run
+`40700897417` kemudian lulus 40/40 dengan 6 test RLS baru; policy sebagai
+anon, customer, sales, admin/audit, service_role, dan grant anon sudah
+terverifikasi di PostgreSQL polos. Yang belum: perilaku Supabase
+Auth/PostgREST/Storage dan RLS di staging/lokal milik owner.
+
+Temuan baru dari test RLS: `supabase/migrations/0005_username_login.sql`
+menjalankan `regexp_replace` sebelum `lower()`. Huruf besar di prefix email
+dibuang, sehingga `customerA@...` dan `customerB@...` bisa jatuh ke username
+yang sama dan insert kedua gagal `profiles_username_key`. Test seed sementara
+memakai email lowercase supaya tidak bentrok. Perbaikan produksi butuh
+migrasi baru, persetujuan owner, dan uji staging; dicatat sebagai N13 di
+[`PENDING-TASKS.md`](PENDING-TASKS.md).
+
+Pada sesi 28 Oktober 2026, environment ini tidak punya Supabase CLI,
+`supabase/config.toml` tidak ada, dan `DATABASE_URL` kosong. Verifikasi
+staging/lokal karena itu belum bisa dijalankan dari sini. Jangan mengisi
+`DATABASE_URL` dengan connection string production hanya untuk mengejar
+verifikasi.
+
+## 9. Usulan migrasi integritas DB: butuh keputusan owner dan verifikasi staging
+
+`docs/db-integrity-proposals.md` membandingkan aturan yang dijaga Server Action
+dengan yang dijaga PostgreSQL. Usulan SQL ada di
+`docs/migrations-proposed/20261025090000_db_integrity.sql` dan **belum
+dijalankan**. File itu sengaja tidak diletakkan di `supabase/migrations/` agar
+tidak dianggap sudah disetujui oleh test ledger/runbook.
+
+Keputusan owner yang dibutuhkan:
+
+- Setujui atau tolak bagian A-L: unique item transaksi, guard harga/status
+  item, penandaan sold otomatis, larangan edit unit sold, check
+  `final_payment`, check `total_fee`, total transaksi sama dengan item,
+  role teknisi, guard biaya/status tiket untuk sales, `sales_id` aktor,
+  serta minimal satu admin.
+- Bagian M (`selling_price >= purchase_cost`) adalah kebijakan harga.
+  Rekomendasi: setujui untuk mencegah jual di bawah modal, kecuali toko
+  sengaja memakai loss leader. Harga impas tetap diizinkan.
+- Temuan terpisah yang belum diputuskan: sales masih bisa mengubah
+  `costBreakdown`, `technicianNotes`, `warrantyDays`, dan `technicianId`;
+  belum ada audit harga/stok; `registerUnits` belum memeriksa harga di bawah
+  modal; RPC lama `process_trade_in_sale` belum memeriksa `is_demo`.
+- Migrasi usulan belum diuji: CI PostgreSQL polos sudah lulus untuk test yang
+  ada, tetapi SQL usulan belum dijalankan. Setelah disetujui, pindahkan SQL
+  ke `supabase/migrations/` dengan timestamp baru, perbarui
+  `RUN-ALL-PENDING.sql`, ledger, dan runbook, lalu jalankan di database
+  lokal/staging. Jangan memakai production untuk pengujian.
+- Test fixture `tests/pos-concurrent-sale.test.ts` sudah diperbaiki dan jalur
+  DB-nya lulus di CI (run `40695117148`). Run `40700897417` juga menguji policy
+  RLS dengan role PostgreSQL, tetapi verifikasi di Supabase staging tetap
+  perlu karena CI bukan replika Auth/PostgREST/Storage Supabase.
+
+## 10. Klaim PRD yang belum sepenuhnya ada di UI
+
+Dua klaim di `docs/PRD-AtCell.md` §3.2 belum sesuai kenyataan halaman portal.
+Opsi, risiko, dan rekomendasi ada di `docs/OWNER-DECISION-BRIEF.md` bagian
+D1 dan D2.
+
+- **Grafik omzet harian/bulanan.** Dashboard
+  (`src/app/(portal)/portal/dashboard/page.tsx:26-46`) hanya menampilkan
+  kartu total omzet, jumlah transaksi, tiket aktif, dan stok rendah; tidak ada
+  grafik deret waktu. Keputusan owner: bangun grafiknya, atau ubah PRD menjadi
+  ringkasan total.
+- **Laporan performa teknisi berisi rata-rata waktu pengerjaan per teknisi.**
+  Halaman laporan (`src/app/(portal)/portal/reports/page.tsx:11-40`) menghitung
+  total unit selesai, unit dikerjakan, omzet jasa, dan omzet meja servis secara
+  global; rincian tiket tidak dikelompokkan per `technician_id` dan tidak
+  menghitung durasi rata-rata. Keputusan owner: tambah agregasi per teknisi,
+  atau selaraskan PRD/FR-D-03 dengan laporan global yang ada.
+
+Tidak ada perubahan perilaku pada sesi ini; dokumen PRD tetap menjadi
+requirement sampai owner memutuskan.
+
+## 11. NFR-07 baru menjamin aktor pada jalur Server Action
+
+`docs/requirement-2.0.md` NFR-07 meminta setiap mutasi status unit dan tiket
+servis mencatat identitas pengguna. Trigger audit
+(`supabase/migrations/0007_audit_trail.sql:111-136`) membaca
+`private.current_actor_id()`, dan Server Action mengisinya lewat
+`setAuditActor` (`src/lib/actions/_helpers.ts:27-29`). Namun policy RLS masih
+mengizinkan staf menulis langsung ke `inventory_units` dan `service_tickets`
+(`supabase/migrations/0002_harden_atcell_schema.sql:407-415,473-477`), sehingga
+tulis langsung lewat PostgREST dapat menghasilkan baris audit dengan
+`actor_id` NULL. Keputusan owner: perketat RLS/trigger agar aktor wajib, atau
+ubah NFR-07 menjadi "mutasi lewat Server Action". Usulan SQL terkait ada di
+`docs/migrations-proposed/20261025090000_db_integrity.sql` dan belum
+dijalankan. Opsi dan rekomendasi ada di `docs/OWNER-DECISION-BRIEF.md` bagian
+D3; langkah verifikasinya ada di `docs/DB-VERIFICATION-RUNBOOK.md`.
+
+## 12. E2E Playwright belum bisa dijalankan di environment ini
+
+Goal E2E meminta suite Playwright hijau tiga kali berturut-turut terhadap
+staging/lokal dengan data dummy. Environment sesi ini belum memenuhi syarat itu:
+
+- `package.json` dan `node_modules` tidak memuat `playwright` atau
+  `@playwright/test`. Cache browser Playwright ada di `~/.cache/ms-playwright`,
+  tetapi paket npm-nya tidak terpasang.
+- Tidak ada PostgreSQL lokal, Supabase CLI, Docker, atau Podman. `DATABASE_URL`
+  di environment sesi ini menunjuk ke host non-lokal, jadi tidak boleh dipakai
+  untuk tes (sesuai aturan repo: hanya staging/lokal).
+- Mode demo mulai sebagai admin (`src/lib/store.ts:175`) dan layout portal tidak
+  menegakkan akses lintas peran. Penolakan lintas peran yang sebenarnya ada di
+  Server Action dan RLS, yang butuh backend live/staging. Tes demo-only untuk
+  skenario itu akan memberi rasa aman palsu.
+
+Keputusan owner: tambahkan Playwright dan sediakan Supabase/PostgreSQL lokal
+sekali pakai, atau setujui subset E2E demo-only dengan skenario lintas peran
+ditandai belum teruji. Jangan menjalankan tes terhadap `DATABASE_URL` non-lokal.
+
+## 13. Audit dependensi: npm audit dan update tertunda
+
+`npm outdated` menemukan tujuh paket. Semua versi baru yang tersedia dirilis
+kurang dari 14 hari pada 28 Oktober 2026, kecuali TypeScript 7.0.2 yang merupakan
+pembaruan major. Tidak ada dependensi yang diubah.
+
+| Paket | Lama | Baru | Rilis baru | Alasan tidak diperbarui |
+|---|---|---|---|---|
+| `@sentry/nextjs` | 11.8.0 | 11.9.0 | 2026-10-23 | 5 hari, dilewati aturan 14 hari |
+| `ai` | 7.0.142 | 7.0.155 | 2026-10-27 | 1 hari, dilewati aturan 14 hari |
+| `lucide-react` | 1.57.0 | 1.63.0 | 2026-10-28 | 0 hari, dilewati aturan 14 hari |
+| `next` | 16.4.2 | 16.4.3 | 2026-10-23 | 5 hari; versi di-pin exact, bukan `npm update` |
+| `eslint-config-next` | 16.4.2 | 16.4.3 | 2026-10-23 | 5 hari; versi di-pin exact, bukan `npm update` |
+| `eslint` | 9.39.5 | 10.13.0 | 2026-10-16 | 12 hari dan major, dilaporkan saja |
+| `typescript` | 5.9.3 | 7.0.2 | 2026-07-08 | major, dilaporkan saja; risiko breaking typecheck |
+
+`npm audit` belum bisa dijalankan karena repo tidak punya `package-lock.json`
+(`ENOLOCK`), sedangkan lockfile yang ada adalah `bun.lock`.
+
+Pembaruan 28 Oktober 2026: `bun audit` berhasil dijalankan dengan bun 1.4.4.
+Hasilnya satu advisory moderate `esbuild <=0.24.2`
+(GHSA-67mh-4wv8-2f99) lewat rantai dev-only
+`drizzle-kit` -> `@esbuild-kit/esm-loader` -> `@esbuild-kit/core-utils` ->
+`esbuild@0.18.20`. `bun audit --production` bersih, jadi tidak ada paket
+runtime yang terkena. `bun audit fix --dry-run` tidak bisa memperbaiki karena
+`@esbuild-kit/core-utils` mengunci `esbuild@~0.18.20`; `drizzle-kit` terbaru
+(0.31.11) masih membawa loader yang sama. Tidak ada perubahan `package.json`
+atau lockfile. Keputusan owner: terima risiko dev-only ini sampai drizzle-kit
+mengganti loader, atau setujui override `esbuild` (tidak disarankan tanpa uji
+penuh).

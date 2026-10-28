@@ -92,7 +92,7 @@ SV --> UI : Detail tiket
 loop Setiap perpindahan status
   note over T,DB
     Urutan: received, diagnosing, waiting_approval,
-    in_progress, testing, completed.
+    in_progress, testing, completed, picked_up.
     testing boleh kembali ke in_progress bila gagal uji.
   end note
   T -> UI : Pilih status berikut, isi biaya sparepart, jasa, catatan
@@ -101,22 +101,26 @@ loop Setiap perpindahan status
   ST --> SV : Alamat foto
   UI -> SV : Ajukan update tiket
   SV -> DB : Ubah status dan biaya plus rincian maks 50 baris
-  alt Peran technician lolos RLS
+  alt Peran admin atau technician dan transisi valid
     DB --> SV : OK, total sama dengan sparepart plus jasa
     SV --> UI : Tiket diperbarui
     UI --> T : Tampilkan status dan total terbaru
-  else Peran tidak diizinkan
-    DB --> SV : Ditolak RLS
-    SV --> UI : Galat
+  else Peran atau transisi tidak valid
+    SV --> UI : Ditolak requireRole atau transisi tidak valid
     UI --> T : Update tidak diizinkan
   end
 end
 
 == Catat serah terima unit ==
-T -> UI : Pelanggan datang, catat pelunasan
-UI -> SV : Ubah status tiket
-SV -> DB : Ubah status dari completed ke picked_up
+T -> UI : Pelanggan datang, buka tiket completed
+UI -> SV : Centang konfirmasi nota servis
+SV -> SV : Pastikan status completed dan nota dikonfirmasi
+SV -> DB : Ubah status completed ke picked_up plus waktu serah terima
 DB --> SV : OK
 SV --> UI : Tiket tertutup
 UI --> T : Unit keluar dari antrean aktif
+note right of T
+  Sales hanya boleh mencatat tiket masuk.
+  Status dan biaya hanya admin dan teknisi.
+end note
 @enduml
