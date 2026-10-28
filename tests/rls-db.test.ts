@@ -92,14 +92,23 @@ async function seedData(tx: postgres.TransactionSql): Promise<Seed> {
     // Username berbasis id, bukan nama, supaya trigger handle_new_user tidak
     // pernah menghasilkan username yang sama untuk dua akun seed.
     const username = `u_${id.replace(/-/g, "").slice(0, 24)}`;
-    await tx`
-      insert into auth.users (id, email, raw_user_meta_data)
-      values (
-        ${id},
-        ${`rls-${name}-${suffix}@atcell.test`},
-        ${JSON.stringify({ full_name: `RLS ${name}`, username })}::jsonb
-      )
-    `;
+    const email = `rls-${name}-${suffix}@atcell.test`;
+    try {
+      await tx`
+        insert into auth.users (id, email, raw_user_meta_data)
+        values (
+          ${id},
+          ${email},
+          ${JSON.stringify({ full_name: `RLS ${name}`, username })}::jsonb
+        )
+      `;
+    } catch (error) {
+      const detail = error as { message?: string; detail?: string; constraint?: string };
+      throw new Error(
+        `seed ${name} username=${username} email=${email}: ${detail.message} detail=${detail.detail} constraint=${detail.constraint}`,
+        { cause: error }
+      );
+    }
   }
 
   await tx`update public.profiles set role = 'admin'::user_role where id = ${ids.admin}`;
