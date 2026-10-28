@@ -14,14 +14,15 @@ akan dipakai deploy berikutnya, bukan bukti bahwa production sudah menjalankan
 commit tersebut; verifikasi lewat Coolify dan health check sebelum menyimpulkan
 status rilis.
 **Cabang kerja:** `improve/autoloop` sinkron dengan
-`origin/improve/autoloop`; commit RLS terakhir `5cfd6b0`. Branch ini memuat
-rangkaian commit docs/test yang belum ada di `origin/main` dan 1 commit di
-belakang (`33b2f26`). Penghapusan Dependabot sudah ada juga di branch lewat `3174d09`,
-jadi tidak ada berkas Dependabot yang tertinggal. CI `database-tests` lulus
-28 Oktober 2026 (run `40700897417`, 40/40) termasuk 6 test RLS baru; run
-`40695117148` sebelumnya memverifikasi fixture POS. `main` lokal (`21bfd37`)
-masih 2 commit di depan dan 1 di belakang `origin/main`; jangan push commit
-itu tanpa keputusan owner.
+`origin/improve/autoloop`; commit RLS terakhir `5cfd6b0`. `origin/main`
+(`33b2f26`) sudah di-merge lewat `6acf375`; tidak ada konflik dan tidak ada
+commit main yang tertinggal. Branch ini memuat rangkaian commit docs/test yang
+belum ada di `origin/main`. Penghapusan Dependabot sudah ada juga di branch
+lewat `3174d09`, jadi tidak ada berkas Dependabot yang tertinggal. CI
+`database-tests` lulus 28 Oktober 2026 (run `40700897417`, 40/40) termasuk 6
+test RLS baru; run `40695117148` sebelumnya memverifikasi fixture POS. `main`
+lokal (`21bfd37`) masih 2 commit di depan dan 1 di belakang `origin/main`;
+jangan push commit itu tanpa keputusan owner.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 katalog lima model per merek, Etalase & Harga, dan pembersihan VPS sudah masuk
 lewat rangkaian PR setelah #129. Rincian historis di bawah dipertahankan sebagai

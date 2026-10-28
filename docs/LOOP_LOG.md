@@ -1163,3 +1163,6 @@ POS di PostgreSQL polos CI, bukan RLS Supabase.
   dicatat sebagai N13 di `docs/PENDING-TASKS.md`.
 - Gate setelah perubahan: `bun run test` 879 tes, 859 pass, 20 skip DB, 0 fail;
   `bunx tsc --noEmit` exit 0; `bun run lint` exit 0; `bun run build` exit 0.
+- `origin/main` (`33b2f26`) di-merge ke `improve/autoloop` lewat `6acf375`.
+  Tidak ada konflik; tree branch tidak berubah karena penghapusan Dependabot
+  di main sudah setara dengan `3174d09`.

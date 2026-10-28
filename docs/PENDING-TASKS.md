@@ -59,7 +59,7 @@ requirement, kode, schema, atau perilaku aplikasi.
 | N8 | Isolasi deployment pratinjau Vercel dari database production | Menunggu owner | Preview masih bisa membaca data production; butuh project Supabase terpisah dan pencabutan env production dari preview |
 | N9 | Pastikan proxy menimpa `X-Forwarded-Host` | Perlu verifikasi ops | Risiko hanya jika Coolify/Traefik meneruskan header dari klien; lihat `NEEDS_HUMAN.md` butir 7 |
 | N10 | Keputusan exclusion angka lab Lighthouse | Menunggu owner | Target lab tidak tercapai karena throttling; angka jaringan nyata sudah baik. Lihat `NEEDS_HUMAN.md` butir 4 |
-| N11 | Sinkronkan branch dengan `origin/main` | Belum dilakukan | `improve/autoloop` 1 commit di belakang `33b2f26`; isi penghapusan Dependabot sudah setara, tetapi branch perlu merge/rebase sebelum PR |
+| N11 | Sinkronkan branch dengan `origin/main` | Selesai | `origin/main` (`33b2f26`) sudah di-merge ke `improve/autoloop` lewat `6acf375`; tidak ada konflik dan tree branch tidak berubah karena penghapusan Dependabot sudah setara |
 | N12 | Arsipkan atau koreksi `docs/3.4 Perancangan Database At Cell.docx` | Lokal, gitignored | Dokumen lama tidak ikut repo; owner putuskan arsipkan atau perbarui isinya |
 | N13 | Perbaiki urutan `lower()` dan `regexp_replace` di `handle_new_user` | Ditemukan saat test RLS 28 Oktober 2026 | `supabase/migrations/0005_username_login.sql` menjalankan regexp sebelum `lower()`, sehingga huruf besar di prefix email dibuang. `customerA@...` dan `customerB@...` bisa jatuh ke username yang sama dan insert kedua gagal `profiles_username_key`. Test seed sementara memakai email lowercase; perbaikan butuh migrasi baru, persetujuan owner, dan uji staging |
 
@@ -80,6 +80,9 @@ requirement, kode, schema, atau perilaku aplikasi.
   dijalankan sebelum `lower()`, sehingga prefix email dengan huruf besar bisa
   kehilangan huruf dan bertabrakan. Belum diperbaiki karena butuh migrasi dan
   persetujuan owner; dicatat sebagai N13.
+- Branch `improve/autoloop` disinkronkan dengan `origin/main` (`33b2f26`)
+  lewat merge commit `6acf375`. Tidak ada konflik; tree branch tidak berubah
+  karena perubahan Dependabot di main sudah setara.
 - `bun audit` dijalankan: produksi bersih, satu advisory moderate dev-only
   pada `esbuild`.
 - `.env.example` diperbaiki agar menyuruh `supabase/RUN-ALL-PENDING.sql`
