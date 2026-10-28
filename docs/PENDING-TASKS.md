@@ -49,8 +49,8 @@ requirement, kode, schema, atau perilaku aplikasi.
 
 | ID | Task | Status | Blocker |
 |---|---|---|---|
-| N1 | Verifikasi DB-level di staging/lokal | Sebagian: CI PostgreSQL polos lulus | CI `database-tests` run `40695117148` lulus, tetapi RLS dan perilaku Supabase belum diuji di staging/lokal. 14 test DB masih skip di suite lokal |
-| N2 | Jalankan `tests/pos-concurrent-sale.test.ts` di database sekali pakai | Selesai di CI | Run `40695117148` lulus setelah seed `products.is_demo` dan stub nota diperbaiki di `a21cecd` dan `a4a69aa`. Verifikasi di Supabase staging tetap terpisah |
+| N1 | Verifikasi DB-level di staging/lokal | Sebagian: CI PostgreSQL polos dan RLS lulus | CI `database-tests` run `40700897417` lulus 40/40, termasuk 6 test RLS baru untuk anon, customer, sales, admin/audit, service_role, dan grant anon. Bootstrap `auth.uid()` membaca `request.jwt.claim.sub` transaction-local. Yang belum: perilaku Supabase Auth/PostgREST/Storage dan RLS di staging/lokal. 20 test DB masih skip di suite lokal tanpa `DATABASE_URL` |
+| N2 | Jalankan `tests/pos-concurrent-sale.test.ts` di database sekali pakai | Selesai di CI | Run `40695117148` lulus setelah seed `products.is_demo` dan stub nota diperbaiki di `a21cecd` dan `a4a69aa`; run `40700897417` menjalankan ulang seluruh suite DB 40/40. Verifikasi di Supabase staging tetap terpisah |
 | N3 | E2E Playwright tiga kali hijau | Belum bisa | Paket Playwright tidak terpasang, tidak ada PostgreSQL/Supabase lokal, dan tes lintas peran butuh backend live |
 | N4 | Audit dependensi lanjutan | Sebagian selesai | `bun audit` sudah jalan; satu advisory moderate dev-only `esbuild` lewat `drizzle-kit`, belum ada perbaikan upstream |
 | N5 | Update dependensi tertunda | Menunggu | Semua kandidat baru berumur kurang dari 14 hari atau major; versi di-pin exact |
@@ -61,6 +61,7 @@ requirement, kode, schema, atau perilaku aplikasi.
 | N10 | Keputusan exclusion angka lab Lighthouse | Menunggu owner | Target lab tidak tercapai karena throttling; angka jaringan nyata sudah baik. Lihat `NEEDS_HUMAN.md` butir 4 |
 | N11 | Sinkronkan branch dengan `origin/main` | Belum dilakukan | `improve/autoloop` 1 commit di belakang `33b2f26`; isi penghapusan Dependabot sudah setara, tetapi branch perlu merge/rebase sebelum PR |
 | N12 | Arsipkan atau koreksi `docs/3.4 Perancangan Database At Cell.docx` | Lokal, gitignored | Dokumen lama tidak ikut repo; owner putuskan arsipkan atau perbarui isinya |
+| N13 | Perbaiki urutan `lower()` dan `regexp_replace` di `handle_new_user` | Ditemukan saat test RLS 28 Oktober 2026 | `supabase/migrations/0005_username_login.sql` menjalankan regexp sebelum `lower()`, sehingga huruf besar di prefix email dibuang. `customerA@...` dan `customerB@...` bisa jatuh ke username yang sama dan insert kedua gagal `profiles_username_key`. Test seed sementara memakai email lowercase; perbaikan butuh migrasi baru, persetujuan owner, dan uji staging |
 
 ## 4. Selesai pada 28 Oktober 2026
 
@@ -71,6 +72,14 @@ requirement, kode, schema, atau perilaku aplikasi.
 - CI `database-tests` run `40695117148` lulus setelah dua bug fixture POS
   diperbaiki di `a21cecd` dan `a4a69aa`; ini memverifikasi lapis 2 di
   PostgreSQL polos, bukan RLS Supabase.
+- CI `database-tests` run `40700897417` lulus 40/40, termasuk 6 test RLS baru
+  di `tests/rls-db.test.ts`. Bootstrap CI sekarang mengisi `auth.uid()` dari
+  `request.jwt.claim.sub`, sehingga policy diuji sebagai anon, customer,
+  sales, admin, dan service_role. Ini tetap bukan replika Supabase penuh.
+- Ditemukan bug trigger username di `0005_username_login.sql`: regexp
+  dijalankan sebelum `lower()`, sehingga prefix email dengan huruf besar bisa
+  kehilangan huruf dan bertabrakan. Belum diperbaiki karena butuh migrasi dan
+  persetujuan owner; dicatat sebagai N13.
 - `bun audit` dijalankan: produksi bersih, satu advisory moderate dev-only
   pada `esbuild`.
 - `.env.example` diperbaiki agar menyuruh `supabase/RUN-ALL-PENDING.sql`

@@ -41,7 +41,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `agents/katalog-5-model-per-merek.md` | Hasil katalog 25 model aktif, 5 per merek, aturan model tanpa unit, dan verifikasi production | **Selesai** |
 | `db-integrity-proposals.md` | Perbandingan aturan integritas kode vs PostgreSQL, usulan migrasi baru yang belum dijalankan, query pelanggaran, dan rollback | **Usulan, belum disetujui** |
 | `OWNER-DECISION-BRIEF.md` | Opsi, risiko, dan rekomendasi untuk grafik omzet, laporan per teknisi, dan aktor audit pada tulis langsung | **Usulan, belum disetujui** |
-| `DB-VERIFICATION-RUNBOOK.md` | Langkah aman menguji migrasi usulan dan test database di CI, Supabase lokal, atau PostgreSQL sekali pakai | **Acuan operasional, belum dijalankan** |
+| `DB-VERIFICATION-RUNBOOK.md` | Langkah aman menguji migrasi usulan dan test database di CI, Supabase lokal, atau PostgreSQL sekali pakai | **Acuan operasional, sebagian dijalankan di CI** |
 | `DOCS-REVIEW-2026-10-27.md` | Hasil audit seluruh dokumen: temuan P0/P1/P2, perbaikan yang sudah diterapkan, dan keputusan owner yang masih tertunda | **Laporan audit** |
 
 ## Catatan

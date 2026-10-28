@@ -1142,3 +1142,24 @@ Tindak lanjut 28 Oktober 2026: `database-tests` dijalankan di CI. Run
 dan stub nota hanya mendukung `profiles`. Kedua bug fixture diperbaiki di
 `a21cecd` dan `a4a69aa`; run `40695117148` lulus. Ini memverifikasi lapis 2
 POS di PostgreSQL polos CI, bukan RLS Supabase.
+
+## RLS di PostgreSQL CI (28 Oktober 2026)
+
+- `tests/rls-db.test.ts` ditambahkan dengan 6 kasus: anon hanya melihat produk
+  aktif, customer hanya melihat profil/transaksi/item/tiket miliknya, sales
+  melihat data staf dan produk nonaktif, audit hanya untuk admin/staf,
+  service_role melewati RLS, dan anon tidak punya grant baca inventory.
+- Bootstrap CI mengubah `auth.uid()` agar membaca
+  `request.jwt.claim.sub` transaction-local. Tanpa setting hasilnya tetap
+  NULL, jadi jalur Drizzle langsung tidak berubah. Commit `465095e`.
+- Seed awal gagal `profiles_username_key` karena regexp membuang huruf A/B
+  pada prefix email `customerA`/`customerB` sebelum `lower()`. Perbaikan seed
+  ada di `255595c`, diagnostik di `9d86b84`, dan `5cfd6b0`.
+- Run `40700897417` lulus 40/40, 0 skip, 0 fail. Ini menguji policy RLS di
+  PostgreSQL polos, bukan Supabase Auth/PostgREST/Storage atau staging.
+- Temuan yang belum diperbaiki: `supabase/migrations/0005_username_login.sql`
+  menjalankan `regexp_replace` sebelum `lower()`, sehingga prefix email dengan
+  huruf besar bisa bertabrakan. Butuh migrasi baru dan persetujuan owner;
+  dicatat sebagai N13 di `docs/PENDING-TASKS.md`.
+- Gate setelah perubahan: `bun run test` 879 tes, 859 pass, 20 skip DB, 0 fail;
+  `bunx tsc --noEmit` exit 0; `bun run lint` exit 0; `bun run build` exit 0.

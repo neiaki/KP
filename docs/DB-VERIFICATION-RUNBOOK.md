@@ -1,8 +1,10 @@
 # Runbook Verifikasi Database untuk Migrasi Usulan
 
-Status: **belum dijalankan**. Dokumen ini operasional, bukan klaim bahwa
-migrasi sudah teruji. Jangan menerapkannya ke production sebelum owner
-menyetujui `docs/OWNER-DECISION-BRIEF.md`.
+Status: **sebagian dijalankan di CI**. Test database dan policy RLS sudah
+lulus di PostgreSQL polos CI; migrasi usulan di `docs/migrations-proposed/`
+belum dijalankan. Dokumen ini operasional, bukan klaim bahwa migrasi sudah
+teruji. Jangan menerapkannya ke production sebelum owner menyetujui
+`docs/OWNER-DECISION-BRIEF.md`.
 
 Tujuan: menguji migrasi di database sekali pakai atau staging, membuktikan
 constraint dan trigger bekerja, lalu mencatat bukti yang bisa diperiksa ulang.
@@ -66,12 +68,16 @@ database dibuat dari nol di runner dan tidak pernah menyentuh production.
    - menerapkan seluruh `supabase/migrations/*.sql` berurutan,
    - mengisi ledger dari `supabase/migrations-ledger.snapshot`,
    - memberi seed minimum untuk audit trail,
+   - menguji policy RLS sebagai role `anon`, `authenticated`, dan
+     `service_role` dengan `auth.uid()` dari `request.jwt.claim.sub`,
    - menjalankan semua test yang memakai `DATABASE_URL`.
 4. Bukti yang dicatat: nomor run, commit, nama job, jumlah test lulus/gagal,
    dan nama test database yang dijalankan.
 
-Catatan: workflow ini **tidak** menguji RLS karena PostgreSQL polos tidak punya
-RLS Supabase. Untuk RLS dan `auth.uid()`, gunakan Supabase lokal atau staging.
+Catatan: workflow ini menguji policy RLS dengan role PostgreSQL, tetapi bukan
+replika Supabase penuh. Auth, PostgREST, Storage, dan perilaku staging tetap
+perlu diuji di Supabase lokal atau staging. Jangan menganggap lulusnya CI
+sebagai bukti bahwa production sudah teruji.
 
 ## 3. Jalur lokal: Supabase lokal
 
@@ -102,7 +108,9 @@ menyalin connection string production.
 
 ## 4. Jalur lokal: PostgreSQL polos
 
-Jalur ini hanya untuk constraint, trigger, dan ledger. RLS tidak diuji.
+Jalur ini untuk constraint, trigger, dan ledger. RLS juga bisa diuji di sini
+kalau bootstrap role dan `auth.uid()` disiapkan seperti CI, tetapi Auth,
+PostgREST, dan Storage Supabase tetap butuh Supabase lokal atau staging.
 Jalankan guard di bagian 1 lebih dulu. Set variabel database uji sebelum
 langkah menulis:
 

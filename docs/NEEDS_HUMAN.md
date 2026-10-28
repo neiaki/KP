@@ -156,15 +156,19 @@ klien tanpa menimpanya. Tindakan owner: pastikan Coolify/Traefik menimpa
 `X-Forwarded-Host` dengan host asli (atau set `SERVER_ACTIONS_ALLOWED_ORIGINS`
 sesuai domain final). Tidak ada perubahan kode tanpa persetujuan owner.
 
-## 8. Verifikasi DB-level: PostgreSQL polos CI lulus, RLS staging belum
+## 8. Verifikasi DB-level: PostgreSQL polos dan RLS CI lulus, staging belum
 
-Gerbang 25 Oktober 2026 berjalan tanpa `DATABASE_URL`, jadi 14 test yang
+Gerbang 25 Oktober 2026 berjalan tanpa `DATABASE_URL`, jadi test yang
 membutuhkan database di-skip di suite lokal. Pada 28 Oktober 2026 CI
-`database-tests` menjalankan SELECT/INSERT nyata, trigger audit, ledger, dan
-transaksi POS di PostgreSQL polos (run `40695117148` lulus). Yang belum:
-policy RLS sebagai anon/authenticated dan perilaku Supabase di staging/lokal.
-Tindakan owner: jalankan `DATABASE_URL=<staging> npm test` di database
-lokal/staging sebelum deploy. Jangan memakai database produksi.
+`database-tests` menjalankan SELECT/INSERT nyata, trigger audit, ledger,
+transaksi POS, dan policy RLS di PostgreSQL polos. Run `40695117148` lulus
+untuk lapis POS; run `40700897417` lulus 40/40, termasuk 6 test RLS baru di
+`tests/rls-db.test.ts` yang menguji anon, customer, sales, admin/audit,
+service_role, dan grant anon. Bootstrap CI sekarang mengisi `auth.uid()` dari
+`request.jwt.claim.sub` transaction-local. Yang belum: perilaku Supabase
+Auth/PostgREST/Storage dan RLS di staging/lokal. Tindakan owner: jalankan
+`DATABASE_URL=<staging> bun run test` di database lokal/staging sebelum
+deploy. Jangan memakai database produksi.
 
 Pembaruan 25 Oktober 2026: lapis 2 `tests/pos-concurrent-sale.test.ts`
 diperbaiki agar bisa berjalan di CI. Seed sekarang membuat baris `auth.users`
@@ -187,8 +191,19 @@ Pembaruan 28 Oktober 2026: workflow `database-tests` dijalankan di CI. Run
 `40691860281` gagal karena seed memakai kolom `products.is_demo` yang tidak
 ada; flag demo hanya ada di `inventory_units` dan `transactions`. Setelah seed
 diperbaiki di `a21cecd` dan stub nota dilengkapi di `a4a69aa`, run
-`40695117148` lulus. Lapis 2 POS kini terbukti di PostgreSQL polos CI. Yang
-belum: verifikasi RLS dan perilaku Supabase di staging/lokal milik owner.
+`40695117148` lulus. Lapis 2 POS kini terbukti di PostgreSQL polos CI. Run
+`40700897417` kemudian lulus 40/40 dengan 6 test RLS baru; policy sebagai
+anon, customer, sales, admin/audit, service_role, dan grant anon sudah
+terverifikasi di PostgreSQL polos. Yang belum: perilaku Supabase
+Auth/PostgREST/Storage dan RLS di staging/lokal milik owner.
+
+Temuan baru dari test RLS: `supabase/migrations/0005_username_login.sql`
+menjalankan `regexp_replace` sebelum `lower()`. Huruf besar di prefix email
+dibuang, sehingga `customerA@...` dan `customerB@...` bisa jatuh ke username
+yang sama dan insert kedua gagal `profiles_username_key`. Test seed sementara
+memakai email lowercase supaya tidak bentrok. Perbaikan produksi butuh
+migrasi baru, persetujuan owner, dan uji staging; dicatat sebagai N13 di
+[`PENDING-TASKS.md`](PENDING-TASKS.md).
 
 ## 9. Usulan migrasi integritas DB: butuh keputusan owner dan verifikasi staging
 
@@ -218,8 +233,9 @@ Keputusan owner yang dibutuhkan:
   `RUN-ALL-PENDING.sql`, ledger, dan runbook, lalu jalankan di database
   lokal/staging. Jangan memakai production untuk pengujian.
 - Test fixture `tests/pos-concurrent-sale.test.ts` sudah diperbaiki dan jalur
-  DB-nya lulus di CI (run `40695117148`). Verifikasi di Supabase staging
-  tetap perlu karena CI hanya memakai PostgreSQL polos tanpa RLS.
+  DB-nya lulus di CI (run `40695117148`). Run `40700897417` juga menguji policy
+  RLS dengan role PostgreSQL, tetapi verifikasi di Supabase staging tetap
+  perlu karena CI bukan replika Auth/PostgREST/Storage Supabase.
 
 ## 10. Klaim PRD yang belum sepenuhnya ada di UI
 

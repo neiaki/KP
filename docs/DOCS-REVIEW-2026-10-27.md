@@ -173,3 +173,19 @@ koneksi database langsung yang berjalan.
   bukan RLS Supabase.
 - Jangan menganggap laporan ini bukti bahwa production sudah diuji; tidak ada
   koneksi ke production DB/Storage/Auth.
+
+## Tindak lanjut 28 Oktober 2026
+
+- RLS sekarang diuji di CI PostgreSQL polos lewat `tests/rls-db.test.ts`.
+  Run `40700897417` lulus 40/40, termasuk 6 kasus anon, customer, sales,
+  admin/audit, service_role, dan grant anon. Bootstrap `auth.uid()` membaca
+  `request.jwt.claim.sub`.
+- Jumlah test DB yang skip di suite lokal naik dari 14 menjadi 20 karena enam
+  test RLS baru. Gate terbaru: 879 tes, 859 pass, 20 skip, 0 fail; tsc, lint,
+  dan build exit 0.
+- Temuan baru: trigger `handle_new_user` di
+  `supabase/migrations/0005_username_login.sql` menjalankan regexp sebelum
+  `lower()`, sehingga prefix email dengan huruf besar bisa bertabrakan.
+  Dicatat sebagai N13 dan belum diperbaiki karena butuh migrasi.
+- Verifikasi Supabase Auth/PostgREST/Storage dan staging tetap belum
+  dijalankan; CI bukan replika Supabase penuh.
