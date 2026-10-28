@@ -1,13 +1,14 @@
 # Audit Dokumentasi At Cell: 27 Oktober 2026
 
 Status: **selesai direview, perbaikan aman sudah diterapkan dan di-commit pada
-28 Oktober 2026 tanpa push.** Dokumen ini mencatat temuan, bukti, dan sisa
-keputusan owner. Jangan menganggap temuan yang masih terbuka sudah diperbaiki.
+28 Oktober 2026, lalu di-push ke `origin/improve/autoloop`.** Dokumen ini
+mencatat temuan, bukti, dan sisa keputusan owner. Jangan menganggap temuan yang
+masih terbuka sudah diperbaiki.
 
 ## Ruang lingkup dan metode
 
-- Branch: `improve/autoloop`, HEAD `5c93f53`; pembanding `origin/main`
-  `33b2f26` (commit penghapusan konfigurasi Dependabot).
+- Branch: `improve/autoloop`, HEAD `5c93f53` saat audit; pembanding
+  `origin/main` `33b2f26` (commit penghapusan konfigurasi Dependabot).
 - Dibaca: seluruh Markdown tracked di `docs/`, `README.md`, `AGENTS.md`,
   `SECURITY.md`, `.github/CODEOWNERS`, workflow `.github/workflows/`, berkas
   SQL di `supabase/`, serta dokumen lokal yang tidak tracked.
@@ -23,7 +24,7 @@ keputusan owner. Jangan menganggap temuan yang masih terbuka sudah diperbaiki.
 | Prioritas | Jumlah temuan | Sudah diperbaiki | Masih terbuka |
 |---|---:|---:|---:|
 | P0 | 4 | 4 | 0 |
-| P1 | 12 | 10 | 2 (satu di antaranya sebagian) |
+| P1 | 12 | 11 | 1 (sebagian) |
 | P2 | 14 | 14 | 0 |
 
 Lima temuan terpenting:
@@ -35,7 +36,7 @@ Lima temuan terpenting:
 3. **P1** Klaim CODEOWNERS memberi persetujuan kedua tidak didukung branch
    protection aktual: `required_pull_request_reviews` masih `null`.
 4. **P1** `.env.example` menyuruh hanya menjalankan `0001`, padahal repo punya
-   34 migrasi.
+   34 migrasi. Sudah diperbaiki 28 Oktober 2026.
 5. **P1** Beberapa diagram sempat menggambarkan akses anon, batch IMEI parsial,
    dan otorisasi tiket lewat RLS yang tidak sesuai kode; sumber dan render
    sudah diperbaiki 28 Oktober 2026.
@@ -57,7 +58,7 @@ Lima temuan terpenting:
 | P1-2 | Runbook tidak siap untuk Supabase lokal | `supabase start` dipakai tanpa `supabase/config.toml` dan tanpa `supabase init` | **Diperbaiki**: langkah `supabase init` ditambahkan |
 | P1-3 | Klaim CODEOWNERS menyesatkan | `.github/workflows/security.yml` menyatakan CODEOWNERS "meminta persetujuan kedua"; API branch protection: `required_pull_request_reviews: null`, `enforce_admins: false` | **Sebagian**: komentar dibuat kondisional; branch protection belum diaktifkan, keputusan owner |
 | P1-4 | `RUN-ALL-PENDING.sql` menyatakan baru 32 bagian, padahal 34 | Header `supabase/RUN-ALL-PENDING.sql` vs `supabase/migrations-ledger.snapshot` | **Diperbaiki**: status 34, daftar 33/34 ditambahkan |
-| P1-5 | Onboarding hanya menjalankan migrasi `0001` | `.env.example:16` | **Terbuka**: tidak diubah karena batas `.env*`; perlu keputusan owner |
+| P1-5 | Onboarding hanya menjalankan migrasi `0001` | `.env.example:16` | **Diperbaiki 28 Oktober 2026**: komentar sekarang menunjuk `supabase/RUN-ALL-PENDING.sql` (34 migrasi) dan melarang `supabase db push` |
 | P1-6 | Status ledger perluasan katalog basi | `docs/PERLUASAN-KATALOG-AT-CELL.md` menyatakan lima migrasi belum dicatat; snapshot sudah memuatnya | **Diperbaiki**: catatan bertanggal, verifikasi production tetap lewat ledger |
 | P1-7 | Klaim laporan per teknisi dan durasi tidak ada di kode | `docs/USE-CASE-AtCell.md` vs `src/app/(portal)/portal/reports/page.tsx` | **Diperbaiki**: klaim diselaraskan, D1/D2 ditandai belum diimplementasikan |
 | P1-8 | Skenario uji POS memeriksa tren harian yang tidak ada | `docs/UJI-ALUR-STAF.md` T-2 butir 4 | **Diperbaiki**: memeriksa Total Omzet all-time di dashboard |
@@ -142,22 +143,20 @@ koneksi database langsung yang berjalan.
 
 1. **Branch protection `main`.** Aktifkan required PR review, code owner review,
    dan "Do not allow bypassing" jika CODEOWNERS memang ingin ditegakkan.
-2. **`.env.example:16`.** Arahkan onboarding ke `supabase/RUN-ALL-PENDING.sql`
-   atau daftar lengkap migrasi. Tidak diubah karena batas `.env*`.
-3. **D1/D2/D3/D4 dan bagian M.** Grafik omzet, laporan per teknisi, aktor audit
+2. **D1/D2/D3/D4 dan bagian M.** Grafik omzet, laporan per teknisi, aktor audit
    pada tulis langsung, dan constraint harga di bawah modal masih pending.
-4. **Diagram.** Putuskan apakah grant anon ke view publik dipulihkan.
-   Diagram sudah diubah ke jalur koneksi database server dan render sudah
+3. **Diagram.** Putuskan apakah grant anon ke view publik dipulihkan.
+   Diagram sudah diubah ke jalur koneksi database langsung dan render sudah
    diperbarui; keputusan ini hanya menentukan apakah grant anon perlu
    dikembalikan.
-5. **Dependabot.** Setelah config dihapus, tidak ada PR pembaruan dependensi
+4. **Dependabot.** Setelah config dihapus, tidak ada PR pembaruan dependensi
    otomatis. `security.yml` hanya audit advisory. Putuskan apakah pembaruan
    manual diterima atau perlu Renovate/Dependabot lagi.
-6. **Dokumen lokal.** `docs/3.4 Perancangan Database At Cell.docx` masih
+5. **Dokumen lokal.** `docs/3.4 Perancangan Database At Cell.docx` masih
    mengklaim sales-products dan tidak tracked; putuskan apakah akan dikoreksi,
    dihapus, atau dijadikan arsip. `LOOP_LOG.local.md` sudah diberi catatan
    bahwa `docs/LOOP_LOG.md` adalah log tracked; file lokal itu tetap scratch.
-7. **Verifikasi DB.** Tidak ada `DATABASE_URL` staging; 14 test DB di-skip.
+6. **Verifikasi DB.** Tidak ada `DATABASE_URL` staging; 14 test DB di-skip.
    Jalankan runbook yang sudah diperbaiki di database sekali pakai sebelum
    menyetujui migrasi integritas.
 
@@ -169,5 +168,8 @@ koneksi database langsung yang berjalan.
 - `bunx tsc --noEmit`: exit 0.
 - `bun run lint`: exit 0, 0 warning.
 - `bun run build`: exit 0 (Next.js 16.4.2, webpack).
+- CI `database-tests` run `40695117148`: lulus setelah seed `products.is_demo`
+  dan stub nota diperbaiki di `a21cecd` dan `a4a69aa`. Ini PostgreSQL polos,
+  bukan RLS Supabase.
 - Jangan menganggap laporan ini bukti bahwa production sudah diuji; tidak ada
   koneksi ke production DB/Storage/Auth.

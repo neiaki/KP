@@ -1,5 +1,8 @@
 # Perlu Keputusan / Tindakan Owner
 
+Daftar task yang sengaja ditunda, termasuk UI/UX dan fitur, ada di
+[`PENDING-TASKS.md`](PENDING-TASKS.md).
+
 ## 1. API Coolify 401 — TERPECAHKAN 25 Okt 2026, tidak perlu tindakan owner
 
 Akar: bearer terkontaminasi output psql dua baris (id + tag `INSERT 0 1`).
@@ -180,6 +183,13 @@ DATABASE_URL=postgres://... node --experimental-strip-types \
 CI `database-tests` akan menjalankan file ini otomatis saat PR dibuat karena
 file memakai `process.env.DATABASE_URL`.
 
+Pembaruan 28 Oktober 2026: workflow `database-tests` dijalankan di CI. Run
+`40691860281` gagal karena seed memakai kolom `products.is_demo` yang tidak
+ada; flag demo hanya ada di `inventory_units` dan `transactions`. Setelah seed
+diperbaiki di `a21cecd` dan stub nota dilengkapi di `a4a69aa`, run
+`40695117148` lulus. Lapis 2 POS kini terbukti di PostgreSQL polos CI. Yang
+belum: verifikasi RLS dan perilaku Supabase di staging/lokal milik owner.
+
 ## 9. Usulan migrasi integritas DB: butuh keputusan owner dan verifikasi staging
 
 `docs/db-integrity-proposals.md` membandingkan aturan yang dijaga Server Action
@@ -285,10 +295,17 @@ pembaruan major. Tidak ada dependensi yang diubah.
 | `eslint` | 9.39.5 | 10.13.0 | 2026-10-16 | 12 hari dan major, dilaporkan saja |
 | `typescript` | 5.9.3 | 7.0.2 | 2026-07-08 | major, dilaporkan saja; risiko breaking typecheck |
 
-`npm audit` belum bisa dijalankan: repo tidak punya `package-lock.json`
-(`ENOLOCK`), sedangkan lockfile yang ada adalah `bun.lock` dan binary `bun`
-tidak tersedia. Percobaan `npm install --package-lock-only` di direktori
-sementara gagal `EALLOWREMOTE` karena fetch tarball remote dimatikan. Jadi
-status high/critical belum diketahui. Keputusan owner: sediakan `bun`, jalankan
-audit di CI, atau izinkan pembuatan lockfile npm sementara. Tidak ada perubahan
-`package.json` atau lockfile dari sesi ini.
+`npm audit` belum bisa dijalankan karena repo tidak punya `package-lock.json`
+(`ENOLOCK`), sedangkan lockfile yang ada adalah `bun.lock`.
+
+Pembaruan 28 Oktober 2026: `bun audit` berhasil dijalankan dengan bun 1.4.4.
+Hasilnya satu advisory moderate `esbuild <=0.24.2`
+(GHSA-67mh-4wv8-2f99) lewat rantai dev-only
+`drizzle-kit` -> `@esbuild-kit/esm-loader` -> `@esbuild-kit/core-utils` ->
+`esbuild@0.18.20`. `bun audit --production` bersih, jadi tidak ada paket
+runtime yang terkena. `bun audit fix --dry-run` tidak bisa memperbaiki karena
+`@esbuild-kit/core-utils` mengunci `esbuild@~0.18.20`; `drizzle-kit` terbaru
+(0.31.11) masih membawa loader yang sama. Tidak ada perubahan `package.json`
+atau lockfile. Keputusan owner: terima risiko dev-only ini sampai drizzle-kit
+mengganti loader, atau setujui override `esbuild` (tidak disarankan tanpa uji
+penuh).

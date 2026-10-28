@@ -30,6 +30,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
 | `LOOP_LOG.md` | Log iterasi autoloop: baseline build/test, backlog keamanan Fase 3 (P0-P3), dan riwayat iterasi. Dipulihkan atas permintaan misi autoloop | **Acuan agent** |
 | `NEEDS_HUMAN.md` | Temuan dan keputusan yang menunggu tindakan owner (mis. API Coolify 401, komponen bersama portal) | **Acuan agent** |
+| `PENDING-TASKS.md` | Daftar task tertunda: UI/UX dan fitur yang sengaja ditunda, plus task non-UI yang menunggu owner atau staging | **Acuan agent** |
 | `STANDARDS.md` | Standar best practice A-G (kualitas, performa, a11y, SEO, keamanan lanjutan, produksi) yang diterapkan loop dengan bukti di LOOP_LOG | **Acuan agent** |
 | `agents/domain.md` | Aturan konsumsi dokumen domain (GLOSSARY.md, docs/adr/) oleh skill agent | **Acuan agent** |
 | `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor untuk orientasi agen | **Acuan agent** |

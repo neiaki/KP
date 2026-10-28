@@ -6,22 +6,26 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 
 ## Status terbaru
 
-**Diperbarui:** 27 Oktober 2026
-**Baseline kode remote:** `33b2f26` (`main`; penghapusan konfigurasi
+**Diperbarui:** 28 Oktober 2026
+**Baseline kode remote:** `origin/main` di `33b2f26` (penghapusan konfigurasi
 Dependabot, security updates dimatikan, PR bump #176/#177 ditutup).
 **Pin image di repo:** lihat baris `FROM` di `Dockerfile.coolify`. Itu pin yang
 akan dipakai deploy berikutnya, bukan bukti bahwa production sudah menjalankan
 commit tersebut; verifikasi lewat Coolify dan health check sebelum menyimpulkan
 status rilis.
-**Cabang kerja:** `improve/autoloop` di `5c93f53`, 9 commit di depan
-`origin/improve/autoloop` dan belum di-push. `main` lokal (`21bfd37`) punya 2
-commit yang belum ada di remote dan belum memuat `33b2f26`; jangan push commit
-itu tanpa keputusan owner.
+**Cabang kerja:** `improve/autoloop` sinkron dengan
+`origin/improve/autoloop`, 27 commit di depan `origin/main` dan 1 commit di
+belakang (`33b2f26`). Penghapusan Dependabot sudah ada juga di branch lewat
+`3174d09`, jadi tidak ada berkas Dependabot yang tertinggal. CI
+`database-tests` lulus 28 Oktober 2026 (run `40695117148`) setelah dua bug
+fixture POS diperbaiki. `main` lokal (`21bfd37`) masih 2 commit di depan dan
+1 di belakang `origin/main`; jangan push commit itu tanpa keputusan owner.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 katalog lima model per merek, Etalase & Harga, dan pembersihan VPS sudah masuk
 lewat rangkaian PR setelah #129. Rincian historis di bawah dipertahankan sebagai
 catatan; untuk status terbaru, jalankan `git status --short --branch` dan baca
-`docs/LOOP_LOG.md` bagian pasca-LOOP.
+`docs/LOOP_LOG.md` bagian pasca-LOOP. Daftar task yang sengaja ditunda ada di
+[`../PENDING-TASKS.md`](../PENDING-TASKS.md).
 
 Rilis 24 Oktober 2026 (selesai):
 

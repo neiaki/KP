@@ -1123,8 +1123,22 @@ Gerbang resmi setelah audit (27 Oktober 2026):
 - `bun run lint` exit 0, 0 warning.
 - `bun run build` exit 0 (Next.js 16.4.2, webpack).
 
-Perubahan dokumen ini di-commit pada 28 Oktober 2026 tanpa push. Temuan yang masih terbuka:
-branch protection `main` belum mewajibkan PR review, `.env.example:16` masih
-hanya menyuruh migrasi `0001`, dan D1-D4/M belum diputuskan. Sumber dan render
-diagram sudah diselaraskan 28 Oktober 2026. Verifikasi DB-level tetap menunggu
-staging; 14 test DB masih skip.
+Perubahan dokumen ini di-commit pada 28 Oktober 2026. Branch
+`improve/autoloop` kemudian di-push; setelah fix fixture POS, HEAD remote
+berada di `a4a69aa`. Sumber dan render diagram sudah diselaraskan 28 Oktober
+2026.
+
+Temuan yang masih terbuka: branch protection `main` belum mewajibkan PR review,
+D1-D4/M belum diputuskan, dan verifikasi RLS/Supabase di staging belum
+dijalankan (14 test DB masih skip di suite lokal). `.env.example:16` sudah
+diperbaiki pada 28 Oktober 2026 agar menunjuk `supabase/RUN-ALL-PENDING.sql`
+(34 migrasi), bukan hanya `0001`. `bun audit` juga sudah dijalankan: produksi
+bersih, satu advisory moderate dev-only pada `esbuild` lewat `drizzle-kit`
+yang belum bisa diperbaiki tanpa mengubah dependensi. Daftar task tertunda ada
+di `docs/PENDING-TASKS.md`.
+
+Tindak lanjut 28 Oktober 2026: `database-tests` dijalankan di CI. Run
+`40691860281` gagal karena seed POS memakai `products.is_demo` yang tidak ada
+dan stub nota hanya mendukung `profiles`. Kedua bug fixture diperbaiki di
+`a21cecd` dan `a4a69aa`; run `40695117148` lulus. Ini memverifikasi lapis 2
+POS di PostgreSQL polos CI, bukan RLS Supabase.
