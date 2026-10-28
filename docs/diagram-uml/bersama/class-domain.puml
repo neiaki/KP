@@ -95,7 +95,7 @@ package "Katalog dan unit" {
     +id: int
     +product_id: int?
     +trade_in_model: string?
-    +imei: string
+    +imei: string?
     +condition: UnitCondition
     +purchase_cost: decimal
     +selling_price: decimal

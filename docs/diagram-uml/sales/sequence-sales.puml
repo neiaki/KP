@@ -70,18 +70,17 @@ end
 
 == Daftarkan unit batch IMEI ==
 S -> UI : Buka /portal/inventory, pilih produk dan isi daftar IMEI
-UI -> SV : Ajukan registrasi batch
+UI -> SV : Ajukan registrasi batch (1 sampai 200 IMEI)
 SV -> SV : Validasi isian dan cek peran admin atau sales
-loop Setiap IMEI dalam batch (maks 200)
-  alt IMEI tepat 15 digit angka dan unik
-    SV -> DB : Simpan unit status available plus modal dan harga jual
-    DB --> SV : OK
-  else IMEI duplikat atau panjang salah
-    SV -> SV : Tandai baris gagal
-  end
+alt Semua IMEI tepat 15 digit angka dan unik
+  SV -> DB : Simpan seluruh batch dalam satu insert atomik
+  DB --> SV : Semua unit status available plus modal dan harga jual
+  SV --> UI : Daftar unit yang berhasil
+  UI --> S : Tampilkan hasil registrasi
+else Ada IMEI duplikat atau tidak valid
+  SV --> UI : Tolak seluruh batch
+  UI --> S : Tampilkan pesan galat, tidak ada unit tersimpan
 end
-SV --> UI : Ringkasan baris berhasil dan baris gagal
-UI --> S : Tampilkan hasil registrasi
 
 == Pantau status unit ==
 S -> UI : Filter /portal/inventory per produk, status, atau IMEI
@@ -144,11 +143,16 @@ DB --> SV : Tiket status awal received
 SV --> UI : Tiket tersimpan
 UI --> S : Tampilkan resi plus tautan lacak publik
 
-== Catat serah terima unit ==
-S -> UI : Pelanggan datang, catat pelunasan di /portal/service
-UI -> SV : Ubah status tiket
-SV -> DB : Ubah status dari completed ke picked_up
-DB --> SV : OK
-SV --> UI : Tiket tertutup
-UI --> S : Unit keluar dari antrean aktif
+== Pantau antrean servis ==
+S -> UI : Buka /portal/service
+UI -> SV : Minta daftar tiket servis
+SV -> DB : Baca tiket servis
+DB --> SV : Daftar tiket dan status
+SV --> UI : Daftar tiket
+UI --> S : Tampilkan antrean servis
+note right of S
+  Sales hanya boleh membuat tiket dan mengubah field
+  selain status dan biaya. Serah terima completed ke
+  picked_up hanya boleh admin dan teknisi.
+end note
 @enduml

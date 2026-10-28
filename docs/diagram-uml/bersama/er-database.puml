@@ -71,7 +71,7 @@ entity "inventory_units" as units {
   * id : bigint <<PK>>
   --
   o product_id : bigint <<FK, null untuk tukar tambah>>
-  * imei : text <<UNIQUE, 15 digit>>
+  o imei : text <<UNIQUE, 15 digit atau null untuk demo>>
   * condition : new | second
   * status : unit_status
   * purchase_cost : numeric
@@ -151,7 +151,7 @@ tx |o--o| tradein : dipotong
 tradein o--o| units : unit lama masuk stok
 profiles |o--o{ tx : mencatat dan membeli
 profiles |o--o{ tickets : menangani
-products }o--o{ etalase : dibaca anon
+products }o--o{ etalase : dibaca server
 units }o--o{ etalase : hanya available
 products ||--o{ gambar : didaftar
 units ||--o{ auditunit : dicatat
@@ -160,8 +160,8 @@ profiles |o--o{ auditunit : pelaku
 profiles |o--o{ audittiket : pelaku
 note bottom of tickets
   Pemicu BEFORE INSERT menerbitkan ticket_code atomik.
-  Status sold terminal: pemicu menolak semua perubahan dari sold.
-  RLS: anon hanya SELECT ke view etalase.
+  Pemicu BEFORE UPDATE OF status menolak perubahan status dari sold.
+  View etalase dibaca server lewat koneksi database langsung; anon tidak punya grant.
   Audit mencatat who, what, when tiap mutasi status.
 end note
 @enduml

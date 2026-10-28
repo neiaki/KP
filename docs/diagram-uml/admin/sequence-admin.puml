@@ -81,7 +81,9 @@ UI -> SV : Ajukan perubahan produk
 SV -> SV : Validasi isian dan cek peran admin
 SV -> DB : Simpan produk (merek, model, specs, harga acuan)
 note right of DB
-  RLS menolak tulis dari sales dan teknisi.
+  Sales hanya boleh UPDATE default_price dan official_images.
+  Trigger products_sales_column_guard menolak perubahan
+  kolom identitas katalog dari sales; teknisi tidak boleh menulis.
 end note
 DB --> SV : OK
 SV --> UI : Produk tersimpan
@@ -90,16 +92,21 @@ UI --> A : Katalog diperbarui, produk tanpa unit tampil dengan badge Belum ada u
 == Kelola akun staf ==
 A -> UI : Undang, nonaktifkan, atau ubah peran staf di /portal/staff
 UI -> SV : Ajukan perubahan akun
-alt Ubah peran diri sendiri padahal satu-satunya admin
+alt Ubah peran akun sendiri
   SV --> UI : Ditolak
-  UI --> A : Pesan galat
-else Perubahan diizinkan
-  SV -> AU : Undang atau nonaktifkan akun
-  AU --> SV : OK
-  SV -> DB : Ubah peran profil
-  DB --> SV : OK
-  SV --> UI : Akun staf diperbarui
-  UI --> A : Tampilkan daftar staf terbaru
+  UI --> A : Tidak bisa mengubah peran akun sendiri
+else Perubahan akun staf lain
+  alt Perubahan menyisakan nol admin
+    SV --> UI : Ditolak
+    UI --> A : Minimal harus ada satu admin
+  else Masih ada admin lain
+    SV -> AU : Undang atau nonaktifkan akun
+    AU --> SV : OK
+    SV -> DB : Ubah peran profil
+    DB --> SV : OK
+    SV --> UI : Akun staf diperbarui
+    UI --> A : Tampilkan daftar staf terbaru
+  end
 end
 
 == Kelola pengaturan toko ==
@@ -110,13 +117,13 @@ DB --> SV : OK
 SV --> UI : Pengaturan tersimpan
 UI --> A : Perubahan langsung tampil di profil publik
 
-== Lihat laporan performa ==
-A -> UI : Buka /portal/reports, pilih rentang tanggal
-UI -> SV : Minta laporan read-only
-SV -> DB : Baca tiket completed dalam rentang per teknisi
-DB --> SV : Jumlah tiket completed dan rata-rata durasi
-SV --> UI : Data laporan
-UI --> A : Tampilkan performa tiap teknisi
+== Lihat laporan meja servis ==
+A -> UI : Buka /portal/reports
+UI -> SV : Minta ringkasan read-only
+SV -> DB : Baca tiket servis dan agregat biaya
+DB --> SV : Tiket, total selesai, tiket aktif, omzet jasa
+SV --> UI : Ringkasan dan rincian tiket
+UI --> A : Tampilkan kartu ringkasan dan tabel tiket
 
 == Pantau status unit ==
 A -> UI : Filter /portal/inventory per produk, status, atau IMEI

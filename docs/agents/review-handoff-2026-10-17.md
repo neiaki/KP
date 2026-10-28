@@ -1,5 +1,10 @@
 # Handoff Review dan Perapihan Repo KP
 
+> **Snapshot historis 17 Oktober 2026.** Status "belum di-commit" dan baseline
+> di bawah berlaku saat dokumen ditulis, bukan kondisi repo sekarang. Untuk
+> handoff terbaru, lihat `review-handoff-2026-10-20.md` dan
+> `handoff-2026-10-23-akun-pelanggan-dan-stok.md`.
+
 **Diperbarui:** 17 Oktober 2026  
 **Repo:** `/home/neki/Code/KP`  
 **Baseline:** `45e532c` (`main`, `origin/main` saat audit)  

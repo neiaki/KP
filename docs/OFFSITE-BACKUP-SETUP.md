@@ -50,7 +50,7 @@ Passphrase hilang berarti seluruh arsip off-site tidak bisa dibuka lagi.
 Pemasangan rclone:
 
 ```bash
-sudo bash -c 'curl -fsSL https://rclone.org/install.sh | bash)'
+sudo bash -c 'curl -fsSL https://rclone.org/install.sh | bash'
 ```
 
 Lalu buat remote. `rclone config` bersifat interaktif, jadi jalankan lewat SSH
@@ -182,9 +182,11 @@ export BACKUP_DIR=/data/backups/atcell
 bash "$SCRIPT"
 ```
 
-Pasang dengan hak root:
+Simpan blok wrapper di atas sebagai `/usr/local/bin/atcell-storage-backup.new`,
+lalu validasi dan pasang dengan hak root:
 
 ```bash
+sudo bash -n /usr/local/bin/atcell-storage-backup.new
 sudo install -o root -g root -m 755 /usr/local/bin/atcell-storage-backup.new /usr/local/bin/atcell-storage-backup
 ```
 

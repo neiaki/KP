@@ -6,22 +6,22 @@ menganggap perubahan lokal sudah masuk ke branch remote.
 
 ## Status terbaru
 
-**Diperbarui:** 24 Oktober 2026
-**Baseline kode:** `ccc7c31` (`main`, merge PR #165; pin image yang memuat
-preconnect CDN Simple Icons, patch cookie httpOnly + secure, dan catatan
-gambar GSMArena)
-**Baseline rilis:** `ccc7c31` (`main`, merge PR #165; production menjalankan
-image `sha-ccc7c31`: patch cookie httpOnly + secure, 14 model katalog berfoto
-render GSMArena, dan preconnect CDN Simple Icons — health 200, smoke 6/6)
-**Cabang kerja:** `main` bersih; tidak ada perubahan kode yang menunggu review.
+**Diperbarui:** 27 Oktober 2026
+**Baseline kode remote:** `33b2f26` (`main`; penghapusan konfigurasi
+Dependabot, security updates dimatikan, PR bump #176/#177 ditutup).
+**Pin image di repo:** lihat baris `FROM` di `Dockerfile.coolify`. Itu pin yang
+akan dipakai deploy berikutnya, bukan bukti bahwa production sudah menjalankan
+commit tersebut; verifikasi lewat Coolify dan health check sebelum menyimpulkan
+status rilis.
+**Cabang kerja:** `improve/autoloop` di `5c93f53`, 9 commit di depan
+`origin/improve/autoloop` dan belum di-push. `main` lokal (`21bfd37`) punya 2
+commit yang belum ada di remote dan belum memuat `33b2f26`; jangan push commit
+itu tanpa keputusan owner.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
-dan katalog lima model per merek sudah merge lewat PR #129. PR #130 menaikkan
-pin ke `53856b4` dan production menjalankan image itu. PR #134 menambahkan
-badge Demo dan tes sumber data tambahan, lalu merge sebagai `7d7f0d7`. PR #135
-mem-pin image `sha-7d7f0d7`; production sudah dideploy dan menjalankan revisi
-itu. Sesi 24 Oktober menambahkan PR #136 sampai #143 (fitur ganti kata sandi
-pelanggan, rebranding logo, perbaikan security check, pembersihan VPS, dan
-perbaikan filter merek katalog yang ditemukan saat testing production).
+katalog lima model per merek, Etalase & Harga, dan pembersihan VPS sudah masuk
+lewat rangkaian PR setelah #129. Rincian historis di bawah dipertahankan sebagai
+catatan; untuk status terbaru, jalankan `git status --short --branch` dan baca
+`docs/LOOP_LOG.md` bagian pasca-LOOP.
 
 Rilis 24 Oktober 2026 (selesai):
 
@@ -42,7 +42,7 @@ Rilis 24 Oktober 2026 (selesai):
       `v_public_inventory` 7 baris, 3 profil demo, dan 4 transaksi demo
       terbagi 2/1/1.
 
-Sesi 24 Oktober 2026 (perbaikan kedua, belum di-commit): audit dua-aris atas
+Sesi 24 Oktober 2026 (perbaikan kedua, sudah di-commit): audit dua-aris atas
 diff lokal menghasilkan perbaikan berikut, semuanya sudah diverifikasi
 (`bunx tsc --noEmit`, `bun run lint`, 830 tes: 816 lulus / 14 dilewati / 0
 gagal, `bun run build`, plus pemeriksaan browser dev server):
@@ -319,8 +319,9 @@ Angka berikut hasil pembacaan langsung ke database production pada 24 Oktober
 - [ ] Etalase publik (`v_public_inventory`) hanya memuat 7 baris dari 25 model.
   Kalau target katalog lebih lebar, unitnya yang harus ditambah, bukan baris
   katalognya.
-- [ ] Lima belas model baru masih memakai label "Foto menyusul"; ganti saat foto
-  resmi tersedia.
+- [ ] Dua model, Oppo Reno 12 Pro 5G dan Samsung Galaxy S24, masih memakai
+  fallback logo karena render GSMArena tidak tersedia. Empat belas model lain
+  sudah memakai render GSMArena; ganti dua sisanya saat foto resmi tersedia.
 
 ## Langkah awal agen berikutnya
 

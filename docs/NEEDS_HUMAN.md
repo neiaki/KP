@@ -92,7 +92,7 @@ TIDAK-TERVERIFIKASI — perlu penyelidikan dengan trace layar per-frame.
 Opsi alat: rekaman video Lighthouse atau Chrome DevTools performance
 panel di halaman trade-in.
 
-## 5. Tracking: noindex halaman hasil lacak vs SEO landing page
+## 5. Tracking: noindex halaman hasil lacak vs SEO landing page (selesai 25 Okt 2026)
 
 Konflik desain yang ditemukan 25 Oktober 2026 saat audit bagian E:
 

@@ -24,6 +24,33 @@ select current_database(), current_user, inet_server_addr(), version();
   yang bukan milik database uji.
 - Ambil snapshot atau dump sebelum menerapkan migrasi usulan.
 - Jangan menyalin kredensial ke log, issue, atau dokumen.
+- Gunakan variabel `VERIFY_DATABASE_URL`, bukan `DATABASE_URL`. Di repo ini
+  `DATABASE_URL` adalah connection pooler Supabase production; jangan
+  mengekspornya ke shell saat menjalankan runbook ini.
+- Jalankan guard berikut sebelum operasi tulis dan pastikan targetnya benar:
+
+```bash
+: "${VERIFY_DATABASE_URL:?Isi VERIFY_DATABASE_URL ke database uji}"
+case "$VERIFY_DATABASE_URL" in
+  *atcell.my.id*)
+    echo "Tolak: VERIFY_DATABASE_URL menunjuk host production" >&2
+    exit 1
+    ;;
+  *supabase.co*|*supabase.com*)
+    if [ "${VERIFY_ALLOW_REMOTE:-0}" != "1" ]; then
+      echo "Tolak: host Supabase remote. Set VERIFY_ALLOW_REMOTE=1 hanya setelah memastikan project ref bukan production." >&2
+      exit 1
+    fi
+    ;;
+esac
+psql "$VERIFY_DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+  'select current_database(), current_user, inet_server_addr();'
+```
+
+Kalau hasil query tidak sesuai database uji yang Anda buat, **berhenti**.
+Untuk staging Supabase, set `VERIFY_ALLOW_REMOTE=1` hanya setelah membandingkan
+project ref dengan production; jangan memakai nilai itu untuk project
+production.
 
 ## 2. Jalur utama: CI `database-tests`
 
@@ -54,7 +81,11 @@ pada klaim JWT.
 Prasyarat: Supabase CLI sudah terpasang di mesin. Ini bukan dependensi repo;
 jangan menambahkannya ke `package.json` hanya untuk runbook ini.
 
+Jika `supabase/config.toml` belum ada, jalankan `supabase init` sekali di root
+repo. Tanpa config itu, `supabase start` tidak bisa membuat project lokal.
+
 ```bash
+supabase init   # hanya jika supabase/config.toml belum ada
 supabase start
 supabase db reset
 ```
@@ -62,8 +93,8 @@ supabase db reset
 `supabase db reset` menerapkan migrasi repo ke database lokal. Setelah itu:
 
 ```bash
-DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres' \
-  npm test
+VERIFY_DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+DATABASE_URL="$VERIFY_DATABASE_URL" bun run test
 ```
 
 Kalau port lokal berbeda, sesuaikan dengan output `supabase status`. Jangan
@@ -72,6 +103,12 @@ menyalin connection string production.
 ## 4. Jalur lokal: PostgreSQL polos
 
 Jalur ini hanya untuk constraint, trigger, dan ledger. RLS tidak diuji.
+Jalankan guard di bagian 1 lebih dulu. Set variabel database uji sebelum
+langkah menulis:
+
+```bash
+VERIFY_DATABASE_URL='postgresql://.../atcell_verify'
+```
 
 1. Buat database baru, misalnya `atcell_verify`.
 2. Tiru bootstrap dari `.github/workflows/database-tests.yml` bagian
@@ -82,7 +119,7 @@ Jalur ini hanya untuk constraint, trigger, dan ledger. RLS tidak diuji.
 
 ```bash
 for f in supabase/migrations/*.sql; do
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f "$f"
+  psql "$VERIFY_DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f "$f"
 done
 ```
 
@@ -92,7 +129,7 @@ done
 6. Jalankan:
 
 ```bash
-DATABASE_URL='postgresql://.../atcell_verify' npm test
+DATABASE_URL="$VERIFY_DATABASE_URL" bun run test
 ```
 
 ## 5. Verifikasi migrasi yang sudah ada
@@ -100,13 +137,15 @@ DATABASE_URL='postgresql://.../atcell_verify' npm test
 Jalankan di database uji, bukan production:
 
 ```bash
-DATABASE_URL='postgresql://.../atcell_verify' \
+VERIFY_DATABASE_URL='postgresql://.../atcell_verify'
+
+DATABASE_URL="$VERIFY_DATABASE_URL" \
   node --experimental-strip-types --test tests/migration-ledger.test.ts
 
-DATABASE_URL='postgresql://.../atcell_verify' \
+DATABASE_URL="$VERIFY_DATABASE_URL" \
   node --experimental-strip-types --test tests/audit-trail-db.test.ts
 
-DATABASE_URL='postgresql://.../atcell_verify' \
+DATABASE_URL="$VERIFY_DATABASE_URL" \
   node --experimental-strip-types --test tests/pos-concurrent-sale.test.ts
 ```
 
@@ -134,25 +173,26 @@ Jalankan query pelanggaran dari `docs/db-integrity-proposals.md` bagian 5
 terhadap salinan database:
 
 - 5.1 duplikat unit di item transaksi,
-- 5.2 item untuk unit yang tidak available,
-- 5.3 unit sold tanpa item,
-- 5.4 harga item tidak sama dengan harga unit,
-- 5.5 transaksi tanpa item,
-- 5.6 total transaksi tidak sama dengan item,
-- 5.7 tiket dengan total fee tidak konsisten,
-- 5.8 tiket dengan teknisi bukan role technician,
-- 5.9 unit di bawah modal (khusus keputusan M),
-- 5.10 jumlah admin.
+- 5.2 item dengan harga/status yang tidak cocok,
+- 5.3 item transaksi yang unitnya belum sold,
+- 5.4 unit sold tanpa item transaksi,
+- 5.5 `final_payment` tidak sesuai rumus,
+- 5.6 `total_fee` tiket tidak sesuai komponen,
+- 5.7 transaksi tanpa item,
+- 5.8 total transaksi tidak sama dengan jumlah item,
+- 5.9 tiket dengan teknisi bukan role technician,
+- 5.10 unit di bawah modal (khusus keputusan M),
+- 5.11 jumlah admin.
 
 Catat jumlah baris setiap query. Kalau ada pelanggaran, perbaiki manual dulu.
 Jangan menghapus otomatis.
 
 ### 6.2 Terapkan di database uji
 
-Ambil snapshot lebih dulu, lalu:
+Ambil snapshot lebih dulu, jalankan guard di bagian 1, lalu:
 
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
+psql "$VERIFY_DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction \
   -f docs/migrations-proposed/20261025090000_db_integrity.sql
 ```
 
@@ -193,6 +233,20 @@ alter table public.transactions
   validate constraint transactions_final_payment_formula_chk;
 alter table public.service_tickets
   validate constraint service_tickets_total_fee_formula_chk;
+```
+
+Constraint `inventory_units_selling_price_not_below_cost_chk` hanya ada kalau
+keputusan M dipertahankan. Cek dulu sebelum memvalidasinya:
+
+```sql
+select conname
+  from pg_constraint
+ where conname = 'inventory_units_selling_price_not_below_cost_chk';
+```
+
+Kalau barisnya ada, jalankan:
+
+```sql
 alter table public.inventory_units
   validate constraint inventory_units_selling_price_not_below_cost_chk;
 ```
@@ -276,6 +330,6 @@ Catatan:
 - Perbarui `supabase/migrations-ledger.snapshot` hanya setelah migrasi benar
   benar diterapkan di production.
 - Tambahkan migrasi ke tabel di `docs/DEPLOYMENT-REDUNDANCY.md`.
-- Jalankan empat gerbang repo: `npm test`, `npx tsc --noEmit`, `npm run lint`,
-  `npm run build`.
+- Jalankan empat gerbang repo: `bun run test`, `bunx tsc --noEmit`,
+  `bun run lint`, `bun run build`.
 - Jangan push atau menerapkan ke production tanpa persetujuan owner.

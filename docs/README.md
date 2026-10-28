@@ -25,7 +25,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `UJI-ALUR-STAF.md` | Skenario uji end-to-end alur ber-kredensial staf: login per role, undang staf, IMEI, POS, workflow tiket sampai serah terima, dan lintasan akses, plus status eksekusinya | **Acuan operasional** |
 | `diagram-uml/README.md` | Indeks folder diagram UML dan aturan render PNG dan SVG pendamping | **Wadah diagram** |
 | `Diagram/README.md` | Indeks dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; draf lokal di-gitignore, tidak ikut repo | **Arsip lokal** |
-| `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor yang sudah diverifikasi ke source code | **Acuan alur** |
+| `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor; sumber `.puml` dan render sudah diselaraskan dengan kode per 28 Oktober 2026 | **Acuan alur** |
 | `agents/issue-tracker.md` | Konfigurasi issue tracker repo untuk skill agent: GitHub Issues lewat `gh` CLI, termasuk alur wayfinding | **Acuan agent** |
 | `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
 | `LOOP_LOG.md` | Log iterasi autoloop: baseline build/test, backlog keamanan Fase 3 (P0-P3), dan riwayat iterasi. Dipulihkan atas permintaan misi autoloop | **Acuan agent** |
@@ -41,6 +41,7 @@ berbasis Supabase ketika environment production dikonfigurasi.
 | `db-integrity-proposals.md` | Perbandingan aturan integritas kode vs PostgreSQL, usulan migrasi baru yang belum dijalankan, query pelanggaran, dan rollback | **Usulan, belum disetujui** |
 | `OWNER-DECISION-BRIEF.md` | Opsi, risiko, dan rekomendasi untuk grafik omzet, laporan per teknisi, dan aktor audit pada tulis langsung | **Usulan, belum disetujui** |
 | `DB-VERIFICATION-RUNBOOK.md` | Langkah aman menguji migrasi usulan dan test database di CI, Supabase lokal, atau PostgreSQL sekali pakai | **Acuan operasional, belum dijalankan** |
+| `DOCS-REVIEW-2026-10-27.md` | Hasil audit seluruh dokumen: temuan P0/P1/P2, perbaikan yang sudah diterapkan, dan keputusan owner yang masih tertunda | **Laporan audit** |
 
 ## Catatan
 

@@ -177,7 +177,7 @@ Aturan guard persis seperti `src/lib/access.ts`: `/portal/account` boleh dibuka 
 - Jalur: modal registrasi di `/portal/inventory`.
 - Isi: pilih produk master, kondisi new atau second, modal, harga jual, textarea IMEI dipisah baris baru dan koma.
 - Cara kerja: insert ke `inventory_units` dengan `status available`.
-- Aturan: tiap IMEI tepat 15 digit angka, unik lawan isi batch dan lawan inventaris. Satu batch maksimal 200 baris. Harga jual tidak boleh di bawah modal kecuali tidak berubah. Baris gagal ditampilkan, baris valid tetap tersimpan atau rollback sesuai opsi.
+- Aturan: tiap IMEI tepat 15 digit angka, unik lawan isi batch dan lawan inventaris. Satu batch maksimal 200 baris. Harga jual tidak boleh di bawah modal kecuali tidak berubah. Satu IMEI duplikat atau tidak valid membatalkan seluruh batch; tidak ada keberhasilan sebagian.
 
 ### Sales dapat perbarui harga dan foto etalase
 
@@ -200,12 +200,12 @@ Aturan guard persis seperti `src/lib/access.ts`: `/portal/account` boleh dibuka 
 - Cara kerja: submit lewat `createServiceTicket`, trigger `BEFORE INSERT` terbitkan `ticket_code SRV-YYYYMMDD-XXXXXXXX` atomik. Sufiks delapan karakter base32 tanpa I, L, O, U. Coba ulang anti tabrakan.
 - Aturan: status awal `received`. Resi diserahkan ke pelanggan plus tautan tracking publik.
 
-### Sales dapat catat serah terima unit
+### Sales dapat pantau antrean servis
 
-- Jalur: dialog meja kerja di `/portal/service`.
-- Isi: catat pelunasan lalu ubah `completed` ke `picked_up`.
-- Cara kerja: update `service_tickets` lewat Server Action.
-- Aturan: tiket tertutup keluar dari antrean aktif.
+- Jalur: `/portal/service`.
+- Isi: daftar tiket servis beserta status, biaya, dan keluhan.
+- Cara kerja: baca `service_tickets` lewat Server Action. Sales juga boleh membuat tiket baru.
+- Aturan: sales tidak boleh mengubah `repair_status`, `sparepart_fee`, atau `labor_fee`. Serah terima `completed` ke `picked_up` hanya boleh admin dan teknisi.
 
 ## Kemampuan Teknisi
 
@@ -224,11 +224,14 @@ Aturan guard persis seperti `src/lib/access.ts`: `/portal/account` boleh dibuka 
 - Jalur: `/portal/service` lalu dialog meja kerja per tiket.
 - Isi: dropdown status, `sparepart_fee` dan `labor_fee`, rincian biaya maksimal lima puluh baris, foto progres maksimal sepuluh berkas ke `service-photos`, catatan teknisi, kontrol unit inventaris berdasarkan IMEI yang harus cocok persis.
 - Cara kerja: tiap pindah status update biaya dan foto dan catatan. Agregat otomatis dari rincian. Unit masuk inventaris sebagai `in_service`, keluar sebagai `returned`. Unit `sold` bersifat terminal.
-- Aturan: urutan `received`, `diagnosing`, `waiting_approval`, `in_progress`, `testing`, `completed`, plus `cancelled`. Admin dan teknisi boleh mengubah status/biaya; sales hanya boleh membuat tiket dan mengubah field selain `repair_status`, `sparepart_fee`, dan `labor_fee`. RLS mengizinkan staf, batas kolom ditegakkan Server Action. Total sama dengan sparepart tambah jasa.
+- Aturan: urutan `received`, `diagnosing`, `waiting_approval`, `in_progress`, `testing`, `completed`, `picked_up`, plus `cancelled`. Admin dan teknisi boleh mengubah status/biaya; sales hanya boleh membuat tiket dan mengubah field selain `repair_status`, `sparepart_fee`, dan `labor_fee`. Otorisasi update lewat `requireRole`; koneksi Server Action memakai `getDb()` yang melewati RLS, jadi `requireRole` adalah gerbang utama, sedangkan RLS membatasi akses PostgREST langsung. Total sama dengan sparepart tambah jasa.
 
 ### Teknisi dapat catat serah terima unit
 
-- Jalur dan aturan sama seperti sales serah terima. Status akhir `picked_up`.
+- Jalur: dialog meja kerja di `/portal/service`.
+- Isi: centang konfirmasi nota servis lalu ubah `completed` ke `picked_up`.
+- Cara kerja: update `service_tickets` lewat Server Action, termasuk pencatatan `picked_up_at`.
+- Aturan: hanya admin dan teknisi yang boleh mengubah status ke `picked_up`. Nota servis wajib dikonfirmasi.
 
 ## Kemampuan Admin
 
@@ -257,7 +260,7 @@ Aturan guard persis seperti `src/lib/access.ts`: `/portal/account` boleh dibuka 
 - Jalur: `/portal/staff`.
 - Isi: kartu staf non customer berisi nama, username, telepon, status aktif. Dialog undang berisi nama dan email wajib, username 3 sampai 32 karakter huruf kecil, kata sandi minimal delapan karakter, peran sales atau technician atau admin.
 - Cara kerja: undang lewat Supabase Auth invite dan `addStaff`, lalu update `profiles.role`.
-- Aturan: `addStaff` menolak peran customer. Dilarang ubah peran diri sendiri menjadi non admin kalau satu-satunya admin.
+- Aturan: `addStaff` menolak peran customer. Ubah peran akun sendiri selalu ditolak. Perubahan staf lain yang menyisakan nol admin juga ditolak.
 
 ### Admin atau sales dapat kelola akun pelanggan
 
@@ -277,7 +280,7 @@ Aturan guard persis seperti `src/lib/access.ts`: `/portal/account` boleh dibuka 
 
 - Jalur: `/portal/reports`.
 - Isi: kartu Total Unit Selesai Diperbaiki, Unit Sedang Pengerjaan, Omzet Jasa Teknisi (Labor), dan Total Omzet Meja Servis, plus persentase tiket selesai dari total tiket masuk. Rincian berisi kode, model dan pemilik, keluhan, status, sparepart, jasa, total, dan Terakhir Update.
-- Cara kerja: read-only per rentang tanggal, grup per `technician_id`, durasi `created_at` ke `updated_at`.
+- Cara kerja saat ini: read-only dari snapshot tiket dan agregat global. Filter rentang tanggal, grup per `technician_id`, dan durasi `created_at` ke `updated_at` belum diimplementasikan; lihat keputusan D1/D2 di `OWNER-DECISION-BRIEF.md`.
 - Aturan: tiket batal dihitung gagal. Tanpa tombol mutasi.
 
 ### Admin dapat pantau status unit

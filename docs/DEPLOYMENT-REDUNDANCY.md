@@ -406,15 +406,15 @@ tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
 terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
 
 `supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
-satu berkas urut, tiga puluh bagian, untuk project yang belum punya skema
-sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya: bagian 1
-(`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket Storage.
-Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali paste
-mengisi project kosong" di kepalanya tidak terpenuhi: paste ke project baru
-menghasilkan nol tabel, nol enum, dan nol RLS. Bagian 1 sampai 3 ditambahkan
-pada 27 Sep 2026 dan penandanya ditulis ulang mengikuti jumlah bagian saat
-itu; per 16 Okt 2026 jumlahnya 30 dan sama dengan jumlah berkas di
-`supabase/migrations/`.
+satu berkas urut, tiga puluh empat bagian, untuk project yang belum punya
+skema sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya:
+bagian 1 (`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket
+Storage. Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali
+paste mengisi project kosong" di kepalanya tidak terpenuhi: paste ke project
+baru menghasilkan nol tabel, nol enum, dan nol RLS. Bagian 1 sampai 3
+ditambahkan pada 27 Sep 2026 dan penandanya ditulis ulang mengikuti jumlah
+bagian saat itu; per 27 Okt 2026 jumlahnya 34 dan sama dengan jumlah berkas
+di `supabase/migrations/`.
 
 Isi tiap bagian harus identik dengan berkas aslinya, dan
 `tests/run-all-pending.test.ts` menjaga dua hal: tiap bagian sama dengan

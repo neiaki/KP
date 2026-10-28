@@ -1088,3 +1088,43 @@ Bukti:
 Keputusan yang masih menunggu owner: D1, D2, D3, D4, dan bagian M. Jalur DB
 tetap `[BACA-KODE]` sampai `DATABASE_URL` staging atau CI `database-tests`
 dijalankan.
+
+## Pasca-LOOP: audit dokumen dan penghapusan Dependabot (2026-10-27)
+
+Koreksi status untuk entri `LOOP_SELESAI` di atas: angka 16/16 dan kalimat
+"tidak ada push" adalah snapshot saat entri itu ditulis, bukan kondisi repo
+sekarang. Per 27 Oktober 2026:
+
+- `origin/main` berada di `33b2f26` (penghapusan `.github/dependabot.yml`,
+  security updates dimatikan, PR bump #176/#177 ditutup). Commit itu sudah
+  di-push dengan persetujuan owner.
+- Branch `improve/autoloop` ternyata masih membawa `.github/dependabot.yml`;
+  file itu dihapus dari working tree branch ini juga supaya merge berikutnya
+  tidak menghidupkan Dependabot lagi. Entri `.github/dependabot.yml` di
+  `.github/CODEOWNERS` ikut dibersihkan.
+- Branch `improve/autoloop` berada di `5c93f53`, 9 commit di depan
+  `origin/improve/autoloop`. `main` lokal (`21bfd37`) punya 2 commit yang belum
+  di-push dan belum memuat `33b2f26`.
+- Audit seluruh dokumen memakai tiga reviewer paralel. Laporan gabungan ada di
+  `docs/DOCS-REVIEW-2026-10-27.md`; temuan P0/P1/P2 dan sisa keputusan owner
+  dicatat di sana.
+- Perbaikan P0: runbook verifikasi DB tidak lagi memakai `$DATABASE_URL` untuk
+  operasi tulis, melainkan `VERIFY_DATABASE_URL` plus guard host. Status roadmap
+  dan koreksi `LOOP_LOG` ini juga diperbarui.
+- Perbaikan dokumen lain: nomor query 5.1-5.11, migrasi 34 bagian, versi
+  Next.js, klaim shadcn/ui, laporan per teknisi, tren harian, tautan diagram,
+  perintah rclone, panel Coolify HTTP, dan status foto katalog.
+- Test baru `tests/db-verification-runbook.test.ts` menjaga runbook agar tidak
+  kembali memakai `$DATABASE_URL` dan daftar 5.x tetap lengkap.
+
+Gerbang resmi setelah audit (27 Oktober 2026):
+- `bun run test` exit 0: 873 tes, 859 pass, 14 skip DB, 0 fail.
+- `bunx tsc --noEmit` exit 0.
+- `bun run lint` exit 0, 0 warning.
+- `bun run build` exit 0 (Next.js 16.4.2, webpack).
+
+Perubahan dokumen ini di-commit pada 28 Oktober 2026 tanpa push. Temuan yang masih terbuka:
+branch protection `main` belum mewajibkan PR review, `.env.example:16` masih
+hanya menyuruh migrasi `0001`, dan D1-D4/M belum diputuskan. Sumber dan render
+diagram sudah diselaraskan 28 Oktober 2026. Verifikasi DB-level tetap menunggu
+staging; 14 test DB masih skip.

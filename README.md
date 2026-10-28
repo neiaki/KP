@@ -89,7 +89,7 @@ flowchart LR
 
 | Teknologi | Versi atau penggunaan |
 |-----------|----------------------|
-| Next.js | `16.4.1`, App Router dan Server Actions |
+| Next.js | `16.4.2`, App Router dan Server Actions |
 | React | `19.3.1` |
 | TypeScript | Mode strict |
 | Tailwind CSS | `4` |

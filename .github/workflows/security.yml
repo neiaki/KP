@@ -13,8 +13,10 @@ name: Security
 #   dijalankan adalah berkas yang sudah dihapus itu. Menjalankan workflow yang
 #   sama pada commit main yang sudah ter-merge tidak mencegah apa pun, tapi
 #   membuat hasilnya langsung terlihat di riwayat build main, bukan menunggu
-#   jadwal mingguan. Pencegahan sebenarnya ada di .github/CODEOWNERS, yang
-#   meminta persetujuan kedua untuk edit di .github/workflows/.
+#   jadwal mingguan. Pencegahan bergantung pada branch protection yang
+#   mengaktifkan CODEOWNERS dan mewajibkan persetujuan untuk edit di
+#   .github/workflows/. Jangan menganggap CODEOWNERS aktif tanpa memeriksa
+#   setelan branch protection.
 # - schedule: advisory baru terhadap versi yang sudah dipin tidak akan pernah
 #   terlihat tanpa commit baru, karena keduanya hanya berjalan saat ada push ke
 #   main.
@@ -26,8 +28,8 @@ on:
     #   standby (03.17, 09.17, 15.17, 21.17) yang semuanya di menit 17;
     # - bukan menit 0, jadi tidak ikut antrean jadwal Github Actions yang
     #   menumpuk di awal jam;
-    # - setelah Dependabot membuka PR versi mingguan, sehingga lockfile yang
-    #   dipindai sudah mencakup versi yang baru.
+    # - pada hari kerja, sehingga hasil audit mingguan langsung terlihat di
+    #   riwayat Actions tanpa menunggu commit baru.
     - cron: "37 3 * * 1"
   # Commit yang sudah di-merge ke main. Jalur ini murni deteksi, lihat catatan
   # di kepala berkas: mencegah PR yang menghapus pemeriksaan ini sendiri adalah

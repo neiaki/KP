@@ -63,7 +63,8 @@ A --> PantauUnit
 A --> PakaiSemua
 PakaiSemua ..> PantauUnit : <<include>>
 note bottom of KelolaStaf
-  Ubah peran diri sendiri padahal
-  satu-satunya admin selalu ditolak.
+  Ubah peran akun sendiri selalu ditolak.
+  Perubahan staf lain yang menyisakan
+  nol admin juga ditolak.
 end note
 @enduml

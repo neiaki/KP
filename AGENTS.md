@@ -52,9 +52,10 @@ health endpoint `/api/health/ready` sebelum Production. PRD di
 - `executePosSale` menolak unit berstatus selain `available` (anti double-sell).
   Jangan melonggarkan tanpa persetujuan.
 - Kode tiket servis `SRV-YYYYMMDD-XXXXXXXX` (8 karakter base32 dari alfabet
-  tanpa `I`, `L`, `O`, `U`) dibuat di `createServiceTicket`
-  (anti-tabrakan). Alur status: `received → diagnosing → waiting_approval →
-  in_progress → testing → completed → picked_up` (+ `cancelled`).
+  tanpa `I`, `L`, `O`, `U`) dibuat di `createServiceTicket` untuk mode demo,
+  atau oleh trigger `generate_ticket_code()` untuk jalur live (anti-tabrakan).
+  Alur status: `received → diagnosing → waiting_approval → in_progress →
+  testing → completed → picked_up` (+ `cancelled`).
 - Tipe baru di `src/types/index.ts`. Produk punya `official_images` (unit baru)
   dan `second_images` (unit second); `image_url` hanya fallback.
 - Format uang selalu `formatIDR`. Jangan hardcode harga di komponen.

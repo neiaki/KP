@@ -91,5 +91,6 @@ Saat mengusulkan desain, jelaskan module, interface, implementation, depth
    yang dimaksud ikut tersisa. Jangan menganggap environment production
    tersedia tanpa mengecek konfigurasi dan health endpoint.
 
-Untuk status backlog lintas sesi, lihat `docs/agents/roadmap.md`. Handoff audit
-dan hasil verifikasi terakhir ada di `docs/agents/review-handoff-2026-10-17.md`.
+Untuk status backlog lintas sesi, lihat `docs/agents/roadmap.md`. Handoff kerja
+aktif ada di `docs/agents/handoff-2026-10-23-akun-pelanggan-dan-stok.md`;
+handoff audit terakhir ada di `docs/agents/review-handoff-2026-10-20.md`.

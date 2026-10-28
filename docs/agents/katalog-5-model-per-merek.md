@@ -8,6 +8,12 @@ Verifikasi dilakukan langsung ke database production lewat query read-only.
 Model yang belum punya unit tampil di bagian "Belum ada unit", bukan sebagai
 stok siap beli. Tidak ada IMEI karangan.
 
+> **Pembaruan 25 Oktober 2026:** tabel foto di bawah adalah snapshot 24
+> Oktober. Sejak itu 14 model sudah memakai render GSMArena; hanya Oppo Reno
+> 12 Pro 5G dan Samsung Galaxy S24 yang masih memakai fallback logo. Untuk
+> status foto terbaru, cek `official_images` di production atau catatan rilis
+> di `docs/agents/roadmap.md`.
+
 ## Hasil Verifikasi
 
 | Merek | Model aktif | Target | Status |
@@ -89,9 +95,10 @@ terakhir. Harga jual unit second ditentukan saat unit masuk.
   `imei = NULL` dan `is_demo = true`.
 - Unit dan transaksi demo tidak muncul di etalase publik, dashboard, atau
   laporan penjualan. Transaksi demo tetap terlihat di riwayat pelanggan demo.
-- Lima belas model baru memakai label "Foto menyusul" sampai foto resmi
-  tersedia. Jangan memakai render atau foto perangkat lain hanya agar katalog
-  terlihat lengkap.
+- Dua model, Oppo Reno 12 Pro 5G dan Samsung Galaxy S24, masih memakai label
+  "Foto menyusul" sampai foto resmi tersedia. Empat belas model lain sudah
+  memakai render GSMArena. Jangan memakai render atau foto perangkat lain hanya
+  agar katalog terlihat lengkap.
 
 Audit foto historis ada di `../PERLUASAN-KATALOG-AT-CELL.md` bagian 6. Dokumen
 itu menjelaskan mengapa beberapa file di `public/products/` tidak boleh dipakai:
@@ -149,8 +156,9 @@ transaksi. Semuanya bertanda `is_demo = true`.
 1. Kode sudah live di production. Image `sha-7d7f0d7` dideploy lewat commit pin
    `105a61a`; container sehat dan label revisinya cocok. Tidak ada lagi pekerjaan
    commit, push, atau deploy untuk katalog ini.
-2. Ganti label "Foto menyusul" dengan foto resmi saat owner memberikannya.
-   Tidak perlu menunggu foto untuk mempertahankan 5 model per merek.
+2. Ganti label "Foto menyusul" pada Oppo Reno 12 Pro 5G dan Samsung Galaxy S24
+   dengan foto resmi saat owner memberikannya. Tidak perlu menunggu foto untuk
+   mempertahankan 5 model per merek.
 3. Tambah unit asli dan IMEI hanya jika owner menyerahkan perangkat fisiknya.
    Saat ini 7 unit asli tersedia dan belum menutup semua model.
 4. Jangan menambah unit atau IMEI karangan untuk membuat model yang belum punya

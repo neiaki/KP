@@ -1,5 +1,12 @@
 # Sequence Diagram - At Cell Web
 
+> **Catatan tindak lanjut 28 Oktober 2026:** temuan isi dari audit 27 Oktober
+> sudah diperbaiki di sumber `.puml` dan render PNG/SVG. View etalase dibaca
+> server lewat koneksi database langsung, batch IMEI all-or-nothing, otorisasi
+> tiket lewat `requireRole`, sales hanya boleh `UPDATE` kolom produk terbatas,
+> dan state machine unit sudah dilengkapi. Rincian ada di
+> `docs/DOCS-REVIEW-2026-10-27.md`.
+
 Dokumen ini merangkum lima sequence diagram, satu untuk setiap aktor.
 Sumber diagram adalah berkas PlantUML di folder ini, satu diagram satu
 berkas. Render PNG dan SVG di-commit bersama sumbernya karena GitHub
@@ -28,11 +35,12 @@ syarat, kontak, dan layanan pelanggan.
 
 - Sumber: `pengunjung/sequence-pengunjung.puml`
 - Render: `pengunjung/sequence-pengunjung.png`, `pengunjung/sequence-pengunjung.svg`
-- Yang perlu diperhatikan: peran anon hanya boleh baca view etalase
-  publik sehingga harga modal tidak ikut terkirim. Lacak mode live
-  hanya tampil status plus garansi, foto dan biaya dikosongkan.
-  Estimasi trade-in publik hanya hitung lokal, insert database hanya
-  terjadi di kasir portal.
+- Yang perlu diperhatikan: peramban tidak membaca database langsung.
+  Server membaca view etalase lewat koneksi database langsung; anon tidak
+  punya grant SELECT ke view, sehingga harga modal tidak ikut terkirim.
+  Lacak mode live hanya tampil status plus garansi, foto dan biaya
+  dikosongkan. Estimasi trade-in publik hanya hitung lokal, insert
+  database hanya terjadi di kasir portal.
 
 ### Pelanggan
 
@@ -51,15 +59,17 @@ serta lacak resi servis tanpa perlu login ulang.
 Sales adalah kasir dan inventaris. Sales dapat masuk dan langsung dibuka
 ke kasir POS, memilih unit siap jual per IMEI, mencatat pembeli walk-in,
 memproses trade-in sebagai diskon, checkout atomik dan cetak nota,
-mendaftarkan unit batch IMEI, memantau status unit, membuat tiket servis,
-serta mencatat serah terima unit.
+mendaftarkan unit batch IMEI, memantau status unit, mengelola etalase
+dan akun pelanggan, membuat tiket servis, serta memantau antrean servis.
 
 - Sumber: `sales/sequence-sales.puml`
 - Render: `sales/sequence-sales.png`, `sales/sequence-sales.svg`
-- Yang perlu diperhatikan: registrasi batch maks 200 baris, baris gagal
-  tidak menggagalkan baris valid. Checkout menolak IMEI selain available
-  lalu rollback total. Kode tiket diterbitkan pemicu database secara
-  atomik dengan sufiks base32 tanpa I, L, O, U.
+- Yang perlu diperhatikan: registrasi batch maks 200 baris dan bersifat
+  all-or-nothing; satu IMEI duplikat membatalkan seluruh batch. Checkout
+  menolak IMEI selain available lalu rollback total. Kode tiket diterbitkan
+  pemicu database secara atomik dengan sufiks base32 tanpa I, L, O, U.
+  Sales tidak boleh mengubah status/biaya tiket; serah terima hanya admin
+  dan teknisi.
 
 ### Teknisi
 
@@ -70,8 +80,9 @@ plus foto bukti, serta mencatat serah terima unit.
 - Sumber: `teknisi/sequence-teknisi.puml`
 - Render: `teknisi/sequence-teknisi.png`, `teknisi/sequence-teknisi.svg`
 - Yang perlu diperhatikan: testing boleh kembali ke in_progress bila
-  gagal uji. Update hanya lolos bila peran technician lolos RLS.
-  Rincian biaya maks 50 baris dan total selalu sparepart plus jasa.
+  gagal uji. Update status dan biaya hanya untuk admin dan teknisi lewat
+  `requireRole`; sales hanya mencatat tiket masuk. Rincian biaya maks 50
+  baris dan total selalu sparepart plus jasa.
 
 ### Admin
 
@@ -84,9 +95,12 @@ servis, dan akun.
 
 - Sumber: `admin/sequence-admin.puml`
 - Render: `admin/sequence-admin.png`, `admin/sequence-admin.svg`
-- Yang perlu diperhatikan: tulis produk ditolak RLS untuk sales dan
-  teknisi. Ubah peran diri sendiri padahal satu-satunya admin ditolak.
-  Laporan bersifat read-only.
+- Yang perlu diperhatikan: sales hanya boleh `UPDATE` `default_price` dan
+  `official_images`; trigger `products_sales_column_guard` menolak kolom
+  identitas katalog, dan teknisi tidak boleh menulis produk. Ubah peran
+  akun sendiri selalu ditolak; perubahan staf lain yang menyisakan nol
+  admin juga ditolak. Laporan bersifat read-only dan menampilkan agregat
+  meja servis, bukan performa per teknisi.
 
 ## Keterangan participant
 
@@ -157,8 +171,12 @@ dan dokumentasi PlantUML terkini via Context7:
   `REPAIR_FLOW` di `src/lib/validations.ts` (termasuk testing kembali
   ke in_progress dan cancelled sebelum completed),
   dan `state-status-unit.puml` untuk status unit (sold hanya lewat
-  kasir dan terminal karena pemicu database menolak semua perubahan
-  dari sold). Berkas lintas aktor tinggal di `bersama/`.
+  kasir dan terminal karena pemicu `BEFORE UPDATE OF status` menolak
+  perubahan status dari sold). Berkas lintas aktor tinggal di `bersama/`.
 - Pesan diagram memakai bahasa domain, bukan nama fungsi.
   Setiap sumber lolos `plantuml -checkonly` dan render PNG plus SVG
   di-commit di folder diagramnya. Perintah render ada di `README.md` folder ini.
+- Render ulang 28 Oktober 2026 menyelaraskan sumber dan render dengan
+  temuan audit: akses view etalase lewat service role, batch IMEI
+  all-or-nothing, otorisasi tiket lewat `requireRole`, batas kolom produk
+  sales, `imei` nullable untuk unit demo, dan state machine unit lengkap.

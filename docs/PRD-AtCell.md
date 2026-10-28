@@ -3,7 +3,7 @@
 ## 1. Overview
 Aplikasi ini bertujuan untuk mendigitalkan seluruh operasional toko handphone **At Cell** sekaligus menyediakan profil toko modern yang terintegrasi. Masalah utama yang diselesaikan adalah ketidakakuratan pelacakan stok fisik per nomor unik IMEI, kurangnya transparansi proses pengerjaan servis bagi pelanggan, kerumitan pencatatan transaksi tukar tambah (*trade-in*), ketiadaan etalase publik multi-bahasa untuk menjangkau konsumen yang lebih luas, serta belum adanya satu titik kendali bagi pemilik toko untuk memantau performa bisnis dan mengelola data master.
 
-Tujuan utama sistem adalah menyediakan platform berbasis web menggunakan **Next.js**, **Tailwind CSS**, **shadcn/ui**, dan **Supabase (PostgreSQL)** yang memadukan profil publik toko multi-bahasa (`atcell.my.id/[locale]`) dengan portal operasional terpusat di `/portal/*` untuk empat aktor utama: **Admin/Owner** (di kode memakai peran `admin`), **Sales**, **Teknisi**, dan **Pelanggan**. Pintu masuk portal adalah `/id/login` (atau subdomain `login.atcell.my.id` yang ditulis ulang ke sana oleh `src/proxy.ts`). Mode demo lokal memakai mock/`localStorage` tanpa Supabase; mode production memakai Supabase/Drizzle, RLS, dan Auth.
+Tujuan utama sistem adalah menyediakan platform berbasis web menggunakan **Next.js**, **Tailwind CSS**, komponen bergaya **shadcn/ui**, dan **Supabase (PostgreSQL)** yang memadukan profil publik toko multi-bahasa (`atcell.my.id/[locale]`) dengan portal operasional terpusat di `/portal/*` untuk empat aktor utama: **Admin/Owner** (di kode memakai peran `admin`), **Sales**, **Teknisi**, dan **Pelanggan**. Pintu masuk portal adalah `/id/login` (atau subdomain `login.atcell.my.id` yang ditulis ulang ke sana oleh `src/proxy.ts`). Mode demo lokal memakai mock/`localStorage` tanpa Supabase; mode production memakai Supabase/Drizzle, RLS, dan Auth.
 
 ## 2. Requirements
 Berikut adalah persyaratan tingkat tinggi untuk pengembangan sistem:
@@ -260,7 +260,7 @@ erDiagram
 Bagian ini mengatur batasan teknis dan panduan desain yang harus dipatuhi.
 
 1. **High-Level Technology:**
-   - **Framework & Styling:** Next.js (App Router, Server Actions) dengan Tailwind CSS dan komponen antarmuka shadcn/ui.
+   - **Framework & Styling:** Next.js (App Router, Server Actions) dengan Tailwind CSS dan komponen antarmuka bergaya shadcn/ui.
    - **Internasionalisasi:** segmen rute `/[locale]` untuk seluruh halaman pada domain publik (`/id` default, `/en`), dengan kamus di `src/lib/translations.ts`. Tidak memakai pustaka `next-intl` (tidak ada di `package.json`).
    - **Backend & Storage:** Supabase (PostgreSQL Database, Supabase Auth, Supabase Storage untuk foto kondisi barang servis/trade-in).
    - **Form Engine:** komponen form React terkontrol dengan validasi skema Zod di Server Action; tidak memakai pustaka React Hook Form.

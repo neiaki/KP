@@ -42,21 +42,31 @@ skinparam sequenceLifeLineBorderColor #0B4ED8
 skinparam sequenceParticipantBorderColor #0B4ED8
 footer Dipelihara di docs/diagram-uml, render dari sumber .puml
 title Status unit inventaris dan perpindahannya
+state "available" as available
+state "reserved" as reserved
+state "in_service" as in_service
+state "returned" as returned
+state "sold" as sold
+
 [*] --> available : unit didaftarkan batch IMEI
 available --> reserved : ditahan untuk pembeli
 reserved --> available : tahan dibatalkan
-available --> sold : terjual lewat checkout kasir
-note right of sold
-  sold hanya lewat transaksi kasir agar nota tercatat.
-  Ubah manual ke sold selalu ditolak.
-end note
 available --> in_service : masuk meja servis
 reserved --> in_service : unit yang ditahan masuk servis
 in_service --> returned : keluar meja servis
-returned --> available : kembali dijual (hanya admin dan sales)
+returned --> available : kembali dijual
+returned --> in_service : servis ulang
+available --> sold : terjual lewat checkout kasir
 sold --> [*]
+
 note right of sold
-  sold bersifat terminal: pemicu database
-  menolak semua perubahan dari status sold.
+  sold hanya lewat transaksi kasir agar nota tercatat.
+  Pemicu BEFORE UPDATE OF status menolak
+  perubahan status dari sold.
+end note
+note bottom of returned
+  Admin dan sales boleh memilih status non-sold
+  mana pun lewat /portal/inventory.
+  Teknisi hanya boleh in_service dan returned.
 end note
 @enduml
