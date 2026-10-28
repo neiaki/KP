@@ -145,8 +145,11 @@ if (url) {
                    phone_number = excluded.phone_number,
                    username = excluded.username,
                    email = excluded.email`;
-        const p = await pg`insert into products (brand, model_name, specs, default_price, is_active, is_demo)
-                 values ('TesKonkuren', ${"TK-" + suffix}, '', 100000, true, false) returning id`;
+        // `products` tidak punya kolom is_demo; flag demo hanya ada di
+        // inventory_units dan transactions. Menyertakannya di sini membuat
+        // seed gagal sebelum perlombaan sempat diuji.
+        const p = await pg`insert into products (brand, model_name, specs, default_price, is_active)
+                 values ('TesKonkuren', ${"TK-" + suffix}, '', 100000, true) returning id`;
         const productId = p[0].id;
         const u = await pg`insert into inventory_units (product_id, imei, status, condition, is_demo, purchase_cost, selling_price)
                  values (${productId}, ${imei}, 'available', 'second', false, 50000, 100000) returning id`;
