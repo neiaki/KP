@@ -92,14 +92,17 @@ async function seedData(tx: postgres.TransactionSql): Promise<Seed> {
     // Username berbasis id, bukan nama, supaya trigger handle_new_user tidak
     // pernah menghasilkan username yang sama untuk dua akun seed.
     const username = `u_${id.replace(/-/g, "").slice(0, 24)}`;
-    const email = `rls-${name}-${suffix}@atcell.test`;
+    // Email harus lowercase: trigger 0005 menjalankan regexp sebelum lower(),
+    // jadi huruf besar di prefix email (mis. customerA/customerB) dibuang dan
+    // dua akun bisa jatuh ke username yang sama.
+    const email = `rls-${name.toLowerCase()}-${suffix}@atcell.test`;
     try {
       await tx`
         insert into auth.users (id, email, raw_user_meta_data)
         values (
           ${id},
           ${email},
-          ${JSON.stringify({ full_name: `RLS ${name}`, username })}::jsonb
+          ${tx.json({ full_name: `RLS ${name}`, username })}
         )
       `;
     } catch (error) {
