@@ -21,8 +21,11 @@ belum ada di `origin/main`. Penghapusan Dependabot sudah ada juga di branch
 lewat `3174d09`, jadi tidak ada berkas Dependabot yang tertinggal. CI
 `database-tests` lulus 28 Oktober 2026 (run `40700897417`, 40/40) termasuk 6
 test RLS baru; run `40695117148` sebelumnya memverifikasi fixture POS. `main`
-lokal (`21bfd37`) masih 2 commit di depan dan 1 di belakang `origin/main`;
-jangan push commit itu tanpa keputusan owner.
+lokal sudah disamakan dengan `origin/main` (`33b2f26`); dua commit lokal lama
+(`b76b9e8`, `21bfd37`) sudah ada di branch ini. Branch Dependabot lama
+(`dependabot/bun/ai-7.0.150`, `dependabot/bun/lucide-react-1.61.0`) sudah
+dihapus dari remote pada 28 Oktober 2026 karena PR-nya ditutup dan Dependabot
+dimatikan.
 **Perubahan roadmap ini:** akun pelanggan, checkout POS, data demo bertanda,
 katalog lima model per merek, Etalase & Harga, dan pembersihan VPS sudah masuk
 lewat rangkaian PR setelah #129. Rincian historis di bawah dipertahankan sebagai
