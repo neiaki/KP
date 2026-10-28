@@ -75,9 +75,9 @@ if (url) {
   const SUPABASE_STUB =
     "data:text/javascript," +
     encodeURIComponent(
-      `export async function createClient(){return {auth:{getUser:async()=>({data:{user:{id:"${ADMIN_ID}"},error:null}})},from:(t)=>{if(t!=="profiles")throw new Error("stub hanya profiles");const d=${JSON.stringify(
+      `export async function createClient(){return {auth:{getUser:async()=>({data:{user:{id:"${ADMIN_ID}"},error:null}})},from:(t)=>{if(t==="profiles"){const d=${JSON.stringify(
         profilAdmin
-      )};return {select(){return this},eq(){return this},single(){return {data:d}}}}}}`
+      )};return {select(){return this},eq(){return this},single(){return {data:d}}}}return {select(){return this},eq(){return this},single(){return {data:null,error:{message:"stub"}}}}}}}`
     );
   const CACHE_STUB = "data:text/javascript,export function revalidatePath(){}";
   const HEADERS_STUB =
