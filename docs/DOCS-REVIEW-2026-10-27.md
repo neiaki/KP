@@ -189,3 +189,7 @@ koneksi database langsung yang berjalan.
   Dicatat sebagai N13 dan belum diperbaiki karena butuh migrasi.
 - Verifikasi Supabase Auth/PostgREST/Storage dan staging tetap belum
   dijalankan; CI bukan replika Supabase penuh.
+- Branch protection `main` sekarang mengaktifkan
+  `required_conversation_resolution`; required check `verify`, `security`,
+  `database-tests` dengan strict mode tetap. Required PR review dan
+  `enforce_admins` masih ditunda.

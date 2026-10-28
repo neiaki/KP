@@ -1166,3 +1166,7 @@ POS di PostgreSQL polos CI, bukan RLS Supabase.
 - `origin/main` (`33b2f26`) di-merge ke `improve/autoloop` lewat `6acf375`.
   Tidak ada konflik; tree branch tidak berubah karena penghapusan Dependabot
   di main sudah setara dengan `3174d09`.
+- Branch protection `main`: `required_conversation_resolution` diaktifkan
+  lewat API. Required check `verify`, `security`, `database-tests` dengan
+  strict mode dan `enforce_admins=false` dipertahankan. Required PR review
+  belum diaktifkan karena repo solo dan GitHub tidak mengizinkan self-approval.

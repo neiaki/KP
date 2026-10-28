@@ -54,7 +54,7 @@ requirement, kode, schema, atau perilaku aplikasi.
 | N3 | E2E Playwright tiga kali hijau | Belum bisa | Paket Playwright tidak terpasang, tidak ada PostgreSQL/Supabase lokal, dan tes lintas peran butuh backend live |
 | N4 | Audit dependensi lanjutan | Sebagian selesai | `bun audit` sudah jalan; satu advisory moderate dev-only `esbuild` lewat `drizzle-kit`, belum ada perbaikan upstream |
 | N5 | Update dependensi tertunda | Menunggu | Semua kandidat baru berumur kurang dari 14 hari atau major; versi di-pin exact |
-| N6 | Branch protection `main` | Perlu keputusan owner | Saat ini wajib check `verify`, `security`, `database-tests`; belum wajib PR review dan admin masih bisa bypass |
+| N6 | Branch protection `main` | Sebagian: conversation resolution aktif | Wajib check `verify`, `security`, `database-tests` dengan strict mode; `required_conversation_resolution=true` sejak 28 Oktober 2026. Required PR review dan `enforce_admins` ditunda; PR review tidak praktis untuk repo solo karena GitHub tidak mengizinkan self-approval |
 | N7 | Backup off-site dan backup objek Storage | Menunggu owner | Butuh passphrase, `rclone`/endpoint upload, dan bukti restore; lihat [`OFFSITE-BACKUP-SETUP.md`](OFFSITE-BACKUP-SETUP.md) |
 | N8 | Isolasi deployment pratinjau Vercel dari database production | Menunggu owner | Preview masih bisa membaca data production; butuh project Supabase terpisah dan pencabutan env production dari preview |
 | N9 | Pastikan proxy menimpa `X-Forwarded-Host` | Perlu verifikasi ops | Risiko hanya jika Coolify/Traefik meneruskan header dari klien; lihat `NEEDS_HUMAN.md` butir 7 |
@@ -83,6 +83,9 @@ requirement, kode, schema, atau perilaku aplikasi.
 - Branch `improve/autoloop` disinkronkan dengan `origin/main` (`33b2f26`)
   lewat merge commit `6acf375`. Tidak ada konflik; tree branch tidak berubah
   karena perubahan Dependabot di main sudah setara.
+- Branch protection `main` mengaktifkan `required_conversation_resolution`.
+  Required check `verify`, `security`, `database-tests` dengan strict mode
+  tetap; `enforce_admins` tetap false dan required PR review tetap ditunda.
 - `bun audit` dijalankan: produksi bersih, satu advisory moderate dev-only
   pada `esbuild`.
 - `.env.example` diperbaiki agar menyuruh `supabase/RUN-ALL-PENDING.sql`
