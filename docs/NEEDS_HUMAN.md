@@ -156,15 +156,15 @@ klien tanpa menimpanya. Tindakan owner: pastikan Coolify/Traefik menimpa
 `X-Forwarded-Host` dengan host asli (atau set `SERVER_ACTIONS_ALLOWED_ORIGINS`
 sesuai domain final). Tidak ada perubahan kode tanpa persetujuan owner.
 
-## 8. Verifikasi DB-level belum dijalankan (perbaikan test siap; DATABASE_URL UNSET)
+## 8. Verifikasi DB-level: PostgreSQL polos CI lulus, RLS staging belum
 
 Gerbang 25 Oktober 2026 berjalan tanpa `DATABASE_URL`, jadi 14 test yang
-membutuhkan database di-skip. Yang sudah diverifikasi: logika murni, migrasi
-statis, RLS/grant lewat pembacaan migrasi, dan test migrasi tanpa koneksi.
-Yang belum: SELECT/INSERT nyata sebagai anon/authenticated, policy RLS pada
-data hidup, dan transaksi POS. Tindakan owner: jalankan
-`DATABASE_URL=<staging> npm test` di database lokal/staging sebelum deploy.
-Jangan memakai database produksi untuk pengujian ini.
+membutuhkan database di-skip di suite lokal. Pada 28 Oktober 2026 CI
+`database-tests` menjalankan SELECT/INSERT nyata, trigger audit, ledger, dan
+transaksi POS di PostgreSQL polos (run `40695117148` lulus). Yang belum:
+policy RLS sebagai anon/authenticated dan perilaku Supabase di staging/lokal.
+Tindakan owner: jalankan `DATABASE_URL=<staging> npm test` di database
+lokal/staging sebelum deploy. Jangan memakai database produksi.
 
 Pembaruan 25 Oktober 2026: lapis 2 `tests/pos-concurrent-sale.test.ts`
 diperbaiki agar bisa berjalan di CI. Seed sekarang membuat baris `auth.users`
@@ -212,15 +212,14 @@ Keputusan owner yang dibutuhkan:
   `costBreakdown`, `technicianNotes`, `warrantyDays`, dan `technicianId`;
   belum ada audit harga/stok; `registerUnits` belum memeriksa harga di bawah
   modal; RPC lama `process_trade_in_sale` belum memeriksa `is_demo`.
-- Verifikasi DB belum bisa dilakukan di sesi ini: `DATABASE_URL` tidak
-  tersedia dan MISI melarang docker/psql/push. Setelah disetujui, pindahkan
-  SQL ke `supabase/migrations/` dengan timestamp baru, perbarui
+- Migrasi usulan belum diuji: CI PostgreSQL polos sudah lulus untuk test yang
+  ada, tetapi SQL usulan belum dijalankan. Setelah disetujui, pindahkan SQL
+  ke `supabase/migrations/` dengan timestamp baru, perbarui
   `RUN-ALL-PENDING.sql`, ledger, dan runbook, lalu jalankan di database
   lokal/staging. Jangan memakai production untuk pengujian.
-- Test fixture `tests/pos-concurrent-sale.test.ts` sudah diperbaiki, tetapi
-  jalur DB-nya belum dijalankan ulang. Jalankan
-  `DATABASE_URL=<staging> node --experimental-strip-types --test tests/pos-concurrent-sale.test.ts`
-  di database sekali pakai.
+- Test fixture `tests/pos-concurrent-sale.test.ts` sudah diperbaiki dan jalur
+  DB-nya lulus di CI (run `40695117148`). Verifikasi di Supabase staging
+  tetap perlu karena CI hanya memakai PostgreSQL polos tanpa RLS.
 
 ## 10. Klaim PRD yang belum sepenuhnya ada di UI
 
