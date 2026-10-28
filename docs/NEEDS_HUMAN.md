@@ -248,3 +248,47 @@ ubah NFR-07 menjadi "mutasi lewat Server Action". Usulan SQL terkait ada di
 `docs/migrations-proposed/20261025090000_db_integrity.sql` dan belum
 dijalankan. Opsi dan rekomendasi ada di `docs/OWNER-DECISION-BRIEF.md` bagian
 D3; langkah verifikasinya ada di `docs/DB-VERIFICATION-RUNBOOK.md`.
+
+## 12. E2E Playwright belum bisa dijalankan di environment ini
+
+Goal E2E meminta suite Playwright hijau tiga kali berturut-turut terhadap
+staging/lokal dengan data dummy. Environment sesi ini belum memenuhi syarat itu:
+
+- `package.json` dan `node_modules` tidak memuat `playwright` atau
+  `@playwright/test`. Cache browser Playwright ada di `~/.cache/ms-playwright`,
+  tetapi paket npm-nya tidak terpasang.
+- Tidak ada PostgreSQL lokal, Supabase CLI, Docker, atau Podman. `DATABASE_URL`
+  di environment sesi ini menunjuk ke host non-lokal, jadi tidak boleh dipakai
+  untuk tes (sesuai aturan repo: hanya staging/lokal).
+- Mode demo mulai sebagai admin (`src/lib/store.ts:175`) dan layout portal tidak
+  menegakkan akses lintas peran. Penolakan lintas peran yang sebenarnya ada di
+  Server Action dan RLS, yang butuh backend live/staging. Tes demo-only untuk
+  skenario itu akan memberi rasa aman palsu.
+
+Keputusan owner: tambahkan Playwright dan sediakan Supabase/PostgreSQL lokal
+sekali pakai, atau setujui subset E2E demo-only dengan skenario lintas peran
+ditandai belum teruji. Jangan menjalankan tes terhadap `DATABASE_URL` non-lokal.
+
+## 13. Audit dependensi: npm audit dan update tertunda
+
+`npm outdated` menemukan tujuh paket. Semua versi baru yang tersedia dirilis
+kurang dari 14 hari pada 28 Oktober 2026, kecuali TypeScript 7.0.2 yang merupakan
+pembaruan major. Tidak ada dependensi yang diubah.
+
+| Paket | Lama | Baru | Rilis baru | Alasan tidak diperbarui |
+|---|---|---|---|---|
+| `@sentry/nextjs` | 11.8.0 | 11.9.0 | 2026-10-23 | 5 hari, dilewati aturan 14 hari |
+| `ai` | 7.0.142 | 7.0.155 | 2026-10-27 | 1 hari, dilewati aturan 14 hari |
+| `lucide-react` | 1.57.0 | 1.63.0 | 2026-10-28 | 0 hari, dilewati aturan 14 hari |
+| `next` | 16.4.2 | 16.4.3 | 2026-10-23 | 5 hari; versi di-pin exact, bukan `npm update` |
+| `eslint-config-next` | 16.4.2 | 16.4.3 | 2026-10-23 | 5 hari; versi di-pin exact, bukan `npm update` |
+| `eslint` | 9.39.5 | 10.13.0 | 2026-10-16 | 12 hari dan major, dilaporkan saja |
+| `typescript` | 5.9.3 | 7.0.2 | 2026-07-08 | major, dilaporkan saja; risiko breaking typecheck |
+
+`npm audit` belum bisa dijalankan: repo tidak punya `package-lock.json`
+(`ENOLOCK`), sedangkan lockfile yang ada adalah `bun.lock` dan binary `bun`
+tidak tersedia. Percobaan `npm install --package-lock-only` di direktori
+sementara gagal `EALLOWREMOTE` karena fetch tarball remote dimatikan. Jadi
+status high/critical belum diketahui. Keputusan owner: sediakan `bun`, jalankan
+audit di CI, atau izinkan pembuatan lockfile npm sementara. Tidak ada perubahan
+`package.json` atau lockfile dari sesi ini.
