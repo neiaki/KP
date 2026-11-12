@@ -16,10 +16,11 @@
 // tidak bisa resolve alias "@/" dari tsconfig, jadi alias hanya akan
 // menggagalkan tests/sentry-privacy.test.ts.
 import { sentryRelease } from "./lib/sentry-release.ts";
+import { isSentryDsn } from "./lib/sentry-dsn.ts";
 
 export async function register(): Promise<void> {
   const dsn = process.env.SENTRY_DSN;
-  if (!dsn) return;
+  if (!isSentryDsn(dsn)) return;
 
   // Import dinamis supaya bundle Sentry tidak ikut termuat pada proses yang
   // tidak memakainya. Cabang yang tidak pernah diambil bisa di-tree-shake.

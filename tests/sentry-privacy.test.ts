@@ -73,7 +73,10 @@ globalThis.__sentryPrivacySlots = slots;
  * ini.
  */
 async function opsiServer(): Promise<OpsiSentry> {
-  process.env.SENTRY_DSN = "https://example.invalid/1";
+  // Public key wajib ada supaya lolos validasi bentuk DSN di
+  // src/lib/sentry-dsn.ts; host .invalid tidak pernah dihubungi karena
+  // @sentry/nextjs diganti stub di atas.
+  process.env.SENTRY_DSN = "https://abc123@example.invalid/1";
   sedangDimuat = "server";
   const { register } = await import("../src/instrumentation.ts");
   await register();
@@ -83,7 +86,7 @@ async function opsiServer(): Promise<OpsiSentry> {
 }
 
 async function opsiClient(): Promise<OpsiSentry> {
-  process.env.NEXT_PUBLIC_SENTRY_DSN = "https://example.invalid/1";
+  process.env.NEXT_PUBLIC_SENTRY_DSN = "https://abc123@example.invalid/1";
   sedangDimuat = "client";
   await import("../src/instrumentation-client.ts");
   const slot = slots.filter((s) => s.from === "client").at(-1);

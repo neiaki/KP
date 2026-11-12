@@ -20,10 +20,11 @@ import * as Sentry from "@sentry/nextjs";
 // Ekstensi .ts eksplisit, sama seperti src/lib/login-redirect.ts dan
 // src/db/client.ts: runner test node tidak bisa resolve alias "@/".
 import { sentryRelease } from "./lib/sentry-release.ts";
+import { isSentryDsn } from "./lib/sentry-dsn.ts";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-if (dsn) {
+if (isSentryDsn(dsn)) {
   Sentry.init({
     dsn,
     environment:

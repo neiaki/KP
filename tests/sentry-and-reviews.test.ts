@@ -232,13 +232,40 @@ test("Sentry tidak diinisialisasi tanpa DSN", async () => {
   // project orang lain setiap kali ada galat di development.
   assert.match(
     server,
-    /const dsn = process\.env\.SENTRY_DSN;\s*\n\s*if \(!dsn\) return;/,
-    "src/instrumentation.ts harus keluar lebih awal kalau SENTRY_DSN kosong"
+    /const dsn = process\.env\.SENTRY_DSN;\s*\n\s*if \(!isSentryDsn\(dsn\)\) return;/,
+    "src/instrumentation.ts harus keluar lebih awal kalau SENTRY_DSN kosong atau tidak valid"
   );
   assert.match(
     client,
-    /const dsn = process\.env\.NEXT_PUBLIC_SENTRY_DSN;\s*\n\s*\n?\s*if \(dsn\)/,
-    "src/instrumentation-client.ts hanya boleh memanggil Sentry.init() di dalam blok if (dsn)"
+    /const dsn = process\.env\.NEXT_PUBLIC_SENTRY_DSN;\s*\n\s*\n?\s*if \(isSentryDsn\(dsn\)\)/,
+    "src/instrumentation-client.ts hanya boleh memanggil Sentry.init() di dalam blok DSN valid"
+  );
+});
+
+test("DSN Sentry yang salah bentuk tidak menginisialisasi SDK", async () => {
+  const { isSentryDsn } = await import("../src/lib/sentry-dsn.ts");
+
+  // Auth token pernah tidak sengaja masuk ke SENTRY_DSN. Nilai seperti ini
+  // membuat Sentry.init() mencetak "Invalid Sentry Dsn" saat startup, jadi
+  // harus ditolak sebelum SDK disentuh.
+  assert.equal(
+    isSentryDsn("sntryu_0123456789abcdef0123456789abcdef"),
+    false,
+    "auth token Sentry bukan DSN"
+  );
+  assert.equal(isSentryDsn(undefined), false);
+  assert.equal(isSentryDsn(""), false);
+  assert.equal(isSentryDsn("https://sentry.io"), false, "URL tanpa public key bukan DSN");
+  assert.equal(isSentryDsn("https://abc123@o451234.ingest.sentry.io"), false, "project id wajib ada");
+  assert.equal(
+    isSentryDsn("https://abc123@o451234.ingest.sentry.io/451234"),
+    true,
+    "bentuk DSN Sentry SaaS yang sah harus diterima"
+  );
+  assert.equal(
+    isSentryDsn("http://abc123@localhost:9000/1"),
+    true,
+    "Sentry self-hosted boleh memakai http"
   );
 });
 
