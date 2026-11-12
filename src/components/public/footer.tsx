@@ -297,9 +297,12 @@ export function PublicFooter({ locale }: { locale: Locale }) {
                    menghilangkannya di footer terang, jadi logo diletakkan
                    di chip putih yang sama di kedua mode. */
                 <span className="flex h-4 items-center rounded-sm bg-white px-1">
+                  {/* Rasio 100:38 sama dengan viewBox QRIS 3000:1140.
+                      Kalau angkanya tidak cocok, Next memperingatkan bahwa
+                      hanya satu dimensi yang berubah saat class h-3 dipakai. */}
                   <Image
-                    width={40}
-                    height={12}
+                    width={100}
+                    height={38}
                     unoptimized
                     src={m.logo}
                     alt="Logo QRIS"
