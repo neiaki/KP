@@ -1,732 +1,385 @@
 # Pengeras VPS At Cell
 
-Dokumen ini adalah runbook operasional untuk host production At Cell di Coolify.
-Isinya catatan hasil audit read-only terhadap satu VPS, disusul langkah
-perbaikan yang harus direview manusia sebelum dijalankan.
+Runbook operasional host production At Cell di Coolify. Isinya hasil audit
+read-only, langkah perbaikan yang harus direview manusia, dan rutinitas
+pemeliharaan. Tidak ada perintah yang boleh dipaste buta atau dimasukkan ke cron
+tanpa dibaca. Perintah merusak ditandai eksplisit. Tidak ada nilai secret di
+dokumen ini.
 
-Tidak ada perintah di dokumen ini yang boleh dijalankan otomatis, dipaste
-buta, atau dimasukkan ke cron tanpa dibaca dulu. Setiap perintah yang merusak
-ditandai eksplisit. Tidak ada nilai secret di dokumen ini; semua variabel
-disebut berdasarkan namanya saja.
-
-Seskup dokumen ini hanya host VPS. Supabase, DNS, dan konfigurasi aplikasi di
-dalam image tidak dibahas di sini. Untuk migrasi database dan urutan rilis, lihat
-`docs/DEPLOYMENT-REDUNDANCY.md`. Untuk penggantian secret, lihat
-`docs/SECRET-ROTATION.md`.
+Dokumen ini hanya membahas host VPS. Untuk migrasi, rilis, dan panel, lihat
+`DEPLOYMENT-REDUNDANCY.md`. Untuk penggantian secret, lihat `SECRET-ROTATION.md`.
 
 ## Gambaran host
 
-Fakta berikut berasal dari audit read-only pada satu waktu, dan beberapa bisa
-berubah. Semua di bawah ini harus diverifikasi ulang sebelum dipakai sebagai
-dasar keputusan.
+Fakta dari audit read-only pada satu waktu; verifikasi ulang sebelum dipakai
+sebagai dasar keputusan.
 
 | Komponen | Nilai |
-|----------|-------|
+|---|---|
 | OS | Ubuntu 26.04.1 LTS, kernel 7.0.0-34 |
 | Bentuk | KVM VM, 2 vCPU Intel Xeon Platinum 8255C |
 | RAM | 1,9 GiB dengan 465 MiB swap |
 | Disk | 39 GB, 37% terpakai |
-| Supervisor aplikasi | Docker, bukan systemd dan bukan PM2 |
+| Supervisor aplikasi | Docker, bukan systemd atau PM2 |
 | Aplikasi | satu container `next start`, Next.js 16.3.5 di Node 22.23.3 |
 | TLS dan reverse proxy | Traefik v3.6 di container `coolify-proxy`, port 80, 443, 443-udp |
 | Firewall | `ufw` aktif, default deny incoming |
-| Batas resource container | tidak ada sama sekali (`mem_limit 0`, `cpus 0.0`) |
-| Sumber image aplikasi | dibangun di GitHub Actions, ditarik dari GHCR |
+| Batas resource container | tidak ada (`mem_limit 0`, `cpus 0.0`) |
+| Sumber image aplikasi | GitHub Actions, ditarik dari GHCR |
 | Kode sumber di host | tidak ada, hanya `.env` dan `docker-compose.yaml` |
 
-Host yang sama juga menjalankan control-plane Postgres, Redis, PHP, dan
-BuildKit milik Coolify. Semua berebut memori yang sama dengan aplikasi, dan tidak
-ada container yang punya batas.
+Host yang sama juga menjalankan control-plane Postgres, Redis, PHP, dan BuildKit
+milik Coolify. Semua berebut memori yang sama, tanpa batas container.
 
 ## Urutan risiko
 
-| Urutan | Isu | Kenapa di urutan ini |
-|--------|-----|---------------------|
-| 1 | Panel Coolify terbuka ke internet | Satu login memberi akses ke seluruh deployment, env production, dan kunci Supabase. Kerusakan instan dan tidak ada jejak. |
-| 2 | Tidak ada batas resource, sudah 6 OOM kill | Melayani pelanggan, tapi dampaknya menumpuk dan sering baru terasa jauh kemudian. |
-| 3 | Traefik access logging | Sudah aktif per 2026-10-01, lihat bagian 3. |
-| 4 | Rutinitas operasional | Bukan celah keamanan, tapi satu-satunya cara agar isu di atas ketahuan sebelum jadi besar. |
-| 5 | SSH dijatahi brute-force | Area serang paling aktif di host ini, dan sudah pernah menyebabkan outage nyata. Sudah ditangani per 2026-10-01, lihat bagian 5. |
-
----
+| Urutan | Isu | Kenapa |
+|---|---|---|
+| 1 | Panel Coolify terbuka ke internet | Satu login memberi seluruh deployment, env production, dan kunci Supabase |
+| 2 | Tidak ada batas resource, sudah 6 OOM kill | Dampaknya menumpuk dan baru terasa jauh kemudian |
+| 3 | Traefik access logging | Sudah aktif per 2026-10-01 |
+| 4 | Rutinitas operasional | Satu-satunya cara agar isu di atas ketahuan sebelum membesar |
+| 5 | SSH dijatahi brute-force | Area serang paling aktif, pernah menyebabkan outage; ditangani 2026-10-01 |
 
 ## 1. Panel Coolify terbuka ke internet
 
-### Apa yang sebenarnya terbuka
-
-Dua port di bawah diizinkan masuk dari mana saja oleh `ufw`, dengan aturan
-yang sama dicerminkan untuk IPv6.
+### Yang sebenarnya terbuka
 
 | Port | Milik | Fungsi |
-|------|-------|--------|
-| `8000/tcp` | Coolify | Panel admin: env, deploy, log, terminal container, DNS, resource |
-| `6001:6002/tcp` | Coolify (Soketi) | Realtime/WebSocket untuk notifikasi dan progress build |
+|---|---|---|
+| `8000/tcp` | Coolify | Panel admin: env, deploy, log, terminal, DNS, resource |
+| `6001:6002/tcp` | Coolify (Soketi) | Realtime/WebSocket notifikasi dan progress build |
 
-Audit mengonfirmasi keduanya benar-benar terjangkau dari internet publik:
-`http://<IP>:8000/` mengembalikan 302 ke halaman login Coolify, dan
-`http://<IP>:6001/` mengembalikan 200.
+Keduanya terjangkau dari internet publik: `http://<IP>:8000/` mengembalikan 302
+ke login Coolify, `http://<IP>:6001/` mengembalikan 200.
 
-Kenapa ini lebih serius daripada port 22 yang juga terbuka: SSH memberi akses
-shell ke satu mesin, sedangkan panel Coolify memberi kendali atas *seluruh*
-deployment di host itu. Dari panel tersebut operator, atau penyerang yang sudah
-login, bisa:
+Panel lebih serius daripada port 22: SSH memberi shell ke satu mesin, panel
+memberi kendali seluruh deployment. Dari panel, penyerang bisa membaca
+`DATABASE_URL`, `SUPABASE_SECRET_KEY`, dan service-role key; memicu deploy image
+apa pun; membuka terminal container (praktis root di host); mengubah resource,
+volume, dan jaringan; serta memicu build yang menjadi penyebab OOM kill terbesar.
+Panel juga punya tombol baca/tulis `acme.json`, jadi memblokir akses panel bukan
+langkah mandiri.
 
-- membaca `DATABASE_URL`, `SUPABASE_SECRET_KEY`, dan service-role key production
-  dari environment aplikasi tanpa perlu password database;
-- memicu deploy image apa pun, jadi image attacker-controlled bisa jalan dengan
-  env production;
-- membuka terminal di dalam container, yang secara praktis setara akses root di
-  host;
-- mengubah resource, volume, dan jaringan Coolify;
-- memicu build, dan build di host ini adalah alasan OOM kill nomor satu.
+### UFW saja tidak cukup
 
-Panel ini juga biasanya punya satu-satunya tombol untuk membaca dan menulis
-`acme.json`, jadi memblokir akses panel tanpa langkah lain bukan langkah
-mandiri.
+Port `8080` dan `8443` ter-bind ke `0.0.0.0` di dalam host, tetapi timeout dari
+luar. Artinya ada Tencent Cloud security group yang juga memfilter dan tidak
+terlihat di `ufw`. Menghapus aturan `ufw` saja tidak menjamin `8000`/`6001`
+tertutup; sebaliknya, satu perubahan security group bisa mengekspos API Traefik.
 
-### Mengapa UFW saja tidak cukup
+Lapis ketiga adalah `/usr/local/sbin/docker-dnat-guard.sh`, yang menjaga `8080`,
+`6001`, dan `6002` di rantai `DOCKER-USER`.
 
-Audit menemukan sesuatu yang penting: port `8080` dan `8443` ter-*bind* ke
-`0.0.0.0` di dalam host, tapi dari luar timeout. Artinya ada **Tencent Cloud
-security group** di luar host yang juga ikut memfilter, dan filter itu tidak
-terlihat di `ufw`.
+- Aturan `ufw` pada port Docker tidak pernah bekerja. Port 8000 dipublish lewat
+  DNAT di `nat/PREROUTING`, jadi paket tidak sampai ke rantai `INPUT`.
+- Penjaga hanya mengatur `-i eth0`. Loopback dan trafik antar container tidak
+  tertutup, supaya SSH tunnel tetap bisa dipakai.
 
-Dua konsekuensi:
+Kalau panel tidak bisa diakses dari IP owner, periksa `DOCKER-USER` lebih dulu,
+bukan `ufw`. Jalur akses sah dan pemulihannya ada di
+[`DEPLOYMENT-REDUNDANCY.md`](DEPLOYMENT-REDUNDANCY.md#akses-panel-coolify).
 
-1. Menghapus aturan `ufw` saja tidak menjamin `8000` dan `6001` tertutup. Aturan
-   itu bisa tetap terbuka lewat jalur lain, atau rule lain di security group
-   bisa tetap mengizinkan.
-2. Sebaliknya, satu perubahan di security group yang tidak disengaja
-   cukup untuk mengekspos API Traefik, yang saat ini justru tersembunyi
-   oleh aturannya.
+### Nilai yang harus ditemukan sebelum pembatasan
 
-### Lapis ketiga: penjaga Docker
-
-Ada lapis ketiga yang tidak disinggung bagian ini, dan yang justru jadi
-penghalang sebenarnya. Berkas `/usr/local/sbin/docker-dnat-guard.sh` menjaga
-`8080`, `6001`, dan `6002` di rantai `DOCKER-USER`.
-
-Dua hal yang sering membuat orang salah arah di sini:
-
-- **Aturan `ufw` pada port Docker tidak pernah bekerja.** Port `8000` dipublish
-  ke container lewat DNAT di `nat/PREROUTING`, jadi paketnya dibelokkan dan
-  diteruskan, bukan diserahkan secara lokal. Paket seperti itu tidak pernah
-  sampai ke rantai `INPUT` tempat `ufw` bekerja. Aturan `ufw allow 8000`
-  terlihat bersih di `ufw status` tapi tidak memblokir apa pun.
-- **Penjaga hanya mengatur trafik `-i eth0`.** Loopback, jadi SSH tunnel dari
-  operator, dan trafik antar container tidak ikut tertutup. Itu disengaja,
-  supaya panel tetap bisa dicapai tanpa membuka port publik.
-
-Kalau setelah semua langkah di dokumen ini panel tidak bisa diakses dari
-IP owner, periksa `DOCKER-USER` lebih dulu, bukan `ufw`. Jalur akses yang sah
-dan langkah pemulihannya ada di [`COOLIFY-PANEL.md`](COOLIFY-PANEL.md).
-
-Jadi host ini punya dua lapis filter yang tidak saling tahu statusnya. Kalau
-hanya satu yang dirapikan, keadaan sebenarnya tetap tidak diketahui siapa pun.
-
-### Menemukan nilai yang harus diisi sebelum pembatasan
-
-Nilai IP ini harus ditemukan, bukan ditebak. Jalankan **dari komputer operator**,
-bukan dari VPS, karena yang diizinkan adalah IP egress operator:
+Jalankan dari komputer operator, bukan VPS, karena yang diizinkan adalah IP
+egress operator:
 
 ```bash
-# Jalankan di mesin operator, bukan di VPS.
 curl -sS https://api.ipify.org; echo
-```
-
-Kalau operator memakai IP dinamis dari ISP seluler, atau sering berpindah, lihat
-bagian trade-off di bawah sebelum memutuskan.
-
-Untuk melihat aturan yang benar-benar ada sekarang:
-
-```bash
-# Membaca saja, tidak mengubah apa pun.
 sudo ufw status numbered
 ```
 
-### Urutan yang benar: security group dulu, baru UFW
+Kalau IP dinamis dari ISP seluler atau sering berpindah, baca trade-off di bawah
+sebelum memutuskan.
 
-**Urutannya tidak boleh dibalik.** Alasannya:
+### Urutan: security group dulu, baru UFW
 
-Kalau aturan `ufw` untuk `8000` dan `6001` dihapus lebih dulu, dan ternyata
-Anda sedang mengakses panel lewat IP yang tidak akan Anda izinkan nanti, Anda
-kehilangan panel sebelum sempat membuktikan jalur baru Anda bekerja. Coolify
-adalah satu-satunya tempat untuk melihat env production dan memicu deploy ulang, jadi
-kehilangan panel bukan kehilangan satu halaman, tapi kehilangan kendali
-atas aplikasi.
+Jangan dibalik. Kalau `ufw` dihapus lebih dulu dan ternyata IP panel tidak akan
+diizinkan, panel hilang sebelum jalur baru terbukti. Coolify satu-satunya tempat
+melihat env production dan memicu deploy ulang. Kalau security group diubah
+lebih dulu, masih ada dua jalur sampai `ufw` dimatikan, sehingga kegagalan
+ditemukan saat masih ada jalan keluar. `22/tcp` tetap diizinkan selama proses.
 
- Sebaliknya, kalau security group yang diubah lebih dulu, panel masih bisa
-diakses selama UFW masih mengizinkan, sehingga ada dua jalur yang harus
-berhasil sebelum Anda mematikan yang kedua. Urutan ini membuat kegagalan
-ditemukan saat masih ada jalan keluar.
+Langkah 1, batasi di Tencent Cloud security group:
 
-Perlu digarisbawahi: `ufw` tetap boleh diizinkan untuk `22/tcp` sepanjang
-proses ini. Jangan pernah memutus SSH saat sedang mengunci panel.
+1. Buka **Cloud Firewall** atau **Security Group** yang menempel pada instance.
+   Pastikan group yang benar; sering ada beberapa group.
+2. Cari inbound yang mengizinkan `8000` dan `6001-6002` dari `0.0.0.0/0` dan
+   `::/0`.
+3. Ganti sumber ke `ADMIN_PUBLIC_IP/32` (IPv6 `/128` bila ada).
+4. Jangan sentuh aturan `22`, `80`, dan `443`.
+5. Simpan. Sebagian konsol menerapkan dalam hitungan detik, sebagian perlu
+   restart instance.
 
-### Langkah 1: batasi di Tencent Cloud security group
+Ekspor aturan dulu kalau konsol menyediakan, supaya ada yang bisa dikembalikan.
 
-1. Buka konsol Tencent Cloud, lalu **Cloud Firewall** atau **Security Group**
-   yang menempel pada instance VPS ini. Pastikan yang diedit adalah group
-   yang benar, karena sering ada beberapa group dan hanya satu yang berlaku.
-2. Cari aturan inbound yang mengizinkan `8000` dan `6001-6002` dari
-   `0.0.0.0/0` dan, jika ada, dari `::/0`.
-3. Ganti sumbernya menjadi `ADMIN_PUBLIC_IP/32`, dengan `ADMIN_PUBLIC_IP`
-   diisi nilai yang dihasilkan perintah penemuan di atas. Untuk IPv6, pakai
-   `/128` kalau memang ada.
-4. **Jangan sentuh** aturan `22`, `80`, dan `443`. Menghapus `22` di sini
-   berarti kehilangan akses SSH ke host, dan tidak ada perintah di dokumen ini
-   yang bisa memulihkannya dari luar.
-5. Simpan perubahan. Sebagian konsol menerapkan aturan dalam hitungan detik,
-   sebagian perlu restart instance.
+Langkah 2, buktikan belum terkunci sebelum mematikan lapis kedua:
 
-Periksa dulu apakah konsol Anda menyediakan ekspor aturan sebelum diedit, supaya
-ada yang bisa dikembalikan kalau salah:
+1. Buka dua sesi SSH terpisah; simpan satu sebagai jaring pengaman, idealnya di
+   `tmux` atau `screen`.
+2. Dari mesin operator, buka `http://<IP>:8000/` dan pastikan halaman login
+   muncul. Panel tidak memakai TLS; utamakan SSH tunnel.
+3. Buka `http://<IP>:6001/` dan pastikan tidak timeout.
+4. Pastikan health check masih hijau:
 
 ```bash
-# Dijalankan dari konsol atau mesin operator, sesuai alat yang Anda pakai.
-# Tujuannya menyalin daftar aturan sebelum diubah.
+curl -sS -o /dev/null -w '%{http_code}\n' https://atcell.my.id/api/health/ready
 ```
 
-### Langkah 2: buktikan Anda belum terkunci, sebelum mematikan lapis kedua
+Kalau salah satu gagal, berhenti dan perbaiki security group.
 
-Lakukan ini **sebelum** menyentuh `ufw`, dan jangan lewati:
-
-1. Buka dua sesi SSH terpisah. Satu sesi dipakai untuk bekerja, satu lagi
-   disimpan sebagai jaring pengaman. Kalau `tmux` atau `screen` tersedia,
-   jalankan sesi kedua di dalamnya, karena sesi yangiputus bisa diputus juga
-   oleh koneksi yang sama.
-2. Dari mesin operator, buka panel Coolify di `http://<IP>:8000/` dan pastikan
-   halaman login benar-benar muncul, bukan timeout. Panel ini tidak memakai
-   TLS; utamakan SSH tunnel dan pakai akses langsung hanya sebagai jalur
-   darurat.
-3. Dari mesin operator, buka `http://<IP>:6001/` dan pastikan tidak timeout.
-4. Pastikan health check aplikasi masih hijau dari luar:
-
-   ```bash
-   # Membaca saja.
-   curl -sS -o /dev/null -w '%{http_code}\n' https://atcell.my.id/api/health/ready
-   ```
-
-Kalau salah satu dari tiga pemeriksaan di atas gagal, **berhenti di sini** dan
-perbaiki security group dulu. Jangan lanjut ke langkah 3.
-
-### Langkah 3: hapus aturan UFW
-
-Perintah berikut **menghapus** dua aturan yang sedang mengizinkan siapa pun
-mengakses panel. Setelah selesai, panel hanya bisa dijangkau dari IP yang sudah
-diizinkan di security group.
+Langkah 3, hapus aturan UFW. Perintah ini **destruktif** untuk akses panel dari
+luar IP yang diizinkan. Baca nomor aturan tepat sebelum menghapus, jangan menebak:
 
 ```bash
-# DESTRUKTIF untuk akses panel dari luar IP yang diizinkan.
-# Baca nomor aturan dari "ufw status numbered" sebelumnya, jangan menebak.
 sudo ufw delete <NOMOR_ATURAN_8000>
 sudo ufw delete <NOMOR_ATURAN_6001_6002>
-```
-
-`NOMOR_ATURAN` sengaja tidak diisi dengan angka. Nomor aturan berubah setiap
-kali `ufw` dinormalisasi, jadi angka hasil audit lama bisa saja sudah
-menunjuk aturan yang salah. Ambil ulang nomornya tepat sebelum menghapus.
-
-Setelah menghapus, verifikasi bahwa tidak ada aturan `8000` atau `6001` yang
-masih terbuka dari `0.0.0.0/0`:
-
-```bash
-# Membaca saja.
 sudo ufw status numbered
 ```
 
-### Langkah 4: konfirmasi akhir
+Langkah 4, konfirmasi akhir:
 
-1. Dari mesin operator dengan IP yang diizinkan, panel Coolify masih bisa
-   dibuka.
-2. Dari jaringan lain, misalnya HP dengan jaringan seluler, `8000` dan `6001`
-   harus timeout, bukan 302 dan bukan 200.
-3. `https://atcell.my.id/` dan `https://login.atcell.my.id/` masih terbuka
-   publik. Kalau salah satunya ikut tertutup, security group keliruRules dan
-   harus dikoreksi.
+1. Dari IP yang diizinkan, panel masih bisa dibuka.
+2. Dari jaringan lain, `8000` dan `6001` timeout, bukan 302/200.
+3. `https://atcell.my.id/` dan `https://login.atcell.my.id/` tetap terbuka.
 4. `/api/health/ready` masih 200.
 
-### Rollback
-
-Kalau panel tidak bisa dibuka padahal seharusnya masih boleh:
+Rollback, hanya kalau masih punya sesi SSH hidup:
 
 ```bash
-# Mengembalikan akses panel dari mana saja, seperti kondisi sebelum.
-# Jalankan HANYA kalau Anda masih punya sesi SSH yang hidup.
 sudo ufw allow 8000/tcp comment 'panel coolify, sementara'
 sudo ufw allow 6001:6002/tcp comment 'panel coolify realtime, sementara'
 ```
 
-Rollback di sisi security group dilakukan lewat konsol: kembalikan sumber
-`0.0.0.0/0` pada dua aturan tadi, atau tambahkan aturan sementara untuk IP
-operator. Setelah panel bisa dibuka lagi, ulangi langkah 2 dan cari tahu
-mengapa jalur yang diizinkan tidak bekerja, biasanya IP operator ternyata
-berubah atau tidak cocok dengan yang didaftarkan.
+Di security group, kembalikan sumber `0.0.0.0/0` atau tambahkan aturan sementara
+untuk IP operator.
 
-### Trade-off yang harus disadari sebelum memutuskan
+### Trade-off yang harus disadari
 
-Membatasi `8000` ke IP sendiri berarti **Anda kehilangan panel kalau IP itu
-berubah**. Penyebab yang paling sering adalah IP dinamis dari ISP seluler,
-pergantian lokasi, atau pergantian perangkat. Pemulihan hanya lewat SSH, dan
-dari SSH Anda tidak punya dashboard.
-
-Pilihan yang tersedia, dan semuanya keputusan manusia:
+Membatasi ke IP sendiri berarti kehilangan panel setiap IP berubah. Pemulihan
+hanya lewat SSH, dan dari SSH tidak ada dashboard.
 
 | Pilihan | Keuntungan | Kerugian |
-|---------|------------|----------|
+|---|---|---|
 | Batasi ke satu IP statis | Paparan kontrol plane mendekati nol | Kehilangan panel setiap IP berubah |
-| Batasi ke dua IP, misalnya rumah dan kantor | Ada jalur cadangan | Dua permukaan yang harus dijaga |
-| Batasi ke WireGuard yang sudah ada | Tidak bergantung pada IP publik | Coolify harus dijangkau lewat tunnel, bukan browser biasa |
-| Tidak membatasi, perkuat akun saja | Tidak ada risiko terkunci | Panel tetap terbuka untuk semua orang di internet |
+| Batasi ke dua IP | Ada jalur cadangan | Dua permukaan yang dijaga |
+| Batasi ke WireGuard | Tidak bergantung IP publik | Coolify hanya lewat tunnel |
+| Tidak membatasi, perkuat akun | Tidak ada risiko terkunci | Panel tetap terbuka untuk semua |
 
-Kalau `SECRET-ROTATION.md` menyebut `COOLIFY_API_TOKEN` sebagai secret dengan
-dampak terbesar, itu konsisten dengan kenyataan di atas: panel dan token itu
-adalah dua jalan ke yang sama.
+`COOLIFY_API_TOKEN` diperlakukan sebagai secret berdampak terbesar karena panel
+dan token adalah dua jalan ke hal yang sama.
 
 ### Dua hal lain yang tidak terlihat dari luar
 
-Bagian di atas menulis soal port `8000` dan `6001:6002`. Dua hal lain juga
-tidak terlihat dari `ufw`, dari `ss -lntp`, maupun dari `docker ps`, tapi
-keduanya beda jenis dan tidak boleh dicampur:
+**Hostname panel dari `sslip.io`.** Coolify menyusun hostname panel sendiri dari
+IP publik, hasilnya `coolify.<IP-publik>.sslip.io`. `sslip.io` menerjemahkan IP
+di subdomain, jadi nama itu langsung bekerja tanpa didaftarkan. Akibatnya IP
+publik host terpublikasi di bawah domain yang tidak dimiliki siapa pun. Traefik
+juga meminta sertifikat Let's Encrypt sah untuk hostname itu, sehingga browser
+tidak memperingatkan. Sebelum diperbaiki, panel menjawab publik dengan 302 ke
+login memakai TLS valid, dan access log mencatat permintaan dari puluhan IP luar.
+Sertifikat `acme-probe.<IP>.sslip.io` juga ada di `acme.json`; router `catchall`
+memakai `certResolver: letsencrypt`, jadi hostname asing mana pun bisa memicu
+penerbitan sertifikat.
 
-- **Jalur ingress panel**: hostname panel yang memakai wildcard `sslip.io`.
-  Ini menambah jalan masuk ke panel, dan hilang begitu hostname-nya ditutup.
-- **Jalur otomasi deploy**: integrasi GitHub App yang kelihatan hidup
-  padahal mati. Ini tidak menambah jalan masuk apa pun. Yang hilang kalau
-  dimatikan adalah kemampuan deploy otomatis, dan kemampuan itu memang
-  sedang tidak dipakai.
+**Deploy otomatis lewat GitHub App mustahil di host ini.** Tabel `github_apps`
+hanya punya satu baris placeholder kosong: `organization`, `app_id`,
+`installation_id`, dan `client_id` kosong; `client_secret`, `webhook_secret`,
+dan `private_key_id` NULL. Tanpa identitas GitHub App, tidak ada `git push` yang
+bisa memicu deploy. Menutup hostname panel tidak menghilangkan kemampuan apa pun;
+menghidupkan GitHub App hanya memindahkan langkah deploy manual, tidak menambah
+kemampuan lain. Selama panel terjangkau siapa pun, ia tetap memberi env
+production, deploy image, dan terminal container.
 
-#### 1. Hostname panel berasal dari `sslip.io`, bukan dari nama pilihan Anda
+### Endpoint deploy yang dipakai
 
-Coolify tidak memakai nama pilihan Anda. Ia menyusun hostname panel sendiri
-dari IP publik host, hasilnya `coolify.<IP-publik>.sslip.io`. `sslip.io`
-adalah layanan wildcard DNS yang menerjemahkan IP yang tertulis di dalam
-subdomain, jadi nama itu langsung bekerja tanpa perlu didaftarkan.
+Semua deploy melewati endpoint bertanda tangan Coolify dari dalam VPS:
 
-Konsekuensinya jarang dipikirkan: **IP publik host ini terpublikasi di bawah
-domain yang tidak dimiliki siapa pun**. Siapa pun yang mencari host `sslip.io`
-di internet bisa menebak lalu mengetuk IP Anda tanpa satu pun catatan DNS
-milik Anda. Traefik juga sudah meminta sertifikat Let's Encrypt yang sah untuk
-hostname itu, sehingga browser tidak menampilkan peringatan apa pun dan
-penyerang tidak perlu membuat sertifikat sendiri.
-
-Ini bukan risiko teoretis. Sebelum diperbaiki, panel menjawab publik dengan
-`302` ke halaman login memakai TLS yang valid, dan access log Traefik
-mencatat permintaan ke hostname tersebut dari puluhan alamat IP luar yang
-berbeda. Yang diamankan bukan hanya halaman login, tapi terminal container yang
-secara praktis setara akses root, isi database produksi, dan kunci off-site
-backup.
-
-Sertifikat untuk `acme-probe.<IP>.sslip.io` juga ada di `acme.json`. Itu bukti
-mekanismenya berjalan otomatis: router `catchall` bawaan Coolify memakai
-`certResolver: letsencrypt`, jadi Traefik akan meminta sertifikat untuk
-hostname asing mana pun yang sampai ke host ini. Dikombinasikan dengan
-`sslip.io`, artinya siapa pun yang mengetuk IP Anda dengan header `Host` apa
-pun bisa membuat host ini menerbitkan sertifikat atas namanya sendiri.
-
-#### 2. Deploy otomatis lewat GitHub App mustahil, dan itu sudah dibuktikan
-
-Deploy lewat GitHub App **tidak pernah bisa jalan di host ini**. Tabel
-`github_apps` di database Coolify hanya punya satu baris, dan baris itu
-placeholder kosong: kolom `organization`, `app_id`, `installation_id`, dan
-`client_id` kosong semua, sedangkan `client_secret`, `webhook_secret`, dan
-`private_key_id` bernilai `NULL`. Yang terisi hanya `name`, `api_url`,
-`html_url`, `custom_user`, dan `custom_port`, yaitu nilai bawaan yang dibuat
-saat Coolify diinstal.
-
-Kalau baris itu tidak diisi, Coolify tidak punya identitas GitHub App untuk
-menerima event push. Jadi tidak ada `git push` ke `main` yang bisa memicu
-deploy, berapa pun kali pengaturan auto deploy pada aplikasi disetel.
-
-Dua hal ini tidak boleh disamakan. Menutup hostname panel tidak menyentuh
-kemampuan apa pun, karena tidak ada kemampuan yang hilang: yang hilang cuma
-jalan masuknya. Sebaliknya, menghidupkan GitHub App tidak menambah kemampuan
-lain; ia cuma memindahkan langkah `git push` menjadi deploy, dan langkah
-tersebut sudah dilakukan manual selama ini.
-
-Yang tetap berlaku apa adanya: begitu panel bisa dijangkau siapa pun, ia
-memberi akses environment production, deploy image, dan terminal container,
-sesuai daftar di bagian atas. Otomasi deploy yang mati tidak mengurangi
-risiko itu sedikit pun.
-
-#### Bentuk endpoint deploy yang benar-benar dipakai
-
-Semua deploy melewati endpoint bertanda tangan milik Coolify, dipanggil dari
-dalam VPS:
-
-```
+```text
 POST $COOLIFY_BASE_URL/api/v1/deploy?uuid=<uuid-aplikasi>
 Authorization: Bearer $COOLIFY_API_TOKEN
 ```
 
-Endpoint ini membaca `git_commit_sha` yang tersimpan di aplikasi, bukan HEAD
-branch. Sebelum deploy, arahkan field itu ke commit pin lewat
-`PATCH /api/v1/applications/<uuid-aplikasi>`; kalau tidak, Coolify akan
-mengulang commit lama meskipun `main` sudah bergerak.
+Endpoint membaca `git_commit_sha` tersimpan, bukan HEAD branch. Sebelum deploy,
+arahkan field itu ke commit pin lewat `PATCH /api/v1/applications/<uuid>`.
+`SECRET-ROTATION.md` memakai bentuk yang sama untuk `/api/v1/version`. Token tidak
+pernah ditulis di repo; ada di `~/.secrets` mesin operator dan dibuat lewat
+halaman **API Tokens**.
 
-`SECRET-ROTATION.md` sudah memakai bentuk yang sama untuk
-`$COOLIFY_BASE_URL/api/v1/version`, jadi tidak ada konvensi baru di sini. Nilai
-`COOLIFY_API_TOKEN` **tidak pernah ditulis di repository ini**. Ia ada di
-`~/.secrets` pada mesin operator dan dibuat lewat halaman **API Tokens** di
-panel Coolify. `SECRET-ROTATION.md` memperlakukannya sebagai secret dengan
-dampak terbesar, karena satu token itu sudah cukup untuk membaca seluruh
-environment produksi.
+Setelah hostname `sslip.io` ditutup, alamat panel tidak sama untuk semua
+pemanggil:
 
-Konsekuensi dari ditutupnya hostname `sslip.io`: alamat panel tidak lagi sama
-untuk semua pemanggil, jadi dua pemanggil harus punya variabelnya sendiri.
-Satu variabel untuk dua pemanggil pasti salah satu akan gagal.
-
-| Pemanggil | Variabel | Alamat yang bisa dijangkau | Token disimpan di |
+| Pemanggil | Variabel | Alamat | Token di |
 |---|---|---|---|
-| VPS ke panel | `COOLIFY_BASE_URL` | loopback atau jaringan Docker di dalam VPS | env proses deploy di VPS |
-| Operator di mesinnya | `COOLIFY_PANEL_URL` | hostname milik Anda, atau tunnel | `~/.secrets` di mesin operator |
+| VPS ke panel | `COOLIFY_BASE_URL` | loopback atau jaringan Docker | env proses deploy VPS |
+| Operator | `COOLIFY_PANEL_URL` | hostname sendiri atau tunnel | `~/.secrets` operator |
 
-Alamat jaringan Docker tidak bisa dipakai `curl` di mesin operator, jadi pointer
-tidak boleh memakai bentuk yang sama dengan pointer VPS. Sebaliknya, panel tidak
-bisa dijangkau lewat IP publik dari luar, jadi pointer VPS tidak boleh memakai
-hostname publik. Setelah hostname milik Anda ada, `COOLIFY_PANEL_URL` diarahkan
-ke hostname tersebut, sementara `COOLIFY_BASE_URL` tetap ke alamat lokal.
+Alamat jaringan Docker tidak bisa dipakai `curl` operator, dan panel tidak bisa
+dijangkau lewat IP publik dari luar. Token juga tidak bisa dipakai bersama:
+`COOLIFY_API_TOKEN` untuk VPS dimuat dari env proses deploy, bukan dari
+`~/.secrets` operator.
 
-Token juga tidak bisa dipakai bersama. `COOLIFY_API_TOKEN` untuk pemanggil VPS
-dimuat dari env proses deploy di VPS, bukan dari `~/.secrets` milik operator,
-karena keduanya punya lokasi sendiri. `SECRET-ROTATION.md` tetap memakai
-`~/.secrets` untuk sisi operator; tidak perlu diubah, hanya dibaca sebagai
-sisi operator saja.
+### Yang diubah di host
 
-#### Yang diubah di host
+Router hostname `sslip.io` dihapus dari
+`/data/coolify/proxy/dynamic/coolify.yaml`. Berkas dicadangkan ke
+`/data/coolify/proxy/backups/` dengan akhiran `.pre-sslip-lockdown`.
 
-Router untuk hostname `sslip.io` dihapus dari
-`/data/coolify/proxy/dynamic/coolify.yaml`, berkas konfigurasi yang dibaca
-Traefik sebagai router panel. Berkas sebelumnya dicadangkan lebih dulu ke
-`/data/coolify/proxy/backups/` dengan akhiran `.pre-sslip-lockdown`, jadi
-pengembalian cukup menyalin satu berkas.
+Router toko tidak pernah ada di berkas itu: `atcell.my.id`, `login.atcell.my.id`,
+dan `www.atcell.my.id` datang dari label `traefik.*` container aplikasi lewat
+provider `docker`. Karena itu `/api/health/ready`, `/id`, `/id/catalog`,
+`/manifest.webmanifest`, `/sw.js`, dan `/.well-known/assetlinks.json` tetap
+menjawab sama.
 
-Router milik aplikasi toko **tidak pernah ada di berkas itu**. Router
-`atcell.my.id`, `login.atcell.my.id`, dan `www.atcell.my.id` datang dari label
-`traefik.*` pada container aplikasi dan dimuat lewat provider `docker`, bukan
-provider `file`. Karena itu berkas ini tidak mungkin menyentuhnya, dan
-`/api/health/ready`, `/id`, `/id/catalog`, `/manifest.webmanifest`, `/sw.js`,
-serta `/.well-known/assetlinks.json` semuanya tetap menjawab sama seperti
-sebelumnya.
+Sertifikat di `acme.json` sengaja tidak dihapus. Traefik memuat sertifikat ACME
+terpisah dari router HTTP. Yang benar: **rute panel tidak lagi cocok, sementara
+sertifikatnya masih tersimpan dan mungkin masih disajikan.** Jangan menulis
+"sertifikat sudah tidak aktif".
 
-Sertifikat di `acme.json` **sengaja tidak dihapus**, dan tidak boleh diklaim
-sudah tidak aktif. Traefik memuat sertifikat ACME tersimpan ke konfigurasi TLS
-**secara terpisah dari router HTTP**. Karena itu ada dua hal yang tidak sama,
-dan dokumen ini hanya boleh menyatakan yang pertama:
+Verifikasi setelah reload:
 
-- **Rute panel tidak lagi cocok.** Ini yang berubah, dan ini yang membuktikan
-  panel tidak bisa dijangkau lewat hostname itu lagi.
-- **Sertifikat untuk SNI itu masih bisa disajikan.** Entri di `acme.json`
-  tidak hilang, dan Traefik masih memastikannya selama ada rute lain yang cocok
-  dengan nama tersebut.
-
-Jadi jangan menulis "sertifikat sudah tidak aktif". Yang benar ditulis:
-**rute panel tidak lagi cocok, sementara sertifikatnya masih tersimpan dan
-mungkin masih disajikan.**
-
-Perilaku Traefik setelah reload tidak bisa dipastikan dari dokumen, jadi
-periksa, jangan diasumsikan. Setelah router dihapus dan Traefik di-reload:
-
-```
-# 1. Rute panel benar-benar hilang dari konfigurasi dinamis
+```bash
 grep -c sslip /data/coolify/proxy/dynamic/coolify.yaml
-
-# 2. Rute apa saja yang masih hidup, ini yang menentukan
-#    apakah sertifikat SNI panel masih bisa disajikan
 docker exec <container-traefik> \
   grep -n 'Host(`' /data/coolify/proxy/dynamic/coolify.yaml | head -20
-
-# 3. Uji handshake. Ini pengamatan yang sebenarnya, bukan kesimpulan
 openssl s_client -connect <IP-VPS>:443 \
   -servername coolify.<IP>.sslip.io </dev/null 2>&1 \
   | grep -E 'subject=|issuer=|Verification'
-
-# 4. Entri sertifikat toko masih utuh
 docker exec <container-traefik> \
   grep -o '[a-z.]*atcell.my.id' /data/coolify/proxy/acme.json | sort -u
 ```
 
-Baca hasilnya begini:
+Kalau handshake tetap mengembalikan sertifikat, itu fakta yang dicatat, bukan
+kegagalan. Kalau sertifikat toko tidak muncul, kembalikan `coolify.yaml` dari
+cadangan. Jangan mengedit `acme.json`; router yang kembali akan meminta ulang
+sertifikat dari `catchall`.
 
-- Langkah 3 tidak mengembalikan sertifikat untuk SNI panel: ini yang
-  diharapkan. Catat begitu saja.
-- Langkah 3 **tetap mengembalikan sertifikat**: itu bukan kegagalan dan bukan
-  kebocoran. Catat sebagai fakta, lalu pastikan tidak ada rute lain yang masih
-  memakai nama itu untuk masuk.
-- Langkah 4 tidak menampilkan `atcell.my.id`, `login.atcell.my.id`, atau
-  `www.atcell.my.id`: **berhenti dan kembalikan `coolify.yaml` dari cadangan**,
-  lalu ulangi. Sertifikat toko ikut hilang berarti etalase dan portal ikut
-  mati.
+Penghapusan router bukan perbaikan permanen. `coolify.yaml` digenerate ulang
+dari `instance_settings`, yang masih berisi `sslip.io`. Perbaikan permanen:
 
-Mengedit `acme.json` untuk membuang satu entri tidak memperbaiki apa pun.
-Begitu router untuk hostname itu kembali, Traefik akan meminta ulang sertifikat
-dari `catchall` yang sama seperti sebelumnya, dan pengeditan itu hanya
-menambah satu titik gagal di tengah proses.
-
-#### Batas workaround ini, dan yang harus Anda kerjakan
-
-Penghapusan router di berkas itu **bukan perbaikan permanen**. Berkas
-`coolify.yaml` digenerate ulang oleh Coolify dari nilai instance domain di
-tabel `instance_settings`, dan nilai itu masih berisi `sslip.io`. Selama nilai
-itu tidak diganti, setiap kali Coolify menulis ulang berkasnya, router
-wildcard itu ikut kembali. Perbaikan permanen ada di tangan Anda, dan
-berikutnya:
-
-1. **Buat satu record DNS di zona `atcell.my.id`.** Panel tidak lagi bisa
-   memakai hostname yang Coolify susun sendiri dari IP. Record yang dibutuhkan:
+1. Buat record DNS di zona `atcell.my.id`:
 
    | Nama | Tipe | Nilai | TTL |
-   |------|------|-------|-----|
-   | `coolify` | `A` | IP publik host ini, sama dengan nilai A record `atcell.my.id` yang sudah ada | `300` sampai `3600` |
+   |---|---|---|---|
+   | `coolify` | `A` | IP publik host, sama dengan A record `atcell.my.id` | 300-3600 |
 
-   Alamat `coolify.atcell.my.id` sekarang **belum ada** dan tidak bisa dibuat
-   dari repo ini, karena tidak ada kredensial DNS provider di mesin operator
-   maupun di host. Record itu harus dibuat lewat konsol tempat zona
-   `atcell.my.id` dikelola.
+   `coolify.atcell.my.id` belum ada dan tidak bisa dibuat dari repo ini.
 
-2. **Ganti instance domain Coolify** ke `https://coolify.atcell.my.id` lewat
-   **Settings** di panel, lalu pastikan `COOLIFY_BASE_URL` di `~/.secrets`
-   ikut menunjuk ke hostname itu. Setelah langkah ini, penghapusan router
-   di atas menjadi permanen karena Coolify sendiri yang akan menulis hostname
-   yang benar.
+2. Ganti instance domain Coolify ke `https://coolify.atcell.my.id` lewat
+   **Settings**, lalu arahkan `COOLIFY_BASE_URL`/`COOLIFY_PANEL_URL` ke hostname
+   itu. Setelah ini penghapusan router menjadi permanen.
 
-3. **Daftarkan GitHub App** kalau Anda ingin `git push` ke `main` langsung
-   memicu deploy. Tanpa langkah ini, tidak ada konfigurasi webhook yang akan
-   bekerja, karena identitas GitHub App-nya memang belum pernah dibuat. Tidak
-   ada cara mengisinya dengan tangan di tabel `github_apps`, karena sekarang
-   Anda tahu persis kenapa kolom itu kosong.
+3. Daftarkan GitHub App kalau ingin `git push` ke `main` memicu deploy.
 
-Sampai langkah 1 dan 2 selesai, wildcard `sslip.io` akan tetap ada di internet
-dan akan terus mengembalikan IP publik host ini ke siapa pun yang mencarinya.
-Yang berubah hanya bahwa hostname itu tidak lagi menyajikan panel Anda. Yang
-bisa dihapus sepenuhnya adalah DNS-nya, dan itu hanya bisa Anda perbaiki di
-provider zona Anda.
-
----
+Sampai langkah 1 dan 2 selesai, wildcard `sslip.io` tetap ada di internet dan
+tetap mengembalikan IP host; yang berubah hanya bahwa hostname itu tidak lagi
+menyajikan panel.
 
 ## 2. Tidak ada batas resource di host 1,9 GiB
 
-### Keadaan sekarang
+Container aplikasi punya `mem_limit 0`, `memswap_limit 0`, dan `cpus 0.0`.
+Kernel bebas membiarkan proses mana pun tumbuh sampai host kehabisan memori,
+lalu memilih sendiri siapa yang dibunuh. Ada enam OOM kill dalam 24 jam terakhir,
+termasuk satu `npm install` saat build dan satu `next-server`. Bukti dari
+`journalctl -k`, karena `dmesg` dibatasi.
 
-Audit menemukan `mem_limit 0`, `memswap_limit 0`, dan `cpus 0.0` pada container
-aplikasi. Artinya Docker tidak pernah memberi tahu kernel "hapus proses ini kalau
-kelamaan hafal". Kernel bebas membiarkan proses mana pun tumbuh sampai
-seluruh host kehabisan memori, lalu memilih sendiri siapa yang dibunuh.
+Batas resource bukan perbaikan OOM; ia mengubah cara OOM terjadi:
 
-Enam OOM kill dalam 24 jam ke terakhir, termasuk satu `npm install` saat build
-dan satu `next-server`. Bukti diambil dari `journalctl -k`, karena `dmesg`
-dibatasi pada host ini.
+- Tanpa batas: kernel membunuh proses terbesar/teraktif, bisa aplikasi, BuildKit,
+  atau Coolify. `RestartCount` bisa tetap 0 karena kernel yang mematikan.
+- Dengan batas: Docker memanggil OOM killer pada container itu, mencatat
+  `OOMKilled=true`, dan atribusinya jelas.
 
-### Batas resource bukan workaround OOM
+Batas yang terlalu kecil justru membuat kill lebih sering, hanya jadi terlihat.
 
-Ini perlu ditegaskan karena mudah disalahpahami. Batas resource **bukan**
-perbaikan OOM kill; ia hanya mengubah cara OOM kill terjadi.
-
-- **Tanpa batas:** kernel kehabisan memori, lalu ia kill proses yang paling
-  besar atau paling aktif. Proses yang mati bisa container aplikasi, bisa
-  BuildKit, bisa Coolify, bisa apa saja. Tidak ada yang memberi tahu siapa
-  penyebabnya, dan `RestartCount` pada container bisa tetap `0` karena
-  kernel yang mematikan, bukan Docker.
-- **Dengan batas:** kernel tidak pernah harus memilih. Docker yang menjalankan
-  aplikasi memanggil OOM killer pada container itu sendiri, mencatat
-  `OOMKilled=true` di status container, dan kelihatan jelas dari mana.
-
-Jadi nilai tambah batas resource adalah atribusi, bukan pencegahan. Batas yang
-terlalu kecil justru *membuat* kill lebih sering, hanya jadi terlihat.
-
-### Mengukur dulu, baru menentukan angka
-
-Angka di bawah adalah titik awal yang masuk akal, **bukan** hasil pengukuran.
-Nilai yang benar hanya bisa diketahui dari pemakaian nyata host ini, dan angka
-yang dipakai di server lain tidak berlaku di sini.
-
-Ukur pemakaian memori aplikasi dalam kondisi nyata, termasuk saat etalase
-dimuat dan saat ada yang memakai portal. Dua cara:
+Ukur dulu, jangan menebak:
 
 ```bash
-# Membaca saja. Sample RSS container aplikasi, 60 sampel, satu per detik.
-# Jalankan saat server normal, lalu ulangi saat trafik paling tinggi.
 docker stats --no-stream --format '{{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' -a
-
-# Memakai angka RSS proses Node di dalam container.
-# Ganti CONTAINER_ID dengan hasil "docker ps".
 docker exec CONTAINER_ID sh -lc 'grep VmRSS /proc/1/status'
 ```
 
-Catat angka puncak, bukan angka rata-rata. Kalau kedua angka itu jauh berbeda,
-ambil yang lebih tinggi sebagai dasar.
-
-### Titik awal yang disarankan
-
-Setelah pengukuran, nilai berikut adalah titik awal yang masuk akal untuk host
-sebesar ini, dengan penalaran masing-masing:
+Catat angka puncak, bukan rata-rata. Titik awal yang masuk akal setelah
+pengukuran:
 
 | Setting | Titik awal | Penalaran |
-|---------|-----------|-----------|
-| `mem_limit` | `768m` | Host 1,9 GiB harus masih menyisakan ruang untuk Postgres, Redis, dan Coolify. Aplikasi Next.js pada 1 container umumnya berada di bawah 512 MiB saat idle, tapi cache produksi dan halaman berat bisa menaikkan itu. 768 MiB memberi ruang untuk lonjakan tanpa menyisakan terlalu sedikit untuk control plane. |
-| `cpus` | `1.0` | Host punya 2 vCPU dan dipakai bersama. Memberi 1 vCPU ke aplikasi membiarkan 1 vCPU untuk control plane, dan membuat antrean pada saat build tidak langsung terasa sebagai lambat seluruh host. |
+|---|---|---|
+| `mem_limit` | `768m` | Menyisakan ruang untuk Postgres, Redis, dan Coolify; Next.js idle biasanya di bawah 512 MiB |
+| `cpus` | `1.0` | Host 2 vCPU dipakai bersama; 1 vCPU untuk control plane |
 
-Dua hal yang wajib gesagt soal angka ini:
+Kalau puncak sudah melewati 768 MiB, naikkan batas, jangan memotong aplikasi.
+Nilai terlalu rendah lebih berbahaya daripada tanpa nilai.
 
-1. **Kalau hasil pengukuran menunjukkan pemakaian puncak sudah melewati 768 MiB,
-   naikkan batasnya, jangan memotong aplikasi.** Batas yang terlalu kecil akan
-   mengubah OOM kill yang sporadis menjadi OOM kill yang terjadwal.
-2. **Nilai yang terlalu rendah lebih berbahaya daripada tidak ada nilai.** Tanpa
-   batas, kernel membunuh saat host benar-benar habis, yang relatif jarang.
-   Dengan batas yang terlalu rendah, Docker membunuh aplikasi saat host masih
-   punya memori lega.
-
-### Di mana batas itu ditulis
-
-Ada dua tempat, dan pilihannya tergantung bagaimana Coolify memicu deploy:
-
-- **Resource limits di Coolify** (resource aplikasi → limits). Ini cara yang
-  paling stabil karena dikelola Coolify dan ikut di-set ulang saat deploy.
-- **`deploy.resources.limits` di compose.** Coolify menimpa sebagian opsi
-  compose, jadi hasilnya bisa berbeda dari yang ditulis.
-
-Cara memastikan hasil yang benar-benar berlaku: jangan lihat konfigurasi, tapi lihat
-apa yang dibaca Docker:
+Tulis batas di resource limits Coolify (paling stabil karena ikut di-set ulang
+saat deploy), bukan terutama di `deploy.resources.limits` compose yang sebagian
+ditimpa Coolify. Verifikasi yang benar-benar berlaku:
 
 ```bash
-# Membaca saja. Tampilkan batas yang benar-benar terpakai, bukan yang ditulis.
 docker inspect --format '{{.HostConfig.Memory}} {{.HostConfig.NanoCpus}}' CONTAINER_ID
 ```
 
-Nilai `Memory` dan `NanoCpus` yang muncul di sana adalah kebenaran. Kalau
-bernilai `0`, batasnya memang belum berlaku.
+Nilai `0` berarti batas belum berlaku. Pastikan `memswap_limit` tetap `0`; swap
+hanya 465 MiB, dan swap pada container membuat proses bertahan lebih lama dalam
+keadaan tidak sehat.
 
-Pastikan juga `memswap_limit` masih `0`. Kalau swap diaktifkan pada container
-di host yang hanya punya 465 MiB swap, proses bisa bertahan lebih lama dalam
-keadaan tidak sehat, dan kill terjadi lebih lambat serta lebih sulit
-didiagnosis.
-
-### Membastikan build tidak terjadi di host ini
-
-Build harus terjadi di GitHub Actions lalu ditarik dari GHCR. Kalau tidak, satu
-build saja bisa menghabiskan RAM host, dan itulah yang terlihat pada OOM kill
-`npm install`.
-
-Tiga pemeriksaan, semuanya membaca saja:
+Build harus terjadi di GitHub Actions lalu ditarik dari GHCR. Tiga pemeriksaan:
 
 ```bash
-# 1. Apakah ada proses build yang sedang berjalan?
-#    buildx, buildkit, atau "next build" adalah petunjuk utama.
 ps -eo pid,etimes,rss,args | grep -Ei 'next build|buildkit|docker build' | grep -v grep
-
-# 2. Builder BuildKit yang sedang aktif.
 docker buildx ls
-
-# 3. Jejak image yang dibangun lokal dalam 24 jam terakhir.
-#    Dibandingkan dengan image yang ditarik dari registry, keduanya beda Created.
 docker image ls --format '{{.Repository}}\t{{.CreatedSince}}' | head -20
 ```
 
-Kalau `ps` menemukan proses build, atau `docker buildx ls` menunjukkan builder
-default yang aktif dan pernah dipakai, build sedang terjadi di host. Mematikan
-BuildKit yang tidak dipakai lewat dashboard Coolify, bukan dengan
-`docker buildx prune` manual, karena dashboard yang bisa memulihkannya kalau
-salah pilih.
-
----
+Kalau ada build di host, matikan BuildKit yang tidak dipakai lewat dashboard
+Coolify, bukan `docker buildx prune` manual.
 
 ## 3. Traefik access logging
 
-### Kondisi setelah 2026-10-01: sudah aktif
-
-Sudah diaktifkan dan sudah terbukti menulis. Yang berlaku sekarang:
+Aktif sejak 2026-10-01 dan terbukti menulis.
 
 | Setting | Nilai | Kenapa |
-|---------|-------|--------|
-| Log path di host | `/var/log/traefik/access.log` | Bind mount `ro` dari compose proxy, jadi operator bisa `tail` tanpa `sudo` |
-| Format | `json` | `ClientHost` dan `RequestHost` terbaca tanpa parse teks |
-| Ukuran per baris | sekitar 809 byte, terukur | Dasar hitung biaya disk |
-| Rotasi | harian, `rotate 7`, `maxsize 100M`, kompres | Batas keras, bukan hopes-and-prayers |
-| Isi log | method, path, host, status, IP, ukuran, waktu | **Tidak** ada body request dan **tidak** ada header; sudah diverifikasi dengan `grep -iE 'authorization\|cookie'` yang mengembalikan nol |
-
-Perintah verifikasi, semuanya hanya baca:
+|---|---|---|
+| Log path | `/var/log/traefik/access.log` | Bind mount `ro`, operator bisa `tail` tanpa `sudo` |
+| Format | `json` | `ClientHost` dan `RequestHost` tanpa parse teks |
+| Ukuran baris | sekitar 809 byte | Dasar hitung disk |
+| Rotasi | harian, `rotate 7`, `maxsize 100M`, kompres | Batas keras |
+| Isi | method, path, host, status, IP, ukuran, waktu | Tidak ada body dan header; `grep -iE 'authorization\|cookie'` nol |
 
 ```bash
-# Menghitung pertumbuhan log.
 sudo wc -l /var/log/traefik/access.log
-
-# Distribusi status code, sumber utama untuk adjudicating item ini.
 sudo jq -r .OriginStatus /var/log/traefik/access.log | sort | uniq -c | sort -rn
-
-# Router mana yang melayani trafik.
 sudo jq -r .RouterName /var/log/traefik/access.log | sort | uniq -c | sort -rn
 ```
 
-### Batasan yang harus diketahui: file compose proxy bisa ditimpa Coolify
-
-Access log adalah konfigurasi **statis** Traefik, jadi tidak bisa ditulis di
-`/data/coolify/proxy/dynamic/`. Flag-nya harus hidup di command container, dan
-command container berasal dari `/data/coolify/proxy/docker-compose.yml`.
-
-Kalau Coolify pernah menulis ulang file itu dari template-nya sendiri, flag
-`--accesslog` hilang dan logging mati lagi tanpa error yang kelihatan. Kalau
-itu terjadi, perbaikannya satu perintah:
+Access log adalah konfigurasi statis, jadi flag harus hidup di command container
+dari `/data/coolify/proxy/docker-compose.yml`. Kalau Coolify menulis ulang file
+itu, `--accesslog` hilang tanpa error. Perbaikan:
 
 ```bash
-# Hanya kalau /var/log/traefik/access.log tidak lagi bertambah.
 sudo docker compose -f /data/coolify/proxy/docker-compose.yml up -d
 ```
 
-Cadangan compose sebelum perubahan ada di `/data/coolify/proxy/backups/`.
+Cadangan compose ada di `/data/coolify/proxy/backups/`.
 
-### Apa yang hilang sebelum 2026-10-01
+Sebelum logging aktif tidak ada request log sama sekali: tidak ada distribusi
+status code, jejak forensik, atau data pembeda bot dan pelanggan. App log hanya
+sekitar 41 baris dengan 8 error "Server Reference ID did not match the expected
+format", kemungkinan probing endpoint Server Action. Ini bukan celah data, tapi
+kehilangan kemampuan membuktikan apa yang terjadi.
 
-Sebelum logging aktif, dan tidak ada request log di mana pun di host. Akibatnya:
+Traefik v3 mengaktifkan access log lewat flag command container. Jangan
+meregenerasi container proxy tanpa validasi, dan jangan memvalidasi daftar flag
+yang ditulis tangan. `--accesslog.redactheaders`, `--accesslog.bufferSize`, dan
+`--providers.file.executable` tidak valid di v3.6. Outage 10-10-2026 terjadi
+karena hasil `check-config` tidak dipakai sebagai gerbang dan daftar flag yang
+divalidasi berbeda dari yang dipasang.
 
-- tidak ada distribusi status code, sehingga tidak ada cara tahu apakah
-  `/admin`, `/staff`, atau URL lain yang dulu menjadi soft 404 masih dibaca
-  crawler;
-- tidak ada jejak untuk forensik setelah insiden, termasuk saat ada
-  percobaan login berulang;
-- tidak ada data untuk membedakan traffic bot dari traffic pelanggan;
-- app log sendiri hanya sekitar 41 baris dengan 8 error, semuanya pola
-  "Server Reference ID did not match the expected format" dalam dua rentetan
-  empat, yang paling mungkin adalah probing eksternal endpoint Server Action.
-  Pola itu tidak bisa ditelusuri lebih jauh tanpa request log.
-
-Ini bukan celah yang mengekspos data. Ini kehilangan kemampuan untuk membuktikan
-apa yang terjadi.
-
-### Cara mengaktifkannya, dan apa yang benar-benar dipakai
-
-Traefik v3 mengaktifkan access log lewat konfigurasi **statis**, yaitu flag
-pada command container, bukan lewat label per-router dan bukan lewat file di
-`/dynamic/`. Yang dipakai di host ini adalah opsi 1, flag pada command
-container, karena itu satu-satunya tempat yang tidak butuh perubahan pada image
-Coolify. Alasannya sudah ditulis di bagian atas bagian ini.
-
-Yang penting dan tidak ada di runbook lama: **jangan pernah meregenerasi
-container proxy tanpa memvalidasi flag-nya lebih dulu, dan jangan pernah
-memvalidasi daftar flag yang ditulis tangan.** Traefik menolak opsi yang tidak
-dikenal dengan `failed to decode configuration from flags`, dan karena
-`restart: unless-stopped` ada di compose, container itu masuk crash-loop dan
-proxy hilang sama sekali. `--accesslog.redactheaders` dan
-`--accesslog.bufferSize` ternyata **tidak** valid di Traefik v3.6, dan
-`--providers.file.executable` juga tidak valid.
-
-Outage 10-10-2026 yang singkat itu **bukan** karena metode validasinya salah.
-Metodenya sudah benar dan sudah dipakai, `check-config` sudah gagal dengan
-menyebut `redactheaders`, tapi dua hal tetap keliru:
-
-1. Hasil validasi **tidak dipakai sebagai gerbang**. `docker compose up -d`
-   jalan tanpa syarat, padahal `rc=1` sudah tercetak di baris sebelumnya.
-2. Daftar flag yang divalidasi **ditulis tangan dan terpisah** dari daftar
-   flag yang benar-benar dipasang. Keduanya sudah berbeda sebelum pengujian,
-   jadi hijau di sana tidak membuktikan compose yang dipasang ikut teruji.
-
-Karena itu validasinya harus dua hal sekaligus: ambil daftar flag dari file
-compose itu sendiri, dan jadikan hasilnya syarat. Ganti seluruh blok
-`command:` dengan hasil ekstraksi:
+Validasi yang benar mengambil flag dari compose dan menjadikan hasilnya syarat:
 
 ```bash
-# Flag diambil dari file compose yang nyata, bukan diketik ulang.
 sudo python3 - <<'PY'
-import re, sys
+import re
 src = open('/data/coolify/proxy/docker-compose.yml').read()
 block = re.search(r'command:\n((?:\s+-\s.*\n)+)', src).group(1)
 flags = re.findall(r"-\s*'([^']+)'", block)
@@ -734,81 +387,29 @@ open('/tmp/traefik-flags.txt','w').write('\0'.join(flags))
 print(len(flags), 'flags extracted')
 PY
 
-# Validasi di container sekali jalan. Container production tidak tersentuh.
 docker run --rm -v /data/coolify/proxy:/traefik traefik:v3.6 \
   xargs -0 -a /tmp/traefik-flags.txt check-config
 RC=$?
-
-# GERBANG. Tanpa baris ini validasi cuma saran, dan outage tetap mungkin.
 if [ "$RC" -ne 0 ]; then
   echo "VALIDASI GAGAL, PROXY TIDAK DI-TOUCH"
   exit 1
 fi
-
 sudo docker compose -f /data/coolify/proxy/docker-compose.yml up -d
 ```
 
-Kalau blok di atas dipakai, daftar flag yang diuji dan yang dipasang dijamin
-sama, dan proxy tidak mungkin dibangun dari konfigurasi yang belum lolos cek.
-
-Lihat dulu konfigurasi yang sedang dipakai:
+Lihat konfigurasi yang dipakai:
 
 ```bash
-# Membaca saja. Menampilkan command Traefik yang sebenarnya dijalankan Coolify.
 docker inspect --format '{{json .Config.Cmd}}' coolify-proxy
-```
-
-Opsi kedua yang pernah dicoba di runbook lama, yaitu menaruh konfigurasi
-statis di `traefik.yml` dan mengarahkannya dengan `--configFile`, tidak
-dipakai di sini. Alasannya: flag `--configFile` itu sendiri tetap harus
-menempel di command container, jadi tidak ada yang benar-benar kebal
-regenerasi Coolify. Yang menambah lapisan masalah saja.
-
-Format `json` dipilih supaya log bisa dibaca dengan `jq` saat dicari, dan
-supaya `ClientHost` dan `RequestHost` tidak perlu diparse dari teks.
-
-Setelah aktif, pastikan benar-benar menulis:
-
-```bash
-# Membaca saja.
 tail -n 3 /var/log/traefik/access.log
 ```
 
-Kalau file tidak bertambah, periksa dua hal: flag benar-benar masuk ke command
-container, dan `docker ps --filter name=coolify-proxy` tidak sedang
-`Restarting`.
+Opsi `traefik.yml` + `--configFile` tidak dipakai karena flag itu tetap menempel
+di command container, jadi tidak kebal regenerasi.
 
-### Ukur dulu, lalu putuskan rotasi
-
-Aktifkan logging, biarkan berjalan sehari pada trafik normal, lalu ukur. Angka
-kapasitas disk di bawah bukan tebakan yang layak dipercaya.
-
-```bash
-# Membaca saja, satu hari setelah logging aktif.
-docker exec coolify-proxy sh -lc 'du -h /var/log/traefik/access.log'
-```
-
-Disk 39 GB dengan 37% terpakai masih longgar, dan sekitar 930 MB bisa
-direklamasi dari image lama plus build cache. Jadi rotasi bukan kondisi
-darurat, tapi logging tanpa rotasi adalah bom waktu yang tidak terlihat,
-karena file log tidak pernah muncul di `du` direktori home.
-
-Rekomendasi rotasi, dan apa yang dipakai di host ini:
-
-- rotasi harian, karena pola trafik toko berubah antara pagi dan malam;
-- simpan 7 sampai 14 hari, cukup untuk menyelidiki insiden minggu lalu tanpa
-  menyimpan data pelanggan lebih lama dari yang perlu;
-- kompres file yang sudah dirotasi, dan hapus yang sudah terkompresi lebih tua
-  dari 30 hari;
-- salin ke luar host kalau investigasi insider menjadi kekhawatiran, karena log
-  di host yang sama bisa ikut hilang bersama mesinnya.
-
-Yang benar-benar terpasang ada di `/etc/logrotate.d/traefik`, dengan `rotate 7`
-dan `maxsize 100M`. `maxsize` sengaja ditambahkan di atas `daily`: `daily`
-sendiri tidak membatasi ukuran, jadi satu hari traffic alone bisa menulis
-miliaran byte, dan di host 1,9 GiB itu tidak bisa diasumsikan aman.
-
-Unit `logrotate` yang terpasang persis seperti ini, bukan contoh:
+Rotasi terpasang di `/etc/logrotate.d/traefik`, `rotate 7`, `maxsize 100M`.
+`daily` saja tidak membatasi ukuran; satu hari trafik bisa menulis miliaran byte.
+`copytruncate` dipilih karena Traefik memegang file descriptor terus-menerus.
 
 ```text
 /var/log/traefik/access.log {
@@ -823,38 +424,25 @@ Unit `logrotate` yang terpasang persis seperti ini, bukan contoh:
 }
 ```
 
-`copytruncate` dipilih karena Traefik memegang file descriptor secara terus
-menerus, jadi `create` akan membuat Traefik menulis ke file yang sudah tidak
-lagi dirotasi.
+Disk 39 GB dengan 37% terpakai masih longgar; sekitar 930 MB bisa direklamasi
+dari image lama dan build cache.
 
----
+## 4. Rutinitas operasional
 
-## 4. Rutinitas yang bisa didokumentasikan
+Jalankan sebulan sekali atau setelah deploy besar. Semua perintah membaca saja.
 
-Bagian ini untuk orang yang tidak memperdalam server. Semua perintahnya
-membaca saja dan tidak mengubah apa pun. Jalankan sekali sebulan, atau setelah
-deploy besar, dan simpan hasilnya.
+| Nomor | Yang dicek | Tanda bahaya |
+|---|---|---|
+| 1 | Sertifikat TLS | Sisa di bawah 21 hari |
+| 2 | Kapasitas disk | Di atas 80% |
+| 3 | Inode | Di atas 80% |
+| 4 | OOM kill | Ada kill dalam 7 hari |
+| 5 | Health aplikasi | Status selain ready |
+| 6 | Memori dan swap | Swap naik terus |
 
-### Pemeriksaan rutin
-
-| Nomor | Yang dicek | Perintah | Tanda bahaya |
-|-------|------------|----------|--------------|
-| 1 | Sertifikat TLS | lihat di bawah | Sisa di bawah 21 hari |
-| 2 | Kapasitas disk | lihat di bawah | Di atas 80% |
-| 3 | Inode | lihat di bawah | Di atas 80% |
-| 4 | OOM kill | lihat di bawah | Ada kill dalam 7 hari terakhir |
-| 5 | Health aplikasi | lihat di bawah | Status selain ready |
-| 6 | Memori dan swap | lihat di bawah | Swap naik terus |
-
-### 1. Sisa masa berlaku sertifikat
-
-Ada tiga sertifikat terpisah, yaitu apex, login, dan www. Semuanya kedaluwarsa
-di hari yang sama, jadi satu pemeriksaan sudah cukup, tapi catat jumlah
-perodayanya karena ACME auto-renewal bisa gagal diam-diam kalau port 80
-tertutup.
+Sertifikat apex, login, dan www kedaluwarsa di hari yang sama:
 
 ```bash
-# Membaca saja. Ganti setiap domain di bawah.
 for d in atcell.my.id login.atcell.my.id www.atcell.my.id; do
   printf '%s: ' "$d"
   echo | openssl s_client -servername "$d" -connect "$d:443" 2>/dev/null \
@@ -862,275 +450,157 @@ for d in atcell.my.id login.atcell.my.id www.atcell.my.id; do
 done
 ```
 
-Kalau `openssl s_client` tidak tersedia di host, jalankan dari mesin operator;
-pemeriksaan ini tidak butuh akses root.
-
-### 2. Kapasitas disk
-
 ```bash
-# Membaca saja.
 df -h / /var/lib/docker
 docker system df
-```
-
-Sekitar 930 MB dapat direklamasi dari image yang tidak terpakai dan build
-cache, dan itu tidak mendesak pada 37% terpakai. Bersihkan hanya kalau
-disk benar-benar mulai penuh, dan perhatikan risikonya: `docker system prune -a`
-menghapus image yang belum dipakai, termasuk image lama yang mungkin masih
-dibutuhkan untuk rollback cepat.
-
-### 3. Inode
-
-Penuh pada inode menghasilkan error "no space left on device" padahal `df`
-masih longgar, jadi harus dicek terpisah.
-
-```bash
-# Membaca saja.
 df -i / /var/lib/docker
-```
-
-### 4. OOM kill
-
-`dmesg` dibatasi pada host ini, jadi `journalctl -k` satu-satunya sumber yang
-bisa dibaca. Dua perintah ini cukup untuk pemeriksaan bulanan.
-
-```bash
-# Membaca saja. Daftar OOM kill dalam 7 hari terakhir.
 sudo journalctl -k --since "7 days ago" | grep -iE 'out of memory|oom-kill|killed process'
-
-# Hitung supaya mudah dibandingkan bulan ke bulan.
 sudo journalctl -k --since "7 days ago" | grep -ciE 'oom-kill'
-```
-
-Kalau jumlahnya naik dari bulan sebelumnya, jangan langsung menaikkan
-`mem_limit`. Bandingkan dulu nama proses yang tercatat pada baris
-`Killed process`, karena itu yang membedakan kill pada aplikasi dari kill
-pada build atau control plane.
-
-### 5. Health endpoint
-
-`/api/health/ready` mengembalikan lima boolean. Endpoint ini dipakai sebagai
-Docker healthcheck, jadi statusnya selalu cerminan kondisi nyata, bukan
-hasil cache.
-
-```bash
-# Membaca saja.
 curl -sS https://atcell.my.id/api/health/ready
-```
-
-Cara membaca hasilnya:
-
-| Boolean | Arti kalau false |
-|---------|------------------|
-| `supabaseConfigured` | Env Supabase public tidak lengkap, portal akan gagal |
-| `databaseConfigured` | `DATABASE_URL` kosong, semua yang baca database gagal |
-| `databaseReachable` | Koneksi ke Supabase tidak berhasil, cek jaringan dan IP allowlist |
-| `databaseSchemaReady` | Migrasi wajib belum diterapkan, **jangan** andalkan fitur yang membacanya |
-| `serviceRoleConfigured` | `SUPABASE_SECRET_KEY` atau service-role key kosong, `requireRole()` akan menolak semua aksi tulis |
-
-Status `503` berarti belum siap dan harus dianggap sebagai tidak siap, bukan
-sebagai izin memakai data mock. Response 200 dengan semua boolean true berarti
-sehat; health check sudah 5 sampel berturut-turut keluar 0, jadi kondisi saat
-audit itu sehat.
-
-### 6. Memori dan swap
-
-```bash
-# Membaca saja.
 free -h
 docker stats --no-stream
 ```
 
-Swap 465 MiB adalah jaring pengaman, bukan tempat kerja. Kalau `Swap` di
-`free -h` naik terus selama beberapa pemeriksaan berturut-turut, host sedang
-bertekanan dan container yang aktif perlu diperiksa, bukan di-restart.
+Inode penuh menghasilkan "no space left on device" padahal `df` longgar. Jangan
+langsung menaikkan `mem_limit` saat OOM naik; bandingkan nama proses pada
+`Killed process`. `docker system prune -a` menghapus image lama yang mungkin
+dibutuhkan untuk rollback cepat.
 
-### Catatan lain yang perlu diketahui operator
+`/api/health/ready` mengembalikan lima boolean:
 
-- Ada `Caddyfile` mati di `/data/coolify/proxy/dynamic/`, isinya
-  `import /dynamic/*.caddy` tanpa file yang cocok, dan label `caddy_*` yang
-  mengiklankan zstd yang diabaikan Traefik. Ini sisa konfigurasi, tidak
-  berpengaruh pada serving, dan tidak perlu disentuh kecuali sebagai bagian
-  dari pembersihan yang disengaja.
-- Uptime 15,5 jam saat audit, dan `RestartCount=0` pada container aplikasi.
-  Dua angka itu wajar setelah deploy, tapi `RestartCount` yang naik berulang
-  tanpa deploy adalah tanda container yang tidak sehat.
-- Tabel `environment_variables` Coolify **tidak** menyimpan setiap variabel
-  production dua kali. Terbukti per 2026-10-01: 14 baris untuk 7 kunci, dan
-  seluruhnya milik satu aplikasi. Pecahnya adalah `is_preview`, yaitu tujuh
-  baris `false` untuk production dan tujuh baris `true` untuk preview.
-  `byte_identical_duplicate_groups` bernilai nol, dan tidak ada satu pun grup
-  dengan owner + kunci + `is_preview` yang sama lebih dari satu baris. Ada
-  laporan sebelumnya yang menyebut ini duplikat; laporan itu salah. Jangan
-  menghapus baris mana pun: baris `false` hilang berarti production kehilangan
-  `DATABASE_URL` dan kunci Supabase, baris `true` hilang berarti preview
-  kehilangan env-nya.
+| Boolean | Arti kalau false |
+|---|---|
+| `supabaseConfigured` | Env Supabase public tidak lengkap |
+| `databaseConfigured` | `DATABASE_URL` kosong |
+| `databaseReachable` | Koneksi Supabase gagal; cek jaringan dan allowlist |
+| `databaseSchemaReady` | Migrasi wajib belum diterapkan |
+| `serviceRoleConfigured` | Kunci service role kosong; `requireRole()` menolak tulis |
 
----
+Status 503 berarti belum siap, bukan izin memakai data mock. Swap 465 MiB adalah
+jaring pengaman, bukan tempat kerja; swap yang naik terus berarti host tertekan.
+
+Catatan lain:
+
+- `Caddyfile` mati di `/data/coolify/proxy/dynamic/` hanya sisa konfigurasi,
+  tidak berpengaruh pada serving.
+- `RestartCount` yang naik berulang tanpa deploy adalah tanda container tidak
+  sehat.
+- Tabel `environment_variables` Coolify tidak menyimpan production dua kali.
+  Per 2026-10-01 ada 14 baris untuk 7 kunci: tujuh `is_preview=false` dan tujuh
+  `is_preview=true`. `byte_identical_duplicate_groups` nol. Jangan menghapus
+  baris; baris `false` hilang berarti production kehilangan env, baris `true`
+  hilang berarti preview kehilangan env.
 
 ## 5. SSH dijatahi brute-force
 
-Sudah ditangani per 2026-10-01. Ini urutan masuknya, karena hampir semua host
-publik punya masalah ini dan hampir tidak ada yang menulis detailnya.
+Ditangani per 2026-10-01. Audit dua jam pertama mencatat 202 baris `Failed
+password` atau `Invalid user`, dan `fail2ban` belum terpasang. `sshd` berjalan
+dengan `MaxStartups 10:30:100` dan `PerSourceMaxStartups none`. Nilai `none`
+berbahaya: satu scanner dengan banyak koneksi paralel bisa menghabiskan jendela
+unautentikasi, lalu koneksi operator di-drop acak. Di host ini pernah menyebabkan
+outage nyata.
 
-### Gejalanya
-
-Audit dua jam pertama mencatat 202 baris `Failed password` atau
-`Invalid user`, dan `fail2ban` sama sekali tidak terpasang. `sshd` berjalan
-dengan `MaxStartups 10:30:100` dan `PerSourceMaxStartups none`.
-
-`PerSourceMaxStartups none` adalah bagian yang sebenarnya berbahaya. Tanpa itu,
-satu scanner dengan banyak koneksi paralel bisa menghabiskan seluruh
-jendela unautentikasi sendiri, dan setiap koneksi operator yang masuk
-selama itu akan di-drop secara acak. Di host ini sudah sampai ke outage
-nyata sekali.
-
-### Yang dipasang, dan pilihannya
-
-Semua perubahan sshd ada di satu drop-in,
-`/etc/ssh/sshd_config.d/60-bruteforce-resilience.conf`:
+Perubahan ada di `/etc/ssh/sshd_config.d/60-bruteforce-resilience.conf`:
 
 | Setting | Nilai | Penalaran |
-|---------|-------|-----------|
-| `PerSourceMaxStartups` | `3` | Satu sumber maksimal punya 3 koneksi di jendela unautentikasi. Cukup untuk manusia, dan membuat sepuluh scanner hanya bisa mencapai 30 slot, bukan seluruh jendela |
-| `MaxStartups` | `50:30:100` | Mulai acak-drop di 50 koneksi unautentikasi, tolak semua di 100. Cukup jauh di atas 10 supaya burst scanner tidak mengunci operator, dan masih wajar untuk host 1,9 GiB |
+|---|---|---|
+| `PerSourceMaxStartups` | `3` | Satu sumber maksimal 3 koneksi; sepuluh scanner hanya mencapai 30 slot |
+| `MaxStartups` | `50:30:100` | Acak-drop mulai 50, tolak semua di 100; jauh di atas 10 agar burst tidak mengunci operator |
 
-Nama file drop-in sengaja `60-`, bukan `99-`, karena `Include
-/etc/ssh/sshd_config.d/*.conf` ada di baris 24 `sshd_config`, yaitu **sebelum**
-badan file itu, dan OpenSSH memakai nilai pertama yang dibaca untuk satu
-keyword. Drop-in bernomor kecil menang atas file yang lebih besar.
+Nama `60-` dipakai karena `Include` ada di baris 24 `sshd_config`, sebelum badan
+file; OpenSSH memakai nilai pertama untuk satu keyword.
 
-`fail2ban` dipasang dengan jail `sshd`, jail time 1 jam, find time 10 menit,
-maxretry 5, `backend = systemd`, ban lewat `nftables-multiport`. Ban pertama
-jatuh dalam beberapa menit setelah jail hidup, tanpa tindakan manual.
+`fail2ban` memakai jail `sshd`, jail time 1 jam, find time 10 menit, maxretry 5,
+`backend = systemd`, ban `nftables-multiport`. Ban pertama jatuh dalam beberapa
+menit setelah jail hidup.
 
-### Yang melindungi operator, dan kenapa itu bukan kebetulan
-
-IP egress operator ada di `ignoreip` **sebelum** fail2ban dinyalakan:
+IP egress operator ada di `ignoreip` sebelum fail2ban dinyalakan:
 
 ```bash
-# Membaca saja. Kalau IP operator tidak muncul di sini, ban itu tidak aman.
 sudo fail2ban-client get sshd ignoreip
 ```
 
-`ignoreip` dievaluasi sebelum ban apa pun, jadi operator punya jaminan keras
-untuk tidak pernah di-ban, bukan sekadar kemungkinan kecil.
+`ignoreip` dievaluasi sebelum ban, jadi operator punya jaminan keras tidak
+di-ban. Jangan pernah menjalankan `fail2ban-client` pertama kali tanpa
+`ignoreip`; pemulihannya butuh konsol provider.
 
-Jangan pernah menjalankan `fail2ban-client` untuk pertama kalinya tanpa
-menulis `ignoreip` lebih dulu. Jail yang aktif dengan `ignoreip` kosong akan
-memban IP operator pada percobaan gagal pertama, dan pemulihannya butuh
-konsol provider.
+Dua jebakan:
 
-### Dua jebakan yang sudah memakan waktu sekali
+1. `jail.conf` memuat `jail.d/*.conf`; file `.local` tidak dibaca dan fail2ban
+   tidak mengeluh. Setelah memasang, pastikan `ignoreip` benar-benar terisi.
+2. Reload, jangan restart `sshd`. `systemctl reload ssh` mempertahankan sesi
+   berjalan sebagai lifeline.
 
-1. **Ekstensi jail.** `jail.conf` memuat `jail.d/*.conf`. File `.local` di
-   direktori yang sama **tidak** dibaca, dan fail2ban tidak complain apa pun
-   soal itu. Jail tetap jalan, dengan default yang salah. Setelah memasang,
-   selalu pastikan `ignoreip` benar-benar terisi di jail yang aktif.
-2. **Reload, jangan restart sshd.** `systemctl reload ssh` mempertahankan
-   sesi yang sedang berjalan, jadi sesi itu tetap lifeline kalau reload
-   ternyata gagal.
-
-### Verifikasi setelah perubahan
+Verifikasi:
 
 ```bash
-# Hanya membaca. Effective settings harus MaxStartups 50:30:100 dan
-# PerSourceMaxStartups 3.
 sudo sshd -T | grep -iE 'maxstartups|persourcemaxstartups'
-
-# Validasi selalu mendahului reload.
 sudo sshd -t && sudo systemctl reload ssh
-
-# Jail hidup dan IP operator ada di ignoreip.
 systemctl is-active fail2ban
 sudo fail2ban-client status sshd
-
-# Yang paling penting: buka sesi baru dari mesin operator setelah semua di atas.
 ssh ubuntu@<IP> 'hostname'
 ```
 
-Kalau `sudo sshd -t` gagal, **jangan** reload. Hapus drop-in, validasi ulang,
-lalu perbaiki di luar jam sibuk.
-
----
+Kalau `sshd -t` gagal, jangan reload. Hapus drop-in, validasi ulang, perbaiki di
+luar jam sibuk.
 
 ## Belum ditangani dan masih terbuka
 
-Bagian ini sengaja tidak berisi rekomendasi, karena isunya butuh keputusan
-manusia, bukan keputusan teknis yang bisa diambil dari dokumen.
+Bagian ini sengaja tidak berisi rekomendasi karena butuh keputusan manusia.
 
 ### 1. Apakah panel Coolify perlu dibatasi sama sekali
 
-Belum diputuskan. Argumennya nyata di kedua arah. Panel terbuka ke seluruh
-internet, dan itu memberi akses ke kunci production. Tapi membatasi ke IP
-sendiri berarti kehilangan panel setiap IP berubah, dan pemulihan hanya lewat
-SSH.
-
-Yang dibutuhkan sebelum memutuskan: apakah `COOLIFY_API_TOKEN` dan akses panel
-dipakai rutin dari lebih dari satu lokasi, dan apakah sudah ada jalur
-alternatif seperti WireGuard yang sudah aktif. Tanpa jawaban itu, perintah di
-bagian 1 sebaiknya tidak dijalankan.
+Belum diputuskan. Panel terbuka memberi akses ke kunci production, tetapi
+membatasi ke IP sendiri berarti kehilangan panel setiap IP berubah, dan
+pemulihan hanya lewat SSH. Yang dibutuhkan sebelum memutuskan: apakah
+`COOLIFY_API_TOKEN` dan akses panel dipakai rutin dari lebih dari satu lokasi,
+dan apakah sudah ada jalur alternatif seperti WireGuard yang aktif. Tanpa
+jawaban itu, perintah bagian 1 sebaiknya tidak dijalankan.
 
 ### 2. Apa yang sebenarnya diizinkan Tencent Cloud security group
 
-Belum terverifikasi dari audit, dan ini adalah celah pengetahuan yang
-paling serius di dokumen ini. Yang diketahui hanya bahwa `8080` dan `8443`
-terbinds ke `0.0.0.0` tapi timeout dari luar, sehingga ada filter off-host yang
-aktif. Yang tidak diketahui: daftar lengkap aturan inbound dan outbound, apakah
-ada group lain yang juga menempel, dan apakah port Traefik API sudah termasuk
-di dalamnya.
-
-Perintah penemuan ada di bagian 1, tetapi hasilnya hanya sah kalau dibaca
-langsung di konsol Tencent Cloud. Sampai itu dilakukan, perubahan di `ufw`
-tidak boleh dianggap sebagai pertahanan lengkap.
+Belum terverifikasi; ini celah pengetahuan paling serius. Yang diketahui hanya
+`8080` dan `8443` ter-bind ke `0.0.0.0` tetapi timeout dari luar, sehingga ada
+filter off-host. Yang tidak diketahui: daftar lengkap aturan inbound dan
+outbound, apakah ada group lain, dan apakah port Traefik API termasuk di dalamnya.
+Perintah penemuan ada di bagian 1, tetapi hasilnya hanya sah kalau dibaca di
+konsol Tencent Cloud. Sampai itu dilakukan, perubahan `ufw` bukan pertahanan
+lengkap.
 
 ### 3. Apakah restore test rantai backup pernah dijalankan
 
-Tidak ada bukti bahwa pernah. `docs/DEPLOYMENT-REDUNDANCY.md` sudah
-mendeskripsikan target restore lokal dan urutannya, tapi dokumen itu adalah
-rencana, bukan bukti eksekusi.
-
-Yang dibutuhkan: tanggal restore test terakhir, target yang dipakai, dan
-hasil verifikasi skema wajib setelah `pg_restore`. Kalau jawabannya tidak
-ada, anggap rantai backup belum terbukti, dan jadwalkan restore test sebelum
+Tidak ada bukti. `DEPLOYMENT-REDUNDANCY.md` mendeskripsikan target dan urutan,
+tetapi itu rencana, bukan bukti eksekusi. Yang dibutuhkan: tanggal restore test
+terakhir, target, dan hasil verifikasi skema wajib setelah `pg_restore`. Kalau
+tidak ada, anggap rantai backup belum terbukti dan jadwalkan restore test sebelum
 mempercayai backup untuk perubahan data yang merusak.
 
-### 4. Aplikasi Coolify kedua yang mati tapi masih listens webhook
+### 4. Aplikasi Coolify kedua yang mati tetapi masih listens webhook
 
-Ada dua baris di tabel `applications`. Yang kedua, `k-p:main-m4kmotlkecfl9hhudiwismzp`,
-berada di `exited`, tidak punya container, punya nol environment variable, dan
-**tidak pernah** punya satu pun job deploy. FQDN-nya masih berupa
+Ada dua baris di tabel `applications`. Yang kedua,
+`k-p:main-m4kmotlkecfl9hhudiwismzp`, berstatus `exited`, tanpa container, nol
+environment variable, dan tidak pernah punya job deploy. FQDN-nya masih
 `sslip.io` yang memuat IP publik host.
 
-Yang membuat ini bukan sekadar sampah: `is_auto_deploy_enabled` untuk kedua
-baris bernilai `true`, dan keduanya naik dari repo dan branch yang sama.
-Coolify meneruskan satu event push ke setiap aplikasi yang cocok, jadi selama
-baris kedua masih ada, satu `git push` ke `main` adalah kandidat untuk memicu
-build di host 1,9 GiB ini, dan build di host inilah penyebab OOM kill
-terbesar di bagian 2. Aplikasi itu sendiri akan gagal start karena nol env,
-tapi build-nya sudah terlanjur berjalan dan sudah mengambil RAM-nya.
+`is_auto_deploy_enabled` kedua baris `true`, dan keduanya dari repo dan branch
+yang sama. Coolify meneruskan satu event push ke setiap aplikasi yang cocok, jadi
+selama baris kedua ada, satu `git push` ke `main` bisa memicu build di host 1,9
+GiB ini, dan build adalah penyebab OOM kill terbesar. Aplikasi itu akan gagal
+start karena nol env, tetapi build-nya sudah mengambil RAM.
 
-Coolify tidak punya konsep "archive" untuk aplikasi. Yang ada hanya
-`deleted_at`, yaitu soft delete: baris tetap ada di database bersama settings
-dan env var-nya, tapi hilang dari dashboard dan tidak lagi dipakai untuk
-deploy. Dua opsi, urut dari paling reversibel:
+Coolify tidak punya "archive"; yang ada `deleted_at` (soft delete). Dua opsi,
+urut paling reversibel:
 
-1. Set `is_auto_deploy_enabled` ke `false` pada baris tersebut. Satu flag,
-   sepenuhnya bisa dibalik, dan langsung menutup jalur yang dijelaskan
-   di atas.
-2. Soft delete lewat dashboard, yang mengisi `deleted_at`.
+1. Set `is_auto_deploy_enabled` ke `false` pada baris itu. Satu flag, bisa
+   dibalik, langsung menutup jalur.
+2. Soft delete lewat dashboard.
 
-Hard delete **jangan** dipakai sebelum opsi 1 dicoba, karena baris itu masih
-satu-satunya catatan bahwa pernah ada aplikasi kedua di host ini.
-
-Sebelum memutuskan, yang perlu dipastikan: apakah aplikasi kedua itu pernah
-sengaja dibuat, dan untuk apa. Kalau tidak ada yang mengingat, opsi 1 sudah
-cukup dan tidak ada yang hilang.
+Hard delete jangan dipakai sebelum opsi 1 dicoba, karena baris itu satu-satunya
+catatan bahwa pernah ada aplikasi kedua. Sebelum memutuskan, pastikan apakah
+aplikasi kedua pernah sengaja dibuat dan untuk apa.
 
 ---
 
-Dokumen ini dimulai dari audit read-only. Sebagian perintahnya sudah
-dijalankan sejak itu, dan bagian yang sudah dikerjakan menandainya dengan
-tanggal dan menyebut apa yang benar-benar terpasang. Semua angka runtime di
-atas berasal dari satu waktu pengukuran dan harus diverifikasi ulang sebelum
-dijadikan dasar keputusan.
+Dokumen ini dimulai dari audit read-only. Sebagian perintah sudah dijalankan dan
+ditandai tanggal. Semua angka runtime berasal dari satu waktu pengukuran dan
+harus diverifikasi ulang sebelum dijadikan dasar keputusan.

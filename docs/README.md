@@ -1,139 +1,51 @@
-# Dokumen Perencanaan dan Operasional At Cell
+# Dokumen At Cell
 
-Kumpulan spesifikasi, kebutuhan, dan runbook deployment At Cell. Implementasi
-saat ini memiliki dua mode: demo lokal berbasis mock/localStorage dan mode live
-berbasis Supabase ketika environment production dikonfigurasi.
+Indeks tunggal untuk seluruh dokumen repo. Mulai dari sini kalau mencari
+spesifikasi produk, acuan teknis, atau runbook operasional.
 
-## Dokumen
+## Produk dan kebutuhan
 
-| File | Isi | Status |
-|------|-----|--------|
-| `PRD-AtCell.md` | Product Requirements Document: overview, fitur inti, user flow, arsitektur Next.js + Supabase | Rencana jangka panjang |
-| `USE-CASE-AtCell.md` | Kemampuan per aktor tanpa kode bernomor, dari membuka web sampai seluruh menu portal, diagram pindah ke `diagram-uml/` | **Acuan alur** |
-| `requirement.md` | SRS v1 awal: aktor Sales/Teknisi/Pelanggan, modul IMEI, servis, trade-in | Digantikan v2 |
-| `requirement-2.0.md` | SRS v2 At Cell: tambah aktor Admin/Owner, FR-xxx/NFR-xxx, modul etalase publik multibahasa + dashboard | **Acuan kebutuhan** |
-| `DEPLOYMENT-REDUNDANCY.md` | Runbook Coolify, Supabase, health check, backup, dan rollout | **Acuan operasional** |
-| `VPS-HARDENING.md` | Catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan | **Acuan operasional** |
-| `SECRET-ROTATION.md` | Urutan mengganti secret yang pernah bocor, lengkap dengan verifikasi | **Acuan operasional** |
-| `OFFSITE-BACKUP-SETUP.md` | Langkah menyalakan backup off-site dan backup objek Storage: passphrase, tujuan upload, jadwal, dan pembuktian restore | **Acuan operasional** |
-| `CSP.md` | Cara kerja Content-Security-Policy berbasis nonce, daftar directive yang dipakai, dan alasan setiap keputusan | **Acuan keamanan** |
-| `COOLIFY-PANEL.md` | Cara masuk panel Coolify setelah port publik ditutup: SSH tunnel harian dan pengecualian darurat | **Acuan operasional** |
-| `ANDROID-APP.md` | Build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`, plus daftar pengeras Play Protect dan batasnya | **Acuan operasional** |
-| `PUBLIKASI-MODEL-TANPA-STOK.md` | Cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI, isi form yang benar, apa yang dilihat pelanggan, dan langkah saat unitnya pertama kali tiba | **Acuan operasional** |
-| `PERLUASAN-KATALOG-AT-CELL.md` | Usulan perluasan katalog lima model beserta harga yang wajib dikonfirmasi owner, foto mana yang jujur dan mana yang dibuang, dan urutan menjalankan migrasinya | **Acuan operasional** |
-| `PAYMENT-WARNING-COPY.md` | Letak kalimat peringatan link pembayaran di halaman publik, risiko kalau dihapus, dan copy tulisan ulang yang bisa disetujui dalam satu langkah | **Acuan keputusan** |
-| `UJI-ALUR-STAF.md` | Skenario uji end-to-end alur ber-kredensial staf: login per role, undang staf, IMEI, POS, workflow tiket sampai serah terima, dan lintasan akses, plus status eksekusinya | **Acuan operasional** |
-| `diagram-uml/README.md` | Indeks folder diagram UML dan aturan render PNG dan SVG pendamping | **Wadah diagram** |
-| `Diagram/README.md` | Indeks dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; draf lokal di-gitignore, tidak ikut repo | **Arsip lokal** |
-| `diagram-uml/sequence-diagram-atcell.md` | Lima sequence diagram per aktor; sumber `.puml` dan render sudah diselaraskan dengan kode per 28 Oktober 2026 | **Acuan alur** |
-| `agents/issue-tracker.md` | Konfigurasi issue tracker repo untuk skill agent: GitHub Issues lewat `gh` CLI, termasuk alur wayfinding | **Acuan agent** |
-| `agents/triage-labels.md` | Pemetaan lima peran triage kanonik ke label GitHub yang dipakai repo ini | **Acuan agent** |
-| `LOOP_LOG.md` | Log iterasi autoloop: baseline build/test, backlog keamanan Fase 3 (P0-P3), dan riwayat iterasi. Dipulihkan atas permintaan misi autoloop | **Acuan agent** |
-| `NEEDS_HUMAN.md` | Temuan dan keputusan yang menunggu tindakan owner (mis. API Coolify 401, komponen bersama portal) | **Acuan agent** |
-| `PENDING-TASKS.md` | Daftar task tertunda: UI/UX dan fitur yang sengaja ditunda, plus task non-UI yang menunggu owner atau staging | **Acuan agent** |
-| `STANDARDS.md` | Standar best practice A-G (kualitas, performa, a11y, SEO, keamanan lanjutan, produksi) yang diterapkan loop dengan bukti di LOOP_LOG | **Acuan agent** |
-| `agents/domain.md` | Aturan konsumsi dokumen domain (GLOSSARY.md, docs/adr/) oleh skill agent | **Acuan agent** |
-| `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor untuk orientasi agen | **Acuan agent** |
-| `agents/roadmap.md` | Status pekerjaan, prioritas backlog, kriteria verifikasi, dan langkah awal agen berikutnya | **Roadmap agent** |
-| `agents/review-handoff-2026-10-17.md` | Hasil review repo, dokumentasi, verifikasi lokal, serta backlog dan status pemeriksaan PR | **Handoff audit** |
-| `agents/review-handoff-2026-10-20.md` | Handoff audit kedua: perbaikan token watchdog, backup objek Storage, pin image, verifikasi, dan keadaan nyata data produksi | **Handoff audit** |
-| `agents/handoff-2026-10-23-akun-pelanggan-dan-stok.md` | Prompt kerja akun pelanggan, tiga akun simulasi, katalog lima model per merek, dan keputusan owner yang wajib dikonfirmasi | **Handoff aktif** |
-| `agents/katalog-5-model-per-merek.md` | Hasil katalog 25 model aktif, 5 per merek, aturan model tanpa unit, dan verifikasi production | **Selesai** |
-| `db-integrity-proposals.md` | Perbandingan aturan integritas kode vs PostgreSQL, usulan migrasi baru yang belum dijalankan, query pelanggaran, dan rollback | **Usulan, belum disetujui** |
-| `OWNER-DECISION-BRIEF.md` | Opsi, risiko, dan rekomendasi untuk grafik omzet, laporan per teknisi, dan aktor audit pada tulis langsung | **Usulan, belum disetujui** |
-| `DB-VERIFICATION-RUNBOOK.md` | Langkah aman menguji migrasi usulan dan test database di CI, Supabase lokal, atau PostgreSQL sekali pakai | **Acuan operasional, sebagian dijalankan di CI** |
-| `DOCS-REVIEW-2026-10-27.md` | Hasil audit seluruh dokumen: temuan P0/P1/P2, perbaikan yang sudah diterapkan, dan keputusan owner yang masih tertunda | **Laporan audit** |
+| File | Isi |
+|---|---|
+| `PRD-AtCell.md` | Product Requirements Document: visi, fitur inti, user flow, dan arsitektur Next.js + Supabase |
+| `requirement.md` | SRS v1: aktor Sales/Teknisi/Pelanggan, modul IMEI, servis, dan trade-in. Dipertahankan sebagai arsip, bukan acuan aktif |
+| `requirement-2.0.md` | SRS aktif: aktor Admin/Owner/Sales/Teknisi/Pelanggan, FR/NFR, etalase multibahasa, dan dashboard |
+| `USE-CASE-AtCell.md` | Kemampuan per aktor dari membuka web sampai seluruh menu portal, tanpa kode bernomor |
+
+## Teknis dan operasional
+
+| File | Isi |
+|---|---|
+| `DEPLOYMENT-REDUNDANCY.md` | Deployment Coolify, migrasi Supabase, DNS, health check, akses panel, backup, restore, dan rollback |
+| `DB-INTEGRITY.md` | Usulan aturan integritas database dan runbook verifikasi di CI, Supabase lokal, atau PostgreSQL sekali pakai |
+| `VPS-HARDENING.md` | Audit host production, pengerasan firewall dan SSH, batas resource, access log Traefik, dan rutinitas bulanan |
+| `SECRET-ROTATION.md` | Urutan mengganti secret yang pernah bocor beserta verifikasinya |
+| `CSP.md` | Content-Security-Policy berbasis nonce: directive, alasan, dan cara mengujinya |
+| `ANDROID-APP.md` | Build, signing, dan Digital Asset Links aplikasi Android `my.id.atcell` |
+| `STAF.md` | Panduan staf: publikasi model tanpa unit dan uji alur ber-kredensial |
+| `STATUS.md` | Status repo, backlog terbuka, keputusan owner, dan urutan kerja yang disarankan |
+
+## Untuk agen
+
+| File | Isi |
+|---|---|
+| `agents/project-map.md` | Peta modul, alur data, sumber kebenaran, dan seam refactor |
+| `agents/issue-tracker.md` | Konfigurasi GitHub Issues lewat `gh` CLI |
+| `agents/triage-labels.md` | Pemetaan lima peran triage ke label GitHub repo |
 
 ## Catatan
 
-- Dua mode aplikasi (mock lokal dan Supabase live) dijelaskan di
-  [`../README.md`](../README.md) bagian Konfigurasi Supabase.
-- `tests/deployment-runbook.test.ts` menjaga isi runbook deployment tetap sinkron
-  dengan `supabase/migrations/`, dan `tests/docs-index.test.ts` menjaga tabel di
-  file ini tetap memuat seluruh dokumen yang ada.
+- Dua mode aplikasi dijelaskan di [`../README.md`](../README.md) bagian
+  Konfigurasi Supabase.
+- `tests/docs-index.test.ts` menjaga indeks ini tetap memuat seluruh dokumen
+  di `docs/` dan menolak tautan relatif yang menggantung.
+- `tests/deployment-runbook.test.ts` menjaga daftar migration di
+  `DEPLOYMENT-REDUNDANCY.md` tetap sinkron dengan `supabase/migrations/`.
+- `tests/db-verification-runbook.test.ts` menjaga `DB-INTEGRITY.md` tetap
+  memakai `VERIFY_DATABASE_URL` dan memuat semua query verifikasi 5.x.
 - `tests/csp-doc.test.ts` menjaga `CSP.md` tetap sinkron dengan
-  `src/lib/csp.ts`, supaya penjaga kebijakan tidak bisa dibenarkan sebagai
-  dokumentasi yang sudah basi.
-- Berkas gambar diagram lama sudah dihapus dari `docs/`. Diagram PlantUML dan
-  render PNG serta SVG-nya dihapus pada 1 Oktober 2026, lalu berkas Mermaid
-  `diagram.mmd` dihapus pada 2 Oktober 2026 karena isinya sudah tersalin
-  inline di `USE-CASE-AtCell.md`. Penggantinya tinggal di `diagram-uml/`
-  sebagai sumber PlantUML plus render PNG dan SVG yang di-commit: dua puluh
-  tujuh sumber dalam folder per aktor (pengunjung, pelanggan, admin, sales,
-  teknisi) dan `bersama/` untuk diagram lintas aktor (state machine, ER,
-  class, object, component, concept, use case sisi). README root memakai satu
-  sumber Mermaid tambahan, `diagram-uml/bersama/arsitektur-alur.mmd`, dengan
-  render PNG dan SVG sebagai cadangan pembaca yang belum bisa menampilkan
-  Mermaid.
-  Indeks dan perintah render ada di `diagram-uml/README.md`.
+  `src/lib/csp.ts`.
+- Diagram UML sudah dihapus dari repo. Kemampuan per aktor tetap menjadi acuan
+  di `USE-CASE-AtCell.md`.
 - Draf editorial lokal di `docs/Diagram/` sengaja di-gitignore dan tidak
-  termasuk dokumentasi repo. Diagram yang menjadi acuan ada di
-  `docs/diagram-uml/`.
-- Akses panel Coolify dijelaskan di `COOLIFY-PANEL.md`, karena panel adalah
-  kendali penuh atas env production dan jalurnya tidak bisa ditebak dari
-  `ufw status` saja.
-
-## Keputusan produk (29 Sep 2026)
-
-- Etalase unit-driven: produk tanpa unit tetap tampil di bagian Baru masuk
-  katalog (katalog dan beranda) dengan badge "Belum ada unit", bukan "Stok
-  habis", karena model itu belum pernah punya unit dan bukan turun dari rak.
-  Harga ditulis sebagai perkiraan saat unitnya masuk, bukan harga jual, dan
-  baris harganya disembunyikan kalau `default_price` kosong atau nol. Tombol
-  Minta dikabari membangun pesan lewat `buildNotifyMeHref` di
-  `src/lib/catalogue-notify.ts`, yang menyebut model yang sedang dilihat.
-  Helper `listProductsWithoutUnits` di `src/lib/shop.ts` dikunci
-  `tests/etalase-empty-product.test.ts`, sedangkan copy publik dan panduan
-  konsekuensi di portal dikunci `tests/catalogue-notify.test.ts` dan
-  `tests/catalogue-no-unit-portal.test.ts`.
-  Dokumen stafnya `PUBLIKASI-MODEL-TANPA-STOK.md`.
-- Peringatan anti-scam di `/payment` dipertahankan. Teks Indonesia dan Inggris sudah kasual,
-  aktif, dan tanpa em-dash, jadi tidak diubah.
-- Home button dan APK: 10 varian di `design-taste-frontend/` memang tidak
-  punya tombol home dan repo tidak menyimpan APK apa pun. Diputuskan tidak
-  ada aksi kode, hanya dicatat di sini. Lanjutan 2 Oktober 2026: tidak ada
-  tombol home baru yang ditambahkan, jadi keputusan ini tetap berlaku. Yang
-  diklarifikasi cuma marka merek di navbar, dan itu tetap tautan ke beranda.
-  Alasannya ada di keputusan 2 Oktober 2026 di bawah.
-- Harga kondisi unit dan bottom shopping section: ditunda, testing jalan
-  dulu dengan data existing. Lanjutannya ada di keputusan 2 Oktober 2026.
-- Scroll trackpad portal: `<main>` portal dan sidebar desktop tidak lagi
-  memutus rantai scroll (`overscroll-contain` dihapus). Dialog dan drawer
-  mobile tetap menahan scroll. Dikunci
-  `tests/portal-scroll-trap.test.ts`.
-
-## Keputusan produk (2 Oktober 2026)
-
-Empat catatan penguji yang ambigu ditelusuri ke kodenya. Tiga berakhir sebagai
-dokumen keputusan yang menunggu owner, satu berakhir sebagai perbaikan kode.
-Tidak ada perilaku bisnis yang diubah tanpa persetujuan owner.
-
-- Note A, "kondisi laptop harga berubah (planing)": ditutup 3 Oktober 2026.
-  Toko ini hanya menjual dan menerima tukar tambah ponsel, jadi kata
-  "laptop" dibaca sebagai salah ketik penguji, bukan permintaan fitur.
-  `PRD-AtCell.md` dan `requirement-2.0.md` tidak punya satu pun
-  ketentuan tentang laptop. Perilaku yang sebenarnya ditunjuk catatan
-  itu, yaitu harga ikut berubah saat kondisi unit diubah, memang
-  disengaja dan dijaga `tests/unit-second-price.test.ts`. Dokumen
-  fitur laptop yang pernah ada sudah dihapus, dan tidak akan dibuat
-  tanpa permintaan owner.
-- Note B, "1. bagian belanja bawah": dua kandidat, kolom footer "Belanja"
-  dan section "Kenapa belanja di At Cell". Tidak ada otoritas desain untuk
-  memilih, karena kesepuluh varian mockup tidak punya footer sama sekali.
-  Audit tautan dan lebar sel tidak menemukan cacat: keempat tautan kolom
-  Belanja memakai awalan locale yang benar, filter kondisi terpakai dari URL,
-  dan bento tidak meluber di 390 px. Tidak ada yang diubah.
-- Note C, "button beranda di web samain dengan apk": tidak ada artefak
-  aplikasi di repo. Android Trusted Web Activity yang dikirim PR #44 hanya
-  pembungkus web, jadi tidak ada tombol home native yang bisa dicocokkan.
-  Marka merek di navbar tetap tautan ke beranda, menyimpang dari 10 varian
-  yang merendernya sebagai label biasa. Alasannya: di desktop tidak ada item
-  Beranda di nav sama sekali, jadi menghapus tautannya akan menghapus
-  satu-satunya jalan pulang dari header. Yang diperbaiki justru tautan di
-  bilah header yang tidak menutup menu mobile.
-- Note D, "notif at cell tidak pernah mengirim link pembayaran lewat chat
-  hapus": ini potongan kalimat yang persis ada di `/payment` dan `/terms`.
-  Keputusan 29 September 2026 di atas sudah menyatakan peringatan itu
-  dipertahankan. Catatan ini membukanya kembali dengan alasan nada, bukan
-  alasan keamanan. Copy publik tidak diubah sebelum owner memilih. Lanjutannya
-  di `PAYMENT-WARNING-COPY.md`.
+  termasuk dokumentasi repo. Jangan menautkan draf itu dari dokumen tracked.

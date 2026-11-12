@@ -12,7 +12,7 @@ import { readFile } from "node:fs/promises";
  *      supaya bundler tidak pernah menyertakannya di jalur live.
  *   3. Tidak ada import statis store-demo di store.ts.
  *
- * Bukti mutasi (transkrip, LOOP_LOG): definisi flag diganti konstanta false
+ * Bukti mutasi (transkrip, riwayat Git): definisi flag diganti konstanta false
  * → tes 1 gagal; import dinamis diganti statis → tes 2 dan 3 gagal.
  */
 

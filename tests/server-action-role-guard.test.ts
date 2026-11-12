@@ -15,7 +15,7 @@ import { readdir, readFile } from "node:fs/promises";
  * bisa diuji runtime tanpa database dan sesi; pola yang sama dipakai
  * tests/write-gate.test.ts lapis 2. Tes ini terbukti gagal ketika
  * pemanggilan requireRole pada satu aksi dihapus (mutasi manual,
- * dicatat di docs/LOOP_LOG.md).
+ * dicatat di riwayat Git).
  */
 
 const actionsDir = new URL("../src/lib/actions/", import.meta.url);

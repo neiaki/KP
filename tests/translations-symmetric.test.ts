@@ -14,7 +14,7 @@ import { resolve as resolvePath } from "node:path";
  * Pembandingan dilakukan rekursif terhadap objek translations asli yang
  * diimpor dari source (bukan salinan), jadi menambah kunci di satu
  * bahasa saja langsung memerah. Bukti mutasi: hapus satu kunci EN
- * sementara -> tes gagal menyebut jalur kuncinya (transkrip, LOOP_LOG).
+ * sementara -> tes gagal menyebut jalur kuncinya (transkrip, riwayat Git).
  */
 
 const repoRoot = new URL("../", import.meta.url);

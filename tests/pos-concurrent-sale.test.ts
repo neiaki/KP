@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
  * melihat unit available. Tanpa salah satu dari tiga itu, dua kasir yang
  * menekan bayar di detik yang sama bisa menjual unit yang sama dua kali.
  * Tes ini terbukti gagal ketika .for("update") dihapus dari kode (mutasi
- * manual, dicatat di docs/LOOP_LOG.md).
+ * manual, dicatat di riwayat Git).
  *
  * Lapis 2 (butuh DATABASE_URL, dijalankan CI postgres:17; skip lokal
  * mengikuti pola tests/audit-trail-db.test.ts): dua executeSale

@@ -1,22 +1,9 @@
-# Deployment Redundansi At Cell
+# Deployment dan Redundansi At Cell
 
-Dokumen ini adalah runbook operasional untuk menjalankan satu codebase At Cell
-di Coolify. Coolify menjadi satu-satunya host aplikasi production, sementara
-Supabase menjadi sumber data, Auth, dan Storage production.
-
-## Daftar isi
-
-- Arsitektur target
-- Environment production
-- Migrasi database (termasuk audit trail dan `RUN-ALL-PENDING.sql`)
-- Health check
-- Header proxy dan rate limit
-- Rilis yang aman
-- Tag image di `Dockerfile.coolify` (termasuk verifikasi image dan etalase)
-- DNS dan session
-- Backup dan rollback (termasuk restore target, standby terjadwal, backup
-  otomatis, rotasi log, dan notifikasi watchdog)
-- Testing wajib
+Runbook operasional satu codebase At Cell di Coolify. Coolify adalah
+satu-satunya host aplikasi production; Supabase menjadi sumber data, Auth, dan
+Storage. Dokumen ini juga memuat akses panel Coolify, backup off-site, restore
+target, dan pemeriksaan pasca-deploy.
 
 ## Arsitektur target
 
@@ -29,31 +16,26 @@ DNS / TLS
              +-- Coolify restore target private, hanya untuk restore test
 ```
 
-Database tidak boleh dibuat di dalam container aplikasi. Resource PostgreSQL
-di Coolify hanya boleh menjadi target restore test, bukan sumber data aplikasi
-atau mirror aktif.
+Database tidak boleh dibuat di dalam container aplikasi. Resource PostgreSQL di
+Coolify hanya target restore test, bukan sumber data atau mirror aktif.
 
 ## Environment production
 
-Set variabel berikut di Coolify Production. Nilai secret hanya diisi lewat
-dashboard atau secret manager, tidak pernah commit ke repository.
+Set variabel berikut di Coolify Production. Secret hanya lewat dashboard atau
+secret manager, tidak pernah commit ke repository.
 
 ```env
-# Wajib ada di production
+# Wajib di production
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SECRET_KEY=
+# Nama lama yang masih diterima sebagai cadangan dari SUPABASE_SECRET_KEY.
+# Wajib diisi kalau project masih memakai kunci service_role.
 SUPABASE_SERVICE_ROLE_KEY=
-# SUPABASE_SERVICE_ROLE_KEY adalah nama lama yang masih diterima sebagai
-# cadangan dari SUPABASE_SECRET_KEY, jadi wajib ikut diisi kalau project
-# masih memakai kunci service_role. src/lib/supabase/config.ts membaca
-# SUPABASE_SECRET_KEY dulu, lalu SUPABASE_SERVICE_ROLE_KEY. requireRole() dan
-# health check menolak jalan kalau keduanya kosong.
 SUPABASE_COOKIE_DOMAIN=.atcell.my.id
 DATABASE_URL=
 
-# Opsional. Kosongkan kalau fitur terkait memang tidak dipakai, tapi baca
-# penjelasan di bawah sebelum mengosongkan.
+# Opsional. Kosong mematikan fitur terkait.
 GOOGLE_PLACES_API_KEY=
 GOOGLE_PLACE_ID=
 NEXT_PUBLIC_SITE_URL=
@@ -61,33 +43,17 @@ SITE_URL=
 SERVER_ACTIONS_ALLOWED_ORIGINS=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
-# Batas koneksi dan query database. Opsional, ada bawaannya.
-#
-# STATEMENT_TIMEOUT_MS = 8000 (bawaan), rentang 1000 sampai 30000. Batas
-# ini yang mencegah satu query yang menggantung menahan seluruh pool
-# koneksi. Nilai yang bukan integer positif, atau di luar rentang, diabaikan
-# dan bawaannya yang dipakai, jadi salah ketik di dashboard tidak membuat
-# seluruh aplikasi gagal terhubung.
-#
-# DB_POOL_MAX = 12 (bawaan), rentang 1 sampai 50. Jumlah koneksi per
-# instance aplikasi. Lima terlalu kecil untuk halaman publik: satu render
-# halaman berat memakai lima sampai tujuh query, jadi dengan lima koneksi
-# dua pengunjung yang membuka beranda bersamaan sudah menghabiskan pool.
-# Gejalanya di produksi pada 29 September 2026: halaman ringan tetap 0,1
-# detik, sementara halaman berat semuanya timeout bersamaan, lalu container
-# ditandai unhealthy dan Traefik membalas 503 selama sekitar 90 detik.
+# Batas koneksi dan query database.
 STATEMENT_TIMEOUT_MS=8000
 DB_POOL_MAX=12
 
-# Pemantauan error, opsional semua. NEXT_PUBLIC_* wajib ada saat build image.
+# Pemantauan error. NEXT_PUBLIC_* wajib ada saat build image.
 SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
 NEXT_PUBLIC_COMMIT_SHA=
 VERCEL_GIT_COMMIT_SHA=
 
-# Backup off-site. Tanpa passphrase atau tanpa tujuan upload, script keluar
-# BUKAN-NOL dan cron mencatat GAGAL. Exit 0 berarti off-host copy terkirim.
-# Isi passphrase plus satu tujuan untuk mengaktifkan.
+# Backup off-site. Tanpa passphrase atau tujuan upload, script gagal.
 OFFSITE_PASSPHRASE=
 OFFSITE_PASSPHRASE_FILE=
 OFFSITE_RCLONE_REMOTE=
@@ -97,24 +63,10 @@ OFFSITE_PUT_TOKEN_FILE=
 OFFSITE_STAGING_DIR=
 OFFSITE_KEEP_ENCRYPTED=
 
-# Deployment pratinjau. Opsional, dan production TIDAK boleh mengisinya.
-#
-# Deployment pratinjau memakai environment yang sama dengan production,
-# termasuk DATABASE_URL dan service role key, jadi aksi yang mengubah data
-# ditolak di sana. Satu-satunya jalan untuk mengizinkan menulis di
-# pratinjau adalah variabel ini diisi persis "YES", dan itu hanya benar
-# kalau pratinjau memakai database sendiri, bukan database production.
-#
-# Production tidak butuh variabel ini. Production dikenali dari
-# COOLIFY_BRANCH=main (atau VERCEL_ENV=production) dan aksi tetap jalan.
-# Development lokal juga tidak butuh: tanpa penanda platform, aksi tetap
-# jalan, supaya alur uji staf lokal tidak ikut mati.
+# Pratinjau. Production TIDAK boleh mengisinya.
 ATCELL_ALLOW_WRITE=
 
-# Verifikasi aplikasi Android. Wajib diisi kalau my.id.atcell sudah ada
-# release, kosongkan kalau belum pernah ada APK. Sengaja tanpa prefix
-# NEXT_PUBLIC_ supaya nilainya dibaca dari env container saat runtime, bukan
-# membeku di dalam bundle saat build.
+# Verifikasi aplikasi Android. Kosongkan kalau belum ada APK.
 ANDROID_APP_SHA256=
 ```
 
@@ -123,191 +75,114 @@ Wajib ada di production:
 - `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` untuk
   browser.
 - `SUPABASE_SECRET_KEY` untuk admin client. `SUPABASE_SERVICE_ROLE_KEY` adalah
-  nama lama yang masih diterima sebagai cadangan, dan wajib ikut diisi kalau
-  project Supabase masih memakai kunci `service_role`. `src/lib/supabase/config.ts`
-  membaca `SUPABASE_SECRET_KEY` dulu, lalu `SUPABASE_SERVICE_ROLE_KEY`.
-  `requireRole()` dan health check menolak jalan kalau keduanya kosong, jadi
-  production yang hanya mengisi satu-duanya akan gagal saat login, saat
-  mengelola staf, dan saat `/api/health/ready` diperiksa.
-- `DATABASE_URL` ke connection pooler Supabase production, bukan ke `localhost`
-  VPS. Koneksi ini melewati RLS, jadi penegakan peran tetap di
-  `requireRole()` tiap Server Action.
-- `SUPABASE_COOKIE_DOMAIN` untuk sesi lintas subdomain antara
-  `atcell.my.id` dan `login.atcell.my.id`.
+  nama lama yang masih diterima sebagai cadangan dari `SUPABASE_SECRET_KEY`, dan
+  wajib ikut diisi kalau project Supabase masih memakai kunci `service_role`.
+  `src/lib/supabase/config.ts` membaca `SUPABASE_SECRET_KEY` dulu, lalu
+  `SUPABASE_SERVICE_ROLE_KEY`. `requireRole()` dan health check menolak jalan
+  kalau keduanya kosong.
+- `DATABASE_URL` ke connection pooler Supabase production, bukan `localhost`
+  VPS. Koneksi ini melewati RLS, jadi penegakan peran tetap di `requireRole()`
+  tiap Server Action.
+- `SUPABASE_COOKIE_DOMAIN` untuk sesi lintas subdomain.
 
-Opsional, tapi kosong berarti fitur tertentu mati:
+Opsional, kosong berarti fitur tertentu mati:
 
-- `GOOGLE_PLACES_API_KEY` untuk sync ulasan Google. Kosong **matikan bagian
-  ulasan sepenuhnya**, bukan cuma auto-sync: `getGoogleReviews()` langsung
-  mengembalikan null, jadi beranda menampilkan kartu "Tulis Review" dan
-  structured data berhenti memancarkan `aggregateRating`. Gejalanya sama
-  dengan "belum ada ulasan", jadi diagnosisnya selalu cek dua tempat:
-  `curl https://atcell.my.id/api/reviews` harus mengembalikan
-  `{"ok":true,...}`, dan `docker logs` memuat baris `[reviews] ...` yang
-  menyebut variabel atau status Places API yang salah. Ini yang terjadi di
-  produksi pada 1 Oktober 2026: key tidak pernah diisi di Coolify.
-- `GOOGLE_PLACE_ID` untuk memilih toko yang diulas. Ada nilai bawaan di
-  `src/lib/reviews.ts`, jadi tidak wajib diisi kalau toko tidak pernah
-  berubah.
-- Tanpa `GOOGLE_PLACES_API_KEY`, ulasannya diambil dari snapshot manual di
-  `src/lib/ulasan-manual.ts`: salinan dari halaman Google Maps, bertanggal, dan
-  punya batas umur `SNAPSHOT_MAKS_UMUR_HARI` (180 hari). Lewat batas itu
-  snapshot diabaikan, kartu "Tulis Review" muncul lagi, dan `aggregateRating`
-  berhenti dipancarkan, supaya angka lama tidak bertahan sebagai data resmi.
-  Cara memperbaruinya ada di komentar berkas itu.
-- `NEXT_PUBLIC_SITE_URL` atau `SITE_URL` untuk URL kanonik di `sitemap.ts`.
-  Kosong membuat sitemap memakai URL yang dikarang, bukan domain produksi.
+- `GOOGLE_PLACES_API_KEY` untuk sync ulasan Google. Kosong mematikan seluruh
+  bagian ulasan, bukan hanya auto-sync. Diagnosis selalu cek
+  `curl https://atcell.my.id/api/reviews` dan baris `[reviews]` di `docker logs`.
+- `GOOGLE_PLACE_ID` untuk memilih toko yang diulas; ada nilai bawaan.
+- Tanpa `GOOGLE_PLACES_API_KEY`, ulasan memakai snapshot manual di
+  `src/lib/ulasan-manual.ts` dengan batas umur 180 hari.
+- `NEXT_PUBLIC_SITE_URL` atau `SITE_URL` untuk URL kanonik `sitemap.ts`.
 - `SERVER_ACTIONS_ALLOWED_ORIGINS` untuk origin tambahan Server Actions,
-  dipisah koma tanpa protocol dan tanpa path. `next.config.ts` sudah memakai
-  domain apex sebagai bawaan.
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` hanya untuk kompatibilitas project lama
-  yang belum memakai publishable key.
-- `STATEMENT_TIMEOUT_MS` untuk batas waktu satu query lewat koneksi Drizzle,
-  dibaca `src/db/client.ts`. Bawaannya 8000 milidetik, hanya bilangan
-  bulat positif yang dipakai, dan nilai di atas 30000 dipangkas ke 30000.
-  Naikkan lewat environment kalau query etalase di VPS produksi sering
-  terpotong, karena jalur ini tidak butuh build image baru sementara pin
-  image di `Dockerfile.coolify` punya keterlambatan satu commit. Nilai yang
-  kosong, nol, atau bukan angka diam-diam dinonaktifkan oleh driver
-  postgres, jadi kode mengembalikan bawaannya, bukan meneruskan apa adanya.
-  Jangan lewat `DATABASE_URL`, karena klausa `options` pada connection
-  string ditimpa `src/db/client.ts`. Jangan naikkan melewati kebutuhan.
-  (Perbandingan: dulu `max` dipatok 1 koneksi di Vercel sehingga satu
-  statement panjang menahan seluruh instance; sekarang ukuran pool diatur
-  `DB_POOL_MAX` dan berlaku sama untuk semua platform. Target deploy
-  production saat ini Coolify, bukan Vercel.)
+  dipisah koma tanpa protocol dan path.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` hanya untuk project lama.
+- `STATEMENT_TIMEOUT_MS` (bawaan 8000, maksimum 30000) dibaca
+  `src/db/client.ts`. Nilai kosong atau bukan angka memakai bawaan.
+- `DB_POOL_MAX` (bawaan 12, rentang 1 sampai 50). Lima terlalu kecil: satu
+  render berat memakai lima sampai tujuh query, dan pernah membuat container
+  unhealthy lalu 503 sekitar 90 detik.
 
-Pemantauan error, semua opsional dan tidak saling terkait:
+Pemantauan error:
 
-- `SENTRY_DSN` untuk sisi server, dibaca `src/instrumentation.ts`. Kosong
-  berarti `register()` keluar di baris 16 tanpa menginisialisasi SDK sama
-  sekali: tidak ada request ke pihak ketiga dan tidak ada overhead. Isi kalau
-  error produksi perlu terlihat di dashboard.
-- `NEXT_PUBLIC_SENTRY_DSN` untuk sisi browser, dibaca
-  `src/instrumentation-client.ts` dan kedua error boundary
-  (`src/app/error.tsx:23`, `src/app/global-error.tsx:26`). Kosong berarti
-  `Sentry.init()` dilewati dan `captureException()` tidak dijalankan, jadi
-  error browser tidak terkirim. Nilai DSN memang muncul di HTML yang dikirim
-  ke browser dan itu wajar; yang harus tetap server-only adalah Sentry Auth
-  Token, yang tidak pernah memakai prefix `NEXT_PUBLIC_`.
-- `NEXT_PUBLIC_COMMIT_SHA` dan `VERCEL_GIT_COMMIT_SHA` hanya untuk tag
-  `release` di dashboard, bukan untuk logika aplikasi. Kosong berarti event
-  tanpa release dan Sentry mengelompokkannya sebagai "latest".
+- `SENTRY_DSN` untuk server, dibaca `src/instrumentation.ts`. Kosong berarti SDK
+  tidak diinisialisasi sama sekali.
+- `NEXT_PUBLIC_SENTRY_DSN` untuk browser, dibaca
+  `src/instrumentation-client.ts` dan kedua error boundary. DSN memang muncul
+  di HTML; yang server-only adalah Sentry Auth Token.
+- `NEXT_PUBLIC_COMMIT_SHA` dan `VERCEL_GIT_COMMIT_SHA` hanya untuk tag release.
 
-Catatan build untuk dua variabel `NEXT_PUBLIC_`: Next.js menyalin
-`NEXT_PUBLIC_*` ke dalam bundle saat build, jadi Coolify yang hanya menyetel
-environment saat container berjalan TIDAK akan mengirim DSN ke browser. Kalau
-pemantauan error browser dibutuhkan, `NEXT_PUBLIC_SENTRY_DSN` dan
-`NEXT_PUBLIC_COMMIT_SHA` wajib ada di environment build image. Server-side
-(`SENTRY_DSN`) tidak punya batasan ini karena dibaca saat runtime.
-
-`DATABASE_URL` harus menunjuk ke connection pooler Supabase production, bukan
-ke `localhost` VPS. `SUPABASE_SECRET_KEY` hanya boleh tersedia sebagai secret
-server. Jangan memakai legacy `anon` atau `service_role` untuk release baru.
+`NEXT_PUBLIC_*` disalin ke bundle saat build, jadi Coolify yang hanya menyetel
+environment runtime tidak akan mengirim DSN ke browser. `SENTRY_DSN` dibaca
+runtime dan tidak punya batasan ini.
 
 ## Deployment pratinjau
 
-Production At Cell berjalan di Coolify. Vercel dipakai untuk preview, dan
-preview itu memakai environment yang sama dengan production, termasuk
-`DATABASE_URL` dan service role key. Verified pada 20 Oktober 2026: pratinjau
-PR #128 menyajikan katalog yang identik dengan `atcell.my.id` dan
-`/api/health/ready`-nya melaporkan `serviceRoleConfigured: true`.
+Vercel dipakai untuk preview, dan preview memakai environment yang sama dengan
+production. Tanpa gerbang, setiap Server Action mutasi di pratinjau mengubah
+data toko sebenarnya.
 
-Kalau dibiarkan begitu, setiap Server Action mutasi yang dijalankan di
-pratinjau akan mengubah data toko yang sebenarnya: penjualan POS, registrasi
-unit, tiket servis, sampai pendaftaran akun.
+`src/lib/deployment.ts` membaca `VERCEL_ENV` dan `COOLIFY_BRANCH`; semua aksi
+mutasi ditolak di pratinjau sebelum `requireRole()` dan sebelum query.
+`ATCELL_ALLOW_WRITE=YES` satu-satunya yang mengizinkan menulis di pratinjau.
+Production dikenali dari `COOLIFY_BRANCH=main` atau `VERCEL_ENV=production`;
+development lokal tanpa penanda platform tetap bisa menulis.
 
-### Yang sudah dijaga di repo
-
-`src/lib/deployment.ts` membaca penanda yang memang diisi platform:
-
-| Env | Nilai | Arti |
-|---|---|---|
-| `VERCEL_ENV` | `preview` | Deployment pratinjau Vercel |
-| `VERCEL_ENV` | `production` | Deployment production Vercel |
-| `COOLIFY_BRANCH` | `main` | Deployment production Coolify |
-| `COOLIFY_BRANCH` | selain `main` | Deployment pratinjau Coolify |
-| tidak ada | apa pun | Development lokal, atau platform yang belum dikenali |
-
-Deployment pratinjau ditolak untuk semua aksi yang mengubah data. Penolakan
-terjadi sebelum `requireRole()` dan sebelum query apa pun, jadi tidak ada
-database yang tersentuh. `ATCELL_ALLOW_WRITE=YES` mengizinkan menulis di
-pratinjau, dan hanya itu yang mengizinkannya. Production dan development lokal
-tidak butuh variabel itu.
-
-Penjaganya ada di `tests/write-gate.test.ts`. Test itu memindai source dan
-mewajibkan setiap Server Action yang mengubah data memanggil gerbang, jadi
-aksi mutasi baru yang lupa memanggilnya akan menggagalkan CI. Testnya juga
-memuat counter-example, karena penjaga yang tidak bisa gagal adalah kelas cacat
-yang sudah beberapa kali muncul di repo ini.
-
-### Yang masih harus dikerjakan owner
-
-Gerbang di repo menutup jalur Server Action, tapi akar masalahnya ada di
-dashboard: pratinjau sebaiknya tidak memegang kredensial production sama
-sekali. Dua langkah di Vercel:
-
-1. arahkan preview ke project Supabase terpisah, atau ke restore target
-   (`atcell-restore-local`) yang sudah ada di Coolify;
-2. cabut `SUPABASE_SECRET_KEY` dan `DATABASE_URL` production dari environment
-   preview.
-
-Selama langkah itu belum dikerjakan, pratinjau masih bisa membaca data
-production. Yang sudah tidak bisa adalah mengubahnya.
+Penjaganya ada di `tests/write-gate.test.ts`. Yang masih harus dikerjakan owner:
+arahkan preview ke project Supabase terpisah atau restore target
+`atcell-restore-local`, lalu cabut `SUPABASE_SECRET_KEY` dan `DATABASE_URL`
+production dari environment preview. Selama itu belum dikerjakan, pratinjau
+masih bisa membaca data production, tetapi tidak bisa mengubahnya.
 
 ## Migrasi database
 
-Jalankan seluruh migration di `supabase/migrations/` secara berurutan. Urutannya
-wajib, karena beberapa file bergantung pada objek yang dibuat file sebelumnya:
+Jalankan seluruh migration di `supabase/migrations/` berurutan. Beberapa file
+bergantung pada objek dari file sebelumnya.
 
 | Berkas | Isi |
-|--------|-----|
-| `0001_atcell_schema.sql` | Tabel, enum, RLS, trigger, view, bucket Storage, grant Data API, dan seed `store_settings`. Aman di-replay: tidak memberi `EXECUTE` ke browser role |
+|---|---|
+| `0001_atcell_schema.sql` | Tabel, enum, RLS, trigger, view, bucket Storage, grant Data API, seed `store_settings`. Aman di-replay: tidak memberi `EXECUTE` ke browser role |
 | `0002_harden_atcell_schema.sql` | Helper private, grant minimum, trigger anti-double-sell, `security_invoker` pada view |
-| `0003_lock_legacy_helpers.sql` | Menutup helper legacy di schema `public` sehingga tidak bisa dipanggil lewat Data API |
-| `0004_align_schema_contract.sql` | Menyelaraskan FK, index performa, dan singleton `store_settings` dengan hasil audit production |
+| `0003_lock_legacy_helpers.sql` | Menutup helper legacy di schema `public` dari Data API |
+| `0004_align_schema_contract.sql` | FK, index performa, dan singleton `store_settings` |
 | `0005_username_login.sql` | Login berbasis username, bukan email |
 | `0006_store_social_urls.sql` | Akun media sosial toko |
-| `0007_audit_trail.sql` | Riwayat audit untuk mutasi data sensitif, lengkap dengan identitas pelaku (lihat "Aktor di audit trail") |
-| `20260926025406_index_public_foreign_keys.sql` | Index untuk seluruh foreign key di schema `public` |
-| `20260926103000_strengthen_ticket_codes.sql` | Format kode tiket servis 8 karakter base32 plus validasi transisi status |
-| `20260927120000_auto_enable_rls_on_new_tables.sql` | RLS otomatis aktif pada tabel baru |
-| `20260927130000_product_image_registry.sql` | Tabel `product_images` sebagai sumber kebenaran path gambar katalog |
+| `0007_audit_trail.sql` | Audit mutasi sensitif dengan identitas pelaku |
+| `20260926025406_index_public_foreign_keys.sql` | Index seluruh foreign key di schema `public` |
+| `20260926103000_strengthen_ticket_codes.sql` | Format kode tiket 8 karakter base32 dan validasi transisi status |
+| `20260927120000_auto_enable_rls_on_new_tables.sql` | RLS otomatis pada tabel baru |
+| `20260927130000_product_image_registry.sql` | Tabel `product_images` sebagai sumber kebenaran path gambar |
 | `20260927140000_store_owner_and_real_contact.sql` | Kolom `owner_name` dan kontak asli toko |
-| `20260927150000_revoke_anon_write_on_product_images.sql` | Mengcabut hak tulis `anon` pada `product_images`, sisanya hanya `SELECT` |
-| `20260927160000_harden_storage_access.sql` | Bucket foto pelanggan jadi privat, `storage_public_read` hanya untuk katalog, batas ukuran dan tipe MIME |
-| `20260927170000_demo_ticket_for_tracking_example.sql` | Tiket contoh supaya kode contoh di halaman lacak benar-benar berfungsi |
-| `20260927180000_nullable_inventory_unit_product.sql` | `inventory_units.product_id` jadi nullable untuk unit trade-in, etalase publik hanya menampilkan unit berkatalog, plus catatan perbaikan baris lama |
-| `20260927190000_close_browser_role_write_grants.sql` | Menutup hak tulis `authenticated` di `product_images` dan hak tulis `anon`/`authenticated` di `storage.buckets`, mencabut `EXECUTE` publik dari `rls_auto_enable()`, dan revoke default privilege tabel di schema `public` supaya tabel baru tidak lagi mewarisi grant tulis |
-| `20260927200000_remove_ocean_photo_from_reno11_gallery.sql` | Mengeluarkan foto laut `oppo-reno11-2.jpg` dari galeri resmi Oppo Reno 11, karena shopper yang menekan tombol foto berikutnya melihat laut tanpa perangkat. Alt teks registry-nya diluruskan dan berkasnya tidak dihapus, karena `global-not-found.tsx` masih memakainya |
-| `20260927201000_clear_unparseable_product_image_url.sql` | Mengosongkan `products.image_url` yang isinya bukan alamat foto, terutama string `undefined/storage/...` hasil template literal tanpa host di `portal/products/page.tsx`. Merek, model, specs, dan harga tidak disentuh: itu keputusan merchandising staf |
-| `20260927202000_trim_crop_duplicate_a55_photos.sql` | Memangkas tiga foto Galaxy A55 yang saling potongan, jadi galerinya dua render berbeda bukan lima. Sampul `oppo-reno11-1.png` yang hanya 427x601 piksel tidak disentuh dan butuh sumber resolusi tinggi dari pemotret |
-| `20260930100000_catalogue_apple_iphone_15_pro.sql` | Menambah satu baris katalog Apple iPhone 15 Pro tanpa unit, jadi tampil sebagai kartu "Belum ada unit" dengan tombol kabari WhatsApp. Tidak menambah baris `inventory_units` sama sekali. Laporan stafnya di `docs/PERLUASAN-KATALOG-AT-CELL.md` |
-| `20260930101000_catalogue_samsung_galaxy_s24_ultra.sql` | Baris katalog Samsung Galaxy S24 Ultra tanpa unit, foto tunggal `s24-ultra-1.jpg` karena tiga file lain bukan S24 Ultra dan satu lagi potongan dari foto yang sama. Tidak menambah unit |
-| `20260930102000_catalogue_xiaomi_14.sql` | Baris katalog Xiaomi 14 tanpa unit dengan tiga foto yang memang bingkai berbeda. Baris Xiaomi `iphone 16` yang rusak tidak disentuh, itu keputusan staf |
-| `20260930103000_catalogue_vivo_v30.sql` | Baris katalog Vivo V30 tanpa unit. Banner promosi `vivo-v30-1.jpg` tidak dipakai karena fine print-nya menyebut V30 Pro. Tidak menambah unit |
-| `20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9.sql` | Membuat baris katalog Apple iPhone 14 Plus tanpa storage di namanya, lalu menautkan `inventory_units` id 9 ke baris itu. **Satu-satunya penulisan ke `inventory_units` di seluruh perluasan katalog ini, dan hanya mengubah `product_id`.** IMEI, condition, status, dan harganya tidak disentuh. Jalankan hanya setelah unit 9 dicek fisik, dan perhatikan syarat `product_id is null` supaya berkas ini tidak merebut tautan yang sudah dibuat staf |
-| `20261001120000_hide_unidentified_product_6.sql` | Menonaktifkan produk id 6 yang brand 'Xiaomi' dan model_name 'iphone 16' saling bertentangan, jadi etalase publik tidak menampilkan identitas yang belum dipastikan. Merek dan modelnya tidak diubah: itu keputusan staf yang harus melihat unit fisiknya, unit 10 masih di konter. Aktifkan lagi lewat portal Master Produk setelah identitasnya benar |
-| `20261013000000_index_inventory_units_created.sql` | Index `(created_at desc)` di `inventory_units` untuk `ORDER BY unit_created_at DESC LIMIT 500` di etalase publik (query yang timeout pada insiden Sentry KP-1, 2 Okt 2026). Non-destruktif, `IF NOT EXISTS`, tidak menyentuh data |
-| `20261013120000_redact_store_contact.sql` | Mengganti nomor telepon, nomor WhatsApp, dan nama owner di `store_settings` dengan nilai sintetis supaya repo berhenti menyimpan kontak asli. Isi ulang nilai sungguhan lewat portal/settings setelah migrasi ini jalan di production |
-| `20261015000000_service_ticket_picked_up_at.sql` | Menambah kolom `picked_up_at` di `service_tickets` dan stempel waktunya di trigger transisi `completed -> picked_up` (FR-B-04). Non-destruktif, `IF NOT EXISTS` dan `CREATE OR REPLACE`, tidak menyentuh data |
-| `20261016081500_current_actor_id_search_path.sql` | Memin `search_path` helper aktor audit `private.current_actor_id()` lewat `ALTER FUNCTION ... SET search_path = ''` supaya nama yang di-resolve di dalamnya tidak mengikuti `search_path` pemanggil (temuan advisor `function_search_path_mutable`, lint 0011). Badan fungsi, sifat STABLE, dan ACL tidak disentuh; non-destruktif dan idempoten |
-| `20261023111914_add_is_demo_flag.sql` | Menambah kolom `is_demo` bertipe boolean dengan default `false` di `inventory_units` dan `transactions`, lalu mengganti `v_public_inventory` supaya unit demo tidak pernah tampil di etalase. Data lama tetap dianggap data asli; non-destruktif dan idempoten |
-| `20261023112316_demo_inventory_imei_nullable.sql` | Melepas `NOT NULL` pada `inventory_units.imei` supaya unit demo boleh memakai IMEI `NULL`, tetapi tetap mewajibkan 15 digit untuk unit non-demo lewat `inventory_units_demo_imei_check`. Tidak mengubah IMEI unit asli |
-| `20261024110000_products_sales_update.sql` | Menambah policy `products_sales_update` di `public.products`: sales boleh `UPDATE` (harga acuan dan foto lewat Server Action `updateProductListing`), `INSERT` dan `DELETE` tetap admin. Pembatasan kolom ada di action, bukan di RLS. Non-destruktif dan idempoten |
-| `20261024120000_products_sales_column_guard.sql` | Menambah trigger `products_sales_column_guard` di `public.products`: kalau peran pemanggil adalah sales dan UPDATE menyentuh kolom identitas katalog (merek, nama model, spesifikasi, galeri second, status aktif, image_url), perubahan ditolak. Menutup celah policy `products_sales_update` yang mengizinkan UPDATE full-row untuk sales karena RLS tidak bisa membatasi kolom. Non-destruktif dan idempoten |
-`0001` aman dijalankan ulang kapan saja, termasuk `supabase db push` yang
-terhenti di tengah lalu diulang. Rananya sudah dibetulkan pada 27 Sep 2026:
-versi lama `0001` memberi `EXECUTE` pada `public.get_my_role()` dan
-`public.is_staff()` ke `anon` dan `authenticated`, lalu `0002` dan `0003`
-mencabutnya. Kalau `0001` dijalankan lagi "untuk jaga-jaga", kedua helper itu
-terbuka kembali sampai migrasi berikutnya dijalankan. Keduanya
-`SECURITY DEFINER`, jadi ini jalur privilege escalation lewat Data API, bukan
-sekadar kosmetik. Grant itu sekarang tidak ada di `0001` sama sekali, dan status
-akhirnya dibuat `0002` lalu dikunci `0003`: hanya `postgres` dan
-`service_role` boleh memanggilnya.
+| `20260927150000_revoke_anon_write_on_product_images.sql` | Mencabut hak tulis `anon` pada `product_images`; sisanya hanya `SELECT` |
+| `20260927160000_harden_storage_access.sql` | Bucket foto pelanggan jadi privat, `storage_public_read` hanya untuk katalog, batas ukuran dan MIME |
+| `20260927170000_demo_ticket_for_tracking_example.sql` | Tiket contoh untuk halaman lacak |
+| `20260927180000_nullable_inventory_unit_product.sql` | `inventory_units.product_id` nullable untuk trade-in; etalase hanya unit berkatalog |
+| `20260927190000_close_browser_role_write_grants.sql` | Menutup hak tulis `authenticated` di `product_images` dan `storage.buckets`, mencabut `EXECUTE` `rls_auto_enable()`, revoke default privilege schema `public` |
+| `20260927200000_remove_ocean_photo_from_reno11_gallery.sql` | Mengeluarkan foto laut dari galeri Oppo Reno 11; berkas tetap ada karena dipakai `global-not-found.tsx` |
+| `20260927201000_clear_unparseable_product_image_url.sql` | Mengosongkan `products.image_url` yang bukan alamat foto, terutama `undefined/storage/...` |
+| `20260927202000_trim_crop_duplicate_a55_photos.sql` | Memangkas tiga foto Galaxy A55 yang saling potongan |
+| `20260930100000_catalogue_apple_iphone_15_pro.sql` | Baris katalog iPhone 15 Pro tanpa unit; panduan staf di `STAF.md` |
+| `20260930101000_catalogue_samsung_galaxy_s24_ultra.sql` | Baris katalog S24 Ultra tanpa unit, foto tunggal |
+| `20260930102000_catalogue_xiaomi_14.sql` | Baris katalog Xiaomi 14 tanpa unit, tiga foto berbeda |
+| `20260930103000_catalogue_vivo_v30.sql` | Baris katalog Vivo V30 tanpa unit; banner promosi tidak dipakai |
+| `20260930104000_catalogue_iphone_14_plus_for_tradein_unit_9.sql` | Baris katalog iPhone 14 Plus lalu menautkan unit 9. Satu-satunya tulisan ke `inventory_units` di perluasan katalog, hanya `product_id` |
+| `20261001120000_hide_unidentified_product_6.sql` | Menonaktifkan produk id 6 yang merek dan modelnya bertentangan |
+| `20261013000000_index_inventory_units_created.sql` | Index `(created_at desc)` untuk etalase publik; non-destruktif |
+| `20261013120000_redact_store_contact.sql` | Mengganti kontak asli di `store_settings` dengan nilai sintetis |
+| `20261015000000_service_ticket_picked_up_at.sql` | Kolom `picked_up_at` dan stamp trigger `completed -> picked_up` (FR-B-04) |
+| `20261016081500_current_actor_id_search_path.sql` | Pin `search_path` helper `private.current_actor_id()`; non-destruktif |
+| `20261023111914_add_is_demo_flag.sql` | Kolom `is_demo` di `inventory_units` dan `transactions`; unit demo tidak tampil di etalase |
+| `20261023112316_demo_inventory_imei_nullable.sql` | Unit demo boleh IMEI `NULL`; unit non-demo tetap wajib 15 digit |
+| `20261024110000_products_sales_update.sql` | Policy sales `UPDATE` produk untuk harga acuan dan foto lewat Server Action |
+| `20261024120000_products_sales_column_guard.sql` | Trigger yang menolak sales mengubah kolom identitas katalog |
 
-Kalau perlu memastikan, cek ACL-nya tanpa mengubah apa pun:
+`0001` aman dijalankan ulang. Versi lama `0001` memberi `EXECUTE` pada
+`public.get_my_role()` dan `public.is_staff()` ke `anon` dan `authenticated`,
+lalu `0002`/`0003` mencabutnya. Kalau `0001` dijalankan lagi, helper
+`SECURITY DEFINER` itu terbuka kembali sampai migrasi berikutnya. Grant itu
+sekarang tidak ada di `0001`; status akhirnya dibuat `0002` dan dikunci `0003`.
+
+Cek ACL tanpa mengubah apa pun:
 
 ```sql
 select proname, proacl::text
@@ -316,27 +191,68 @@ select proname, proacl::text
  where n.nspname = 'public' and p.proname in ('get_my_role', 'is_staff');
 ```
 
-Hasil yang benar hanya memuat `postgres` dan `service_role`. Kalau `anon` atau
-`authenticated` muncul, `0003` belum terpasang.
+Hasil benar hanya memuat `postgres` dan `service_role`.
+
+`20260927150000` wajib: tanpa itu `product_images` tetap memberi `anon` hak
+tulis warisan default privilege Supabase. `20260927160000` wajib: tanpa itu foto
+servis dan trade-in bisa diambil siapa pun yang punya URL, karena bucket
+`public` melayani `/object/public/` tanpa token dan tanpa cek RLS.
+
+`20260927180000` memperbaiki tautan unit trade-in. Tanpa migrasi ini,
+`executeSale` menautkan handset tukar ke baris katalog unit yang baru terjual,
+sehingga tukar S9 dengan S24 tampil di etalase sebagai S24. Data lama tidak
+diperbaiki otomatis; ikuti catatan di dalam berkasnya setelah dicek.
+
+`20260927190000` menutup lapisan grant. `20260927150000` mencabut tulis `anon`,
+tetapi `authenticated` masih memegang DELETE, INSERT, REFERENCES, TRIGGER,
+TRUNCATE, dan UPDATE di `product_images`. Migrasi ini menurunkan keduanya ke
+`SELECT`, mencabut `EXECUTE` `rls_auto_enable()` untuk `PUBLIC`, dan menjalankan
+`alter default privileges in schema public` supaya tabel baru tidak mewarisi
+`arwdDxtm`. Grant tulis `storage.buckets` diberikan `supabase_storage_admin`,
+jadi `revoke` dari `postgres` hanya menghapus grant milik `postgres`; pengawal
+yang bekerja tetap RLS dengan nol policy.
+
+Cara menjalankan:
+
+1. Buka SQL Editor Supabase, atau `psql "$SOURCE_DATABASE_URL"`.
+2. Jalankan setiap berkas sesuai urutan tabel.
+3. Catat di `supabase_migrations.schema_migrations` dengan nama berkas tanpa
+   ekstensi.
+4. Uji idempotensi di dalam `begin; ... rollback;` sebelum schema dibuka publik.
+
+Jangan memakai `supabase db push` untuk database ini. Angka versi di ledger
+untuk `0001` sampai `0007` berbeda dari nama berkasnya karena dulu diterapkan
+dengan stempel waktu Supabase. CLI akan melihat ketidakcocokan, lalu menawarkan
+menjalankan ulang berkas yang sudah diterapkan. Terapkan lewat SQL Editor atau
+psql, lalu catat di ledger manual.
+
+`supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi menjadi satu berkas
+urut, 34 bagian, untuk project kosong. Isi tiap bagian harus identik dengan
+berkas aslinya; `tests/run-all-pending.test.ts` menjaga kecocokan isi dan
+memastikan setiap berkas muncul tepat sekali. Jangan menjalankan kedua sumber
+sekaligus. Jangan menjalankan `supabase/drizzle/0000_*.sql` sebagai migration
+production karena tidak mencakup RLS, trigger, view, Storage, dan grant.
+
+Setelah migration, pastikan schema `public` dan tabel yang diperlukan
+di-expose lewat Data API. RLS tetap aktif; `anon` dan `authenticated` hanya
+`SELECT`; mutasi bisnis lewat Server Action. `service_role` hanya secret server.
+Migration dijalankan satu kali dari release terkontrol, tidak dari dua pipeline.
 
 ### Aktor di audit trail
 
-`0007` mencatat siapa yang mengubah status unit dan tiket servis, sesuai
-NFR-07. Mekanismenya bukan `auth.uid()`: `src/db/client.ts` memakai koneksi
-Postgres langsung sehingga `auth.uid()` selalu NULL di jalur itu. Aktor
-dikirim lewat setting transaction-local `atcell.actor_id`, diisi oleh
-`setAuditActor()` di dalam transaction yang sama dengan `UPDATE`-nya, lalu
-dibaca trigger lewat `private.current_actor_id()`. Parameter `is_local` membuat
-nilainya hilang begitu transaction selesai, jadi tidak bocor ke request
-berikutnya.
+`0007` mencatat aktor perubahan status unit dan tiket (NFR-07). Mekanismenya
+bukan `auth.uid()`: `src/db/client.ts` memakai koneksi Postgres langsung sehingga
+`auth.uid()` selalu NULL. Aktor dikirim lewat setting transaction-local
+`atcell.actor_id`, diisi `setAuditActor()` dalam transaction yang sama dengan
+`UPDATE`, lalu dibaca trigger lewat `private.current_actor_id()`. `is_local`
+membuat nilainya hilang setelah transaction.
 
-Konsekuensinya harus diketahui operator sebelum membaca hasil audit:
+Konsekuensi yang harus diketahui operator:
 
-- `actor_id` terisi hanya untuk perubahan yang lewat Server Action
-  (`updateUnitStatus` dan `updateTicket`). Perubahan lewat SQL Editor atau
-  psql tercatat dengan `actor_id` NULL.
-- Baris `actor_id` NULL bukan kegagalan pencatatan. Itu justru penanda
-  perubahan yang perlu ditinjau, karena pelakunya tidak diketahui:
+- `actor_id` terisi hanya untuk perubahan lewat Server Action
+  (`updateUnitStatus`, `updateTicket`).
+- Perubahan lewat SQL Editor atau psql tercatat `NULL`. Itu penanda perubahan
+  yang perlu ditinjau, bukan kegagalan pencatatan.
 
 ```sql
 select created_at, actor_id, old_status, new_status
@@ -345,145 +261,43 @@ select created_at, actor_id, old_status, new_status
  order by created_at desc;
 ```
 
-- Kalau Server Action baru menulis tanpa `setAuditActor`, audit tetap terisi
-  tapi kolomnya NULL. Rekap per aktor ada di bagian 5 berkas `0007`.
-
-Setiap migrasi baru wajib ditambah ke tabel ini. `tests/deployment-runbook.test.ts`
-memeriksa dua arah: berkas yang sudah di-commit tapi belum disebut akan
-menggagalkan test, dan nama berkas di tabel ini yang tidak ada di
-`supabase/migrations/` juga akan menggagalkan test.
-
-Dua baris terakhir sangat penting untuk keamanan dan sering terlewat. Tanpa
-`20260927150000`, tabel `product_images` tetap memberi `anon` hak tulis
-warisan default privilege Supabase. Tanpa `20260927160000`, foto servis dan
-trade-in tetap dapat diambil siapa pun yang punya URL, karena bucket `public`
-melayani path `/object/public/` tanpa token dan tanpa cek RLS.
-
-`20260927180000` memperbaiki tautan yang salah, jadi jangan dilewatkan. Tanpa
-migrasi ini, `executeSale` menautkan handset yang pelanggan tukar ke baris
-katalog unit yang baru terjual, sehingga tukar S9 dengan S24 terdaftar dan
-tampil di etalase sebagai S24. Migrasi ini sengaja tidak memperbaiki data
-lama; cara mengenali dan memperbaiki baris yang sudah salah ada di catatan
-di dalam berkasnya, dan harus dijalankan operator setelah datanya dicek.
-
-`20260927190000` menutup lapisan grant yang sebelumnya hanya ditutup RLS.
-`20260927150000` mencabut hak tulis untuk `anon`, tapi `authenticated` masih
-memegang DELETE, INSERT, REFERENCES, TRIGGER, TRUNCATE, dan UPDATE di
-`product_images`. Migrasi ini menurunkan keduanya ke `SELECT` saja,
-mencabut `EXECUTE` untuk `PUBLIC` dari fungsi `rls_auto_enable()`, dan
-menjalankan `alter default privileges in schema public` supaya tabel yang
-dibuat setelahnya tidak lagi mewarisi `arwdDxtm` dari Supabase. Jalankan
-setelah `20260927180000`, tidak boleh dilewati: tanpa baris
-`alter default privileges`, setiap tabel berikutnya akan diam-diam mendapat
-hak tulis penuh lagi dan hanya tertahan oleh policy yang harus orang ingat
-menulis sendiri.
-
-Satu hal yang perlu diketahui operator soal bagian `storage.buckets` di
-migrasi itu. Grant tulis di sana diberikan oleh role `supabase_storage_admin`
-yang juga pemilik tabelnya, sedangkan `REVOKE` hanya bisa mencabut hak yang
-diberikan oleh role yang sedang berjalan, dan role `postgres` bukan anggota
-`supabase_storage_admin`. Jadi `revoke` di sana hanya menghapus grant milik
-`postgres`. Pengawal yang benar-benar bekerja tetap RLS dengan nol policy:
-`select count(*) from storage.buckets` sebagai `authenticated` mengembalikan
-0 baris, dan `update` menyentuh 0 baris, bukan error. Jangan dibaca sebagai
-grant sudah tertutup, dan jangan dihapus hanya karena terlihat tidak
-berpengaruh.
-
-Cara menjalankan:
-
-1. Buka SQL Editor di Supabase, atau `psql "$SOURCE_DATABASE_URL"`.
-2. Jalankan setiap berkas sesuai urutan tabel di atas.
-3. Catat hasilnya di `supabase_migrations.schema_migrations` dengan nama berkas
-   tanpa ekstensi, supaya `supabase db push` tidak mencoba menjalankannya ulang.
-4. Uji idempotensi dengan menjalankan ulang di dalam `begin; ... rollback;`
-   sebelum schema perlu dibuka ke publik.
-
-Jangan memakai `supabase db push` untuk database ini. Angka versi di ledger
-untuk beberapa berkas tidak sama dengan nama berkasnya, karena berkas `0001`
-sampai `0007` dulu diterapkan dengan stempel waktu Supabase sebelum repo memakai
-penamaan berurutan. CLI akan membandingkan keduanya, menemukan angka versi yang
-tidak cocok, lalu menawarkan menjalankan ulang berkas yang sebenarnya sudah
-terapkan. Terapkan lewat SQL Editor atau psql, lalu catat di ledger manual.
-
-`supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi di atas menjadi
-satu berkas urut, tiga puluh empat bagian, untuk project yang belum punya
-skema sama sekali. Database kosong tidak perlu langkah apa pun sebelumnya:
-bagian 1 (`0001`) yang membuat tabel, enum, RLS, view, trigger, dan bucket
-Storage. Dulu berkas itu hanya berisi bagian 4 ke atas, jadi janji "sekali
-paste mengisi project kosong" di kepalanya tidak terpenuhi: paste ke project
-baru menghasilkan nol tabel, nol enum, dan nol RLS. Bagian 1 sampai 3
-ditambahkan pada 27 Sep 2026 dan penandanya ditulis ulang mengikuti jumlah
-bagian saat itu; per 27 Okt 2026 jumlahnya 34 dan sama dengan jumlah berkas
-di `supabase/migrations/`.
-
-Isi tiap bagian harus identik dengan berkas aslinya, dan
-`tests/run-all-pending.test.ts` menjaga dua hal: tiap bagian sama dengan
-migrasi sumbernya, dan **setiap** berkas di `supabase/migrations/` muncul
-tepat sekali sebagai bagian. Dahulu test itu punya pengecualian
-`ALREADY_PROVISIONED = ["0001", "0002", "0003"]`, jadi assertion "tidak ada
-migrasi yang tertinggal" selalu hijau secara konstruksi, bukan karena benar.
-Pengecualian itu dihapus,
-karena berkas gabungan harus benar-benar bisa dipakai dari nol. Jangan
-menjalankan kedua sumber sekaligus.
-
-Jangan menjalankan `supabase/drizzle/0000_*.sql` sebagai migration production
-karena file tersebut tidak mencakup RLS, trigger, view, Storage, dan grant.
-
-Setelah migration, pastikan schema `public` dan tabel yang diperlukan sudah
-di-expose melalui Data API. RLS tetap harus aktif dan grant di migration
-mempertahankan least privilege. Role `anon` dan `authenticated` hanya mendapat
-hak SELECT; mutasi bisnis harus melalui Server Action server-side, bukan
-PostgREST browser. `service_role` hanya boleh tersedia sebagai secret server.
-
-Migration harus dijalankan satu kali dari release yang terkontrol, kemudian
-diverifikasi sebelum deployment production dibuka. Jangan menjalankan
-migration dari dua pipeline secara bersamaan.
+Setiap migrasi baru wajib ditambah ke tabel di atas. `tests/deployment-runbook.test.ts`
+memeriksa dua arah: berkas yang sudah di-commit tetapi belum disebut akan gagal,
+dan nama di tabel yang tidak ada di disk juga gagal.
 
 ## Health check
 
 - `GET /api/health/live` hanya memastikan proses Next.js hidup.
-- `GET /api/health/ready` hanya mengembalikan 200 ketika Supabase public env,
+- `GET /api/health/ready` mengembalikan 200 hanya ketika Supabase public env,
   `DATABASE_URL`, koneksi database, schema wajib, dan service-role secret
-  semuanya tersedia.
+  tersedia.
 - Health endpoint tidak boleh mengembalikan connection string, password, atau
   pesan driver mentah.
 
 Gunakan `/api/health/ready` sebagai target health check Coolify. Response 503
-harus dianggap sebagai not ready, bukan sebagai keberanian untuk memakai data
-mock.
+berarti not ready, bukan alasan memakai data mock.
 
 ## Header proxy dan rate limit
 
-Batas percobaan login dan batas lacak resi memakai IP klien sebagai kunci,
-diambil di `src/lib/client-ip.ts`. Fungsi itu membaca entri TERAKHIR
-`X-Forwarded-For`, bukan yang pertama, dan itu pilihan yang disengaja.
+Batas login dan lacak resi memakai IP klien dari `src/lib/client-ip.ts`. Fungsi
+itu membaca entri TERAKHIR `X-Forwarded-For`, bukan yang pertama. Traefik tidak
+menimpa header itu, melainkan menambahkan IP asli di belakang nilai yang ada.
+Dengan `forwardedHeaders.insecure = false` (bawaan sejak Traefik v2.10), header
+dibersihkan dulu lalu diisi satu IP, jadi entri pertama dan terakhir sama-sama
+benar.
 
-Traefik tidak menimpa `X-Forwarded-For`, melainkan menambahkan IP aslinya di
-belakang nilai yang sudah ada. Dengan `forwardedHeaders.insecure = false`
-(konfigurasi bawaan sejak Traefik v2.10) header itu dibersihkan dulu dari
-permintaan tak tepercaya lalu diisi satu IP saja, jadi entri pertama dan
-terakhir sama-sama benar dan tidak ada perbedaan perilaku.
+Bedanya muncul kalau `insecure` dinyalakan atau ada proxy lain di depan Traefik.
+Penyerang yang mengirim `X-Forwarded-For: 1.2.3.4` membuat aplikasi menerima
+`1.2.3.4, ip-asli`. Dengan entri terakhir, semua percobaan menumpuk pada satu IP
+dan batasnya berlaku.
 
-Bedanya baru muncul kalau `insecure` dinyalakan atau ada proxy lain di depan
-Traefik. Penyerang yang mengirim `X-Forwarded-For: 1.2.3.4` akan membuat
-aplikasi menerima `1.2.3.4, ip-asli`. Dengan entri pertama tiap percobaan
-membuat kunci bucket yang berbeda sehingga batasnya tidak pernah tercapai.
-Dengan entri terakhir semua percobaan menumpuk pada satu IP dan batasnya
-berlaku.
+Kalau struktur berubah:
 
-Kalau struktur ini diubah, tiga hal ikut berubah:
-
-1. Rate limit kehilangan nilainya kalau IP tidak bisa dipercaya. Pastikan
-   tidak ada job internal yang memakai IP proxy bersama, karena semua trafik
-   seperti itu lalu berbagi satu kuota.
-2. `X-Real-Ip` bukan cadangan yang lebih aman. Middleware `forwardedheaders`
-   Traefik hanya menulisnya kalau masih kosong, jadi pada konfigurasi longgar
-   nilai dari klien justru dipertahankan.
-3. Kalau aplikasi bisa dijangkau langsung tanpa lewat Traefik, semua
-   permintaan tanpa header berakhir pada satu kunci tunggal. Itu disengaja
-   karena membuat batas lebih ketat, tapi gejalanya rate limit yang tiba-tiba
-   terasa sangat rapat.
-
+1. Rate limit kehilangan nilai kalau IP tidak dipercaya. Pastikan tidak ada job
+   internal yang memakai IP proxy bersama.
+2. `X-Real-Ip` bukan cadangan aman; Traefik hanya menulisnya kalau kosong.
+3. Kalau aplikasi bisa dijangkau langsung tanpa Traefik, permintaan tanpa header
+   berakhir pada satu kunci tunggal.
 
 ## Rilis yang aman
 
@@ -492,194 +306,53 @@ Kalau struktur ini diubah, tiga hal ikut berubah:
 3. Tulis tag image di `Dockerfile.coolify` memakai `sha-<commit>` sesuai bagian
    tag image di bawah, lalu commit.
 4. Deploy Coolify production dari branch `main`. Sebelum memicu deploy,
-   pastikan `git_commit_sha` aplikasi Coolify sudah menunjuk commit pin yang
-   berisi tag `sha-<commit>`; API deploy membaca nilai itu, bukan HEAD branch.
-   Kalau nilainya ketinggalan, Coolify mengulang commit lama meskipun `main`
-   sudah bergerak. Setelah itu cek `/api/health/ready`, lalu pastikan header
-   `content-security-policy` muncul di `/id`. Header itu hanya ada di image yang
-   sudah memuat `src/lib/csp.ts`, jadi ia penanda image baru benar-benar yang
-   jalan, bukan hanya health check yang hijau. Cara lengkapnya ada di
-   [`docs/CSP.md`](CSP.md).
+   pastikan `git_commit_sha` aplikasi Coolify menunjuk commit pin. API deploy
+   membaca nilai itu, bukan HEAD branch. Setelah itu cek `/api/health/ready`,
+   lalu pastikan header `content-security-policy` muncul di `/id`. Header itu
+   hanya ada di image yang memuat `src/lib/csp.ts`, jadi penanda image baru
+   benar-benar jalan. Cara lengkapnya di [`CSP.md`](CSP.md).
 5. Jalankan smoke test public, login, role guard, IMEI, POS, service tracking,
    dan upload pada URL production.
 6. Verifikasi RLS, trigger, view, Storage, advisor, dan backup.
 7. Aktifkan domain final dan TLS hanya setelah deployment lulus.
 8. Lakukan restore test terjadwal ke resource restore private.
 
-## Tag image di Dockerfile.coolify
+### Verifikasi etalase di HTML
 
-`Dockerfile.coolify` menarik image yang sudah dibangun GitHub Actions, dan tag
-yang dipakai wajib `sha-<commit>`. Tag `latest` tidak boleh dipakai.
-
-Coolify menjalankan `docker build --no-cache` tanpa `--pull`. `--no-cache`
-hanya membersihkan cache lapisan build, bukan cache base image. Dengan tag
-`latest`, Docker memakai salinan tag itu yang sudah tersimpan di lokal VPS dan
-tidak pernah menanyakan registry lagi. Deploy selesai hijau, health check hijau,
-tetapi image yang jalan adalah image lama.
-
-Kejadian itu tidak terlihat dari status mana pun. Penandanya hanya
-respons: `/robots.txt` dilayani sebagai HTML, footer masih memakai warna
-lama, nomor telepon kosong, dan ukuran HTML landing tidak berubah satu byte
-pun. `tests/deploy-image-pin.test.ts` menjaga tag tetap berbentuk `sha` dan
-bukan `latest`, menjaga commit yang disebut ada di repository, dan menjaga
-formatnya sama dengan yang diturunkan `docker-publish.yml`.
-
-Ada satu commit keterlambatan yang harus dipahami. Tag ditulis di commit yang
-sekarang, sedangkan image untuk commit itu baru ada setelah commit itu dipush.
-Jadi deploy commit P menjalankan image commit sebelumnya. Untuk menjalankan
-image commit Q, tuliskan `sha-Q` di `Dockerfile.coolify`, commit, lalu deploy
-lagi. Menjalankan image commit Q berarti commit yang berisi tag `sha-Q`
-belum pernah menjadi image, dan itu tidak bisa dihindari selama tag
-ditulis manual di dalam repository.
-
-Deploy API Coolify juga memakai `git_commit_sha` yang tersimpan di aplikasi,
-bukan HEAD branch. Setelah commit pin masuk ke `main`, arahkan field itu ke
-commit pin sebelum memicu deploy. Tanpa langkah ini, Coolify mengulang commit
-lama dan tag baru tidak pernah dibaca, meskipun push ke `main` sudah berhasil.
-
-Cara memastikan image yang benar-benar jalan bukan cuma lewat `/robots.txt`.
-Bandingkan ukuran dan isi HTML landing sebelum dan sesudah deploy, atau ambil
-digest image yang berjalan lewat Coolify lalu bandingkan dengan digest tag
-`sha-<commit>` di GHCR.
-
-Cara paling langsung adalah label yang dipasang GitHub Actions di image itu.
-Label `org.opencontainers.image.revision` berisi commit yang jadi sumber build.
-Perintahnya membaca container yang SEDANG MELAYANI, bukan tag di registry:
-
-```bash
-docker ps --filter "label=com.docker.compose.project=<project>" -q | head -1 | \
-  xargs -I{} docker inspect --format \
-  '{{ index .Config.Labels "org.opencontainers.image.revision" }}' {}
-```
-
-Bentuk lama yang meng-inspect tag `ghcr.io/neiaki/kp:sha-<commit>` langsung
-tidak berlaku di host ini. Buildx menyimpan image di dalam container builder,
-bukan di daemon, jadi tag itu tidak ada di `docker images` dan `docker
-inspect` menjawab `no such object` walaupun image itu jelas sedang berjalan.
-Label di atas dibaca dari container yang melayani trafik, jadi tidak bergantung
-ke mana pun image-nya disimpan.
-
-Kalau yang muncul bukan commit yang diharapkan, image itu bukan yang kamu kira,
-dan deploy hijau tidak berarti apa-apa. Label yang sama bisa dibaca langsung dari
-GHCR tanpa akses VPS, karena registry menyimpan config image-nya, dan isi tag
-`sha-<commit>` di repository bisa dibandingkan dengan commit yang ada di sana
-sebelum deploy dimulai.
-
-Bukti yang lebih kuat daripada label adalah membandingkan rootfs. Ambil
-`{{.RootFS.Layers}}` dari image container yang berjalan, lalu bandingkan dengan
-`rootfs.diff_ids` dari config blob tag `sha-<commit>` di GHCR. Keduanya harus
-sama persis, seluruh layer, urutannya ikut. Label bisa salah tempel;
-rootfs tidak.
-
-### Dua container aplikasi sesaat setelah deploy
-
-Sesudah deploy, sempat terlihat dua container dari project compose yang sama,
-dengan nama yang berbeda suffix dan image yang berbeda tag commit. Risikonya itu
-bukan dua versi aplikasi yang melayani trafik. Compose menyelesaikan perpindahan
-ke container baru, dan container lama tetap tertinggal sebagai container
-compose yang tidak lagi ada di file compose hasil build. Namanya pun bukan
-nama service yang bisa dibaca, melainkan nama acak, jadi tidak bisa dipakai
-untuk mengira versi mana yang sedang melayani permintaan.
-
-Keadaan itu perlu diketahui supaya tidak salah dibaca sebagai kegagalan
-deploy. Dua pengamatan yang membuatnya terpisah dari insiden "deploy gagal":
-
-- Health check dan `/api/health/ready` tetap hijau sepanjang masa transien,
-  karena keduanya dijawab oleh container baru.
-- Setelah transien, `docker ps` untuk project itu kembali ke satu baris.
-
-Periksanya read-only dan cukup satu perintah. Ganti `<project>` dengan nilai
-label `com.docker.compose.project` container aplikasi:
-
-```bash
-docker ps -a --filter "label=com.docker.compose.project=<project>" \
-  --format '{{.Names}} | {{.Status}} | {{.Image}}'
-```
-
-Hasil yang benar adalah tepat satu baris, dan kolom `Status` berbunyi
-`Up ... (healthy)`. Lebih dari satu baris sesaat setelah deploy adalah
-keadaan transien di atas. Satu baris dengan `Exited` atau `Restarting` adalah
-masalah yang berbeda, dan itulah yang harus ditelusuri lewat log Coolify.
-
-Yang perlu diketahui sebelum menyimpulkan apa pun: `docker inspect` pada tag
-`ghcr.io/neiaki/kp:sha-<commit>` bisa menjawab `no such object` di host ini,
-padahal image itu jelas dipakai. Buildx yang dipakai Coolify menyimpan image
-di dalam container builder, bukan di daemon, jadi tag image lokal tidak bisa
-dibaca lewat `docker images` seperti yang biasa diasumsikan. Karena itu
-verifikasi image yang benar tetap lewat respons, bukan lewat daftar image
-lokal.
-
-Jangan menambahkan `--remove-orphans` untuk membersihkan container yang
-tertinggal itu. Flag tersebut menghapus semua container dalam project yang
-absen dari file compose yang baru, dan pada project yang memuat lebih dari
-satu layanan, itu bisa ikut menghapus layanan yang tidak seharusnya ikut
-dihapus. Untuk At Cell, yang perlu dijaga hanya satu hal: jangan menghitung
-container aplikasi sebagai alat untuk menyimpulkan versi yang sedang berjalan.
-Gunakan respons, seperti bagian di atas.
-
-### Verifikasi etalase di HTML, bukan hanya di browser
-
-Sejak layout area publik membaca snapshot di server, HTML yang sampai ke crawler
-sudah berisi etalase. `/api/health/ready` yang menjawab 200 tidak
-membuktikannya: health check hanya membuktikan database terjangkau, sedangkan
-etalase membaca view `v_public_inventory` dan tabel produk.
-
-Setelah deploy, cek dua hal ini:
+HTML area publik sudah berisi etalase dari snapshot server. `/api/health/ready`
+yang 200 tidak membuktikan etalase terisi: health check hanya membuktikan
+database terjangkau, sedangkan etalase membaca `v_public_inventory` dan tabel
+produk.
 
 ```bash
 curl -s https://atcell.my.id/id/catalog | sed -e 's/<[^>]*>//g' | tr -s ' ' | grep -oE "[0-9]+ unit, harga"
 curl -s https://atcell.my.id/id/catalog | grep -c "Redmi Note 13"
 ```
 
-Angka dan kata "unit" dipisah simpul komentar React di dalam HTML, jadi
-bentuknya `7<!-- --> <!-- -->unit, harga termasuk garansi toko`. Pola yang
-mencari HTML mentah tidak akan pernah cocok, dan hasil kosong karena itu
-terlihat seperti kegagalan deploy padahal etalase sedang terisi. Karena itu
-tag dibuang lebih dulu, lalu spasi dirapatkan.
+Angka dan kata "unit" dipisah simpul komentar React, jadi bentuknya
+`7<!-- --> <!-- -->unit, harga termasuk garansi toko`. Pola HTML mentah tidak
+akan cocok; tag dibuang dulu lalu spasi dirapatkan.
 
-Yang benar: hitungannya bukan 0, dan nama model dari `v_public_inventory`
-muncul di HTML. Kalau perintahnya tidak mengeluarkan apa pun, snapshot gagal
-dibaca, dan kegagalan itu terlihat di halaman sebagai "Tidak ada yang cocok".
-Keadaan itu sah secara kode: pembacaan yang gagal menghasilkan
-tanpa seed, browser mencoba lagi sendiri lewat `loadLiveData`, dan pengunjung
-manusia tetap melihat katalog yang benar setelah sepersekian detik. Yang tidak
-memperoleh kesempatan itu Google dan pratinjau tautan WhatsApp, karena keduanya
-hanya membaca HTML.
+Yang benar: hitungan bukan 0 dan nama model dari `v_public_inventory` muncul.
+Kalau kosong, snapshot gagal dibaca; halaman menampilkan "Tidak ada yang cocok".
+Pembacaan gagal menghasilkan tanpa seed, browser mencoba lagi lewat
+`loadLiveData`, tetapi Google dan pratinjau WhatsApp hanya membaca HTML.
 
-Urutan pemeriksaan saat hitungannya 0:
+Urutan pemeriksaan saat hitungan 0:
 
 1. `/api/health/ready` mengembalikan `databaseReachable: true` dan
    `databaseSchemaReady: true`.
-2. `select count(*) from public.v_public_inventory;` mengembalikan lebih dari 0.
-3. Log container di Coolify memuat `Data publik sedang tidak dapat dimuat`,
-   yaitu pesan kegagalan snapshot. Pesan ini hanya ada di log, tidak pernah
-   tampil di halaman, jadi halaman kosong tanpa penjelasan itu sendiri.
+2. `select count(*) from public.v_public_inventory;` lebih dari 0.
+3. Log container memuat `Data publik sedang tidak dapat dimuat`.
 
 #### Produk baru tidak muncul padahal etalase tidak kosong
 
-Gejalanya mirip dengan yang di atas, tapi bedanya ada di bagian yang dihitung:
-`select count(*) from public.v_public_inventory` mengembalikan lebih dari 0
-dan halaman tidak kosong, sedangkan satu produk yang baru ditambahkan lewat
-`/portal/products` tetap tidak ada di katalog.
-
-Bukan cache. Halaman area publik tidak memakai cache sama sekali:
-`getPublicSnapshot()` dipanggil ulang di dalam jalur render pada tiap
-permintaan (`src/app/(public)/[locale]/layout.tsx`), tidak ada `revalidate`
-atau `unstable_cache` di jalur itu, jadi tidak ada jeda refresh yang bisa
-menahan data baru lebih dari satu permintaan.
-
-Penyebabnya lebih muda: etalase dibangun dari unit, bukan dari katalog.
-`v_public_inventory` hanya memuat baris `inventory_units` yang punya
-`product_id` dan `status = 'available'`, dan setiap kartu katalog dibangun
-dari satu unit. Konsekuensinya:
-
-- Produk yang sudah masuk ke `products` tapi belum punya unit berstatus
-  `available` tidak punya satu pun kartu, karena belum ada yang bisa dijual.
-- Produk yang unitnya sudah `sold` atau `reserved` juga tidak muncul.
-
-Jadi menambah katalog belum cukup; unit fisiknya harus didaftarkan juga
-lewat `/portal/inventory` dengan IMEI 15 digit. Untuk memastikan satu produk
-tertentu benar-benar punya unit siap jual:
+Bukan cache: `getPublicSnapshot()` dipanggil ulang tiap permintaan dan tidak ada
+`revalidate` atau `unstable_cache` di jalur itu. Penyebabnya, etalase dibangun
+dari unit, bukan katalog. `v_public_inventory` hanya memuat unit dengan
+`product_id` dan `status = 'available'`. Produk tanpa unit available tidak punya
+kartu; unit `sold` atau `reserved` juga tidak muncul. Daftarkan unit fisik lewat
+`/portal/inventory` dengan IMEI 15 digit.
 
 ```sql
 select p.brand, p.model_name, v.unit_id, v.condition, v.selling_price
@@ -688,469 +361,467 @@ select p.brand, p.model_name, v.unit_id, v.condition, v.selling_price
  where p.model_name ilike '%Galaxy S26%';
 ```
 
-Baris yang keluar berarti produk itu tampil di etalase. Hasil kosong berarti
-unitnya belum terdaftar sebagai `available`.
+Baris yang keluar berarti produk tampil; hasil kosong berarti unitnya belum
+terdaftar sebagai `available`.
+
+## Tag image di Dockerfile.coolify
+
+`Dockerfile.coolify` menarik image yang sudah dibangun GitHub Actions. Tag wajib
+`sha-<commit>`; `latest` tidak boleh dipakai. Coolify menjalankan
+`docker build --no-cache` tanpa `--pull`; `--no-cache` hanya membersihkan cache
+lapisan, bukan base image. Dengan `latest`, Docker memakai salinan lokal di VPS
+dan tidak bertanya ke registry. Deploy hijau, health check hijau, tetapi image
+lama yang jalan.
+
+Penandanya hanya respons: `/robots.txt` dilayani sebagai HTML, footer warna lama,
+nomor telepon kosong, ukuran HTML landing tidak berubah.
+`tests/deploy-image-pin.test.ts` menjaga tag tetap `sha`, commit-nya ada, dan
+formatnya sama dengan `docker-publish.yml`.
+
+Ada satu commit keterlambatan: tag ditulis di commit sekarang, sedangkan image
+commit itu baru ada setelah dipush. Deploy commit P menjalankan image commit
+sebelumnya. Untuk menjalankan image Q, tulis `sha-Q`, commit, lalu deploy lagi.
+Deploy API Coolify juga memakai `git_commit_sha` tersimpan, bukan HEAD branch.
+
+Cara paling langsung memeriksa image yang benar-benar melayani:
+
+```bash
+docker ps --filter "label=com.docker.compose.project=<project>" -q | head -1 | \
+  xargs -I{} docker inspect --format \
+  '{{ index .Config.Labels "org.opencontainers.image.revision" }}' {}
+```
+
+Label `org.opencontainers.image.revision` berisi commit sumber build. Bentuk lama
+yang meng-inspect tag `ghcr.io/neiaki/kp:sha-<commit>` bisa menjawab
+`no such object` karena Buildx menyimpan image di container builder, bukan
+daemon. Label dibaca dari container yang melayani trafik. Kalau yang muncul
+bukan commit yang diharapkan, deploy hijau tidak berarti apa-apa.
+
+Bukti lebih kuat adalah membandingkan `{{.RootFS.Layers}}` container berjalan
+dengan `rootfs.diff_ids` config blob tag `sha-<commit>` di GHCR. Label bisa salah
+tempel; rootfs tidak.
+
+### Dua container aplikasi sesaat setelah deploy
+
+Sesudah deploy, sempat ada dua container project compose yang sama dengan tag
+berbeda. Itu bukan dua versi yang melayani trafik; compose menyelesaikan
+perpindahan dan container lama tertinggal sebagai container yang tidak lagi ada
+di file compose. Health check tetap hijau karena dijawab container baru, dan
+setelah transien `docker ps` kembali satu baris.
+
+```bash
+docker ps -a --filter "label=com.docker.compose.project=<project>" \
+  --format '{{.Names}} | {{.Status}} | {{.Image}}'
+```
+
+Hasil benar tepat satu baris `Up ... (healthy)`. Lebih dari satu baris sesaat
+setelah deploy adalah transien. Satu baris `Exited` atau `Restarting` adalah
+masalah berbeda. Jangan menambahkan `--remove-orphans` untuk membersihkannya;
+flag itu bisa menghapus layanan lain dalam project.
 
 ### Verifikasi lokal memakai database yang sama
 
 Kalau `DATABASE_URL` lokal menunjuk pooler Supabase yang sama dengan production,
-jalankan hanya satu proses Next.js di mesin lokal. Tiap proses menahan sampai 5
-koneksi (`max` di `src/db/client.ts`), sehingga `next dev` di repo utama
-bersamaan dengan `next start` di worktree, ditambah beberapa permintaan curl
-bersamaan, bisa membuat antrean menumpuk di belakang
-`statement_timeout` 8000 milidetik, atau lebih tinggi kalau
-`STATEMENT_TIMEOUT_MS` dinaikkan.
+jalankan hanya satu proses Next.js. Tiap proses menahan sampai `max` koneksi di
+`src/db/client.ts`; `next dev` di repo utama bersamaan `next start` di worktree
+dan beberapa curl bisa menumpuk di belakang `statement_timeout` 8000 milidetik
+atau lebih tinggi kalau `STATEMENT_TIMEOUT_MS` dinaikkan.
 
-Gejalanya halaman publik yang menggantung, yaitu melewati batas waktu curl,
-sementara `/robots.txt` dan `/api/health/live` tetap menjawab dalam sepersekian
-detik. Itu gejala rebutan lokal, bukan bug kode. Cara memastikan: hentikan
-proses Next.js lain, kirim satu permintaan, lalu periksa waktunya. Halaman
-publik yang sehat menjawab antara 0,1 sampai 3 detik.
+Gejalanya halaman publik menggantung sementara `/robots.txt` dan
+`/api/health/live` tetap cepat. Itu rebutan lokal, bukan bug kode. Hentikan
+proses Next.js lain, kirim satu permintaan, lalu periksa waktunya. Halaman publik
+sehat menjawab 0,1 sampai 3 detik.
+
+## Akses panel Coolify
+
+Panel Coolify adalah kendali penuh host: environment, deploy, log, terminal
+container, DNS, dan resource. Panel harus tetap tertutup dari internet; alasan
+pengerasannya ada di `VPS-HARDENING.md`.
+
+| Jalur | Perlu apa | Pakai kapan |
+|---|---|---|
+| SSH tunnel | Kredensial SSH | Harian. Tidak mengubah firewall. |
+| Pengecualian port 8000 | IP publik owner | Darurat bila tunnel tidak bisa dipakai. |
+
+SSH tunnel, jalur utama:
+
+```bash
+ssh -L 8000:127.0.0.1:8000 vpsubuntu
+```
+
+Buka `http://127.0.0.1:8000/login` di peramban komputer operator. Tunnel
+meneruskan lewat SSH, tidak menyentuh port publik. Jalur ini tidak ikut ditutup
+`/usr/local/sbin/docker-dnat-guard.sh` karena skrip itu hanya mengatur trafik
+`-i eth0`; loopback dari tunnel lolos. Tutup tunnel dengan `Ctrl+C`.
+
+Pengecualian port 8000 memakai HTTP polos, jadi password dan cookie sesi melintas
+tanpa enkripsi. Satu login cukup untuk mengambil seluruh environment production;
+pakai hanya dalam darurat dan jangan dari jaringan yang tidak dipercaya. Rule
+penjaga Docker untuk satu IP:
+
+```text
+-A DOCKER-USER -s "$ADMIN_IP"/32 -i eth0 -p tcp \
+   -m conntrack --ctorigdstport 8000 \
+   -m comment --comment atcell-panel-exception -j RETURN
+```
+
+Rule ini ada sebelum aturan penolakan. Port `8080`, `6001`, dan `6002` tetap
+tertutup. Nilai IP owner hanya ada di variabel `ADMIN_IP` di skrip penjaga host,
+tidak pernah di repo. Kalau IP berubah, edit `ADMIN_IP` lalu jalankan
+`sudo /usr/local/sbin/docker-dnat-guard.sh`; skripnya idempoten.
+
+`--ctorigdstport` diperlukan karena port host 8000 dipublish ke container 8080.
+Docker melakukan DNAT di `nat/PREROUTING`, dan `DOCKER-USER` berjalan sesudahnya,
+jadi port paket sudah terbaca 8080. `ufw` tidak bisa dipakai: paket published
+port Docker dibelokkan, tidak sampai ke rantai `INPUT`.
+
+Kalau panel tidak bisa diakses:
+
+| Gejala | Artinya | Langkah |
+|---|---|---|
+| Timeout dari luar | Pengecualian tidak cocok IP sekarang | Cek IP, bandingkan `ADMIN_IP` |
+| Timeout dari dalam VPS | Publikasi IP tidak hairpin | Uji dari luar |
+| Timeout dari mana pun | Aturan hilang setelah reboot | Jalankan ulang skrip, cek service |
+| 403 atau logout terus | Sesi kedaluwarsa | Login ulang |
+
+Panel tidak memakai TLS. Kalau butuh URL permanen, jalurnya memberi hostname
+dengan TLS lewat `coolify-proxy` (Traefik), bukan membuka port.
 
 ## DNS dan session
 
-Domain At Cell dikelola melalui MyDomaiNesia. Buka **Domain → DNS Management**
-dan ubah record hanya setelah deployment serta health check siap. Tambahkan
-`atcell.my.id` dan `login.atcell.my.id` sebagai domain aplikasi di Coolify agar
-Traefik mengetahui host yang harus dilayani.
+Domain dikelola MyDomaiNesia. Ubah record hanya setelah deployment dan health
+check siap. Tambahkan `atcell.my.id` dan `login.atcell.my.id` sebagai domain
+aplikasi Coolify.
 
-| Host | Type | Target awal |
-|------|------|-------------|
+| Host | Type | Target |
+|---|---|---|
 | `@` | A | IP public VPS Coolify |
 | `login` | CNAME | `atcell.my.id` |
 
-- `atcell.my.id` dan `login.atcell.my.id` harus memakai sertifikat TLS yang
-  valid.
-- Tambahkan URL production dan URL login ke daftar redirect Supabase Auth.
-- Untuk sesi lintas subdomain, set `SUPABASE_COOKIE_DOMAIN=.atcell.my.id`.
-- Jangan membuat record standby ke provider yang sudah tidak dipakai.
+- Kedua host harus memakai sertifikat TLS valid.
+- Tambahkan URL production dan login ke redirect Supabase Auth.
+- Set `SUPABASE_COOKIE_DOMAIN=.atcell.my.id` untuk sesi lintas subdomain.
+- Jangan membuat record standby ke provider yang tidak dipakai.
 
 ## Backup dan rollback
 
-- Aktifkan backup/PITR sesuai paket Supabase dan export database secara berkala.
-- Backup objek Storage dicadangkan terpisah dari backup database.
-- Simpan hash/commit deployment dan satu dump database sebelum migration.
-- Rollback aplikasi tidak membatalkan migration database. Migration rollback
+- Aktifkan backup/PITR sesuai paket Supabase dan export database berkala.
+- Backup objek Storage terpisah dari backup database.
+- Simpan hash/commit deployment dan satu dump sebelum migration.
+- Rollback aplikasi tidak membatalkan migration database. Rollback migration
   harus ditinjau dan tidak boleh menghapus data transaksi.
 
 ### Restore target lokal di Coolify
 
-Resource ini hanya menjadi target restore test, bukan mirror aktif atau
-sumber data aplikasi. Karena VPS At Cell hanya memiliki 2 vCPU dan 2 GB RAM,
-spesifikasi awal yang disepakati adalah:
+Resource ini hanya target restore test, bukan mirror aktif atau sumber data.
+VPS hanya 2 vCPU dan 2 GB RAM, jadi spesifikasi awal: 1 vCPU, RAM maksimum 512
+MB, disk 10 GB, PostgreSQL private tanpa public port, `max_connections` dan
+`shared_buffers` dibatasi, restore `pg_restore --jobs=1`.
 
-- 1 vCPU
-- RAM maksimum 512 MB
-- Disk 10 GB
-- PostgreSQL private tanpa public port
-- `max_connections` dan `shared_buffers` dibatasi
-- Restore memakai `pg_restore --jobs=1`
+Resource ini tidak boleh menjadi alasan mengganti Supabase production. Coolify,
+aplikasi, dan restore database berada di failure domain yang sama. Dump asli
+tetap disalin ke object storage off-site terenkripsi.
 
-Resource yang sama tidak boleh menjadi alasan utama untuk mengganti
-Supabase production. Coolify, aplikasi, dan restore database berada
-pada failure domain yang sama. Dump asli tetap harus disalin ke object storage
-off-site terenkripsi.
-
-Pembuatan resource di Coolify:
-
-1. Buka project At Cell, pilih environment production, lalu **New Resource →
-   PostgreSQL**.
-2. Beri nama `atcell-restore-local`.
-3. Pilih image PostgreSQL yang sama atau lebih baru dari major version Supabase.
-4. Pilih destination/network Coolify yang sama dengan VPS At Cell.
-5. Batasi CPU 1, RAM 512 MB, dan volume 10 GB.
-6. Matikan public port dan jangan masukkan URL database ini ke aplikasi.
-7. Start resource dan tunggu health check hijau.
-8. Simpan credential internal di Coolify secret manager, bukan di repository.
+Pembuatan resource: project At Cell → environment production → **New Resource →
+PostgreSQL**, nama `atcell-restore-local`, image PostgreSQL sama atau lebih baru
+dari major Supabase, destination/network sama, batas CPU 1, RAM 512 MB, volume 10
+GB, public port mati, credential di Coolify secret manager.
 
 Urutan backup yang aman:
 
-1. Ambil dump logis dari Supabase dengan format custom. Script backup mencakup
-   schema `public`, `private`, dan `auth`. Auth ikut karena account staf ada di
-   database yang sama dengan data bisnis: `public.profiles` mereferensi
-   `auth.users(id)`.
-2. Script backup membuktikan isi dumpnya sendiri. Kalau `auth.users` tidak ada
-   di dalam daftar isi arsip, dump tetap ditulis (data bisnis lebih baik ada
-   daripada tidak ada) tapi script keluar dengan kode 70 dan cron mencatat
-   `GAGAL`. Tidak ada lagi jalur yang melaporkan backup lengkap padahal Auth
-   tidak ikut.
-3. Hitung checksum dump, enkripsi, dan kirim ke storage off-site
-   (`bun run backup:offsite`; berjalan otomatis lewat cron harian).
-4. Cadangkan objek Storage dengan `bun run backup:storage`. Arsip terenkripsi
-   berisi `metadata.sql` (skema dan data `storage`), `manifest.json`, dan byte
-   setiap objek. Lihat bagian "Backup objek Storage" di bawah.
-5. Salin dump ke restore target Coolify saat jadwal restore test.
-6. Jalankan bootstrap minimal pada PostgreSQL biasa dengan
-   `scripts/restore-target-bootstrap.sql`. Bootstrap membuat role Data API
-   minimal, `auth.users`, `auth.uid()`, dan `auth.role()`.
-7. Jalankan `pg_restore --jobs=1`. Untuk dump modern, tabel `auth.users` yang
-   dibuat bootstrap langsung diganti oleh isi dump, sehingga akun staf ikut
-   pulih. Stub hanya dipakai untuk dump lama yang belum memuat schema auth.
+1. Dump logis Supabase format custom, mencakup schema `public`, `private`, dan
+   `auth`. Auth ikut karena `public.profiles` mereferensi `auth.users(id)`.
+2. Script memeriksa isi dump. Kalau `auth.users` tidak ada, dump tetap ditulis
+   tetapi script keluar 70 dan cron mencatat `GAGAL`.
+3. Hitung checksum, enkripsi, kirim off-site (`bun run backup:offsite`, cron
+   harian).
+4. Cadangkan objek Storage dengan `bun run backup:storage`.
+5. Salin dump ke restore target saat jadwal restore test.
+6. Jalankan `scripts/restore-target-bootstrap.sql`.
+7. Jalankan `pg_restore --jobs=1`. Dump modern mengganti tabel `auth.users` stub
+   dengan isi dump, sehingga akun staf ikut pulih.
 8. Cek tabel wajib, RLS, trigger, view, dan jumlah akun auth asli.
-9. Hapus data restore test setelah selesai atau hentikan service agar RAM
-   kembali ke aplikasi.
+9. Hapus data restore test atau hentikan service agar RAM kembali.
 
 ### Backup objek Storage
 
-`scripts/backup-storage.sh` menutup celah yang tidak disentuh
-`backup-postgres.sh`: foto katalog, foto servis, dan foto trade-in hanya hidup
-di bucket Storage, sementara dump database hanya menyimpan path-nya. Script
-membuat satu arsip `atcell-storage-<timestamp>.tar.enc` berisi:
+`scripts/backup-storage.sh` menutup celah yang tidak disentuh backup database:
+foto katalog, servis, dan trade-in hanya hidup di bucket Storage, sementara dump
+hanya menyimpan path. Arsip `atcell-storage-<timestamp>.tar.enc` berisi
+`metadata.sql` (`pg_dump --schema=storage`), `manifest.json`, dan byte objek.
 
-- `metadata.sql`: hasil `pg_dump --schema=storage` (bucket, objek, policies).
-- `manifest.json`: `created`, `source_host`, daftar `buckets`, dan setiap
-  berkas dengan `bucket`, `path`, `sha256`, `size`, `mimetype`.
-- `<bucket>/<path>`: byte objek apa adanya.
+Arsip dienkripsi AES-256-CBC PBKDF2 100.000 iterasi dengan sidecar `.sha256`.
+Script menolak berhasil bila tidak ada objek (`STORAGE_ALLOW_EMPTY=1` untuk kasus
+sengaja), metadata tidak memuat `storage.buckets`/`storage.objects`, atau nama
+objek memuat traversal. Salinan terenkripsi wajib dikirim lewat
+`STORAGE_OFFSITE_PUT_URL` atau `STORAGE_OFFSITE_RCLONE_REMOTE`; tanpa tujuan
+script keluar bukan-nol. Passphrase dan key hanya lewat file atau environment.
 
-Arsip dienkripsi AES-256-CBC PBKDF2 (100.000 iterasi) dan ditulis bersama
-sidecar `.sha256`. Script menolak berhasil bila tidak ada satu pun objek
-(`STORAGE_ALLOW_EMPTY=1` untuk kasus yang disengaja), bila metadata dump tidak
-memuat `storage.buckets`/`storage.objects`, atau bila nama objek memuat
-traversal. Setelah arsip jadi, salinan terenkripsi wajib dikirim ke off-site
-lewat `STORAGE_OFFSITE_PUT_URL` atau `STORAGE_OFFSITE_RCLONE_REMOTE`; tanpa
-tujuan, script keluar bukan-nol. Passphrase dan key hanya masuk lewat file atau
-environment, tidak pernah argv curl.
+`scripts/restore-storage.sh` memverifikasi arsip tanpa jaringan: checksum,
+dekripsi, keamanan tar, kecocokan manifest, ukuran, dan SHA-256 tiap objek.
+Upload hanya bila `ALLOW_STORAGE_RESTORE=YES` dan `STORAGE_RESTORE_URL` serta
+`STORAGE_RESTORE_DATABASE_URL` diisi. Restore additive: tidak ada `delete`.
 
-`scripts/restore-storage.sh` memverifikasi arsip secara default tanpa jaringan:
-checksum sidecar, dekripsi, keamanan anggota tar, kecocokan daftar berkas
-dengan manifest, ukuran, dan SHA-256 setiap objek. Upload hanya terjadi bila
-`ALLOW_STORAGE_RESTORE=YES` dan `STORAGE_RESTORE_URL` serta
-`STORAGE_RESTORE_DATABASE_URL` diisi. Metadata diterapkan lewat `psql` di dalam
-`postgres:17-alpine` dengan DSN sebagai environment container, lalu bucket yang
-belum ada dibuat dan objek diunggah dengan `x-upsert: true`. Restore bersifat
-additive: tidak ada `delete`, objek di luar arsip dibiarkan.
-
-Guard yang tidak bisa dilewati:
+Guard restore Storage:
 
 - Target dengan host sama dengan `source_host` ditolak kecuali
   `STORAGE_RESTORE_ALLOW_SAME_HOST=YES`.
-- Host selain localhost harus terdaftar di `STORAGE_RESTORE_ALLOWED_HOSTS`.
-- Bucket yang sudah ada di target ditolak kecuali
+- Host selain localhost harus ada di `STORAGE_RESTORE_ALLOWED_HOSTS`.
+- Bucket yang sudah ada ditolak kecuali
   `STORAGE_RESTORE_ALLOW_EXISTING_BUCKETS=YES`.
 
-`scripts/restore-storage-drill.sh` (`bun run restore:storage-drill`) memilih
-`atcell-storage-*.tar.enc` terbaru, memeriksa sidecar, dan menjalankan mode
-verifikasi. Drill tidak butuh URL, key, atau database, sehingga bisa dijadwalkan
-seperti drill dump. Variabel lengkap ada di `.env.example` (awalan `STORAGE_`
-dan `STORAGE_RESTORE_`). Per 20 Oktober 2026 script sudah ada, teruji lokal,
-dan sudah terpasang di host produksi (`/opt/atcell/scripts/`), tetapi belum
-dijadwalkan di VPS karena tujuan off-site Storage belum dikonfigurasi. Docker
-dan image `postgres:17-alpine` sudah ada di host, jadi penghambatnya bukan
-tool, melainkan passphrase dan tujuan upload yang belum dimiliki owner.
+`bun run restore:storage-drill` memilih arsip terbaru, memeriksa sidecar, dan
+menjalankan mode verifikasi tanpa URL, key, atau database.
 
-### Apa yang masih perlu langkah manusia untuk Auth
+### Menyalakan backup off-site
 
-Dump At Cell sekarang memuat akun staf, jadi tidak ada data Auth yang hilang
-diam-diam. Tapi memulihkan **login** adalah urusan Supabase Auth, bukan
-PostgreSQL biasa, dan langkah itu tidak bisa dilakukan oleh script repo:
+Backup harian hanya hidup di VPS yang sama dengan aplikasi; kegagalan VPS
+menghilangkan semuanya. Script gagal-terbuka: selama passphrase dan tujuan upload
+belum diisi, cron mencatat `GAGAL` dan tidak ada byte yang terkirim.
 
-1. `pg_dump` mengembalikan baris `auth.users` ke database. GoTrue tidak
-   berjalan di sana, jadi tabel itu adalah data, bukan layanan yang bisa
-   menerima login.
-2. Agar orang bisa login lagi di Supabase, baris itu harus diimpor kembali ke
-   Auth project Supabase. Itu operasi Supabase Auth, jadi butuh kredensial
-   project yang tidak ada di VPS ini dan sengaja tidak dibuat oleh repo.
-3. Dump modern sudah berisi `auth.identities` juga, sehingga akun berbasis
-   email/password dan akun yang terhubung ke provider bisa keduanya ikut.
+Keadaan awal: `/root/.atcell-offsite.env` belum ada, `rclone` belum terpasang,
+cron `/etc/cron.d/atcell-offsite` jalan 02.47 waktu host (Asia/Shanghai, 01.47
+WIB), setengah jam setelah backup 02.17.
 
-Selama Supabase projectnya utuh, seluruh ini tidak perlu dilakukan: Auth sudah
-punya backup dan PITR sendiri. Yang baru dibutuhkan adalah ketika projectnya
-sendiri hilang, dan saat itu yang dicari adalah dump At Cell yang memuat
-`auth.users`. Keadaan sebelum 3 Oktober 2026 adalah kebalikannya: tidak ada
-satu pun salinan yang memuat akun, sehingga kehilangan project berarti kehilangan
-login tanpa ada apa pun untuk dipulihkan.
+Langkah:
+
+1. Buat passphrase root-only:
+
+```bash
+sudo install -o root -g root -m 600 /dev/null /root/.atcell-offsite.passphrase
+sudo bash -c 'openssl rand -base64 48 > /root/.atcell-offsite.passphrase'
+```
+
+Passphrase hilang berarti arsip off-site tidak bisa dibuka.
+
+2. Pilih tujuan upload. Opsi A rclone (disarankan): pasang rclone, lalu
+   `sudo rclone config` sebagai root karena cron berjalan sebagai root. Opsi B
+   HTTP PUT: isi `OFFSITE_PUT_URL` (URL dasar tanpa nama berkas) dan
+   `OFFSITE_PUT_TOKEN` atau `OFFSITE_PUT_TOKEN_FILE`.
+
+3. Isi `/root/.atcell-offsite.env` mode 0600:
+
+```bash
+OFFSITE_PASSPHRASE_FILE=/root/.atcell-offsite.passphrase
+OFFSITE_RCLONE_REMOTE=r2:atcell-backup
+# atau
+OFFSITE_PUT_URL=https://example-endpoint/backups
+OFFSITE_PUT_TOKEN_FILE=/root/.atcell-offsite.token
+```
+
+4. Jalankan manual `sudo /usr/local/bin/atcell-offsite`; output harus tanpa
+   `GAGAL`. Periksa `sudo tail -n 20 /var/log/atcell-offsite.log`.
+
+5. Buktikan berkas ada di sisi jauh. Exit 0 saja bukan bukti:
+
+```bash
+sudo ls -lht /data/backups/atcell/.offsite/ | head
+sudo rclone ls r2:atcell-backup
+sudo sha256sum /data/backups/atcell/.offsite/atcell-*.dump.enc | head
+sudo rclone cat r2:atcell-backup/atcell-<nama>.dump.enc.sha256
+```
+
+Untuk HTTP PUT, unduh satu berkas dan bandingkan dengan sidecar `.sha256`.
+
+6. `OFFSITE_KEEP_ENCRYPTED` (bawaan 3) mengatur salinan lokal. Yang terkirim ke
+   luar tidak dihapus script, jadi rotasi di tujuan juga penting.
+
+7. Untuk backup Storage, buat wrapper `/usr/local/bin/atcell-storage-backup`
+   pola `atcell-offsite`: baca env 0600, ambil `DATABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_URL`, dan `SUPABASE_SECRET_KEY` dari container aplikasi
+   saat runtime, lalu panggil `backup-storage.sh`. Isi
+   `/root/.atcell-storage.env` dengan `STORAGE_PASSPHRASE_FILE`,
+   `STORAGE_OFFSITE_RCLONE_REMOTE`, dan `BUCKETS`. Jadwalkan setelah off-site
+   dump terbukti terkirim, lalu jalankan manual dan
+   `restore-storage-drill.sh`.
+
+8. Buktikan restore. Backup yang belum dipulihkan belum disebut cadangan. Unduh
+   arsip ke mesin lain, dekripsi, dan periksa daftar isi:
+
+```bash
+openssl enc -aes-256-cbc -d -pbkdf2 -iter 100000 \
+  -in atcell-<timestamp>.dump.enc -pass file:/root/.atcell-offsite.passphrase \
+  -out atcell-<timestamp>.dump
+pg_restore --list atcell-<timestamp>.dump | grep -c "TABLE DATA auth users"
+```
+
+Angka harus lebih dari nol. Dump tanpa `auth.users` berarti tidak ada orang yang
+bisa login setelah restore.
+
+Kalau gagal:
+
+| Pesan | Arti | Perbaikan |
+|---|---|---|
+| `OFFSITE belum dikonfigurasi: tidak ada passphrase` | File passphrase kosong atau tidak terbaca | Cek nama dan izin 0600 |
+| `tidak ada tujuan upload` | Remote dan PUT URL kosong | Isi salah satu |
+| `rclone tidak terpasang` | Opsi A dipilih | Pasang dan konfigurasi rclone |
+| `OFFSITE_PUT_URL diisi tapi token kosong` | Opsi B tanpa token | Isi token atau file token |
+| `checksum sisi jauh beda` | Berkas tujuan berbeda | Jangan percaya salinan itu |
+
+Yang tidak boleh dilakukan: menaruh passphrase/token di `/etc/cron.d`, memakai
+`OFFSITE_PASSPHRASE` bila bisa file, menyalakan cron Storage sebelum off-site dump
+terbukti, atau menghapus arsip lokal tanpa pernah mencoba restore.
 
 ### Akun yang hanya ada di target hilang saat restore
 
 `scripts/restore-postgres.sh` memakai `pg_restore --clean --single-transaction`,
-jadi target **diisi ulang** dari dump, bukan digabung dengan isinya. Setiap akun
-Auth, profil, transaksi, dan unit yang ada di target tetapi tidak ada di dump akan
-**terhapus**, termasuk akun yang dibuat beberapa menit sebelum restore
-dimulai. Ini sifat `pg_restore --clean`, bukan bug, dan memang persis yang
-dibutuhkan supaya target sama persis dengan dump.
+jadi target diisi ulang dari dump, bukan digabung. Akun Auth, profil, transaksi,
+dan unit yang ada di target tetapi tidak ada di dump akan terhapus, termasuk akun
+yang dibuat beberapa menit sebelum restore. Ini sifat `--clean`, bukan bug.
 
-Konsekuensi praktisnya, dan ini yang perlu dibaca sebelum menjalankan restore ke
-target sungguhan:
+Konsekuensi:
 
-1. Restore mengembalikan database ke **saat dump diambil**, bukan ke saat
-   restore dijalankan. Penjualan, unit, dan perubahan stok setelah jam backup
-   akan hilang dari target.
-2. Akun staf yang dibuat setelah backup terakhir tidak ikut pulih. Kalau ada
-   yang baru masuk setelah itu, daftarkan ulang di Supabase Auth setelah
-   restore selesai.
-3. Sebelum restore sungguhan, jalankan drill lebih dulu
-   (`bun run restore:drill`) dan baca output verifikasinya. Drill memakai
-   container sekali pakai dengan `--network none`, jadi tidak pernah menyentuh
-   produksi maupun standby.
+1. Restore mengembalikan database ke saat dump diambil. Penjualan dan perubahan
+   stok setelah jam backup hilang dari target.
+2. Akun staf yang dibuat setelah backup terakhir tidak ikut pulih; daftarkan
+   ulang setelah restore.
+3. Sebelum restore sungguhan, jalankan `bun run restore:drill` dan baca output.
 
-Yang **tidak** diam-diam lolos sudah ditutup: `scripts/backup-postgres.sh`
-memeriksa isi dump dan `scripts/restore-postgres.sh` memverifikasi setelah
-restore bahwa ada akun Auth asli, bukan cuma stub. Dump tanpa akun asli
-diperlakukan sebagai kegagalan, bukan sukses setengah jadi.
+`backup-postgres.sh` memeriksa isi dump dan `restore-postgres.sh` memverifikasi
+akun Auth asli setelah restore. Dump tanpa akun asli adalah kegagalan.
 
-Contoh format dump dan restore:
+Contoh:
 
 ```bash
 SOURCE_DATABASE_URL="..." BACKUP_DIR="/path/backup" bun run backup:postgres
 psql "$RESTORE_DATABASE_URL" -f scripts/restore-target-bootstrap.sql
-# Cek dulu targetnya tanpa menyentuh database apa pun:
 ALLOW_RESTORE=YES RESTORE_DRY_RUN=1 RESTORE_DATABASE_URL="..." \
   DUMP_FILE="/path/backup/atcell-....dump" bun run restore:postgres
-# Jalankan sungguhan. Host di bawah harus diizinkan lebih dulu lewat
-# RESTORE_ALLOWED_HOSTS; tanpa itu script berhenti dengan kode 3.
 ALLOW_RESTORE=YES RESTORE_ALLOWED_HOSTS="atcell-restore-local" \
   RESTORE_DATABASE_URL="..." DUMP_FILE="/path/backup/atcell-....dump" \
   bun run restore:postgres
 ```
 
-Script restore menolak jalan sebelum menyentuh database kalau salah satu hal ini
-tidak terpenuhi:
+Guard restore:
 
-- `ALLOW_RESTORE=YES` tetap syarat pertama, tapi tidak lagi cukup.
-- Host target harus `localhost`, `127.0.0.1`, atau `::1`, atau hostnya disebut
-  eksplisit di `RESTORE_ALLOWED_HOSTS`. Target restore resmi
-  (`atcell-restore-local` di network Coolify) bukan localhost, jadi operator
-  wajib menyebutnya sekali di environment restore. Drill ke container
-  PostgreSQL sekali pakai di host yang sama tidak butuh flag tambahan.
-- Host produksi ditolak tanpa syarat apa pun. Pola `*.supabase.co`,
-  `*.supabase.com`, dan `*.atcell.my.id` berhenti dengan kode 3, dan tidak ada
-  flag yang membukanya, termasuk saat host itu sengaja ditulis ke
-  `RESTORE_ALLOWED_HOSTS`. Produksi adalah sumber dump, bukan target restore.
-- Tanpa `RESTORE_ASSUME_YES=1`, script meminta konfirmasi di terminal dan hanya
-  melanjutkan kalau nama database target diketik ulang persis. Prompt ditulis
-  ke `/dev/tty`, bukan ke stdout, supaya tidak ikut ter-log tanpa disadari.
-- `RESTORE_DRY_RUN=1` menjalankan seluruh guard, mencetak host dan database
-  target beserta perintah `pg_restore` yang akan dijalankan, lalu berhenti
-  tanpa membuka koneksi.
+- `ALLOW_RESTORE=YES` syarat pertama, tetapi tidak cukup.
+- Host target harus `localhost`, `127.0.0.1`, `::1`, atau disebut di
+  `RESTORE_ALLOWED_HOSTS`. `atcell-restore-local` wajib disebut.
+- Host produksi ditolak tanpa syarat: `*.supabase.co`, `*.supabase.com`, dan
+  `*.atcell.my.id` berhenti dengan kode 3, termasuk bila ditulis ke
+  `RESTORE_ALLOWED_HOSTS`.
+- Tanpa `RESTORE_ASSUME_YES=1`, konfirmasi meminta nama database target diketik
+  ulang. Prompt ke `/dev/tty`, bukan stdout.
+- `RESTORE_DRY_RUN=1` menjalankan guard, mencetak target dan perintah, lalu
+  berhenti tanpa koneksi.
+- Script memakai `[[ ]]` dan `${var//...}`, jadi jalankan dengan `bash`.
 
-Yang tidak bisa dilompati adalah daftar host produksi dan daftar host target.
-Yang bisa dilompati hanya prompt, lewat `RESTORE_ASSUME_YES=1`, dan itu tetap
-tunduk pada kedua daftar. Sisa risikonya adalah alamat IP produksi yang ditulis
-manual ke `RESTORE_DATABASE_URL` tanpa nama hostnya, karena itu tidak bisa
-dibedakan dari IP mana pun; karena itu konfirmasi tetap wajib di jalur interaktif.
+`KEEP_DAYS` default 14. Dump lebih tua beserta `.sha256` dihapus, hanya pola
+`atcell-*.dump`. `KEEP_DAYS=0` mematikan rotasi.
 
-Script juga menolak dijalankan dengan `sh`. Ia memakai `[[ ]]` dan
-`${var//[[:space:]]/}`, yang tidak dijamin ada di `/bin/sh`; jalankan dengan
-`bash`, seperti `bun run restore:postgres` sudah lakukan.
+Script membaca daftar isi dump dulu. Kalau ada `auth.users`, stub tidak dibuat
+dan akun staf ikut pulih. Kalau dump lama tidak memuat `auth.users`, stub dibuat
+dengan alamat `restore-stub-<uuid>@invalid.local`; restore seperti itu ditolak
+kode 5 karena tidak ada yang bisa login.
 
-`KEEP_DAYS` opsional dan default-nya 14. Setelah dump baru ditulis, dump yang
-lebih tua dari `KEEP_DAYS` hari beserta file `.sha256`-nya dihapus, dan hanya
-nama yang cocok pola `atcell-*.dump` yang disentuh. Nilai `0` mematikan rotasi
-dan berarti orang yang memakai KEEP_DAYS=0 harus menyimpan salinannya sendiri
-di luar. Tanpa rotasi direktori backup tumbuh tanpa batas sampai disk penuh, dan
-disk penuh adalah tempat terakhir yang boleh menyimpan cadangan.
+### Standby terisi di VPS
 
-Script restore membaca daftar isi dump dulu dan memilih jalurnya. Kalau dump
-memuat data `auth.users`, stub tidak dibuat sama sekali: akun staf ikut pulih
-darinya, dan verifikasi setelah restore memastikan target punya akun auth
-**asli**. Kalau dump tidak memuat `auth.users` (dump lama), baris stub dibuat
-untuk setiap UUID profil di dump memakai alamat `restore-stub-<uuid>@invalid.local`
-dan `on conflict do nothing`, supaya relasi `profiles.id -> auth.users.id`
-terpenuhi tanpa menimpa akun asli yang sudah ada. Jalur stub membuat restore
-bisa berjalan, tidak membuat siapa pun bisa login, dan restore seperti itu
-ditolak dengan kode 5 beserta alasannya.
-
-Sebelum 3 Oktober 2026 dump hanya mencakup `public` dan `private`, sehingga
-setiap restore target berisi tabel `auth.users` yang isinya 100% stub: nol akun
-asli, nol kolom password, nol `email_confirmed_at`. Pemeriksaan lama menghitung
-kelengkapan stub dan selalu lolos. restored standby pada 3 Oktober 2026 memang
-berisi tepat kondisi itu.
-
-#### Standby terisi di VPS
-
-Resource yang sama itu sekarang berjalan dan diisi ulang secara terjadwal, jadi
-restore target tidak lagi sekadar resource yang di-start manual saat restore test.
-Ini **bukan mirror aktif**: aplikasi tidak pernah terhubung ke database ini,
-dan setiap sinkronisasi bersifat destruktif terhadap standby karena isinya
-di-restore ulang dari dump.
+Resource `atcell-restore-local` berjalan dan diisi ulang terjadwal. Ini bukan
+mirror aktif: aplikasi tidak pernah terhubung ke database ini, dan setiap sync
+destruktif karena di-restore ulang dari dump.
 
 | Komponen | Lokasi |
-|----------|--------|
-| Resource Coolify | `atcell-restore-local`, image `postgres:17-alpine` (sama major dengan Supabase 17.x) |
-| Container | `<nama-container-standby>` (contoh saat penulisan: `ah5xioiowolm1uub4lpthnnd`), network `coolify` saja, tanpa port host |
-| Jadwal | `/etc/cron.d/atcell-standby-sync`, 03.17/09.17/15.17/21.17 waktu host |
-| Wrapper | `/usr/local/bin/atcell-standby-sync` (mode 700, root) |
-| Log | `/var/log/atcell-standby-sync.log`, diputar `/etc/logrotate.d/atcell-standby-sync` |
-| Dump perantara | `/data/backups/atcell-standby/atcell-<timestamp>.dump`, `KEEP_DAYS=7` |
+|---|---|
+| Resource Coolify | `atcell-restore-local`, image `postgres:17-alpine` |
+| Container | nama acak, network `coolify` saja, tanpa port host |
+| Jadwal | `/etc/cron.d/atcell-standby-sync`, 03.17/09.17/15.17/21.17 |
+| Wrapper | `/usr/local/bin/atcell-standby-sync`, mode 700, root |
+| Log | `/var/log/atcell-standby-sync.log` |
+| Dump perantara | `/data/backups/atcell-standby/`, `KEEP_DAYS=7` |
 
-Database standby tidak punya port host. Ia hanya terjangkau dari container lain
-di network `coolify`, jadi dari luar VPS tidak bisa diakses:
+Alamat container dibaca dari Docker setiap kali jalan, jangan dikunci di dokumen
+atau script. Pada 2 Okt 2026 alamat berpindah dari `10.0.1.4` ke `10.0.1.8`, lalu
+`coolify-db` mengambil alamat lama; wrapper yang masih memakai alamat lama
+mengirim password standby ke database platform. Wrapper kini mencatat
+`Standby <container> di <ip>:5432` ke log.
 
-```bash
-# dari luar VPS: harus gagal
-nc -vz <ip-vps> 5432
-
-# dari container lain di network coolify: berhasil.
-# Alamat dibaca dari Docker, bukan ditulis manual: IP container berubah saat
-# di-restart, dan IP yang dilepas langsung dipakai container lain.
-# Nilai di bawah contoh saat penulisan, ganti dengan nama container kini.
-STANDBY=<nama-container-standby>
-STANDBY_HOST=$(docker inspect "$STANDBY" \
-  --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-docker exec <container> pg_isready -h "$STANDBY_HOST" -p 5432
-```
-
-Jangan pernah mengunci alamat standby di dokumen atau di script. Pada
-2026-10-02T10:05Z standby di-restart dan Docker memindahkannya dari
-`10.0.1.4` ke `10.0.1.8`; enam menit kemudian `coolify-db` dibuat dan
-mengambil `10.0.1.4`. Alamat di atas contoh historis 2 Okt 2026, bukan
-konfigurasi kini. Wrapper yang masih mengarah ke `10.0.1.4` selama tiga
-percobaan sync berikutnya mengirim password standby ke database platform
-Coolify, yang menolaknya dengan `password authentication failed`. Wrapper
-kini membaca alamat dari Docker setiap kali jalan, dan mencatat baris
-`Standby <container> di <ip>:5432` ke log supaya target yang dipakai selalu
-bisa diaudit dari `/var/log/atcell-standby-sync.log`.
-
-Jalankan sinkronisasi manual dengan cara yang sama seperti cron, supaya
-redireksi log terjadi sebagai root:
+Jalankan manual dengan cara yang sama seperti cron:
 
 ```bash
 sudo /usr/local/bin/atcell-standby-sync
 ```
 
-Alur tiap sinkronisasi: dump logis dari Supabase (script repo, mode 0600 untuk
-`DATABASE_URL` yang diambil runtime dari container aplikasi), bootstrap
-minimum, lalu `pg_restore`. Karena dump modern sudah membawa `auth.users`,
-`pg_restore --clean --if-exists` yang menentukan hasil akhir.
+Alur: dump logis Supabase, bootstrap minimum, `pg_restore`. Wrapper tidak
+menghapus schema `auth` bila target sudah punya akun asli. Wrapper meneruskan
+`RESTORE_ALLOWED_HOSTS` dari alamat Docker dan `RESTORE_ASSUME_YES=1`. Verifikasi
+akhir: `v_public_inventory` tidak kosong, tabel wajib ada, tidak ada profil tanpa
+`auth.users`, dan minimal satu akun auth asli.
 
-Wrapper tidak lagi menghapus schema `auth` tanpa syarat. Schema itu hanya
-dibuang kalau target tidak punya akun auth asli, sehingga operator yang sudah
-mengimpor Auth sungguhan ke standby tidak kehilangan account-nya diam-diam.
-Kalau ada akun asli, langkah itu dilewati dan dicatat di log.
-
-Wrapper meneruskan dua variabel ke `scripts/restore-postgres.sh` selain
-`ALLOW_RESTORE`: `RESTORE_ALLOWED_HOSTS` diisi dari alamat standby yang baru saja
-dibaca dari Docker, dan `RESTORE_ASSUME_YES=1` karena cron tidak punya terminal.
-Keduanya wajib: tanpa yang pertama restore berhenti dengan "Host target tidak
-diizinkan", tanpa yang kedua berhenti dengan "tidak ada terminal untuk
-konfirmasi". Guard yang tidak bisa dilewati tetap berlaku, yaitu daftar host
-produksi dan daftar host target.
-
-Wrapper memverifikasi hasil akhir sebelum melapor sukses: `v_public_inventory`
-tidak boleh kosong, `to_regclass` untuk tabel wajib, tidak boleh ada profil
-tanpa pasangan di `auth.users`, dan harus ada minimal satu akun auth **asli**.
-Hitungan stub tidak lagi dipakai sebagai bukti apa pun. Tidak ada satu pun
-container yang disentuh kalau dump gagal.
-
-Contoh verifikasi manual:
-
-```bash
-docker exec <nama-container-standby> psql -U postgres -d postgres \
-  -c "select count(*) from v_public_inventory" \
-  -c "select count(*) from auth.users" \
-  -c "select count(*) from auth.users where coalesce(raw_user_meta_data->>'atcell_restore_stub','') <> 'true'" \
-  -c "select to_regclass('public.products') is not null"
-```
-
-**Batas failure domain.** Standby ini ada di VPS yang sama dengan Coolify dan
-aplikasi, jadi ia melindungi dari kerusakan data, migration yang salah, atau
-`drop` yang tidak disengaja, dan memperpendek RTO karena tidak perlu install
-apa pun untuk memulihkan. Ia **tidak** melindungi dari kehilangan VPS, dari
-akun Supabase yang dikompromikan, atau dari ransomware di host yang sama.
-Salinan terenkripsi off-host dibuat oleh `scripts/backup-offsite.sh`
-(`bun run backup:offsite`): dump terbaru diverifikasi checksum-nya, lalu
-dicoba dibaca dengan `pg_restore --list` dan dipastikan memuat data
-`auth.users`, baru dienkripsi AES-256-CBC dengan PBKDF2 dan dikirim ke tujuan
-rclone atau HTTP PUT. Pemeriksaan kedua itu wajib: checksum hanya membuktikan
-berkas tidak berubah sejak ditulis, jadi arsip korup yang checksum-nya cocok
-bisa lolos dan terkirim ke luar host, memberi rasa aman semu karena salinannya
-ada di dua tempat tapi tidak bisa dipakai memulihkan akun staf.
-Exit 0 berarti off-host copy benar-benar terkirim. Kalau passphrase atau
-tujuan upload kosong, script keluar bukan-nol dan cron mencatat `GAGAL`,
-karena cadangan yang diam-diam tidak jalan memunculkan rasa aman yang
-palas. Keadaan di host ini per 3 Oktober 2026: file env yang dirujuk cron
-belum dibuat, jadi job itu gagal setiap malam dan belum pernah mengirim
-satu pun byte ke luar host. Cara dekripsi dan daftar variabel ada di
-`scripts/backup-offsite.sh` dan `.env.example` (awalan `OFFSITE_`).
-
+Batas failure domain: standby melindungi dari kerusakan data, migration salah,
+atau `drop` tak sengaja, dan memperpendek RTO. Ia tidak melindungi dari kehilangan
+VPS, akun Supabase yang dikompromikan, atau ransomware di host yang sama.
+`scripts/backup-offsite.sh` menutup celah itu dengan salinan terenkripsi
+off-host: checksum, `pg_restore --list`, pastikan memuat `auth.users`, enkripsi
+AES-256-CBC PBKDF2, lalu kirim ke rclone atau HTTP PUT. Exit 0 berarti salinan
+terkirim.
 
 ### Backup otomatis di VPS
 
-`scripts/backup-postgres.sh` dijadwalkan lewat cron, bukan dijalankan manual:
+`scripts/backup-postgres.sh` dijadwalkan cron:
 
 | Komponen | Lokasi |
-|----------|--------|
-| Jadwal | `/etc/cron.d/atcell-backup`, setiap hari 02.17 waktu host |
+|---|---|
+| Jadwal | `/etc/cron.d/atcell-backup`, 02.17 |
 | Wrapper | `/usr/local/bin/atcell-backup` |
 | Script repo | `/opt/atcell/scripts/backup-postgres.sh` |
 | Hasil | `/data/backups/atcell/atcell-<timestamp>.dump` + `.sha256` |
-| Log | `/var/log/atcell-backup.log`, diputar `/etc/logrotate.d/atcell-backup` |
+| Log | `/var/log/atcell-backup.log` |
 
-App container tidak punya `pg_dump`, jadi wrapper menjalankan script itu di dalam
-`postgres:17-alpine` yang sudah ada di host. Versi 17 wajib karena server
-Supabase masih 17.x; `postgres:15` akan menolak dengan `server version mismatch`.
-`DATABASE_URL` dibaca dari app container saat runtime ke file sementara mode 0600
-yang langsung dihapus, jadi tidak ada salinan kedua dari secret itu di disk.
+Container aplikasi tidak punya `pg_dump`, jadi wrapper menjalankannya di dalam
+`postgres:17-alpine`. Versi 17 wajib karena Supabase 17.x. `DATABASE_URL` dibaca
+runtime ke file sementara mode 0600 yang langsung dihapus.
 
-Untuk memastikan backup benar-benar bisa dipulihkan, ada drill terjadwal.
-`scripts/restore-drill.sh` (`bun run restore:drill`) mengambil dump terbaru,
-memverifikasi checksum-nya, merestore-nya ke PostgreSQL 17 sekali pakai,
-memeriksa hasilnya, lalu membuang container itu. Exit 0 berarti dump terbaru
-memang bisa dipulihkan **dan** hasil restorenya punya akun auth asli.
+Drill terjadwal `bun run restore:drill` mengambil dump terbaru, verifikasi
+checksum, restore ke PostgreSQL 17 sekali pakai, memeriksa hasil, lalu membuang
+container. Exit 0 berarti dump bisa dipulihkan dan punya akun auth asli.
 
 | Komponen | Lokasi |
-|----------|--------|
-| Jadwal | `/etc/cron.d/atcell-restore-drill`, Minggu 04.17 waktu host |
+|---|---|
+| Jadwal | `/etc/cron.d/atcell-restore-drill`, Minggu 04.17 |
 | Wrapper | `/usr/local/bin/atcell-restore-drill` |
 | Script repo | `/opt/atcell/scripts/restore-drill.sh` |
-| Sumber dump | `/data/backups/atcell` (bisa diubah lewat `DUMP_DIR`) |
-| Log | `/var/log/atcell-restore-drill.log`, diputar `/etc/logrotate.d/atcell-restore-drill` |
+| Sumber dump | `/data/backups/atcell` |
+| Log | `/var/log/atcell-restore-drill.log` |
 
-Drill tidak pernah menyentuh standby atau produksi. Container drill dibuat
-sendiri oleh script itu dengan `--network none`, tanpa port yang dipublikasikan,
-tanpa password sama sekali, dan selalu dibuang lewat `trap` walau drill gagal di
-tengah. Kaidah yang dijaga: drill yang berhenti sebelum membuktikan apa pun sama
-nilainya dengan tidak ada drill.
+Drill tidak menyentuh standby atau produksi: container sendiri,
+`--network none`, tanpa port, tanpa password, dibuang lewat `trap`. Backup yang
+belum pernah di-restore belum bisa disebut cadangan.
 
-Backup yang belum pernah di-restore belum bisa disebut cadangan. Drill terjadwal
-sekarang yang membuat klaim itu bisa dibuktikan: baris `Drill restore LULUS` di
-log, atau `GAGAL` beserta pemeriksaan mana yang gagal.
+#### Rotasi log
 
-#### Rotasi log At Cell
-
-Semua log At Cell punya config logrotate, satu berkas per log, dengan pola yang
-sama: `su root adm`, `weekly`, `rotate 8`, `compress`, `delaycompress`,
-`missingok`, `notifempty`, `copytruncate`.
+Semua log memakai pola `su root adm`, `weekly`, `rotate 8`, `compress`,
+`delaycompress`, `missingok`, `notifempty`, `copytruncate`.
 
 | Log | Config |
-|-----|--------|
+|---|---|
 | `/var/log/atcell-backup.log` | `/etc/logrotate.d/atcell-backup` |
 | `/var/log/atcell-standby-sync.log` | `/etc/logrotate.d/atcell-standby-sync` |
 | `/var/log/atcell-offsite.log` | `/etc/logrotate.d/atcell-offsite` |
 | `/var/log/atcell-watchdog.log` | `/etc/logrotate.d/atcell-watchdog` |
 | `/var/log/atcell-restore-drill.log` | `/etc/logrotate.d/atcell-restore-drill` |
 
-Setiap config baru diuji dengan `logrotate -d /etc/logrotate.d/<nama>` sebelum
-dipasang. Tanpa itu, salah ketik satu baris berarti satu log tumbuh tanpa
-batas sampai disk penuh, dan disk penuh adalah tempat terakhir yang boleh
-menyimpan cadangan.
+Uji `logrotate -d /etc/logrotate.d/<nama>` sebelum dipasang.
 
 #### Notifikasi kegagalan uptime
 
 `scripts/atcell-watchdog.sh` dijalankan `/usr/local/bin/atcell-watchdog` lewat
-`/etc/cron.d/atcell-watchdog` setiap lima menit. Script ini hanya bersuara saat
-status berubah, **tapi** pencatatannya tidak hilang: transisi dan pengulangan
-selama outage berjalan ditulis ke log berkas, ke syslog lewat
-`logger -t atcell-watchdog`, dan ke `/var/lib/atcell-watchdog/incident` yang
-isinya dihapus saat pulih. Jadi `journalctl -t atcell-watchdog`,
-`grep atcell-watchdog /var/log/syslog`, dan `/var/lib/atcell-watchdog/incident`
-semuanya menunjukkan insiden yang sedang berjalan.
+`/etc/cron.d/atcell-watchdog` tiap lima menit. Script bersuara saat status
+berubah, tetapi transisi dan pengulangan selama outage ditulis ke log, syslog
+lewat `logger -t atcell-watchdog`, dan `/var/lib/atcell-watchdog/incident`.
 
-Notifikasi ke luar hanya lewat Telegram, dan **hanya** kalau
-`/root/.atcell-watchdog.env` ada dengan dua variabel ini:
+Notifikasi keluar hanya lewat Telegram dan hanya kalau
+`/root/.atcell-watchdog.env` berisi:
 
 ```bash
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 ```
 
-Tanpa kedua variabel itu `notify()` keluar tanpa melakukan apa pun; pencatatan
-di tiga tempat di atas tetap berjalan, yang hilang hanya pesan ke telepon. Bot
-dibuat lewat `@BotFather`, dan `TELEGRAM_CHAT_ID` adalah id chat tujuan, bukan
-nama akun. Jangan tulis nilainya ke repository.
+Tanpa keduanya, pencatatan tetap jalan; hanya pesan ke telepon yang hilang.
+`TELEGRAM_CHAT_ID` adalah id chat, bukan nama akun. Jangan tulis nilainya di repo.
 
-Jangan menyimpan password database, token, atau checksum dump sensitif di
-repository. Nilai secret hanya disimpan di Coolify secret manager.
+Jangan menyimpan password, token, atau checksum dump sensitif di repository.
+Secret hanya di Coolify secret manager.
 
 ## Testing wajib
 
@@ -1162,10 +833,10 @@ bun run build
 bun run smoke:deployment -- <primary-url> [<fallback-url>]
 ```
 
-Smoke test browser dilakukan pada URL Coolify production. Uji minimal:
+Smoke test browser pada URL Coolify production:
 
-- `/id` dan `/id/catalog` ketika public snapshot tersedia.
-- `/id/tracking` dengan kode tiket valid dan kode invalid.
+- `/id` dan `/id/catalog` saat public snapshot tersedia.
+- `/id/tracking` dengan kode valid dan invalid.
 - login admin, sales, technician, customer.
 - guard route sesuai role.
 - registrasi IMEI, POS anti-double-sell, dan workflow tiket.

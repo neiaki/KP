@@ -23,7 +23,7 @@ const catalogContent = baca("app/(public)/[locale]/catalog/catalog-content.tsx")
 const landingContent = baca("app/(public)/[locale]/landing-content.tsx");
 const notifyCard = baca("components/public/notify-card.tsx");
 const staffDoc = readFileSync(
-  new URL("../docs/PUBLIKASI-MODEL-TANPA-STOK.md", import.meta.url),
+  new URL("../docs/STAF.md", import.meta.url),
   "utf8"
 );
 
@@ -187,7 +187,7 @@ test("dokumen staf memakai label form yang benar-benar ada", () => {
   for (const label of [...LABEL_FORM_PRODUK, ...LABEL_FORM_INVENTARIS]) {
     assert.ok(
       staffDoc.includes(label),
-      `docs/PUBLIKASI-MODEL-TANPA-STOK.md tidak menyebut label "${label}"`
+      `docs/STAF.md tidak menyebut label "${label}"`
     );
   }
   for (const label of [...LABEL_FORM_PRODUK, ...LABEL_FORM_INVENTARIS.slice(1)]) {

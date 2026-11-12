@@ -16,7 +16,7 @@
 --   2. perbarui RUN-ALL-PENDING.sql, supabase/migrations-ledger.snapshot,
 --      docs/DEPLOYMENT-REDUNDANCY.md, dan README bila perlu;
 --   3. jalankan di database lokal/staging, bukan production;
---   4. verifikasi query di docs/db-integrity-proposals.md bagian 5.
+--   4. verifikasi query di docs/DB-INTEGRITY.md bagian 5.
 --
 -- Semua pernyataan idempoten. Bagian yang membutuhkan keputusan owner diberi
 -- tanda OPSIONAL dan boleh dihapus sebelum migrasi dijalankan.
@@ -28,7 +28,7 @@
 -- Ini jaring pengaman terakhir anti double-sell. Aplikasi sudah memakai
 -- SELECT ... FOR UPDATE dengan filter status = 'available' di pos.ts, tetapi
 -- jalur SQL langsung tetap bisa menulis dua baris untuk unit yang sama.
--- Preflight wajib: query duplikat di docs/db-integrity-proposals.md harus 0.
+-- Preflight wajib: query duplikat di docs/DB-INTEGRITY.md harus 0.
 create unique index if not exists transaction_items_unit_id_key
   on public.transaction_items (unit_id);
 
@@ -288,7 +288,7 @@ create trigger trg_guard_ticket_technician
 -- PostgREST, jadi aturan yang sama ditegakkan di database.
 -- Catatan: cost_breakdown, technician_notes, warranty_days, dan technician_id
 -- masih boleh diubah sales di action saat ini. Itu dicatat sebagai temuan
--- terpisah di docs/db-integrity-proposals.md dan NEEDS_HUMAN.md, bukan
+-- terpisah di docs/DB-INTEGRITY.md dan docs/STATUS.md, bukan
 -- diperluas diam-diam di trigger ini.
 create or replace function private.service_ticket_sales_guard()
 returns trigger

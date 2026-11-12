@@ -8,7 +8,7 @@
  *   2. menjalankan Lighthouse headless (chromium sistem, via npx — tanpa
  *      menambah dependency ke package.json) 3x per halaman,
  *   3. mencetak tabel median (Performance/A11y/BestPractices/SEO,
- *      LCP/CLS/TBT) format Markdown untuk docs/LOOP_LOG.md.
+ *      LCP/CLS/TBT) format Markdown untuk laporan manual.
  *
  * Server selalu dimatikan di finally, apa pun hasilnya.
  */

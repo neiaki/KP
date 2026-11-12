@@ -52,7 +52,9 @@ readonly KONSTANTA_PUBLIK=("1.1.1.1" "8.8.8.8" "9.9.9.9" "1.2.3.4")
 readonly POLA_IP='([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})'
 
 # Commit yang memuat nilai bocor hanya ada di satu berkas, jadi
-# hanya berkas itu yang perlu ditulis ulang.
+# hanya berkas itu yang perlu ditulis ulang. Berkas ini sudah tidak ada di
+# HEAD; namanya sengaja tetap dipakai karena isinya hidup di riwayat Git dan
+# justru itu yang perlu dibersihkan.
 readonly BERKAS_BOCOR="docs/COOLIFY-PANEL.md"
 
 jalankan=0

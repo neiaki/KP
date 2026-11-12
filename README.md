@@ -60,11 +60,10 @@ di `src/lib/store.ts`.
 
 ## Arsitektur
 
-![Alur arsitektur At Cell, dari pengunjung dan staf sampai Supabase](./docs/diagram-uml/bersama/arsitektur-alur.png)
-
-Diagram Mermaid di bawah menjadi sumber yang mudah disunting. Gambar di atas
-ditampilkan lebih dulu agar tetap terlihat di aplikasi GitHub ponsel yang
-belum merender diagram Mermaid.
+Diagram Mermaid di bawah adalah satu-satunya sumber alur arsitektur di repo.
+Tidak ada render gambar terpisah yang perlu disinkronkan. Aplikasi GitHub
+ponsel yang belum merender Mermaid tetap bisa membaca alur dari teks di
+sekitarnya.
 
 ```mermaid
 flowchart LR
@@ -302,18 +301,15 @@ Ikuti runbook lengkap di [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUN
 Indeks lengkap ada di [`docs/README.md`](docs/README.md).
 
 - [`docs/PRD-AtCell.md`](docs/PRD-AtCell.md): vision, kebutuhan, fitur, user flow, dan rancangan arsitektur.
-- [`docs/USE-CASE-AtCell.md`](docs/USE-CASE-AtCell.md): 33 kemampuan per aktor, dari membuka web sampai semua menu portal, plus relasi antarkemampuan.
-- [`docs/requirement-2.0.md`](docs/requirement-2.0.md): SRS aktif yang memuat aktor dan kebutuhan aplikasi. `docs/requirement.md` adalah SRS v1 yang sudah digantikan, jangan dipakai sebagai acuan.
-- [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md): deployment, migration, DNS, backup, restore, dan rollout.
+- [`docs/USE-CASE-AtCell.md`](docs/USE-CASE-AtCell.md): kemampuan per aktor, dari membuka web sampai semua menu portal, plus relasi antarkemampuan.
+- [`docs/requirement-2.0.md`](docs/requirement-2.0.md): SRS aktif yang memuat aktor dan kebutuhan aplikasi.
+- [`docs/requirement.md`](docs/requirement.md): SRS v1 yang dipertahankan sebagai arsip. Acuan aktif tetap `docs/requirement-2.0.md`.
+- [`docs/DEPLOYMENT-REDUNDANCY.md`](docs/DEPLOYMENT-REDUNDANCY.md): deployment, migration, DNS, akses panel, backup, restore, dan rollout.
+- [`docs/DB-INTEGRITY.md`](docs/DB-INTEGRITY.md): usulan aturan integritas database dan runbook verifikasinya.
 - [`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md): urutan mengganti secret yang pernah bocor, lengkap dengan verifikasinya.
 - [`docs/CSP.md`](docs/CSP.md): cara kerja Content-Security-Policy berbasis nonce, directive yang dipakai, dan alasan setiap keputusan.
-- [`docs/VPS-HARDENING.md`](docs/VPS-HARDENING.md): catatan audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan.
-- [`docs/COOLIFY-PANEL.md`](docs/COOLIFY-PANEL.md): cara masuk panel Coolify setelah port publik ditutup (SSH tunnel dan pengecualian darurat).
+- [`docs/VPS-HARDENING.md`](docs/VPS-HARDENING.md): audit host production dan langkah pengerasannya, untuk direview manusia sebelum dijalankan.
 - [`docs/ANDROID-APP.md`](docs/ANDROID-APP.md): build, signing, dan verifikasi Digital Asset Links untuk aplikasi Android `my.id.atcell`.
-- [`docs/PUBLIKASI-MODEL-TANPA-STOK.md`](docs/PUBLIKASI-MODEL-TANPA-STOK.md): cara staf menerbitkan model ke katalog tanpa unit dan tanpa IMEI.
-- [`docs/PERLUASAN-KATALOG-AT-CELL.md`](docs/PERLUASAN-KATALOG-AT-CELL.md): usulan perluasan katalog beserta harga yang wajib dikonfirmasi owner.
-- [`docs/PAYMENT-WARNING-COPY.md`](docs/PAYMENT-WARNING-COPY.md): copy peringatan link pembayaran yang menunggu persetujuan owner (opsi A disarankan, belum diterapkan ke kode).
-- [`docs/UJI-ALUR-STAF.md`](docs/UJI-ALUR-STAF.md): skenario uji alur ber-kredensial staf (login per role, undang staf, IMEI, POS, workflow tiket, lintasan akses) dan status eksekusinya.
-- [`docs/diagram-uml/`](docs/diagram-uml/README.md): sumber PlantUML plus render PNG/SVG (sequence, activity, state, usecase, class, object, component, ER) dan sumber Mermaid alur arsitektur untuk README root.
-- `docs/Diagram/` (draf lokal di-gitignore, tidak ikut repo): dua belas diagram editorial HTML untuk presentasi, bukan sumber kanonik; diagram yang di-commit ada di `docs/diagram-uml/`.
+- [`docs/STAF.md`](docs/STAF.md): panduan staf untuk publikasi model tanpa stok dan uji alur portal ber-kredensial.
+- [`docs/STATUS.md`](docs/STATUS.md): status repo, backlog yang masih terbuka, dan keputusan owner.
 

@@ -26,13 +26,6 @@ const KATA_LUAR_CAKUPAN = /\b(laptop|tablet|smartwatch)\b/gi;
 // Per berkas, frasa yang boleh muncul pada baris pemakai kata.
 // Nilai di sini adalah pemakaian sah, bukan celah baru.
 const PENGECUALIAN: Record<string, string[]> = {
-  "docs/README.md": [
-    "kondisi laptop harga berubah",
-    "laptop",
-    "tentuan tentang laptop",
-    "fitur laptop yang pernah ada",
-  ],
-  "docs/COOLIFY-PANEL.md": ["browser laptop"],
   "src/app/(portal)/portal/dashboard/page.tsx": ["768px tablet"],
   "src/components/public/navbar.tsx": ["dari tablet"],
   "tests/supabase-key-precedence.test.ts":
