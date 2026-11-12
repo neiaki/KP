@@ -161,7 +161,12 @@ setara dengan `database-tests.yml`.
 - Jangan install package baru, ubah route/slug, atau ubah label nav utama
   tanpa konfirmasi.
 - Jangan hapus atau rename file/folder yang sudah ada tanpa konfirmasi.
-- Jangan commit atau push ke Git tanpa konfirmasi eksplisit.
+- Repo pribadi ini: perubahan kecil (docs, chore, fix satu commit) langsung
+  di-commit dan di-push ke `main`, tanpa PR dan tanpa menunggu konfirmasi.
+- Pakai branch `feat/nama` atau `fix/nama` untuk fitur baru atau perbaikan
+  fitur yang butuh iterasi; merge ke `main` setelah gate lulus, lalu hapus
+  branch.
+- PR tidak wajib; buat hanya jika diminta atau untuk repo kolaboratif.
 - Jangan jalankan perintah destruktif database atau restore backup tanpa
   konfirmasi (`DROP`, `TRUNCATE`, `DELETE` tanpa `WHERE`, `migrate reset`,
   `pg_restore --clean`).
