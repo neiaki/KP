@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { StoreProvider } from "@/context/store-context";
 import { DemoRoleBar } from "@/components/demo-role-bar";
 import { BackendStatus } from "@/components/backend-status";
@@ -13,18 +13,27 @@ import type { PublicSnapshot } from "@/lib/actions/public";
  * font tidak ganda dan tidak bisa melenceng di satu sisi.
  *
  * next/font harus dipanggil di level modul, bukan di dalam komponen.
+ *
+ * Berkas font disimpan di repo dan dimuat lewat next/font/local, bukan
+ * next/font/google. Versi google mengunduh CSS dan woff2 dari
+ * fonts.googleapis.com saat dev/build, sehingga mesin tanpa akses internet
+ * (atau di belakang proxy) hanya mendapat fallback dan log peringatan di
+ * setiap render. Dua berkas di bawah adalah subset latin variable font dari
+ * Google Fonts, jadi tampilan dan bobot yang tersedia tetap sama.
  */
 
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = localFont({
+  src: "../app/fonts/plus-jakarta-sans-latin.woff2",
   variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: "400 800",
+  display: "swap",
 });
 
-const plexMono = JetBrains_Mono({
+const plexMono = localFont({
+  src: "../app/fonts/jetbrains-mono-latin.woff2",
   variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: "400 700",
+  display: "swap",
 });
 
 export const fontVars = `${jakarta.variable} ${plexMono.variable}`;
