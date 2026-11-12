@@ -20,6 +20,29 @@ export function ServiceWorkerRegistrar() {
     if (!isServiceWorkerSupported()) return;
 
     /*
+     * Service worker tidak didaftarkan di development.
+     *
+     * Cache-nya menyimpan /_next/static dan memakai cache-first. Di production
+     * nama chunk berubah setiap build sehingga cache lama tidak pernah dipakai,
+     * tetapi di development nama chunk bisa stabil. Akibatnya browser yang
+     * pernah membuka dev server bisa menerima chunk JS lama dari service worker
+     * sementara HTML dirender oleh kode baru, dan React melaporkan hydration
+     * mismatch yang membingungkan (misalnya atribut width/height gambar).
+     *
+     * Registrasi lama juga dicabut supaya developer yang sudah terlanjur punya
+     * service worker di localhost tidak perlu membersihkan site data manual.
+     */
+    if (process.env.NODE_ENV !== "production") {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) =>
+          Promise.all(registrations.map((registration) => registration.unregister()))
+        )
+        .catch(() => undefined);
+      return;
+    }
+
+    /*
      * Pendaftaran ditunda sampai halaman selesai dimuat, supaya unduhan
      * service worker tidak bersaing dengan gambar produk dan dengan
      * hydration. Di jaringan seluler selisih ini nyata, dan tidak perlu lebih
