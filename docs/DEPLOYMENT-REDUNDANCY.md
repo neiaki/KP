@@ -823,6 +823,66 @@ Tanpa keduanya, pencatatan tetap jalan; hanya pesan ke telepon yang hilang.
 Jangan menyimpan password, token, atau checksum dump sensitif di repository.
 Secret hanya di Coolify secret manager.
 
+## Pembersih koneksi pooler (reaper)
+
+Pada 16 Nov 2026 ditemukan 16 koneksi Supavisor macet: query snapshot publik
+(`SELECT`) selesai di sisi server, jawaban terkirim, tapi klientnya tidak
+pernah membacanya. Backend berstate `active` dengan `wait_event = 'ClientRead'`
+dan `xact_start` puluhan jam ke belakang. Pool transaction mode penuh, semua
+checkout menunggu 60 detik lalu gagal dengan `ECHECKOUTTIMEOUT`, probe
+`/api/health/ready` menjawab 503, container ditandai unhealthy, dan Traefik
+menghentikan seluruh routing: atcell.my.id 503 lebih dari sehari. Recovery:
+terminasi manual backend yang macet, lalu restart container.
+
+Restart aplikasi saja **tidak** menyelesaikan ini: Supavisor menahan backend di
+sisi server sampai klientnya menutup socket atau backend diterminasi dari
+Postgres. Pemulihan manual:
+
+```sql
+select pg_terminate_backend(pid)
+  from pg_stat_activity
+ where backend_type = 'client backend'
+   and wait_event = 'ClientRead'
+   and xact_start < now() - interval '1 hour';
+```
+
+`scripts/atcell-db-reaper.sh` mengotomatiskan pembersihan itu. Ia membunuh
+hanya backend SELECT yang menunggu client lebih tua dari
+`REAPER_MAX_AGE_MIN` menit (bawaan 30), mencatat ke
+`/var/log/atcell-db-reaper.log` dan syslog (`tag atcell-db-reaper`), lalu
+memberi tahu Telegram memakai `/root/.atcell-watchdog.env`.
+
+Pemasangan (host Coolify, sebagai root):
+
+```bash
+cd /opt/atcell && git pull
+sudo install -m 755 scripts/atcell-db-reaper.sh /usr/local/bin/atcell-db-reaper
+
+# /etc/cron.d/atcell-db-reaper
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+*/5 * * * * root /usr/local/bin/atcell-db-reaper >> /var/log/atcell-db-reaper.log 2>&1
+```
+
+Untuk rotasi, tiru `/etc/logrotate.d/atcell-backup` dengan path log dan nama
+tag `atcell-db-reaper.log`. Verifikasi sebelum memasang cron:
+
+```bash
+sudo REAPER_LOG=/tmp/reaper.log REAPER_DRY_RUN=1 /usr/local/bin/atcell-db-reaper
+```
+
+`REAPER_DRY_RUN=1` melaporkan kandidat tanpa membunuh apa pun. Script
+menemukan `DATABASE_URL` dari container aplikasi berlabel
+`coolify.applicationUuid=mebqjoh2ne1y3vt6jqryvvu9`, tidak pernah mencetaknya,
+dan tidak membutuhkan perubahan di repo untuk dijalankan.
+
+Penting: reaper memendekkan outage, bukan mencegahnya sepenuhnya. Healthcheck
+Coolify (`curl -f http://localhost:3000/api/health/ready || wget ...`) selalu
+gagal kalau curl gagal karena `wget` memang tidak ada di image. Keputusan
+target healthcheck (`live` vs `ready`) hanya bisa diubah di dashboard Coolify,
+bukan dari repo. Pertimbangkan `/api/health/live` agar Traefik tetap merutekan
+saat DB sedang bermasalah; `ready` tetap dipantau watchdog dan reaper.
+
 ## Testing wajib
 
 ```bash

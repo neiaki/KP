@@ -1,6 +1,6 @@
 # Status, Backlog, dan Keputusan Owner
 
-Diperbarui: 12 November 2026
+Diperbarui: 16 November 2026
 
 Dokumen ini satu-satunya sumber status pekerjaan yang masih terbuka. Riwayat
 rilis dan catatan yang sudah selesai ada di Git history, bukan dipertahankan di
@@ -58,6 +58,7 @@ sini.
 | N4 | Audit dependensi lanjutan | `bun audit --production` bersih. Satu advisory moderate dev-only `esbuild` lewat `drizzle-kit`, belum ada perbaikan upstream |
 | N5 | Update dependensi tertunda | Semua kandidat baru berumur kurang dari 14 hari atau major. Versi di-pin exact |
 | N6 | Branch protection `main` | Required check `verify`, `security`, `database-tests` aktif. Required PR review dan `enforce_admins` ditunda karena repo solo |
+| N15 | Insiden 503 16 Nov 2026 (pooler `ClientRead` macet, situs down >24 jam) | Pulih 16 Nov: 16 backend diterminasi + container restart; `scripts/atcell-db-reaper.sh` + `tests/reaper-durability.test.ts` dibuat | Reaper belum dipasang di host (`/etc/cron.d/atcell-db-reaper`); notifikasi Sentry uptime email sudah aktif (alert `6352978`) tapi Telegram watchdog butuh token di `/root/.atcell-watchdog.env`; notifikasi kegagalan uptime baru menjangkau owner lewat email; healthcheck Coolify perlu diputuskan `live` vs `ready` di dashboard; investigasi sumber gelombang koneksi macet belum selesai (kandidat: pratinjau Vercel berbagi `DATABASE_URL` production, dan socket setengah-mati VPS↔Supavisor) |
 | N7 | Backup off-site dan backup objek Storage | Butuh passphrase, `rclone`/endpoint upload, dan bukti restore. Lihat `DEPLOYMENT-REDUNDANCY.md` |
 | N8 | Isolasi preview Vercel dari database production | Preview masih bisa membaca production. Butuh project Supabase terpisah dan pencabutan env |
 | N9 | Pastikan proxy menimpa `X-Forwarded-Host` | Perlu verifikasi ops di Coolify/Traefik |
