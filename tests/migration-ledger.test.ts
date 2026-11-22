@@ -16,8 +16,10 @@ import postgres from "postgres";
  * migrations directory" tanpa menjelaskan apa mismatch-nya.
  *
  * Test lokal mengunci aturan penamaan dan keunikan versi. Test database
- * mengunci kesesuaian ledger dengan repo, dan sifatnya read-only: tidak pernah
- * menulis ke database mana pun.
+ * memastikan ledger production tidak punya versi tanpa file dan nama file
+ * yang sudah diterapkan cocok. Migration yang lebih baru dari versi tertinggi
+ * di ledger boleh menunggu uji staging sebelum diterapkan; file yang lebih tua
+ * atau sama dengan versi itu wajib sudah tercatat. Test bersifat read-only.
  *
  * Test database opt-in lewat DATABASE_URL supaya `bun run test` di CI tanpa
  * database tetap jalan.
@@ -181,18 +183,29 @@ test("ledger database tidak punya versi yang file repo tidak punya", { skip }, a
   );
 });
 
-test("setiap file migrasi di repo tercatat di ledger database", { skip }, async () => {
+test("migration lama di repo sudah tercatat di ledger database", { skip }, async () => {
   const rows = await sql!`
     select version, name
       from supabase_migrations.schema_migrations
   `;
   const ledger = new Map(rows.map((r) => [String(r.version), String(r.name ?? "")]));
-  const belum = migrasi.filter((m) => !ledger.has(m.version)).map((m) => m.file);
+  const versiTerbaruLedger = [...ledger.keys()].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true })
+  ).at(-1);
+  assert.ok(versiTerbaruLedger, "ledger production tidak boleh kosong");
+
+  const belum = migrasi
+    .filter(
+      (m) =>
+        !ledger.has(m.version) &&
+        m.version.localeCompare(versiTerbaruLedger, undefined, { numeric: true }) <= 0
+    )
+    .map((m) => m.file);
   assert.deepEqual(
     belum,
     [],
-    "file ini tidak tercatat sebagai sudah diterapkan, jadi db push akan " +
-      `menjalankannya lagi: ${belum.join(", ")}`
+    "migration sebelum atau sama dengan versi terbaru di ledger tidak tercatat: " +
+      belum.join(", ")
   );
 });
 

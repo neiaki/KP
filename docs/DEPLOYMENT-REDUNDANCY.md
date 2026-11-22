@@ -175,6 +175,7 @@ bergantung pada objek dari file sebelumnya.
 | `20261023112316_demo_inventory_imei_nullable.sql` | Unit demo boleh IMEI `NULL`; unit non-demo tetap wajib 15 digit |
 | `20261024110000_products_sales_update.sql` | Policy sales `UPDATE` produk untuk harga acuan dan foto lewat Server Action |
 | `20261024120000_products_sales_column_guard.sql` | Trigger yang menolak sales mengubah kolom identitas katalog |
+| `20261122101041_fix_handle_new_user_lower_order.sql` | Normalisasi username Auth sebelum sanitasi; belum diterapkan ke production |
 
 `0001` aman dijalankan ulang. Versi lama `0001` memberi `EXECUTE` pada
 `public.get_my_role()` dan `public.is_staff()` ke `anon` dan `authenticated`,
@@ -227,7 +228,7 @@ menjalankan ulang berkas yang sudah diterapkan. Terapkan lewat SQL Editor atau
 psql, lalu catat di ledger manual.
 
 `supabase/RUN-ALL-PENDING.sql` menggabungkan seluruh migrasi menjadi satu berkas
-urut, 34 bagian, untuk project kosong. Isi tiap bagian harus identik dengan
+urut, 35 bagian, untuk project kosong. Isi tiap bagian harus identik dengan
 berkas aslinya; `tests/run-all-pending.test.ts` menjaga kecocokan isi dan
 memastikan setiap berkas muncul tepat sekali. Jangan menjalankan kedua sumber
 sekaligus. Jangan menjalankan `supabase/drizzle/0000_*.sql` sebagai migration

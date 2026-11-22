@@ -1,6 +1,6 @@
 # Status, Backlog, dan Keputusan Owner
 
-Diperbarui: 16 November 2026
+Diperbarui: 22 November 2026
 
 Dokumen ini satu-satunya sumber status pekerjaan yang masih terbuka. Riwayat
 rilis dan catatan yang sudah selesai ada di Git history, bukan dipertahankan di
@@ -8,19 +8,20 @@ sini.
 
 ## 1. Keadaan repo
 
-- HEAD audit: `50d3581` (merge PR #178). Worktree sedang kotor karena
-  pembersihan dokumen, perbaikan service worker, font lokal, dan validasi DSN
-  Sentry belum di-commit.
-- Branch kerja: `improve/autoloop`. Jangan menganggap perubahan lokal sudah
-  masuk remote sebelum `git status --short --branch` diperiksa.
+- HEAD audit: `bff4879` (reaper pooler `ClientRead`). Branch kerja `main`,
+  worktree bersih kecuali `LAPORAN/` yang tidak dilacak.
+- Jangan menganggap perubahan lokal sudah masuk remote sebelum
+  `git status --short --branch` diperiksa.
 - Pin image production ada di baris `FROM` `Dockerfile.coolify`. Pin itu belum
   membuktikan production sudah menjalankan commit tersebut; verifikasi lewat
   Coolify dan health check.
 - Audit keamanan source-only terakhir: 0 confirmed, 1 needs_validation
   (`kp/rate-limit/bucket-eviction-credential-reset`), 5 rejected. Artefak ada
   di luar repo, di `~/security-audit-skill/KP/run-1/`.
-- Gate terakhir: 878 test (858 pass, 20 skip, 0 fail), `tsc` bersih, `lint`
-  bersih, `build` lolos.
+- Gate terakhir pada tree kode: 884 test (864 pass, 20 skip, 0 fail),
+  `tsc` bersih, `lint` bersih, `build` lolos setelah pengingat upgrade
+  keamanan Next.js. Test database di-skip karena `DATABASE_URL` lokal tidak
+  diatur.
 
 ## 2. Task aktif
 
@@ -58,13 +59,14 @@ sini.
 | N4 | Audit dependensi lanjutan | `bun audit --production` bersih. Satu advisory moderate dev-only `esbuild` lewat `drizzle-kit`, belum ada perbaikan upstream |
 | N5 | Update dependensi tertunda | Semua kandidat baru berumur kurang dari 14 hari atau major. Versi di-pin exact |
 | N6 | Branch protection `main` | Required check `verify`, `security`, `database-tests` aktif. Required PR review dan `enforce_admins` ditunda karena repo solo |
-| N15 | Insiden 503 16 Nov 2026 (pooler `ClientRead` macet, situs down >24 jam) | Pulih 16 Nov: 16 backend diterminasi + container restart; `scripts/atcell-db-reaper.sh` + `tests/reaper-durability.test.ts` dibuat | Reaper belum dipasang di host (`/etc/cron.d/atcell-db-reaper`); notifikasi Sentry uptime email sudah aktif (alert `6352978`) tapi Telegram watchdog butuh token di `/root/.atcell-watchdog.env`; notifikasi kegagalan uptime baru menjangkau owner lewat email; healthcheck Coolify perlu diputuskan `live` vs `ready` di dashboard; investigasi sumber gelombang koneksi macet belum selesai (kandidat: pratinjau Vercel berbagi `DATABASE_URL` production, dan socket setengah-mati VPS↔Supavisor) |
+| N15 | Insiden 503 16 Nov 2026 (pooler `ClientRead` macet, situs down >24 jam) | Pulih 16 Nov: 16 backend diterminasi + container restart; `scripts/atcell-db-reaper.sh` + `tests/reaper-durability.test.ts` dibuat. Reaper belum dipasang di host (`/etc/cron.d/atcell-db-reaper`); notifikasi Sentry uptime email sudah aktif (alert `6352978`) tapi Telegram watchdog butuh token di `/root/.atcell-watchdog.env`; notifikasi kegagalan uptime baru menjangkau owner lewat email; healthcheck Coolify perlu diputuskan `live` vs `ready` di dashboard; investigasi sumber gelombang koneksi macet belum selesai (kandidat: pratinjau Vercel berbagi `DATABASE_URL` production, dan socket setengah-mati VPS↔Supavisor) |
+| N16 | Error produksi Sentry `KP-1` (`57014` dari `GET /api/health/ready`) | Satu event 17 Nov, tidak berulang setelah insiden 503. Akar masalah di `postgres` 3.4.9: `fetchArrayTypes()` menjalankan query internal `pg_type` dari `ReadyForQuery` tanpa `await`/`catch`, sehingga `statement_timeout` 8 detik menjadi unhandled rejection. Reproduksi lokal dengan server PostgreSQL tiruan: `fetch_types: true` = 1 unhandled rejection, `fetch_types: false` = 0. Belum ada perubahan kode; owner pilih D5: upgrade `postgres` 4.1.1 atau `fetch_types: false` + normalisasi `text[]` |
 | N7 | Backup off-site dan backup objek Storage | Butuh passphrase, `rclone`/endpoint upload, dan bukti restore. Lihat `DEPLOYMENT-REDUNDANCY.md` |
 | N8 | Isolasi preview Vercel dari database production | Preview masih bisa membaca production. Butuh project Supabase terpisah dan pencabutan env |
 | N9 | Pastikan proxy menimpa `X-Forwarded-Host` | Perlu verifikasi ops di Coolify/Traefik |
 | N10 | Keputusan exclusion angka lab Lighthouse | Menunggu owner; angka jaringan nyata sudah baik |
 | N12 | Arsipkan atau koreksi `docs/3.4 Perancangan Database At Cell.docx` | Lokal, gitignored, tidak ikut repo |
-| N13 | Perbaiki urutan `lower()` dan `regexp_replace` di `handle_new_user` | `0005_username_login.sql` menjalankan regexp sebelum `lower()`, huruf besar di prefix email bisa bertabrakan. Butuh migrasi baru dan uji staging |
+| N13 | Perbaiki urutan `lower()` dan `regexp_replace` di `handle_new_user` | Migrasi `20261122101041_fix_handle_new_user_lower_order.sql` memperbaiki trigger dan fallback format username. Tidak mengubah username akun lama otomatis; butuh uji staging sebelum diterapkan ke production |
 | N14 | Validasi lead rate limit `cred-user` | Butuh fakta deployment: jumlah replika/container Coolify, kepercayaan `X-Forwarded-For` di Traefik, dan ada-tidaknya WAF. Tanpa itu tetap `needs_validation` |
 
 ## 3. Keputusan owner
@@ -130,11 +132,40 @@ ingin ditutup.
 bawah modal, kecuali toko sengaja memakai loss leader. Harga impas tetap
 diizinkan.
 
+### D5: driver `postgres` untuk KP-1
+
+Sentry `KP-1` (`57014`, culprit `GET /api/health/ready`) berasal dari
+`postgres` 3.4.9, bukan dari kode repo. `fetchArrayTypes()` mengirim query
+internal `pg_type` dari `ReadyForQuery` tanpa `await` atau `catch`, sehingga
+`statement_timeout` 8 detik menjadi unhandled rejection. Reproduksi lokal
+dengan server PostgreSQL tiruan: `fetch_types: true` menghasilkan 1 unhandled
+rejection, `fetch_types: false` menghasilkan 0. `postgres` 4.1.1 memindahkan
+pemuatan tipe ke pool, jadi bug ini tidak ada di 4.x.
+
+- **A. Upgrade `postgres` ke 4.1.1.** Perbaikan bersih di sumbernya. Major
+  version, jadi wajib gate penuh dan uji baca/tulis `text[]`, JSONB, dan
+  transaksi.
+- **B. Set `fetch_types: false` di `buildDb()`.** Tanpa major bump, tetapi
+  `db.execute` mentah berhenti mem-parse array. `getPublicInventory` di
+  `src/lib/actions/public.ts` membaca `official_images`/`second_images`
+  (`text[]`), jadi perlu normalisasi sebelum opsi ini aman.
+- **C. Biarkan.** Satu event, tidak berulang, tetapi unhandled rejection bisa
+  mematikan proses kalau `statement_timeout` terpicu lagi.
+
+Rekomendasi: A. 3.4.9 adalah rilis 3.x terakhir dan perbaikannya struktural;
+B hanya kalau upgrade major ditunda.
+
 ## 4. Tindakan owner di luar kode
 
-1. Ganti `SENTRY_DSN` di `~/.secrets` dengan DSN asli. Nilai sekarang
+1. Sentry: ganti `SENTRY_DSN` di `~/.secrets` dengan DSN asli. Nilai sekarang
    `sntryu_...`, itu auth token. Simpan token terpisah sebagai
-   `SENTRY_AUTH_TOKEN`. Jalankan `opencode mcp auth sentry` untuk OAuth MCP.
+   `SENTRY_AUTH_TOKEN`. OAuth MCP Sentry kedaluwarsa 15 Nov 2026 (access token
+   401, refresh `invalid_grant`), jadi jalankan `opencode mcp auth sentry` dari
+   terminal yang bisa membuka browser. Scope yang diminta mencakup tulis
+   (`project:write team:write event:write alerts:write`); jangan setujui kalau
+   hanya butuh baca. Tanpa OAuth, issue yang punya share ID masih bisa dibaca
+   read-only lewat
+   `https://sentry.io/api/0/organizations/personal-x1b/shared/issues/<share_id>/`.
 2. Backup off-site: buat passphrase, pasang `rclone` atau endpoint HTTP PUT,
    jalankan `atcell-offsite` manual, lalu buktikan restore.
 3. Isi `STORAGE_*` di environment aplikasi dan jalankan

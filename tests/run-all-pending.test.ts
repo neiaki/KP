@@ -137,6 +137,10 @@ const SECTIONS: { label: string; source: string }[] = [
     label: "20261024120000_products_sales_column_guard",
     source: "20261024120000_products_sales_column_guard.sql",
   },
+  {
+    label: "20261122101041_fix_handle_new_user_lower_order",
+    source: "20261122101041_fix_handle_new_user_lower_order.sql",
+  },
 ];
 
 /** Setiap berkas di supabase/migrations/ wajib muncul, tanpa kecuali. */

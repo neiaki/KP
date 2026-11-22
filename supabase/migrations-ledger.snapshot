@@ -11,17 +11,16 @@
 # sama persis dengan yang dibaca test, tidak ada yang bisa gagal. Testnya
 # hanya akan membuktikan bahwa bash bisa menyalin nama berkas ke database,
 # sedangkan masalah yang sebenarnya adalah "versi di ledger production tidak
-# punya berkas" atau "berkas tidak tercatat". Snapshot yang di-check-in
-# membuat test itu benar-benar bisa merah: begitu ada migrasi baru yang belum
-# di-seed di sini, atau versi lama yang hilang dari ledger production, job
-# gagal.
+# punya berkas" atau ada migration lama yang hilang dari ledger. Snapshot
+# yang di-check-in menjaga kedua kondisi itu tetap bisa terdeteksi. File
+# migration yang lebih baru dari versi tertinggi snapshot boleh menunggu staging.
 #
 # Cara memperbarui setelah menambah migrasi:
 #   psql "$DATABASE_URL" -tAc \
 #     "select version || '|' || name from supabase_migrations.schema_migrations order by version"
-# lalu salin hasilnya ke bawah. Kalau migrasi belum ada di production, JANGAN
-# ditambah di sini: biarkan job CI yang memberi tahu, atau tambahkan ke
-# production lebih dulu sesuai langkah di docs/DEPLOYMENT-REDUNDANCY.md.
+# lalu salin hasilnya ke bawah setelah migrasi benar-benar diterapkan di
+# production. Jangan menambahkan migration pending ke snapshot; uji staging
+# sesuai docs/DEPLOYMENT-REDUNDANCY.md lebih dulu.
 #
 # Format: satu versi per baris, dipisah tab. Baris komentar dan baris kosong
 # diabaikan.
