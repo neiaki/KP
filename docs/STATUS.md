@@ -10,6 +10,10 @@ sini.
 
 - Baseline sebelum patch Next.js: `4114737`; patch Next.js 16.4.6 sudah masuk
   `main` di `0a3b31a`. `LAPORAN/` tetap lokal dan tidak dilacak Git.
+- `Dockerfile.coolify` kini dipin ke image `sha-b14e793286005dac86e01a0415bf1a6499656743`
+  melalui `e1d19b1`. Build image yang dipin dan image untuk `e1d19b1` berhasil
+  dibuat. Ini menyiapkan rollout, tetapi belum membuktikan deployment Coolify
+  production sudah diperbarui.
 - Jangan menganggap perubahan lokal sudah masuk remote sebelum
   `git status --short --branch` diperiksa.
 - Pin image production ada di baris `FROM` `Dockerfile.coolify`. Pin itu belum
@@ -19,8 +23,9 @@ sini.
   `needs_validation`. Run-2 parsial belum lengkap karena provider `opencode2`
   tidak tersedia: 6 unit blocked dan 27 deferred. Laporan ada di luar repo,
   pada `~/security-audit-skill/KP/run-2/`.
-- CI main untuk commit `0a3b31a` lulus tests, typecheck, lint, dan production
-  build; security, database contract tests, dan build image juga lulus.
+- CI, security, database contract tests, build image, dan deployment Vercel
+  untuk `e1d19b1` lulus. CI mencakup tests, typecheck, lint, dan production
+  build.
 
 ## 2. Task aktif
 
@@ -53,10 +58,10 @@ sini.
 
 | ID | Task | Status dan blocker |
 |---|---|---|
-| N1 | Verifikasi DB-level di staging/lokal | CI PostgreSQL polos dan 6 test RLS lulus (run `40700897417`, 40/40). Supabase Auth/PostgREST/Storage dan RLS staging belum diuji. Jalankan `DATABASE_URL=<staging> bun run test`, jangan production |
+| N1 | Verifikasi DB-level di staging/lokal | CI PostgreSQL polos dan 6 test RLS lulus (run `40700897417`, 40/40). Supabase Auth/PostgREST/Storage dan RLS staging belum diuji. Environment ini tidak memiliki file `.env` staging atau Supabase CLI; akses Docker daemon juga ditolak. Jalankan `DATABASE_URL=<staging> bun run test`, jangan production |
 | N3 | E2E Playwright tiga kali hijau | Paket Playwright tidak terpasang, tidak ada backend live. Butuh Supabase/PostgreSQL lokal sekali pakai |
-| N4 | Audit dependensi lanjutan | `@sentry/nextjs` dinaikkan ke 11.11.0; `bun audit --production` sekarang bersih. Audit penuh masih melaporkan 2 moderat dev-only: `esbuild@0.18.20` melalui loader Drizzle dan `minimatch@10.2.6` melalui TypeScript-ESLint. Perbaikan memerlukan dukungan upstream yang kompatibel; hindari override major tanpa uji |
-| N5 | Update dependensi tertunda | `next` dan `eslint-config-next` dinaikkan dari 16.4.2 ke 16.4.6; rilis 16.4.5 membawa patch keamanan dan 16.4.6 adalah patch LTS terbaru. Lockfile konsisten dan CI run `45018105681` lulus tests, typecheck, lint, serta production build. Kandidat lain tetap ditunda bila butuh major atau belum cukup matang |
+| N4 | Audit dependensi lanjutan | `@sentry/nextjs` 11.11.0 menutup advisory `glob`; `typescript-eslint` transitive diperbarui 8.71.2 → 8.73.0 melalui rentang kompatibel dan menutup advisory `minimatch`. `bun audit --production` bersih. Audit penuh kini hanya melaporkan `esbuild@0.18.20` moderat melalui loader deprecated milik `drizzle-kit@0.31.11`; versi aman `esbuild` lain juga ada di graph. Hindari override lintas major; tinjau lagi saat upstream Drizzle menghapus loader tersebut |
+| N5 | Update dependensi tertunda | `next` dan `eslint-config-next` dinaikkan dari 16.4.2 ke 16.4.6; rilis 16.4.5 membawa patch keamanan dan 16.4.6 adalah patch LTS terbaru. Lockfile konsisten; CI, security, database contract tests, build image, dan Vercel untuk `e1d19b1` lulus. Kandidat lain tetap ditunda bila butuh major atau belum cukup matang |
 | N6 | Branch protection `main` | Required check `verify`, `security`, `database-tests` aktif. Required PR review dan `enforce_admins` ditunda karena repo solo |
 | N15 | Insiden 503 16 Nov 2026 (pooler `ClientRead` macet, situs down >24 jam) | Pulih 16 Nov: 16 backend diterminasi + container restart; `scripts/atcell-db-reaper.sh` + `tests/reaper-durability.test.ts` dibuat. Reaper belum dipasang di host (`/etc/cron.d/atcell-db-reaper`); notifikasi Sentry uptime email sudah aktif (alert `6352978`) tapi Telegram watchdog butuh token di `/root/.atcell-watchdog.env`; notifikasi kegagalan uptime baru menjangkau owner lewat email; healthcheck Coolify perlu diputuskan `live` vs `ready` di dashboard; investigasi sumber gelombang koneksi macet belum selesai (kandidat: pratinjau Vercel berbagi `DATABASE_URL` production, dan socket setengah-mati VPS↔Supavisor) |
 | N16 | Error produksi Sentry `KP-1` (`57014` dari `GET /api/health/ready`) | Satu event 17 Nov, tidak berulang setelah insiden 503. Akar masalah di `postgres` 3.4.9: `fetchArrayTypes()` menjalankan query internal `pg_type` dari `ReadyForQuery` tanpa `await`/`catch`, sehingga `statement_timeout` 8 detik menjadi unhandled rejection. Reproduksi lokal dengan server PostgreSQL tiruan: `fetch_types: true` = 1 unhandled rejection, `fetch_types: false` = 0. Belum ada perubahan kode; owner pilih D5: upgrade `postgres` 4.1.1 atau `fetch_types: false` + normalisasi `text[]` |
