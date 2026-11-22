@@ -38,7 +38,10 @@ type Hasil = {
  * memuat kutip tunggal, jadi jalur stub auth.users ikut teruji di setiap
  * pemanggilan.
  */
-function jalankan(env: Record<string, string>): Hasil {
+function jalankan(
+  env: Record<string, string>,
+  opts?: { detachTty?: boolean },
+): Hasil {
   const akar = mkdtempSync(join(tmpdir(), "restore-guard-"));
   const bin = join(akar, "bin");
   mkdirSync(bin);
@@ -81,7 +84,12 @@ function jalankan(env: Record<string, string>): Hasil {
     { mode: 0o755 }
   );
 
-  const hasil = spawnSync("bash", [script], {
+  // setsid membuat sesi baru tanpa controlling terminal sehingga
+  // /dev/tty tidak bisa dibuka oleh script. Dipakai untuk menguji jalur
+  // "tidak ada terminal" secara konsisten di CI maupun lingkungan lokal.
+  const cmd = opts?.detachTty ? "setsid" : "bash";
+  const args = opts?.detachTty ? ["bash", script] : [script];
+  const hasil = spawnSync(cmd, args, {
     encoding: "utf8",
     timeout: 60_000,
     // Environment diwarisi dari proses test lalu ditimpa seperlunya, supaya
@@ -208,13 +216,18 @@ test("ALLOW_RESTORE saja tetap wajib ada", () => {
 });
 
 test("tanpa konfirmasi interaksi script berhenti sebelum menyentuh database", () => {
-  // Konfirmasi ditulis ke /dev/tty. Di runner ini tidak ada controlling
-  // terminal, jadi script harus menolak dengan pesannya sendiri, bukan dengan
-  // ENXIO dari shell. Jalur tanpa interaksi diuji lewat RESTORE_ASSUME_YES.
-  const hasil = jalankan({
-    ALLOW_RESTORE: "YES",
-    RESTORE_DATABASE_URL: LOKAL,
-  });
+  // Konfirmasi ditulis ke /dev/tty. Script harus menolak dengan pesannya
+  // sendiri (exit 4), bukan dengan ENXIO dari shell. setsid membuat sesi baru
+  // tanpa controlling terminal supaya test ini konsisten di CI maupun lokal
+  // (lokal punya /dev/tty yang terbuka, CI tidak).
+  // Jalur tanpa interaksi diuji lewat RESTORE_ASSUME_YES.
+  const hasil = jalankan(
+    {
+      ALLOW_RESTORE: "YES",
+      RESTORE_DATABASE_URL: LOKAL,
+    },
+    { detachTty: true },
+  );
   assert.equal(hasil.status, 4, `script harus berhenti tanpa konfirmasi. ${hasil.stderr}`);
   assert.deepEqual(hasil.panggilan, [], "tidak boleh ada perintah database sebelum konfirmasi");
 });
